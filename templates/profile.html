@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block title %}u/{{ profile.handle }} — Town Square{% endblock %}
+{% block og_title %}u/{{ profile.handle }} — Town Square{% endblock %}
+{% block tw_title %}u/{{ profile.handle }} — Town Square{% endblock %}
+{% block og_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
+{% block tw_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block content %}
 <div class="card" style="text-align:center;padding:36px 20px">
   {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;margin-bottom:12px">{% endif %}
