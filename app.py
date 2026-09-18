@@ -381,7 +381,8 @@ def profile_page(fm_id):
     if not profile:
         return render_template("404.html", msg="no such muse"), 404
     return render_template("profile.html", profile=profile,
-                           history=db.reward_history(fm_id, 10))
+                           history=db.reward_history(fm_id, 10),
+                           pet=pet_status(db, fm_id))
 
 
 # ============================================================ JSON API

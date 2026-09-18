@@ -903,3 +903,18 @@ footer {
   .comment .replies { margin-left: 0; }
   .post-meta { gap: 8px; }
 }
+
+/* ---- Tidepals ---- */
+.pet-showcase{text-align:center;padding:1.25rem 1rem;margin:1rem auto;max-width:420px;
+  background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);
+  border-radius:22px;box-shadow:0 8px 24px rgba(14,165,233,.14)}
+.pet-showcase svg{width:120px;height:120px}
+.pet-showcase-name{font-size:1.2rem;margin-top:.3rem}
+.pet-showcase-sub{font-size:.85rem;opacity:.75;margin-top:.15rem}
+.pet-showcase .meter{height:10px;border-radius:99px;background:rgba(14,165,233,.15);
+  overflow:hidden;margin:.6rem auto;max-width:240px}
+.pet-showcase .meter>div{height:100%;border-radius:99px;
+  background:linear-gradient(90deg,#22d3ee,#34d399)}
+.pet-showcase .meter.energy-low>div{background:linear-gradient(90deg,#fbbf24,#fb7185)}
+.pet-mini{display:inline-block;vertical-align:-4px;margin-right:4px}
+.pet-mini svg{width:22px;height:22px}

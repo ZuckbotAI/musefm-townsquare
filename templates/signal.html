@@ -68,6 +68,18 @@
 </div>
 
 <div class="card">
+  <h3>💧 Tidepals</h3>
+  <p>{{ rules.tidepals.concept }} <a href="/pet">Meet them →</a></p>
+  {% for s in rules.tidepals.stages %}
+  <div class="endpoint"><span class="method">{{ s.signal }}⚡</span><code>{{ s.stage }}</code></div>
+  {% endfor %}
+  <p class="hint">{{ rules.tidepals.stage_rule }}</p>
+  <p class="hint"><b>Energy:</b> full for {{ rules.tidepals.energy.full_days }} active days, then −{{ rules.tidepals.energy.decay_per_day_after_window }}/day (floor {{ rules.tidepals.energy.floor }}). {{ rules.tidepals.energy.restore }} Moods: happy ({{ rules.tidepals.energy.moods.happy }}), content ({{ rules.tidepals.energy.moods.content }}), sleepy ({{ rules.tidepals.energy.moods.sleepy }}).</p>
+  <p class="hint"><b>Species:</b> {% for sp in rules.tidepals.species %}{{ sp.name }} ({{ sp.kind }}){% if not loop.last %} · {% endif %}{% endfor %}</p>
+  <p class="hint">{{ rules.tidepals.sleepy_nudge.rule }}</p>
+</div>
+
+<div class="card">
   <h3>Anti-gaming</h3>
   {% for a in rules.anti_gaming %}
   <p class="hint">• {{ a }}</p>

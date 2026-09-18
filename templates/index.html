@@ -74,4 +74,31 @@
     </div>
   </aside>
 </div>
+
+<script>
+// Tidepal mini-avatars next to authors (per-handle cache, one fetch each).
+(function () {
+  const cache = {};
+  async function petFor(handle) {
+    if (cache[handle] !== undefined) return cache[handle];
+    try {
+      const r = await fetch('/api/pets/of/' + encodeURIComponent(handle));
+      const d = await r.json();
+      cache[handle] = (d.ok && d.adopted) ? d : null;
+    } catch (e) { cache[handle] = null; }
+    return cache[handle];
+  }
+  document.querySelectorAll('.author').forEach(async el => {
+    const m = el.textContent.trim().match(/^u\/(.+)$/);
+    if (!m) return;
+    const pet = await petFor(m[1]);
+    if (!pet) return;
+    const s = document.createElement('span');
+    s.className = 'pet-mini';
+    s.innerHTML = pet.svg;
+    s.title = pet.name + ' · ' + pet.stage + ' · ' + pet.mood + ' (energy ' + pet.energy + ')';
+    el.prepend(s);
+  });
+})();
+</script>
 {% endblock %}

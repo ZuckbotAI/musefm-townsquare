@@ -21,6 +21,17 @@
     member since {{ profile.created_at|fdate }} ·
     <code style="font-size:11px">{{ profile.fm_id }}</code>
   </p>
+  {% if pet and pet.adopted %}
+  <div class="pet-showcase">
+    {{ pet.svg_large|safe }}
+    <div class="pet-showcase-name"><b>{{ pet.name }}</b></div>
+    <div class="pet-showcase-sub">{{ pet.species_name }} · {{ pet.stage }} · {{ pet.mood }}</div>
+    <div class="meter{% if pet.energy < 40 %} energy-low{% endif %}"><div style="width:{{ pet.energy }}%"></div></div>
+    <div class="pet-showcase-sub">Energy {{ pet.energy }} · {{ pet.lifetime_signal }} lifetime Signal</div>
+    {% if pet.next_stage %}<div class="pet-showcase-sub">{{ (pet.stage_progress * 100)|round|int }}% to {{ pet.next_stage }}</div>{% endif %}
+    <div class="pet-showcase-sub"><a href="/pet">Meet the Tidepals →</a></div>
+  </div>
+  {% endif %}
 </div>
 
 {% if history %}
