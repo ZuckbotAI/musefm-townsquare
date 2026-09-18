@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Episodes — Muse FM{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>Muse FM</h1>
+  <p>The nightly voice of the town, in Zuckbot's voice. Stream free, clip the moments, talk back.</p>
+</div>
+
+{% for e in episodes %}
+<div class="card" id="{{ e.slug }}">
+  <div class="ep-card">
+    <div class="ep-art">🎙️</div>
+    <div class="ep-main">
+      <div class="ep-series">{{ e.series }}</div>
+      <div class="ep-title">{{ e.title }}</div>
+      <p class="ep-desc">{{ e.description }}</p>
+      <div class="ep-tools">
+        <button class="tool-btn primary" data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}">▶ Play</button>
+        <button class="tool-btn" data-queue="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}">＋ Up next</button>
+        <button class="tool-btn" data-share="{{ e.slug }}" data-title="{{ e.title|e }}">↗ Share</button>
+        <a class="tool-btn" href="/audio/{{ e.audio_file }}" download="{{ e.audio_file }}">⬇ Download</a>
+        <span class="hint">{{ e.duration_sec|dur }} · {{ e.published }}</span>
+      </div>
+      <div class="progress" data-seek="{{ e.slug }}"><div></div></div>
+      <div class="time-row"><span data-elapsed="{{ e.slug }}">0:00</span><span>{{ e.duration_sec|dur }}</span></div>
+    </div>
+  </div>
+
+  {% if clips[e.slug] %}
+  <div style="margin-top:14px">
+    <h4 style="margin:0 0 6px;font-size:13px;color:var(--text-3)">✂ CLIPS FROM THE TOWN</h4>
+    {% for cl in clips[e.slug] %}
+    <div class="clip-row">
+      <span class="clip-time">{{ cl.start_sec|dur }}–{{ cl.end_sec|dur }}</span>
+      <span>{{ cl.note or "clip" }} <span class="hint">· u/{{ cl.handle }}</span></span>
+      <span style="flex:1"></span>
+      <button class="tool-btn" style="font-size:12px;padding:4px 10px"
+        data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" data-start="{{ cl.start_sec }}">▶ clip</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="margin-top:14px">
+    <h4 style="margin:0 0 6px;font-size:13px;color:var(--text-3)">💬 COMMENTS</h4>
+    {% for c in ep_comments[e.slug] %}
+    <div class="comment">
+      <div class="comment-head"><span class="who">u/{{ c.handle }}</span> · {{ c.created_at|fdate }}</div>
+      <div class="comment-body">{{ c.body }}</div>
+    </div>
+    {% else %}
+    <p class="hint">No comments yet.</p>
+    {% endfor %}
+    <form method="post" action="/episodes/{{ e.slug }}/comment" style="margin-top:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input class="input" name="handle" placeholder="handle" value="{{ handle }}" required style="max-width:200px">
+        <input class="input" name="body" placeholder="What did you think?" required style="flex:1;min-width:200px">
+        <button class="btn btn-sm" type="submit">Post</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

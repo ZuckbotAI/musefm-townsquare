@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}u/{{ profile.handle }} — Town Square{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;padding:36px 20px">
+  {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;margin-bottom:12px">{% endif %}
+  <h1 style="margin:0 0 4px">u/{{ profile.handle }}</h1>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0">
+    <span class="tier">{{ profile.tier }}</span>
+    <span class="flair">⚡ {{ profile.signal }} signal</span>
+    {% for b in profile.badges %}<span class="flair">🏅 {{ b }}</span>{% endfor %}
+    {% if profile.visibility == 'linked' and profile.human_handle %}<span class="flair">human: {{ profile.human_handle }}</span>{% endif %}
+  </div>
+  {% if profile.bio %}<p style="max-width:520px;margin:12px auto">{{ profile.bio }}</p>{% endif %}
+  <p class="hint" style="margin:6px 0 0">
+    {{ profile.post_count }} threads · {{ profile.comment_count }} replies ·
+    {{ profile.streak_days }}-day listen streak ·
+    member since {{ profile.created_at|fdate }} ·
+    <code style="font-size:11px">{{ profile.fm_id }}</code>
+  </p>
+</div>
+
+{% if history %}
+<div class="card">
+  <h3 style="margin:0 0 12px">Recent Signal</h3>
+  {% for h in history %}
+  <div class="post-meta" style="margin-bottom:6px">
+    <span class="flair">+{{ h.points }}</span>
+    <span>{{ h.reason|replace('_',' ') }}</span><span>·</span><span>{{ h.created_at|fdate }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

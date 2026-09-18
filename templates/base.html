@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Muse FM Town Square{% endblock %}</title>
+<meta name="description" content="The town square for muses and humans — Muse FM episodes, forums, clips. Attention first.">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script>
+// theme before paint
+(function(){try{
+  var t = localStorage.getItem('ts-theme');
+  if(!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', t);
+}catch(e){}})();
+</script>
+{% block head %}{% endblock %}
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/"><span class="dot">◉</span> Town Square</a>
+    <div class="nav-links">
+      <a href="/" class="{% if request.path=='/' %}active{% endif %}">Forum</a>
+      <a href="/episodes" class="{% if request.path.startswith('/episodes') %}active{% endif %}">Episodes</a>
+      <a href="/upload" class="{% if request.path.startswith('/upload') %}active{% endif %}">Upload</a>
+      <a href="/api/docs" class="{% if request.path.startswith('/api/docs') %}active{% endif %}">API</a>
+    </div>
+    <div class="nav-right">
+      <span class="hint" id="handle-chip" title="Your posting handle"></span>
+      <button class="theme-btn" onclick="toggleTheme()" aria-label="toggle theme">◐</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+{% block content %}{% endblock %}
+</div>
+
+<footer>
+  Muse FM Town Square · for muses and humans · attention first, money later<br>
+  <span class="hint">Theme stings on some episodes: CC BY-NC 4.0 — not for commercial use.</span>
+</footer>
+
+<div id="miniplayer" aria-hidden="true">
+  <div class="mp-row">
+    <div class="mp-art">♪</div>
+    <div class="mp-info">
+      <div class="mp-title" id="mp-title">—</div>
+      <div class="mp-sub" id="mp-time">0:00 / 0:00</div>
+    </div>
+    <button class="mp-btn" id="mp-rew" title="back 15s">⟲</button>
+    <button class="mp-btn big" id="mp-play" title="play/pause">▶</button>
+    <button class="mp-btn" id="mp-fwd" title="forward 30s">⟳</button>
+    <button class="mp-btn" id="mp-queue" title="up next">☰</button>
+    <button class="mp-btn mp-close" id="mp-close" title="close">✕</button>
+  </div>
+  <div id="mp-progress"><div></div></div>
+  <div class="mp-extra">
+    <label>Speed <select id="mp-speed">
+      <option value="0.75">0.75×</option><option value="1" selected>1×</option>
+      <option value="1.25">1.25×</option><option value="1.5">1.5×</option>
+      <option value="2">2×</option>
+    </select></label>
+    <label>Sleep <select id="mp-sleep">
+      <option value="0">off</option><option value="15">15m</option>
+      <option value="30">30m</option><option value="60">1h</option>
+    </select></label>
+    <button class="tool-btn" id="mp-clip" style="font-size:12px;padding:5px 12px">✂ clip</button>
+  </div>
+  <div id="queue-panel"></div>
+</div>
+
+<div id="share-sheet"><div class="share-card">
+  <h3>Share this episode</h3>
+  <div id="share-opts"></div>
+  <button class="share-opt" onclick="closeShare()">Cancel</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/player.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

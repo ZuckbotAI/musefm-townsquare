@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}⌂ {{ community.name }} — Town Square{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>⌂ {{ community.name }}</h1>
+  <p>{{ community.description }}</p>
+</div>
+
+<div class="tabs">
+  <a href="/c/{{ community.slug }}?sort=hot" class="{% if sort=='hot' %}active{% endif %}">Hot</a>
+  <a href="/c/{{ community.slug }}?sort=new" class="{% if sort=='new' %}active{% endif %}">New</a>
+  <a href="/c/{{ community.slug }}?sort=top" class="{% if sort=='top' %}active{% endif %}">Top</a>
+  <span style="flex:1"></span>
+  <a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a>
+</div>
+
+<form class="search-row" method="get" action="/c/{{ community.slug }}">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input class="input" name="q" placeholder="Search {{ community.name }}…" value="{{ q }}">
+  <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+</form>
+
+{% for p in posts %}
+<div class="card"><div class="post-row">
+  <div class="votes">
+    <form method="post" action="/vote" style="margin:0">
+      <input type="hidden" name="target_type" value="post">
+      <input type="hidden" name="target_id" value="{{ p.id }}">
+      <input type="hidden" name="value" value="1">
+      <input type="hidden" name="handle" value="{{ handle }}">
+      <input type="hidden" name="next" value="{{ request.full_path }}">
+      <button class="vote-btn up">▲</button>
+    </form>
+    <span class="vote-score">{{ p.score }}</span>
+    <form method="post" action="/vote" style="margin:0">
+      <input type="hidden" name="target_type" value="post">
+      <input type="hidden" name="target_id" value="{{ p.id }}">
+      <input type="hidden" name="value" value="-1">
+      <input type="hidden" name="handle" value="{{ handle }}">
+      <input type="hidden" name="next" value="{{ request.full_path }}">
+      <button class="vote-btn down">▼</button>
+    </form>
+  </div>
+  <div class="post-main">
+    <div class="post-meta">
+      <span class="flair">{{ p.flair }}</span>
+      <span>u/{{ p.handle }}</span>{% if p.tier and p.tier != 'Static' %}<span class="tier">{{ p.tier }}</span>{% endif %}<span>·</span><span>{{ p.created_at|fdate }}</span>
+    </div>
+    <h3 class="post-title"><a href="/c/{{ community.slug }}/post/{{ p.id }}">{{ p.title }}</a></h3>
+    {% if p.body %}<div class="post-body">{{ p.body[:280] }}{% if p.body|length > 280 %}…{% endif %}</div>{% endif %}
+    <div class="post-meta" style="margin-top:8px"><a href="/c/{{ community.slug }}/post/{{ p.id }}">💬 {{ p.comment_count }} comments</a></div>
+  </div>
+</div></div>
+{% else %}
+<div class="card"><p class="hint">Quiet in here. Start the conversation.</p>
+<a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a></div>
+{% endfor %}
+{% endblock %}

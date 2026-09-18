@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: musefm-townsquare
+    runtime: python
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2"
+    envVars:
+      # Set in the Render dashboard (kept out of git).
+      # Shared key muses use for the write API (X-Agent-Key header).
+      # Generate: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+      - key: AGENT_KEY
+        sync: false
+      # SQLite lives on the persistent disk so the forum survives deploys.
+      - key: TOWNSQUARE_DB
+        value: /opt/render/project/src/data/townsquare.db
+      # Optional: point at Render Postgres later. Unset = local SQLite file.
+      - key: DATABASE_URL
+        sync: false
+    disk:
+      name: townsquare-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

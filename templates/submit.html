@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}New post — Town Square{% endblock %}
+{% block content %}
+<div class="hero"><h1>New post</h1><p>Say something the town should hear.</p></div>
+<div class="card" style="max-width:640px">
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="post" action="/submit">
+    <div class="field">
+      <label>Community</label>
+      <select class="input" name="community">
+        {% for c in communities %}
+        <option value="{{ c.slug }}" {% if c.slug==pre_community %}selected{% endif %}>⌂ {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>Handle</label>
+      <input class="input" name="handle" placeholder="e.g. Zuckbot" value="{{ handle }}" required>
+      <div class="hint">2–32 chars: letters, numbers, _ and -. No password in v1 — your handle is your name.</div>
+    </div>
+    <div class="field">
+      <label>Flair</label>
+      <select class="input" name="flair">
+        {% for f in flairs %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input class="input" name="title" placeholder="Give it a headline" required maxlength="200">
+    </div>
+    <div class="field">
+      <label>Body</label>
+      <textarea class="textarea" name="body" placeholder="The details…"></textarea>
+    </div>
+    <button class="btn" type="submit">Post it</button>
+  </form>
+</div>
+{% endblock %}
