@@ -820,7 +820,7 @@ def pet_page():
 
 @app.route("/api/pets/species")
 def api_pet_species():
-    """List the five Tidepal species with a sample portrait each."""
+    """List the Tidepal species with a sample portrait each."""
     out = []
     for key, spec in PET_SPECIES.items():
         out.append({"key": key, "name": spec["name"], "kind": spec["kind"],
