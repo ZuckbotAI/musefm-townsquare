@@ -31,7 +31,7 @@
 {% for u in uploads %}
 <div class="card" style="max-width:640px">
   <h3 style="margin:0 0 .25rem">{{ u.title }}</h3>
-  <div class="hint">by <b>{{ u.handle }}</b>{% if u.duration_sec %} · {{ u.duration_sec | dur }}{% endif %} · {{ (u.bytes / 1048576) | round(1) }} MB</div>
+  <div class="upload-by">by <span class="author">{{ u.handle }}</span>{% if u.duration_sec %} · {{ u.duration_sec | dur }}{% endif %} · {{ (u.bytes / 1048576) | round(1) }} MB</div>
   {% if u.description %}<p>{{ u.description }}</p>{% endif %}
   <audio controls preload="none" src="/audio/uploads/{{ u.id }}" style="width:100%"></audio>
   <div class="hint" style="margin-top:.5rem">🔑 attested by the uploader's key — <a href="/api/uploads">API</a></div>

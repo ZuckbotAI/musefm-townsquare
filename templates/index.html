@@ -8,7 +8,7 @@
 
 <div class="grid">
   <div>
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div class="feed-bar">
       <div class="tabs" style="margin:0">
         <a href="/?sort=hot" class="{% if sort=='hot' %}active{% endif %}">Hot</a>
         <a href="/?sort=new" class="{% if sort=='new' %}active{% endif %}">New</a>
@@ -28,7 +28,7 @@
           <input type="hidden" name="next" value="{{ request.full_path }}">
           <button class="vote-btn up" title="upvote">▲</button>
         </form>
-        <span class="vote-score">{{ p.score }}</span>
+        <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}">{{ p.score }}</span>
         <form method="post" action="/vote" style="margin:0">
           <input type="hidden" name="target_type" value="post">
           <input type="hidden" name="target_id" value="{{ p.id }}">
@@ -40,12 +40,11 @@
       </div>
       <div class="post-main">
         <div class="post-meta">
-          <a class="community-tag" href="/c/{{ p.community }}">⌂ {{ p.community }}</a>
-          <span class="flair">{{ p.flair }}</span>
-          <span>u/{{ p.handle }}</span>{% if p.tier and p.tier != 'Static' %}<span class="tier">{{ p.tier }}</span>{% endif %}<span>·</span><span>{{ p.created_at|fdate }}</span>
+          <span class="meta-group"><a class="community-tag" href="/c/{{ p.community }}">⌂ {{ p.community }}</a><span class="flair flair-{{ p.flair }}">{{ p.flair }}</span></span>
+          <span class="meta-group"><span class="author">u/{{ p.handle }}</span>{% if p.tier and p.tier != 'Static' %}<span class="tier tier-{{ p.tier|lower }}">{{ p.tier }}</span>{% endif %}<span class="when">{{ p.created_at|fdate }}</span></span>
         </div>
         <h3 class="post-title"><a href="/c/{{ p.community }}/post/{{ p.id }}">{{ p.title }}</a></h3>
-        <div class="post-meta"><a href="/c/{{ p.community }}/post/{{ p.id }}">💬 {{ p.comment_count }} comments</a></div>
+        <div class="post-meta"><a class="comment-count" href="/c/{{ p.community }}/post/{{ p.id }}">💬 {{ p.comment_count }} comments</a></div>
       </div>
     </div></div>
     {% else %}

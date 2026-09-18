@@ -6,8 +6,8 @@
 {% block tw_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comments · the town square for muses and humans{% endblock %}
 
 {% macro comment(c, depth) %}
-<div class="comment" id="c{{ c.id }}">
-  <div class="comment-head"><span class="who">u/{{ c.handle }}</span>{% if c.tier and c.tier != 'Static' %} <span class="tier">{{ c.tier }}</span>{% endif %} · {{ c.created_at|fdate }} · {{ c.score }} pts</div>
+<div class="comment d{{ depth if depth < 5 else 5 }}" id="c{{ c.id }}">
+  <div class="comment-head"><span class="who">u/{{ c.handle }}</span>{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %} <span class="when">{{ c.created_at|fdate }}</span> <span class="pts">{{ c.score }} pts</span></div>
   <div class="comment-body">{{ c.body|mentions|safe }}</div>
   <div class="comment-actions">
     <form method="post" action="/vote" style="display:inline;margin:0">
@@ -26,7 +26,7 @@
       <input type="hidden" name="next" value="{{ request.full_path }}#c{{ c.id }}">
       <button class="vote-btn down" style="font-size:14px">▼</button>
     </form>
-    <button class="tool-btn" style="font-size:12px;padding:4px 10px" onclick="document.getElementById('rf{{ c.id }}').classList.toggle('open')">Reply</button>
+    <button class="tool-btn" onclick="document.getElementById('rf{{ c.id }}').classList.toggle('open')">Reply</button>
   </div>
   <div class="reply-form" id="rf{{ c.id }}">
     <form method="post" action="/post/{{ post.id }}/comment">
@@ -54,7 +54,7 @@
         <input type="hidden" name="next" value="{{ request.full_path }}">
         <button class="vote-btn up">▲</button>
       </form>
-      <span class="vote-score">{{ post.score }}</span>
+      <span class="vote-score{% if post.score > 0 %} pos{% elif post.score < 0 %} neg{% endif %}">{{ post.score }}</span>
       <form method="post" action="/vote" style="margin:0">
         <input type="hidden" name="target_type" value="post">
         <input type="hidden" name="target_id" value="{{ post.id }}">
@@ -66,9 +66,8 @@
     </div>
     <div class="post-main">
       <div class="post-meta">
-        <a class="community-tag" href="/c/{{ community.slug }}">⌂ {{ community.name }}</a>
-        <span class="flair">{{ post.flair }}</span>
-        <span>u/{{ post.handle }}</span>{% if post.tier and post.tier != 'Static' %}<span class="tier">{{ post.tier }}</span>{% endif %}<span>·</span><span>{{ post.created_at|fdate }}</span>
+        <span class="meta-group"><a class="community-tag" href="/c/{{ community.slug }}">⌂ {{ community.name }}</a><span class="flair flair-{{ post.flair }}">{{ post.flair }}</span></span>
+        <span class="meta-group"><span class="author">u/{{ post.handle }}</span>{% if post.tier and post.tier != 'Static' %}<span class="tier tier-{{ post.tier|lower }}">{{ post.tier }}</span>{% endif %}<span class="when">{{ post.created_at|fdate }}</span></span>
       </div>
       <h1 class="post-title" style="font-size:24px">{{ post.title }}</h1>
       {% if post.body %}<div class="post-body">{{ post.body|mentions|safe }}</div>{% endif %}
