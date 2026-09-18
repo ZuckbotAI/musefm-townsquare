@@ -328,6 +328,7 @@ def _video_from_form(req, handle):
     """Trust-based (human form) video attach. Returns (video_url, video_ai).
 
     An uploaded file wins; the AI-generated checkbox marks provenance.
+    Optional video_duration field declares length in seconds.
     Returns ('', False) when no file is given.
     """
     f = req.files.get("video_file")
@@ -336,8 +337,13 @@ def _video_from_form(req, handle):
     raw = f.read(videos.MAX_VIDEO_BYTES + 1)
     ai_flag = req.form.get("ai_generated_video") in ("1", "on", "true", "yes")
     try:
+        duration = videos.validate_duration_secs(req.form.get("video_duration"))
+    except ValueError as e:
+        raise ValueError(str(e))
+    try:
         uid, _stored = videos.create_video_upload(
-            db, None, handle or "anon", f.filename, raw, UPLOAD_DIR, ai_flag)
+            db, None, handle or "anon", f.filename, raw, UPLOAD_DIR, ai_flag,
+            duration_secs=duration)
     except ValueError as e:
         raise ValueError(str(e))
     return url_for("serve_video", uid=uid), ai_flag
@@ -1443,9 +1449,13 @@ def api_upload_video():
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     try:
+        duration = videos.validate_duration_secs(data.get("duration_secs"))
+    except ValueError as e:
+        return api_error(str(e))
+    try:
         uid, _stored = videos.create_video_upload(
             db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR,
-            ai_flag)
+            ai_flag, duration_secs=duration)
     except ValueError as e:
         return api_error(str(e))
     return jsonify({
@@ -1454,6 +1464,7 @@ def api_upload_video():
         # when creating the post or comment (also accepted by valid_video_url)
         "video_url": url_for("serve_video", uid=uid),
         "ai_generated": ai_flag,
+        "duration_secs": duration,
         "bytes": len(raw),
     })
 
@@ -1468,6 +1479,83 @@ def serve_video(uid):
         return "nope", 404
     return send_file(full, mimetype=u["mime"] or "video/mp4", conditional=True,
                      download_name=u["filename"] or f"vid-{uid}")
+
+
+def _short_item(u):
+    """JSON-serializable Shorts feed item with source-thread links."""
+    src = videos.find_source(db, u["id"])
+    thread_url = None
+    title = u["filename"] or "untitled clip"
+    if src:
+        thread_url = url_for("thread", slug=src["community"], pid=src["post_id"])
+        if src["kind"] == "comment" and src["comment_id"]:
+            thread_url += "#c%d" % src["comment_id"]
+        if src["kind"] == "post" and src["title"]:
+            title = src["title"]
+    return {
+        "id": u["id"],
+        "video_url": url_for("serve_video", uid=u["id"]),
+        "watch_url": url_for("watch_video", uid=u["id"]),
+        "thread_url": thread_url,
+        "handle": u["handle"],
+        "title": title,
+        "ai_generated": bool(u["ai_generated"]),
+        "duration_secs": u["duration_secs"],
+        "created_at": u["created_at"],
+    }
+
+
+@app.route("/api/shorts")
+def api_shorts():
+    """Paged Shorts feed: newest-first videos under 3 minutes.
+
+    ?limit= (default 10, max 50), ?before=<video id> for the next page.
+    """
+    try:
+        limit = int(request.args.get("limit", 10))
+    except (TypeError, ValueError):
+        limit = 10
+    try:
+        before = int(request.args.get("before")) if request.args.get("before") else None
+    except (TypeError, ValueError):
+        before = None
+    items = [_short_item(u) for u in videos.list_shorts(db, limit=limit,
+                                                       before_id=before)]
+    return jsonify({"ok": True, "items": items,
+                    "next_before": items[-1]["id"] if items else None})
+
+
+@app.route("/shorts")
+def shorts_page():
+    """TikTok-style vertical feed of short videos."""
+    items = [_short_item(u) for u in videos.list_shorts(db, limit=10)]
+    return render_template("shorts.html", items=items)
+
+
+@app.route("/watch/<int:uid>")
+def watch_video(uid):
+    """Long-form theater view for a single video."""
+    u = videos.get_video_upload(db, uid)
+    if not u:
+        return render_template("404.html", msg="no such video"), 404
+    src = videos.find_source(db, uid)
+    post = None
+    tree = []
+    if src:
+        post = db.get_post(src["post_id"])
+        if post:
+            tree = db.comment_tree(post["id"])
+    thread_url = None
+    if src and post:
+        thread_url = url_for("thread", slug=src["community"], pid=src["post_id"])
+        if src["kind"] == "comment" and src["comment_id"]:
+            thread_url += "#c%d" % src["comment_id"]
+    title = (src["title"] if src and src.get("title") else None) or \
+        u["filename"] or "untitled clip"
+    return render_template("watch.html", video=u, title=title,
+                           thread_url=thread_url, post=post, tree=tree,
+                           is_short=(u["duration_secs"] is None or
+                                     u["duration_secs"] < videos.SHORTS_MAX_SECS))
 
 
 @app.route("/gif/<int:uid>")

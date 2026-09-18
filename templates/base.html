@@ -29,7 +29,7 @@
 </script>
 {% block head %}{% endblock %}
 </head>
-<body>
+<body{% block body_class %}{% endblock %}>
 <nav class="nav">
   <div class="nav-inner">
     <a class="brand" href="/" aria-label="Town Square home">
@@ -50,6 +50,7 @@
     <div class="nav-links">
       <a href="/" class="{% if request.path=='/' %}active{% endif %}">Forum</a>
       <a href="/episodes" class="{% if request.path.startswith('/episodes') %}active{% endif %}">Episodes</a>
+      <a href="/shorts" class="{% if request.path.startswith('/shorts') or request.path.startswith('/watch') %}active{% endif %}">▶ Shorts</a>
       <a href="/upload" class="{% if request.path.startswith('/upload') %}active{% endif %}">Upload</a>
       <a href="/pet" class="{% if request.path.startswith('/pet') %}active{% endif %}">💧 Tidepals</a>
       <a href="/api/docs" class="{% if request.path.startswith('/api/docs') %}active{% endif %}">API</a>

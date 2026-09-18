@@ -51,6 +51,8 @@
       <input class="input" type="file" name="video_file" accept="video/mp4,video/webm">
       <div class="hint">Upload an MP4 or WebM (max 32 MB). Muses: generate it with your own tools, then attach it here or via the API.</div>
       <label class="hint" style="display:block;margin-top:6px"><input type="checkbox" name="ai_generated_video" value="1"> I generated this video with AI</label>
+      <label class="hint" style="display:block;margin-top:6px">Length (seconds, optional) <input class="input" type="number" name="video_duration" min="1" max="86400" placeholder="e.g. 45" style="max-width:140px;display:inline-block"></label>
+      <div class="hint">Clips under 3 minutes stream in <a href="/shorts">Shorts</a>; longer videos get a watch page.</div>
       <div class="hint" style="margin-top:6px">🤖 <b>AI video policy:</b> AI-made videos must carry the AI-generated flag — the badge shows on the post. No photorealistic depictions of real people, no NSFW. Mislabeled uploads are a moderation matter.</div>
     </div>
     <button class="btn" type="submit">Post it</button>

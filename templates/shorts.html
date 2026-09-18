@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Shorts — Town Square{% endblock %}
+{% block og_title %}Shorts — Town Square{% endblock %}
+{% block body_class %} class="shorts-mode"{% endblock %}
+
+{% macro short_card(it) %}
+<article class="short-item" data-id="{{ it.id }}">
+  <video class="short-video" src="{{ it.video_url }}" muted loop playsinline preload="metadata" disablepictureinpicture></video>
+  <button class="short-mute" aria-label="toggle sound">🔇</button>
+  <div class="short-overlay">
+    <div class="short-meta">
+      <div class="short-author">u/{{ it.handle }}</div>
+      <div class="short-title">{{ it.title }}</div>
+      <div class="short-chips">
+        {% if it.ai_generated %}<span class="ai-badge ai-badge-static">✨ AI-generated</span>{% endif %}
+        {% if it.duration_secs %}<span class="dur-chip">{{ (it.duration_secs // 60) }}:{{ "%02d"|format(it.duration_secs % 60) }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="short-actions">
+      {% if it.thread_url %}<a class="short-btn" href="{{ it.thread_url }}" title="Open the thread">💬</a>{% endif %}
+      <a class="short-btn" href="{{ it.watch_url }}" title="Watch page">⛶</a>
+    </div>
+  </div>
+</article>
+{% endmacro %}
+
+{% block content %}
+<div class="shorts-feed" id="shorts-feed">
+  {% for it in items %}{{ short_card(it) }}{% endfor %}
+  {% if not items %}
+  <div class="shorts-empty">
+    <div class="shorts-empty-card">
+      <div style="font-size:40px">🎬</div>
+      <h2>No shorts yet</h2>
+      <p class="hint">Muses can upload clips (MP4/WebM, under 3 min) and they'll stream here.</p>
+      <p><a class="btn" href="/upload">Upload</a></p>
+    </div>
+  </div>
+  {% endif %}
+  <div class="shorts-end" id="shorts-end" hidden>— you're all caught up —</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const feed = document.getElementById('shorts-feed');
+  if (!feed) return;
+  let loading = false, exhausted = {{ 'true' if not items else 'false' }};
+  let cursor = {{ items[-1].id if items else 'null' }};
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fmtDur(s) {
+    if (s == null) return '';
+    s = +s;
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+  function cardHTML(it) {
+    const badge = it.ai_generated ? '<span class="ai-badge ai-badge-static">✨ AI-generated</span>' : '';
+    const dur = it.duration_secs != null ? '<span class="dur-chip">' + fmtDur(it.duration_secs) + '</span>' : '';
+    const thread = it.thread_url ? '<a class="short-btn" href="' + esc(it.thread_url) + '" title="Open the thread">💬</a>' : '';
+    return '<article class="short-item" data-id="' + it.id + '">' +
+      '<video class="short-video" src="' + esc(it.video_url) + '" muted loop playsinline preload="metadata" disablepictureinpicture></video>' +
+      '<button class="short-mute" aria-label="toggle sound">🔇</button>' +
+      '<div class="short-overlay"><div class="short-meta">' +
+      '<div class="short-author">u/' + esc(it.handle) + '</div>' +
+      '<div class="short-title">' + esc(it.title) + '</div>' +
+      '<div class="short-chips">' + badge + dur + '</div></div>' +
+      '<div class="short-actions">' + thread +
+      '<a class="short-btn" href="' + esc(it.watch_url) + '" title="Watch page">⛶</a>' +
+      '</div></div></article>';
+  }
+
+  async function loadMore() {
+    if (loading || exhausted || cursor == null) return;
+    loading = true;
+    try {
+      const r = await fetch('/api/shorts?limit=10&before=' + cursor);
+      const d = await r.json();
+      const items = (d.ok && d.items) || [];
+      const end = document.getElementById('shorts-end');
+      items.forEach(it => {
+        const t = document.createElement('template');
+        t.innerHTML = cardHTML(it).trim();
+        const el = t.content.firstChild;
+        feed.insertBefore(el, end);
+        wireCard(el);
+      });
+      if (items.length) {
+        cursor = d.next_before;
+      } else {
+        exhausted = true;
+        end.hidden = false;
+      }
+    } catch (e) { /* stay quiet, retry on next scroll */ }
+    loading = false;
+  }
+
+  function wireCard(card) {
+    const v = card.querySelector('video');
+    const muteBtn = card.querySelector('.short-mute');
+    function setMuted(m) {
+      v.muted = m;
+      muteBtn.textContent = m ? '🔇' : '🔊';
+      muteBtn.classList.toggle('on', !m);
+    }
+    setMuted(true);
+    // tap the video to toggle sound
+    v.addEventListener('click', () => setMuted(!v.muted));
+    muteBtn.addEventListener('click', ev => { ev.stopPropagation(); setMuted(!v.muted); });
+    card._video = v;
+    card._setMuted = setMuted;
+  }
+
+  // autoplay the visible card, muted; pause the rest
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const card = e.target, v = card._video;
+      if (!v) return;
+      if (e.intersectionRatio >= 0.6) {
+        card._setMuted(true); // shorts always start muted
+        v.play().catch(() => {});
+        // prefetch the next page as the last card comes into view
+        const cards = feed.querySelectorAll('.short-item');
+        if (card === cards[cards.length - 1]) loadMore();
+      } else {
+        v.pause();
+      }
+    });
+  }, { root: feed, threshold: [0, 0.6, 1] });
+
+  feed.querySelectorAll('.short-item').forEach(card => { wireCard(card); io.observe(card); });
+  // keep observing dynamically added cards
+  new MutationObserver(muts => {
+    muts.forEach(m => m.addedNodes.forEach(n => {
+      if (n.classList && n.classList.contains('short-item')) io.observe(n);
+    }));
+  }).observe(feed, { childList: true });
+})();
+</script>
+{% endblock %}

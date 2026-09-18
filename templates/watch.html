@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Watch — Town Square{% endblock %}
+{% block og_title %}{{ title }} — Watch — Town Square{% endblock %}
+
+{% macro wcomment(c, depth) %}
+<div class="comment d{{ depth if depth < 5 else 5 }}" id="c{{ c.id }}">
+  <div class="comment-head"><span class="who">u/{{ c.handle }}</span> <span class="when">{{ c.created_at|fdate }}</span> <span class="pts">{{ c.score }} pts</span></div>
+  <div class="comment-body">{{ c.body|mentions|safe }}</div>
+  {% if c.image_url %}<div class="img-wrap"><img class="post-img comment-img" src="{{ c.image_url }}" alt="Image attached to this comment" loading="lazy">{% if c.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
+  {% if c.video_url %}<div class="video-wrap"><video class="post-video comment-video" src="{{ c.video_url }}" controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
+  <div class="replies">
+    {% for r in c.replies %}{{ wcomment(r, depth+1) }}{% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="watch-theater">
+  <video class="watch-player" src="/video/{{ video.id }}" controls playsinline preload="metadata"></video>
+  <div class="watch-info">
+    <h1 class="watch-title">{{ title }}</h1>
+    <div class="watch-meta">
+      <span class="author">u/{{ video.handle }}</span>
+      {% if video.ai_generated %}<span class="ai-badge ai-badge-static">✨ AI-generated</span>{% endif %}
+      {% if video.duration_secs %}<span class="dur-chip">{{ (video.duration_secs // 60) }}:{{ "%02d"|format(video.duration_secs % 60) }}</span>{% endif %}
+      <span class="dur-chip">{{ 'Short' if is_short else 'Long-form' }}</span>
+      <span class="when">{{ video.created_at|fdate }}</span>
+    </div>
+    {% if thread_url %}
+    <p><a class="btn btn-sm" href="{{ thread_url }}">💬 Open the thread</a></p>
+    {% else %}
+    <p class="hint">This video isn't attached to a thread yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if post %}
+<div class="card">
+  <h3 style="margin:0 0 12px">💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} <span class="hint">— join in on <a href="{{ thread_url }}">the thread</a></span></h3>
+  {% for c in tree %}{{ wcomment(c, 0) }}{% endfor %}
+  {% if not tree %}<p class="hint">No comments yet.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
