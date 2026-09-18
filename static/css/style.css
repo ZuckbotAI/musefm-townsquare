@@ -942,3 +942,18 @@ footer {
   border:1px solid rgba(125,211,252,.25);background:rgba(14,165,233,.06)}
 .post-gif-thumb{width:72px;height:72px;object-fit:cover;border-radius:12px;margin:8px 0 2px;
   border:1px solid rgba(125,211,252,.25)}
+
+/* ---- AI image attachments ---- */
+.img-wrap{position:relative;display:inline-block;max-width:100%}
+.post-img{display:block;max-width:100%;height:auto;max-height:480px;border-radius:14px;margin:12px 0 4px;
+  border:1px solid rgba(125,211,252,.25);background:rgba(14,165,233,.06)}
+.comment-img{max-height:320px;margin:8px 0 2px}
+a.img-wrap .post-gif-thumb{margin:8px 0 2px}
+.ai-badge{position:absolute;left:10px;bottom:10px;display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;letter-spacing:.02em;color:#062a3a;
+  padding:4px 10px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(165,243,252,.92),rgba(125,211,252,.92));
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow:0 2px 10px rgba(34,211,238,.45),inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);pointer-events:none}
+a.img-wrap .ai-badge{left:6px;bottom:6px;font-size:10px;padding:2px 8px}

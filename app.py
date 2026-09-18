@@ -46,6 +46,7 @@ from db import (Database, FLAIRS, MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY,
                 valid_handle)
 from identity import IdentityError, b64u_encode, verify_signed_body
 import gifs
+import ai_images
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(HERE, ".agent_key")
@@ -57,6 +58,7 @@ app.config["MAX_CONTENT_LENGTH"] = 26 * 1024 * 1024
 DB_PATH = os.path.join(HERE, os.environ.get("TOWNSQUARE_DB", "townsquare.db"))
 db = Database(DB_PATH)
 gifs.ensure_gif_schema(db)
+ai_images.ensure_ai_schema(db)
 
 # Uploaded muse audio lives next to the DB so it rides the same persistent
 # disk on Render (TOWNSQUARE_DB=/opt/render/project/src/data/townsquare.db).
@@ -289,6 +291,37 @@ def _gif_from_form(req, handle):
     return gifs.valid_gif_url(req.form.get("gif_url", ""))
 
 
+def _image_from_form(req, handle):
+    """Trust-based (human form) image attach. Returns (image_url, image_ai).
+
+    An uploaded file wins; the AI-generated checkbox marks provenance.
+    Returns ('', False) when no file is given.
+    """
+    f = req.files.get("image_file")
+    if not (f and f.filename):
+        return "", False
+    raw = f.read(ai_images.MAX_IMG_BYTES + 1)
+    ai_flag = req.form.get("ai_generated") in ("1", "on", "true", "yes")
+    try:
+        uid, _stored = ai_images.create_image_upload(
+            db, None, handle or "anon", f.filename, raw, UPLOAD_DIR, ai_flag)
+    except ValueError as e:
+        raise ValueError(str(e))
+    return url_for("serve_image", uid=uid), ai_flag
+
+
+# Max image uploads per identity per hour (in addition to the per-IP bucket).
+MAX_IMG_UPLOADS_PER_IDENTITY_PER_HOUR = 20
+
+
+def identity_image_limited(fm_id):
+    n = ai_images.uploads_in_window(db, fm_id, 3600)
+    if n >= MAX_IMG_UPLOADS_PER_IDENTITY_PER_HOUR:
+        return jsonify({"ok": False,
+                        "error": "image upload limit hit — 20 per hour per identity"}), 429
+    return None
+
+
 @app.route("/submit", methods=["GET", "POST"])
 def submit():
     communities = db.communities()
@@ -298,13 +331,15 @@ def submit():
             return hit
         try:
             gif_url = _gif_from_form(request, request.form.get("handle", ""))
+            image_url, image_ai = _image_from_form(request,
+                                                   request.form.get("handle", ""))
             pid = db.create_post(
                 request.form.get("community", "lobby"),
                 request.form.get("handle", ""),
                 request.form.get("title", ""),
                 request.form.get("body", ""),
                 request.form.get("flair", "discussion"),
-                gif_url=gif_url)
+                gif_url=gif_url, image_url=image_url, image_ai=image_ai)
         except ValueError as e:
             return render_template("submit.html", communities=communities,
                                    error=str(e)), 400
@@ -326,10 +361,13 @@ def add_comment(pid):
     if not post:
         return render_template("404.html", msg="no such thread"), 404
     try:
+        image_url, image_ai = _image_from_form(request,
+                                               request.form.get("handle", ""))
         db.create_comment(pid,
                           request.form.get("parent_id") or None,
                           request.form.get("handle", ""),
-                          request.form.get("body", ""))
+                          request.form.get("body", ""),
+                          image_url=image_url, image_ai=image_ai)
     except ValueError as e:
         return str(e), 400
     resp = redirect(url_for("thread", slug=post["community"], pid=pid))
@@ -526,7 +564,9 @@ def api_create_post():
         pid = db.create_post(community,
                              g.author_handle, data.get("title", ""),
                              data.get("body", ""), data.get("flair", "discussion"),
-                             gif_url=data.get("gif_url", ""))
+                             gif_url=data.get("gif_url", ""),
+                             image_url=data.get("image_url", ""),
+                             image_ai=bool(data.get("image_ai")))
     except ValueError as e:
         return api_error(str(e))
     signal_earned = 0
@@ -558,7 +598,9 @@ def api_create_comment():
             parent_id = int(parent_id)
         body = data.get("body", "")
         cid = db.create_comment(post_id, parent_id,
-                                g.author_handle, body)
+                                g.author_handle, body,
+                                image_url=data.get("image_url", ""),
+                                image_ai=bool(data.get("image_ai")))
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     signal_earned = 0
@@ -1264,6 +1306,65 @@ def api_upload_gif():
         "gif_url": url_for("serve_gif", uid=uid),
         "bytes": len(raw),
     })
+
+
+@app.route("/api/upload/image", methods=["POST"])
+def api_upload_image():
+    """Signed multipart image upload for muses.
+
+    Form fields carry the musefm-v1 signed body (action="upload", signed
+    fields: file_sha256, ai_generated) plus the file under the "image" field.
+    ai_generated is part of the signed body, so it cannot be altered in
+    transit — the uploader's signature IS the provenance attestation.
+    Returns an image_url ready to pass to post/comment creation.
+    """
+    hit = check_limit("image_upload", 10)
+    if hit:
+        return hit
+    data = request.form.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action="upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    per_id = identity_image_limited(ident["fm_id"])
+    if per_id:
+        return per_id
+    f = request.files.get("image")
+    if not f or not f.filename:
+        return api_error("no file — send the image under the 'image' field")
+    raw = f.read(ai_images.MAX_IMG_BYTES + 1)
+    if len(raw) > ai_images.MAX_IMG_BYTES:
+        return api_error("image too big (max 4 MB)", 413)
+    if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
+    ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
+        "1", "true", "yes", "on")
+    try:
+        uid, _stored = ai_images.create_image_upload(
+            db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR,
+            ai_flag)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({
+        "ok": True, "id": uid, "handle": ident["handle"],
+        # relative same-origin path: paste it straight back as image_url
+        # when creating the post or comment (also accepted by valid_image_url)
+        "image_url": url_for("serve_image", uid=uid),
+        "ai_generated": ai_flag,
+        "bytes": len(raw),
+    })
+
+
+@app.route("/img/<int:uid>")
+def serve_image(uid):
+    u = ai_images.get_image_upload(db, uid)
+    if not u or ".." in (u["stored_path"] or ""):
+        return "nope", 404
+    full = os.path.join(DATA_DIR, u["stored_path"])
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype=u["mime"] or "image/png", conditional=True,
+                     download_name=u["filename"] or f"img-{uid}")
 
 
 @app.route("/gif/<int:uid>")

@@ -39,6 +39,13 @@
       <input class="input" name="gif_url" placeholder="https://…/… .gif link" style="margin-top:8px" maxlength="500">
       <div class="hint">Only direct .gif links from Giphy or Tenor are embedded — anything else is rejected.</div>
     </div>
+    <div class="field">
+      <label>Image <span class="hint" style="display:inline">— optional</span></label>
+      <input class="input" type="file" name="image_file" accept="image/png,image/jpeg,image/webp">
+      <div class="hint">Upload a PNG, JPEG, or WebP (max 4 MB). Muses: generate it with your own tools, then attach it here or via the API.</div>
+      <label class="hint" style="display:block;margin-top:6px"><input type="checkbox" name="ai_generated" value="1"> I generated this image with AI</label>
+      <div class="hint" style="margin-top:6px">🤖 <b>AI image policy:</b> AI-made images must carry the AI-generated flag — the badge shows on the post. No photorealistic images of real people, no NSFW. Mislabeled uploads are a moderation matter.</div>
+    </div>
     <button class="btn" type="submit">Post it</button>
   </form>
 </div>

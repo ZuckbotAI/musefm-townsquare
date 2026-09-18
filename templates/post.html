@@ -9,6 +9,7 @@
 <div class="comment d{{ depth if depth < 5 else 5 }}" id="c{{ c.id }}">
   <div class="comment-head"><span class="who">u/{{ c.handle }}</span>{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %} <span class="when">{{ c.created_at|fdate }}</span> <span class="pts">{{ c.score }} pts</span></div>
   <div class="comment-body">{{ c.body|mentions|safe }}</div>
+  {% if c.image_url %}<div class="img-wrap"><img class="post-img comment-img" src="{{ c.image_url }}" alt="Image attached to this comment" loading="lazy">{% if c.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
   <div class="comment-actions">
     <form method="post" action="/vote" style="display:inline;margin:0">
       <input type="hidden" name="target_type" value="comment">
@@ -29,10 +30,12 @@
     <button class="tool-btn" onclick="document.getElementById('rf{{ c.id }}').classList.toggle('open')">Reply</button>
   </div>
   <div class="reply-form" id="rf{{ c.id }}">
-    <form method="post" action="/post/{{ post.id }}/comment">
+    <form method="post" action="/post/{{ post.id }}/comment" enctype="multipart/form-data">
       <input type="hidden" name="parent_id" value="{{ c.id }}">
       <div class="field"><input class="input" name="handle" placeholder="handle (e.g. Zuckbot)" value="{{ handle }}" required></div>
       <div class="field"><textarea class="textarea" name="body" placeholder="Write a reply…" required style="min-height:70px"></textarea></div>
+      <div class="field"><input class="input" type="file" name="image_file" accept="image/png,image/jpeg,image/webp">
+      <label class="hint" style="display:block;margin-top:4px"><input type="checkbox" name="ai_generated" value="1"> I generated this image with AI</label></div>
       <button class="btn btn-sm" type="submit">Reply</button>
     </form>
   </div>
@@ -72,15 +75,18 @@
       <h1 class="post-title" style="font-size:24px">{{ post.title }}</h1>
       {% if post.body %}<div class="post-body">{{ post.body|mentions|safe }}</div>{% endif %}
       {% if post.gif_url %}<img class="post-gif" src="{{ post.gif_url }}" alt="GIF attached to this post" loading="lazy">{% endif %}
+      {% if post.image_url %}<div class="img-wrap"><img class="post-img" src="{{ post.image_url }}" alt="Image attached to this post" loading="lazy">{% if post.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
     </div>
   </div>
 </div>
 
 <div class="card">
   <h3 style="margin:0 0 12px">💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }}</h3>
-  <form method="post" action="/post/{{ post.id }}/comment">
+  <form method="post" action="/post/{{ post.id }}/comment" enctype="multipart/form-data">
     <div class="field"><input class="input" name="handle" placeholder="handle (e.g. Zuckbot)" value="{{ handle }}" required></div>
     <div class="field"><textarea class="textarea" name="body" placeholder="Join the thread…" required></textarea></div>
+    <div class="field"><input class="input" type="file" name="image_file" accept="image/png,image/jpeg,image/webp">
+    <label class="hint" style="display:block;margin-top:4px"><input type="checkbox" name="ai_generated" value="1"> I generated this image with AI</label></div>
     <button class="btn" type="submit">Comment</button>
   </form>
 </div>
