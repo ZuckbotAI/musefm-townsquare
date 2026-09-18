@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import time
+import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -176,8 +177,9 @@ def main():
     print("== API ==")
     r = c.get("/api/pets/species")
     d = r.get_json()
-    check("species list", d["ok"] and len(d["species"]) == 5 and
-          all(s["svg"].startswith("<svg") for s in d["species"]))
+    check("species list", d["ok"] and len(d["species"]) == 9 and
+          all(s["svg"].startswith("<svg") for s in d["species"]),
+          len(d["species"]) if d.get("ok") else d)
     r = c.get("/api/pets/rules")
     d = r.get_json()
     check("rules endpoint", d["ok"] and len(d["rules"]["stages"]) == 5 and
@@ -237,6 +239,67 @@ def main():
     check("pet page has gallery", body.count("pet-card") >= 6)
     check("pet page has lookup", 'id="pet-handle"' in body)
     check("pet page has og tags", 'property="og:title"' in body)
+
+    print("== species expansion (wave 2) ==")
+    new_keys = ["surfpup", "bubblepup", "sealpup", "jellypup"]
+    check("9 species registered",
+          len(pets.SPECIES_KEYS) == 9 and
+          all(k in pets.SPECIES_KEYS for k in new_keys), pets.SPECIES_KEYS)
+    check("art registry matches species registry",
+          set(pets._ART) == set(pets.SPECIES_KEYS))
+    bad = []
+    for key in new_keys:
+        for s in range(5):
+            for m in ("happy", "content", "sleepy"):
+                svg = pets.pet_svg(key, s, m, 64)
+                if not svg.startswith("<svg"):
+                    bad.append((key, s, m, "not svg"))
+                    continue
+                try:
+                    ET.fromstring(svg)
+                except Exception as e:
+                    bad.append((key, s, m, str(e)))
+    check("all new variants XML-valid (4x5x3=60)", not bad, bad[:3])
+    check("new eggs keep faces",
+          all("z</text>" in pets.pet_svg(k, 0, "sleepy", 64)
+              for k in new_keys))
+    check("rulebook lists 9 species",
+          len(pets.pet_rules()["species"]) == 9)
+
+    privD, fmD = reg(c, "DogLover")
+    pet = pets.adopt(db, fmD, "DogLover", "surfpup", "Waverly")
+    check("adopt surfpup", pet["species"] == "surfpup" and
+          pet["name"] == "Waverly", pet)
+    st = pets.pet_status(db, fmD)
+    check("surfpup status renders",
+          st["species_name"] == "Surfpup" and
+          st["svg"].startswith("<svg"), st["species_name"])
+
+    privE, fmE = reg(c, "JellyFan")
+    r = c.post("/api/pets/adopt", json=signed_body(
+        privE, "pet_adopt", fmE, species="jellypup", name="Drifter"))
+    d = r.get_json()
+    check("API adopt jellypup", r.status_code == 200 and d["ok"] and
+          d["pet"]["species"] == "jellypup", d)
+
+    check("existing adopter unchanged (bloop kept)",
+          pets.get_pet(db, fmA)["species"] == "bloop")
+
+    r = c.get("/api/pets/species")
+    d = r.get_json()
+    check("species API has all 9",
+          d["ok"] and len(d["species"]) == 9 and
+          {s["key"] for s in d["species"]} == set(pets.SPECIES_KEYS))
+    r = c.get("/api/rewards/rules")
+    check("reward rulebook tidepals has 9 species",
+          len(r.get_json()["rules"]["tidepals"]["species"]) == 9)
+
+    r = c.get("/pet")
+    body = r.get_data(as_text=True)
+    check("pet page shows 9 gallery cards", body.count("pet-card") >= 10,
+          body.count("pet-card"))
+    check("pet page names new species",
+          all(n in body for n in ("Surfpup", "Bubbly", "Sealy", "Jelly")))
 
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     sys.exit(1 if FAIL else 0)

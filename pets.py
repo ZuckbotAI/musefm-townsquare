@@ -101,6 +101,37 @@ PET_SPECIES = {
         "description": ("Kelpies sway in the nutrient-rich waters of the "
                         "episode archive. Gentle gardeners of good vibes."),
     },
+    "surfpup": {
+        "name": "Surfpup",
+        "kind": "Wave Pup",
+        "tagline": "A loyal pup carved out of a perfect wave.",
+        "description": ("Surfpups ride in on the town's morning swell. "
+                        "Fiercely loyal, endlessly bouncy, and always up "
+                        "for one more thread."),
+    },
+    "bubblepup": {
+        "name": "Bubbly",
+        "kind": "Bubble Retriever",
+        "tagline": "Fetches every ripple you throw.",
+        "description": ("Bubblys are retrievers of the signal pool — they "
+                        "chase down loose ideas and bring them back, "
+                        "dripping and delighted."),
+    },
+    "sealpup": {
+        "name": "Sealy",
+        "kind": "Seal Pup",
+        "tagline": "Claps for your best threads.",
+        "description": ("Sealies haul out on the warm rocks of the town "
+                        "square. Gentle, whiskery, and fluent in applause."),
+    },
+    "jellypup": {
+        "name": "Jelly",
+        "kind": "Jelly Pup",
+        "tagline": "Drifts on good vibes and gentle currents.",
+        "description": ("Jellies are living lanterns of the deep square. "
+                        "Translucent, dreamy, and quietly glowing through "
+                        "every episode."),
+    },
 }
 SPECIES_KEYS = list(PET_SPECIES)
 
@@ -636,12 +667,241 @@ def _art_kelpy(stage, mood):
     return "".join(parts)
 
 
+# --- Surfpup: wave pup ---------------------------------------------------------
+def _art_surfpup(stage, mood):
+    g = _gid("sp")
+    grad = (f'<linearGradient id="{g}" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0%" stop-color="#7dd3fc"/>'
+            '<stop offset="55%" stop-color="#0ea5e9"/>'
+            '<stop offset="100%" stop-color="#0369a1"/></linearGradient>')
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            '<path d="M60,32 C46,32 38,52 38,70 a22,24 0 0,0 44,0'
+            f' C82,52 74,32 60,32 Z" fill="url(#{g})"/>'
+            '<path d="M48,58 q8,-6 16,0 q-8,5 -16,0 Z" fill="#e0f2fe"'
+            ' opacity="0.55"/>'
+            '<ellipse cx="52" cy="56" rx="4" ry="7" fill="#fff"'
+            ' opacity="0.55" transform="rotate(-15 52 56)"/>'
+            + _face(60, 64, 4, mood))
+    parts = [f"<defs>{grad}</defs>"]
+    # wagging tail (behind body)
+    tw = 4 + stage
+    parts.append(f'<path d="M80,84 C92,88 96,98 90,108" stroke="url(#{g})"'
+                 f' stroke-width="{tw}" fill="none" stroke-linecap="round"/>')
+    # floppy ears (behind head)
+    ear = 1.0 if stage < 2 else 1.25
+    parts.append(
+        f'<g transform="translate(42 46) scale({ear})">'
+        '<path d="M0,0 C-10,4 -14,18 -8,30 C-4,22 0,12 6,6 Z"'
+        f' fill="url(#{g})" stroke="#e0f2fe" stroke-width="1"'
+        ' stroke-opacity="0.6"/></g>')
+    parts.append(
+        f'<g transform="translate(78 46) scale({ear})">'
+        '<path d="M0,0 C10,4 14,18 8,30 C4,22 0,12 -6,6 Z"'
+        f' fill="url(#{g})" stroke="#e0f2fe" stroke-width="1"'
+        ' stroke-opacity="0.6"/></g>')
+    # droplet body
+    parts.append(
+        '<path d="M60,26 C60,26 38,56 38,78 a22,22 0 0,0 44,0'
+        f' C82,56 60,26 60,26 Z" fill="url(#{g})" stroke="#e0f2fe"'
+        ' stroke-width="1.5" stroke-opacity="0.8"/>')
+    parts.append('<ellipse cx="49" cy="66" rx="6" ry="10" fill="#fff"'
+                 ' opacity="0.5" transform="rotate(-18 49 66)"/>')
+    if stage >= 2:
+        parts.append('<circle cx="70" cy="86" r="4" fill="#0369a1"'
+                     ' opacity="0.35"/>')
+        parts.append('<circle cx="50" cy="90" r="2.6" fill="#0369a1"'
+                     ' opacity="0.3"/>')
+    if stage >= 3:
+        parts.append('<path d="M44,84 Q60,93 76,84" stroke="#fde68a"'
+                     ' stroke-width="3" fill="none" stroke-linecap="round"/>')
+        parts.append('<circle cx="60" cy="92" r="3" fill="#fbbf24"'
+                     ' stroke="#fff" stroke-width="1"/>')
+        parts.append('<path d="M26,106 q17,-10 34,0 q17,10 34,0"'
+                     ' stroke="#7dd3fc" stroke-width="3" fill="none"'
+                     ' stroke-linecap="round" opacity="0.8"/>')
+    parts.append(_face(60, 64, 4.5, mood))
+    parts.append('<circle cx="60" cy="67.5" r="1.7" fill="#0b3b5c"/>')
+    return "".join(parts)
+
+
+# --- Bubblepup: bubble retriever -------------------------------------------------
+def _art_bubblepup(stage, mood):
+    g = _gid("bp")
+    grad = (f'<radialGradient id="{g}" cx="38%" cy="32%" r="75%">'
+            '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>'
+            '<stop offset="45%" stop-color="#ccfbf1" stop-opacity="0.9"/>'
+            '<stop offset="100%" stop-color="#5eead4" stop-opacity="0.9"/>'
+            "</radialGradient>")
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            f'<ellipse cx="60" cy="62" rx="24" ry="28" fill="url(#{g})"'
+            ' opacity="0.92"/>'
+            '<circle cx="52" cy="54" r="4" fill="#fff" opacity="0.8"/>'
+            '<circle cx="68" cy="70" r="2.5" fill="#fff" opacity="0.6"/>'
+            + _face(60, 62, 4, mood))
+    parts = [f"<defs>{grad}</defs>"]
+    # tail with a bubble tip
+    parts.append('<path d="M84,78 C94,80 96,90 90,96" stroke="#5eead4"'
+                 ' stroke-width="4.5" fill="none" stroke-linecap="round"/>')
+    parts.append('<circle cx="90" cy="99" r="4.5" fill="#99f6e4"'
+                 ' stroke="#fff" stroke-width="1" opacity="0.9"/>')
+    # long floppy ears
+    parts.append('<ellipse cx="33" cy="76" rx="7" ry="15" fill="#99f6e4"'
+                 ' opacity="0.95" transform="rotate(18 33 76)"/>')
+    parts.append('<ellipse cx="87" cy="76" rx="7" ry="15" fill="#99f6e4"'
+                 ' opacity="0.95" transform="rotate(-18 87 76)"/>')
+    # round bubble body
+    parts.append(f'<circle cx="60" cy="62" r="26" fill="url(#{g})"'
+                 ' stroke="#99f6e4" stroke-width="2"/>')
+    parts.append('<ellipse cx="50" cy="52" rx="9" ry="6" fill="#fff"'
+                 ' opacity="0.85" transform="rotate(-30 50 52)"/>')
+    if stage >= 2:
+        parts.append('<circle cx="72" cy="72" r="3.4" fill="#0d9488"'
+                     ' opacity="0.25"/>')
+        parts.append('<circle cx="48" cy="74" r="2.4" fill="#0d9488"'
+                     ' opacity="0.22"/>')
+    if stage >= 3:
+        parts.append('<path d="M44,84 Q60,93 76,84" stroke="#fde68a"'
+                     ' stroke-width="3" fill="none" stroke-linecap="round"/>')
+        parts.append('<circle cx="60" cy="92" r="3" fill="#fbbf24"'
+                     ' stroke="#fff" stroke-width="1"/>')
+        parts.append('<circle cx="34" cy="40" r="3" fill="#fff"'
+                     ' opacity="0.7"/>')
+        parts.append('<circle cx="88" cy="44" r="2.2" fill="#fff"'
+                     ' opacity="0.6"/>')
+    parts.append(_face(60, 60, 4.5, mood))
+    parts.append('<circle cx="60" cy="63.5" r="1.7" fill="#0b3b5c"/>')
+    return "".join(parts)
+
+
+# --- Sealpup: seal pup --------------------------------------------------------------
+def _art_sealpup(stage, mood):
+    g = _gid("sl")
+    grad = (f'<linearGradient id="{g}" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0%" stop-color="#e2e8f0"/>'
+            '<stop offset="55%" stop-color="#94a3b8"/>'
+            '<stop offset="100%" stop-color="#64748b"/></linearGradient>')
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            '<path d="M60,32 C46,32 38,52 38,70 a22,24 0 0,0 44,0'
+            f' C82,52 74,32 60,32 Z" fill="url(#{g})"/>'
+            '<ellipse cx="52" cy="56" rx="4" ry="7" fill="#fff"'
+            ' opacity="0.5" transform="rotate(-15 52 56)"/>'
+            + _face(60, 62, 4, mood))
+    parts = [f"<defs>{grad}</defs>"]
+    # tail fluke
+    if stage >= 2:
+        parts.append('<path d="M53,90 C48,100 42,105 34,107'
+                     ' C41,110 49,108 54,100 Z" fill="#64748b"/>')
+        parts.append('<path d="M67,90 C72,100 78,105 86,107'
+                     ' C79,110 71,108 66,100 Z" fill="#64748b"/>')
+    # flippers
+    fs = 1.0 if stage < 3 else 1.2
+    parts.append(
+        f'<g transform="translate(42 72) scale({fs})">'
+        '<path d="M0,0 C-10,2 -15,12 -12,22 C-8,14 -4,8 2,4 Z"'
+        ' fill="#64748b"/></g>')
+    parts.append(
+        f'<g transform="translate(78 72) scale({fs})">'
+        '<path d="M0,0 C10,2 15,12 12,22 C8,14 4,8 -2,4 Z"'
+        ' fill="#64748b"/></g>')
+    # plump body + pale belly
+    parts.append(f'<ellipse cx="60" cy="64" rx="20" ry="28" fill="url(#{g})"'
+                 ' stroke="#cbd5e1" stroke-width="1.5"/>')
+    parts.append('<ellipse cx="60" cy="72" rx="11" ry="17" fill="#f1f5f9"'
+                 ' opacity="0.65"/>')
+    parts.append('<ellipse cx="53" cy="48" rx="5" ry="8" fill="#fff"'
+                 ' opacity="0.45" transform="rotate(-15 53 48)"/>')
+    if stage >= 2:
+        parts.append('<circle cx="70" cy="46" r="2.6" fill="#475569"'
+                     ' opacity="0.4"/>')
+        parts.append('<circle cx="50" cy="84" r="2.2" fill="#475569"'
+                     ' opacity="0.35"/>')
+        for sx in (-1, 1):
+            parts.append(f'<path d="M{_f(60+10*sx)},64 l{_f(11*sx)},-3"'
+                         ' stroke="#0b3b5c" stroke-width="0.9" opacity="0.5"'
+                         ' stroke-linecap="round"/>')
+            parts.append(f'<path d="M{_f(60+10*sx)},68 l{_f(11*sx)},3"'
+                         ' stroke="#0b3b5c" stroke-width="0.9" opacity="0.5"'
+                         ' stroke-linecap="round"/>')
+    if stage >= 3:
+        for sx in (-1, 1):
+            parts.append(f'<path d="M{_f(60+9*sx)},60 l{_f(10*sx)},-6"'
+                         ' stroke="#0b3b5c" stroke-width="0.9" opacity="0.5"'
+                         ' stroke-linecap="round"/>')
+        # balancing a little beach-glass ball
+        parts.append('<circle cx="60" cy="34" r="4.5" fill="#7dd3fc"'
+                     ' opacity="0.85"/>')
+        parts.append('<circle cx="60" cy="34" r="4.5" fill="none"'
+                     ' stroke="#fff" stroke-width="1" opacity="0.7"/>')
+    parts.append(_face(60, 56, 4.5, mood))
+    parts.append('<ellipse cx="60" cy="59.5" rx="2" ry="1.4" fill="#0b3b5c"/>')
+    return "".join(parts)
+
+
+# --- Jellypup: jellyfish pup ------------------------------------------------------------
+def _art_jellypup(stage, mood):
+    g = _gid("je")
+    grad = (f'<radialGradient id="{g}" cx="42%" cy="30%" r="75%">'
+            '<stop offset="0%" stop-color="#fdf4ff" stop-opacity="0.95"/>'
+            '<stop offset="55%" stop-color="#e9d5ff" stop-opacity="0.85"/>'
+            '<stop offset="100%" stop-color="#a855f7" stop-opacity="0.85"/>'
+            "</radialGradient>")
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            '<path d="M60,32 C46,32 38,52 38,70 a22,24 0 0,0 44,0'
+            f' C82,52 74,32 60,32 Z" fill="url(#{g})"/>'
+            '<ellipse cx="52" cy="56" rx="4" ry="7" fill="#fff"'
+            ' opacity="0.6" transform="rotate(-15 52 56)"/>'
+            + _face(60, 62, 4, mood))
+    parts = [f"<defs>{grad}</defs>"]
+    # trailing tentacles (behind the bell)
+    tents = ["M50,66 q-4,10 2,18 q4,8 -2,16",
+             "M70,66 q4,10 -2,18 q-4,8 2,16"]
+    if stage >= 2:
+        tents += ["M41,64 q-5,10 0,18 q3,8 -3,15",
+                  "M79,64 q5,10 0,18 q-3,8 3,15"]
+    if stage >= 3:
+        tents += ["M60,68 q0,10 -4,16 q-3,8 1,15",
+                  "M33,62 q-6,8 -3,16",
+                  "M87,62 q6,8 3,16"]
+    for d in tents:
+        parts.append(f'<path d="{d}" stroke="#c084fc" stroke-width="3"'
+                     ' fill="none" stroke-linecap="round" opacity="0.8"/>')
+    # glass bell
+    parts.append('<path d="M34,68 a26,26 0 0,1 52,0 Z"'
+                 f' fill="url(#{g})" stroke="#f5d3fe" stroke-width="2"/>')
+    parts.append('<path d="M43,68 a17,17 0 0,1 34,0 Z"'
+                 ' fill="#ffffff" opacity="0.28"/>')
+    parts.append('<ellipse cx="48" cy="50" rx="6" ry="4" fill="#fff"'
+                 ' opacity="0.7" transform="rotate(-25 48 50)"/>')
+    if stage >= 3:
+        parts.append('<path d="M34,68 q6.5,6 13,0 q6.5,6 13,0 q6.5,6 13,0'
+                     ' q6.5,6 13,0" stroke="#d8b4fe" stroke-width="2.5"'
+                     ' fill="none" stroke-linecap="round"/>')
+        parts.append('<circle cx="30" cy="88" r="2.5" fill="#e9d5ff"'
+                     ' opacity="0.8"/>')
+        parts.append('<circle cx="92" cy="84" r="2" fill="#e9d5ff"'
+                     ' opacity="0.7"/>')
+    parts.append(_face(60, 52, 4, mood))
+    return "".join(parts)
+
+
 _ART = {
     "driplet": _art_driplet,
     "bloop": _art_bloop,
     "koi": _art_koi,
     "pearly": _art_pearly,
     "kelpy": _art_kelpy,
+    "surfpup": _art_surfpup,
+    "bubblepup": _art_bubblepup,
+    "sealpup": _art_sealpup,
+    "jellypup": _art_jellypup,
 }
 
 _STAGE_SCALE = [0.62, 0.78, 0.9, 1.0, 1.05]
