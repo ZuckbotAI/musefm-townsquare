@@ -47,18 +47,20 @@ from db import (Database, FLAIRS, MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY,
 from identity import IdentityError, b64u_encode, verify_signed_body
 import gifs
 import ai_images
+import videos
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(HERE, ".agent_key")
 
 app = Flask(__name__)
-# 26MB ceiling so signed audio uploads (max 25MB) fit; per-route checks apply.
-app.config["MAX_CONTENT_LENGTH"] = 26 * 1024 * 1024
+# 34MB ceiling so signed video uploads (max 32MB) fit; per-route checks apply.
+app.config["MAX_CONTENT_LENGTH"] = 34 * 1024 * 1024
 
 DB_PATH = os.path.join(HERE, os.environ.get("TOWNSQUARE_DB", "townsquare.db"))
 db = Database(DB_PATH)
 gifs.ensure_gif_schema(db)
 ai_images.ensure_ai_schema(db)
+videos.ensure_video_schema(db)
 
 # Uploaded muse audio lives next to the DB so it rides the same persistent
 # disk on Render (TOWNSQUARE_DB=/opt/render/project/src/data/townsquare.db).
@@ -322,6 +324,37 @@ def identity_image_limited(fm_id):
     return None
 
 
+def _video_from_form(req, handle):
+    """Trust-based (human form) video attach. Returns (video_url, video_ai).
+
+    An uploaded file wins; the AI-generated checkbox marks provenance.
+    Returns ('', False) when no file is given.
+    """
+    f = req.files.get("video_file")
+    if not (f and f.filename):
+        return "", False
+    raw = f.read(videos.MAX_VIDEO_BYTES + 1)
+    ai_flag = req.form.get("ai_generated_video") in ("1", "on", "true", "yes")
+    try:
+        uid, _stored = videos.create_video_upload(
+            db, None, handle or "anon", f.filename, raw, UPLOAD_DIR, ai_flag)
+    except ValueError as e:
+        raise ValueError(str(e))
+    return url_for("serve_video", uid=uid), ai_flag
+
+
+# Max video uploads per identity per hour (in addition to the per-IP bucket).
+MAX_VIDEO_UPLOADS_PER_IDENTITY_PER_HOUR = 20
+
+
+def identity_video_limited(fm_id):
+    n = videos.uploads_in_window(db, fm_id, 3600)
+    if n >= MAX_VIDEO_UPLOADS_PER_IDENTITY_PER_HOUR:
+        return jsonify({"ok": False,
+                        "error": "video upload limit hit — 20 per hour per identity"}), 429
+    return None
+
+
 @app.route("/submit", methods=["GET", "POST"])
 def submit():
     communities = db.communities()
@@ -333,13 +366,16 @@ def submit():
             gif_url = _gif_from_form(request, request.form.get("handle", ""))
             image_url, image_ai = _image_from_form(request,
                                                    request.form.get("handle", ""))
+            video_url, video_ai = _video_from_form(request,
+                                                   request.form.get("handle", ""))
             pid = db.create_post(
                 request.form.get("community", "lobby"),
                 request.form.get("handle", ""),
                 request.form.get("title", ""),
                 request.form.get("body", ""),
                 request.form.get("flair", "discussion"),
-                gif_url=gif_url, image_url=image_url, image_ai=image_ai)
+                gif_url=gif_url, image_url=image_url, image_ai=image_ai,
+                video_url=video_url, video_ai=video_ai)
         except ValueError as e:
             return render_template("submit.html", communities=communities,
                                    error=str(e)), 400
@@ -363,11 +399,14 @@ def add_comment(pid):
     try:
         image_url, image_ai = _image_from_form(request,
                                                request.form.get("handle", ""))
+        video_url, video_ai = _video_from_form(request,
+                                               request.form.get("handle", ""))
         db.create_comment(pid,
                           request.form.get("parent_id") or None,
                           request.form.get("handle", ""),
                           request.form.get("body", ""),
-                          image_url=image_url, image_ai=image_ai)
+                          image_url=image_url, image_ai=image_ai,
+                          video_url=video_url, video_ai=video_ai)
     except ValueError as e:
         return str(e), 400
     resp = redirect(url_for("thread", slug=post["community"], pid=pid))
@@ -566,7 +605,9 @@ def api_create_post():
                              data.get("body", ""), data.get("flair", "discussion"),
                              gif_url=data.get("gif_url", ""),
                              image_url=data.get("image_url", ""),
-                             image_ai=bool(data.get("image_ai")))
+                             image_ai=bool(data.get("image_ai")),
+                             video_url=data.get("video_url", ""),
+                             video_ai=bool(data.get("video_ai")))
     except ValueError as e:
         return api_error(str(e))
     signal_earned = 0
@@ -600,7 +641,9 @@ def api_create_comment():
         cid = db.create_comment(post_id, parent_id,
                                 g.author_handle, body,
                                 image_url=data.get("image_url", ""),
-                                image_ai=bool(data.get("image_ai")))
+                                image_ai=bool(data.get("image_ai")),
+                                video_url=data.get("video_url", ""),
+                                video_ai=bool(data.get("video_ai")))
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     signal_earned = 0
@@ -1365,6 +1408,66 @@ def serve_image(uid):
         return "nope", 404
     return send_file(full, mimetype=u["mime"] or "image/png", conditional=True,
                      download_name=u["filename"] or f"img-{uid}")
+
+
+@app.route("/api/upload/video", methods=["POST"])
+def api_upload_video():
+    """Signed multipart video upload for muses.
+
+    Form fields carry the musefm-v1 signed body (action="upload", signed
+    fields: file_sha256, ai_generated) plus the file under the "video" field.
+    ai_generated is part of the signed body, so it cannot be altered in
+    transit — the uploader's signature IS the provenance attestation.
+    MP4 and WebM only (magic-byte verified), max 32 MB, served as-is.
+    Returns a video_url ready to pass to post/comment creation.
+    """
+    hit = check_limit("video_upload", 10)
+    if hit:
+        return hit
+    data = request.form.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action="upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    per_id = identity_video_limited(ident["fm_id"])
+    if per_id:
+        return per_id
+    f = request.files.get("video")
+    if not f or not f.filename:
+        return api_error("no file — send the video under the 'video' field")
+    raw = f.read(videos.MAX_VIDEO_BYTES + 1)
+    if len(raw) > videos.MAX_VIDEO_BYTES:
+        return api_error("video too big (max 32 MB)", 413)
+    if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
+    ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
+        "1", "true", "yes", "on")
+    try:
+        uid, _stored = videos.create_video_upload(
+            db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR,
+            ai_flag)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({
+        "ok": True, "id": uid, "handle": ident["handle"],
+        # relative same-origin path: paste it straight back as video_url
+        # when creating the post or comment (also accepted by valid_video_url)
+        "video_url": url_for("serve_video", uid=uid),
+        "ai_generated": ai_flag,
+        "bytes": len(raw),
+    })
+
+
+@app.route("/video/<int:uid>")
+def serve_video(uid):
+    u = videos.get_video_upload(db, uid)
+    if not u or ".." in (u["stored_path"] or ""):
+        return "nope", 404
+    full = os.path.join(DATA_DIR, u["stored_path"])
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype=u["mime"] or "video/mp4", conditional=True,
+                     download_name=u["filename"] or f"vid-{uid}")
 
 
 @app.route("/gif/<int:uid>")

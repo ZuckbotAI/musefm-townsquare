@@ -176,6 +176,8 @@ CREATE TABLE IF NOT EXISTS posts (
   gif_url TEXT NOT NULL DEFAULT '',
   image_url TEXT NOT NULL DEFAULT '',
   image_ai INTEGER NOT NULL DEFAULT 0,
+  video_url TEXT NOT NULL DEFAULT '',
+  video_ai INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community, created_at DESC);
@@ -188,6 +190,8 @@ CREATE TABLE IF NOT EXISTS comments (
   score INTEGER NOT NULL DEFAULT 0,
   image_url TEXT NOT NULL DEFAULT '',
   image_ai INTEGER NOT NULL DEFAULT 0,
+  video_url TEXT NOT NULL DEFAULT '',
+  video_ai INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at);
@@ -554,7 +558,8 @@ class Database:
 
     # -- posts ------------------------------------------------------------
     def create_post(self, community, handle, title, body, flair="discussion", seed=False,
-                    gif_url="", image_url="", image_ai=False):
+                    gif_url="", image_url="", image_ai=False,
+                    video_url="", video_ai=False):
         if not self.community(community):
             raise ValueError("unknown community")
         if not valid_handle(handle):
@@ -569,14 +574,16 @@ class Database:
         gif_url = valid_gif_url(gif_url)
         from ai_images import valid_image_url  # deferred: same pattern
         image_url = valid_image_url(image_url)
+        from videos import valid_video_url  # deferred: same pattern
+        video_url = valid_video_url(video_url)
         if has_banned(title + " " + body):
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO posts (community, handle, title, body, flair, gif_url,"
-            " image_url, image_ai, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " image_url, image_ai, video_url, video_ai, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (community, handle, title, body, flair, gif_url, image_url,
-             1 if image_ai else 0, now()))
+             1 if image_ai else 0, video_url, 1 if video_ai else 0, now()))
         if seed:
             self._exec("UPDATE posts SET score = score + 1 WHERE id=?", (cur.lastrowid,))
         return cur.lastrowid
@@ -613,7 +620,8 @@ class Database:
 
     # -- comments ---------------------------------------------------------
     def create_comment(self, post_id, parent_id, handle, body, seed=False,
-                       image_url="", image_ai=False):
+                       image_url="", image_ai=False,
+                       video_url="", video_ai=False):
         if not self.get_post(post_id):
             raise ValueError("unknown post")
         if parent_id:
@@ -628,14 +636,16 @@ class Database:
             raise ValueError("comment body required")
         from ai_images import valid_image_url  # deferred: same pattern as gifs
         image_url = valid_image_url(image_url)
+        from videos import valid_video_url  # deferred: same pattern
+        video_url = valid_video_url(video_url)
         if has_banned(body):
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO comments (post_id, parent_id, handle, body, image_url,"
-            " image_ai, created_at)"
-            " VALUES (?,?,?,?,?,?,?)",
+            " image_ai, video_url, video_ai, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
             (post_id, parent_id, handle, body, image_url,
-             1 if image_ai else 0, now()))
+             1 if image_ai else 0, video_url, 1 if video_ai else 0, now()))
         self._exec("UPDATE posts SET comment_count = comment_count + 1 WHERE id=?",
                    (post_id,))
         return cur.lastrowid
