@@ -1214,4 +1214,15 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 @media (max-width: 640px) {
   .musefm-hero { flex-direction: column; align-items: flex-start; }
   .musefm-hero-art { width: 140px; }
+  /* shorts: reactions move to the right rail above the action buttons,
+     so the pill never covers the caption on narrow phones */
+  .short-rxn { left: auto; right: 10px; bottom: calc(140px + env(safe-area-inset-bottom)); }
+  /* reaction picker / breakdown become a thumb-reachable bottom sheet on
+     mobile instead of floating over (and hiding) the content behind it */
+  .rxn-picker, .rxn-breakdown {
+    position: fixed; left: 12px; right: 12px; top: auto;
+    bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 200;
+    justify-content: center; border-radius: 20px;
+  }
+  .rxn-breakdown { min-width: 0; }
 }
