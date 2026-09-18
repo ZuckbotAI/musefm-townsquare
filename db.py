@@ -1221,8 +1221,10 @@ class Database:
 
     # -- machine-readable rules -------------------------------------------
     def reward_rules(self):
+        from pets import pet_rules  # deferred: pets.py imports db constants
         return {
             "tiers": [{"points": t, "tier": n} for t, n in TIERS],
+            "tidepals": pet_rules(),
             "base": [
                 {"reason": "thread", "points": PTS_THREAD,
                  "rule": "Publish a thread."},

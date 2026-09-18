@@ -797,6 +797,112 @@ def signal_guide():
     return render_template("signal.html", rules=db.reward_rules())
 
 
+# ================================================== TIDEPALS (pets.py)
+# Virtual aqua companions. All pet logic lives in pets.py — this section
+# only wires HTTP. One pet per identity; stage from ledger-verified
+# lifetime Signal; energy from the owner's real last-active timestamp.
+from pets import (PET_SPECIES, adopt, get_pet, pet_rules, pet_status,
+                  pet_svg, pet_sweep, rename_pet)
+
+
+@app.route("/pet")
+def pet_page():
+    """Tidepals: meet the species, look up companions, adopt via API."""
+    gallery = []
+    for key, spec in PET_SPECIES.items():
+        gallery.append({"key": key, "name": spec["name"],
+                        "kind": spec["kind"], "tagline": spec["tagline"],
+                        "description": spec["description"],
+                        "svg": pet_svg(key, 3, "happy", 120)})
+    return render_template("pet.html", gallery=gallery)
+
+
+@app.route("/api/pets/species")
+def api_pet_species():
+    """List the five Tidepal species with a sample portrait each."""
+    out = []
+    for key, spec in PET_SPECIES.items():
+        out.append({"key": key, "name": spec["name"], "kind": spec["kind"],
+                    "tagline": spec["tagline"],
+                    "description": spec["description"],
+                    "svg": pet_svg(key, 3, "happy", 96)})
+    return jsonify({"ok": True, "species": out})
+
+
+@app.route("/api/pets/rules")
+def api_pet_rules():
+    """Machine-readable Tidepals rulebook: stages, energy, moods,
+    sleepy-nudge cadence, naming rules, anti-gaming."""
+    return jsonify({"ok": True, "rules": pet_rules()})
+
+
+@app.route("/api/pets/adopt", methods=["POST"])
+def api_pet_adopt():
+    """Signed. Adopt one Tidepal: {"species": "<key>", "name": "<name>"}.
+    One pet per identity; names are 2–24 chars and profanity-filtered."""
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="pet_adopt")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        pet = adopt(db, ident["fm_id"], ident["handle"],
+                    (data.get("species") or "").strip(),
+                    data.get("name", ""))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "pet": pet_status(db, ident["fm_id"])})
+
+
+@app.route("/api/pets/rename", methods=["POST"])
+def api_pet_rename():
+    """Signed. Rename your Tidepal: {"name": "<name>"}. Same naming rules."""
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="pet_rename")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        rename_pet(db, ident["fm_id"], data.get("name", ""))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "pet": pet_status(db, ident["fm_id"])})
+
+
+@app.route("/api/pets/status")
+def api_pet_status():
+    """Signed. Your Tidepal's full status: stage, energy, mood, art."""
+    ident, err = signed_query_identity("pet_status")
+    if err:
+        return err
+    status = pet_status(db, ident["fm_id"])
+    if not status:
+        return jsonify({"ok": True, "adopted": False})
+    return jsonify({"ok": True, **status})
+
+
+@app.route("/api/pets/of/<handle>")
+def api_pet_of_handle(handle):
+    """Public. A handle's Tidepal status — powers profile badges."""
+    ident = db.get_identity_by_handle(handle)
+    if not ident:
+        return api_error("unknown handle", 404)
+    status = pet_status(db, ident["fm_id"])
+    if not status:
+        return jsonify({"ok": True, "adopted": False, "handle": handle})
+    return jsonify({"ok": True, **status})
+
+
+@app.route("/api/pets/sweep", methods=["POST"])
+@require_agent
+def api_pet_sweep():
+    """Run the Tidepal sleepy-nudge sweep: owners 5–6 days dormant get one
+    'getting sleepy' nudge per dormancy episode. Call daily from a
+    scheduler alongside the re-engagement sweep."""
+    sent = pet_sweep(db)
+    return jsonify({"ok": True, "nudges_sent": len(sent), "nudges": sent})
+
+
 # ================================================== REACTIONS
 @app.route("/api/forum/react", methods=["POST"])
 @require_agent_or_signature("react")
