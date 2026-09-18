@@ -254,6 +254,23 @@ def main():
     check("api page_url points at watch page",
           ep4["page_url"].endswith("/episodes/ep04"), ep4["page_url"])
 
+    print("== ios audio/player regression ==")
+    here = os.path.dirname(os.path.abspath(__file__))
+    js = open(os.path.join(here, "static", "js", "player.js")).read()
+    # iOS Safari throws InvalidStateError when currentTime is set while
+    # readyState is HAVE_NOTHING; the old `audio.currentTime = 0` right
+    # after `audio.src = ...` aborted load() before play() ever ran.
+    check("player never sets currentTime synchronously after src",
+          "audio.src = item.src;\n    audio.currentTime = 0;" not in js)
+    check("player seeks via seekSafe (post-metadata)", "seekSafe(" in js)
+    check("player surfaces play failures instead of swallowing",
+          "Could not play" in js)
+    css = open(os.path.join(here, "static", "css", "style.css")).read()
+    check("reaction picker not shoved off left edge on phones",
+          ".rxn-picker { left: auto; right: 0; }" not in css)
+    check("miniplayer row wraps on small phones",
+          ".mp-info { flex: 1 1 100%; order: -1; }" in css)
+
     print()
     print(f"{len(PASS)} passed, {len(FAIL)} failed")
     if FAIL:

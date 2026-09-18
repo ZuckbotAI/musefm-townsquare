@@ -1140,8 +1140,13 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .rxn-compact .rxn-like { padding: 6px 11px; font-size: 12px; }
 .rxn-compact .rxn-count { padding: 6px 8px; font-size: 12px; }
 @media (max-width: 480px) {
-  .rxn-picker { left: auto; right: 0; }
+  /* picker stays left-anchored: every widget is left-aligned, so right:0
+     would shove the ~330px picker off the left edge of the phone. */
   .rxn-opt { font-size: 30px; padding: 8px; }
+  /* miniplayer: 5 fixed buttons + art exceed ~400px viewports, so the row
+     wraps — title on its own line, art + controls below. */
+  .mp-row { flex-wrap: wrap; gap: 8px; }
+  .mp-info { flex: 1 1 100%; order: -1; }
 }
 
 /* ================= Muse FM section ================= */

@@ -16,6 +16,22 @@ window.TSPlayer = (function () {
   var mpPlay = document.getElementById('mp-play');
   var mpProg = document.querySelector('#mp-progress > div');
 
+  // iOS Safari (and spec-compliant browsers) throw InvalidStateError if
+  // currentTime is set while readyState is HAVE_NOTHING. The old code did
+  // `audio.currentTime = 0` synchronously after `audio.src = ...`, which
+  // aborted load() before play() ever ran — tapping Play did nothing.
+  // Always seek after metadata is available instead.
+  var loadSeq = 0;
+  function seekSafe(t, seq) {
+    if (audio.readyState >= 1) { try { audio.currentTime = t; } catch (e) {} return; }
+    var once = function () {
+      audio.removeEventListener('loadedmetadata', once);
+      if (seq !== loadSeq) return; // superseded by a newer load()
+      try { audio.currentTime = t; } catch (e2) {}
+    };
+    audio.addEventListener('loadedmetadata', once);
+  }
+
   function fmt(s) {
     if (!isFinite(s)) return '0:00';
     s = Math.floor(s);
@@ -26,18 +42,15 @@ window.TSPlayer = (function () {
 
   function load(item, autoplay, startAt) {
     state.current = Object.assign({ el: audio }, item);
+    var seq = ++loadSeq;
     audio.src = item.src;
-    audio.currentTime = 0;
     mpTitle.textContent = item.title;
     show();
     renderQueue();
+    seekSafe(startAt || 0, seq);
     if (autoplay) {
       var p = audio.play();
-      if (p) p.catch(function () {});
-    }
-    if (startAt) {
-      var once = function () { audio.currentTime = startAt; audio.removeEventListener('loadedmetadata', once); };
-      audio.addEventListener('loadedmetadata', once);
+      if (p) p.catch(function () { toast('Could not play — tap again'); });
     }
     updatePlayBtn();
   }
@@ -61,7 +74,7 @@ window.TSPlayer = (function () {
 
   function toggle() {
     if (!state.current) return;
-    if (audio.paused) { var p = audio.play(); if (p) p.catch(function () {}); }
+    if (audio.paused) { var p = audio.play(); if (p) p.catch(function () { toast('Could not play — tap again'); }); }
     else audio.pause();
     updatePlayBtn();
   }
