@@ -81,7 +81,8 @@ def main():
     pid = d["id"]
     r = c.get(f"/api/rewards/{fmA}")
     d = r.get_json()
-    check("rewards endpoint: balance 10", d["signal"] == 10 and d["tier"] == "Static", d)
+    check("rewards endpoint: balance 10 + first_thread achievement 15",
+          d["signal"] == 25 and d["tier"] == "Static", d)
     check("rewards history has thread entry",
           any(h["reason"] == "thread" for h in d["history"]), d)
 
@@ -149,16 +150,16 @@ def main():
     r = react(privA, fmA, "post", pid, "🔥")
     check("self-react ok", r.status_code == 200, r.status_code)
     check("self-reaction earns author nothing",
-          db.lifetime_points(fmA) == 10, db.lifetime_points(fmA))
+          db.lifetime_points(fmA) == 25, db.lifetime_points(fmA))
     # Bob reacts -> Alice +2
     r = react(privB, fmB, "post", pid, "🔥")
     check("react accepted", r.get_json()["reactions"].get("🔥") == 2, r.get_json())
-    check("author earns +2 per reactor", db.lifetime_points(fmA) == 12,
+    check("author earns +2 per reactor", db.lifetime_points(fmA) == 27,
           db.lifetime_points(fmA))
     # same reactor, different emoji: still one reward per reactor per target
     r = react(privB, fmB, "post", pid, "❤️")
     check("second emoji from same reactor: no double pay",
-          db.lifetime_points(fmA) == 12, db.lifetime_points(fmA))
+          db.lifetime_points(fmA) == 27, db.lifetime_points(fmA))
     # bad emoji rejected
     r = react(privB, fmB, "post", pid, "💩")
     check("bad emoji rejected", r.status_code == 400, r.status_code)

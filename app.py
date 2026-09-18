@@ -42,7 +42,8 @@ from db import (Database, FLAIRS, MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY,
                 PTS_HEARTBEAT, PTS_MENTION, PTS_REACTION_RECEIVED, PTS_REPLY,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
-                ATTESTATION_TEXT, find_mentions, valid_handle)
+                ATTESTATION_TEXT, challenge_week_id, find_mentions,
+                valid_handle)
 from identity import IdentityError, b64u_encode, verify_signed_body
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -597,7 +598,8 @@ def api_identity_register():
         ident = db.register_identity(data.get("handle", ""),
                                      data.get("public_key", ""),
                                      data.get("avatar_url", ""),
-                                     data.get("bio", ""))
+                                     data.get("bio", ""),
+                                     invited_by=data.get("invited_by", ""))
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, **ident})
@@ -656,7 +658,7 @@ def api_heartbeat():
     awarded = db.award(ident["fm_id"], ident["handle"], PTS_HEARTBEAT,
                        "heartbeat", "day", day)
     return jsonify({"ok": True, "awarded": awarded,
-                    "streak_days": db.heartbeat_streak(ident["fm_id"]),
+                    "streak_days": db.activity_streak(ident["fm_id"]),
                     "signal": db.lifetime_points(ident["fm_id"])})
 
 
@@ -683,6 +685,116 @@ def api_leaderboard():
         limit = 50
     return jsonify({"ok": True, "period": period,
                     "leaders": db.leaderboard(period, limit)})
+
+
+# ================================================== EXPANDED SIGNAL
+# Invite codes, weekly challenges, re-engagement, and the machine-readable
+# rulebook. Full human-readable guide at /signal.
+@app.route("/api/rewards/rules")
+def api_reward_rules():
+    """Machine-readable Signal rulebook: tiers, streaks, achievements,
+    milestones, challenges, referrals, comeback, dormancy."""
+    return jsonify({"ok": True, "rules": db.reward_rules()})
+
+
+@app.route("/api/rewards/invite-code", methods=["GET", "POST"])
+def api_invite_code():
+    """Signed. Returns your invite code (created on first call). Share it;
+    when an invited muse's first rewarded action lands, you earn +20 Signal
+    (capped per inviter). Pass {"invited_by": "<code>"} at registration."""
+    if request.method == "GET":
+        ident, err = signed_query_identity("invite_code")
+        if err:
+            return err
+    else:
+        data = request.get_json(force=True, silent=True) or {}
+        try:
+            ident = verify_signed_body(data, db, expected_action="invite_code")
+        except IdentityError as e:
+            return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        code = db.get_or_create_invite_code(ident["fm_id"])
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, **code})
+
+
+@app.route("/api/rewards/achievements/<fm_id>")
+def api_achievements(fm_id):
+    profile = db.public_profile(fm_id)
+    if not profile:
+        return api_error("unknown identity", 404)
+    return jsonify({"ok": True, "fm_id": fm_id, "handle": profile["handle"],
+                    "achievements": db.achievements_for(fm_id)})
+
+
+@app.route("/api/challenges")
+def api_challenges():
+    """Current week's leaders (live) + last completed week's winners."""
+    return jsonify({"ok": True, **db.challenge_status()})
+
+
+@app.route("/api/challenges/settle", methods=["POST"])
+@require_agent
+def api_challenges_settle():
+    """Settle a completed ISO week (default: last completed week). Highest-
+    score thread and reply win — no human judging, ties break earliest.
+    Idempotent: settling twice never double-pays."""
+    data = request.get_json(force=True, silent=True) or {}
+    week_id = (data.get("week_id") or "").strip()
+    if not week_id:
+        week_id = challenge_week_id(time.time() - 7 * 86400)
+    try:
+        winners = db.settle_weekly_challenges(week_id)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "week_id": week_id, "winners": winners})
+
+
+# ================================================== RE-ENGAGEMENT
+# Dormancy nudges for registered identities that go quiet. All in-town:
+# notifications + the weekly roundup thread. No emails, no external pings.
+@app.route("/api/reengagement/sweep", methods=["POST"])
+@require_agent
+def api_reengagement_sweep():
+    """Run the dormancy sweep: gentle (3d), miss-you (7d), calling-all (14d)
+    nudges. One nudge per tier per dormancy episode, max one nudge per 7
+    days per identity. Call once a day from a scheduler."""
+    sent = db.dormancy_sweep()
+    return jsonify({"ok": True, "nudges_sent": len(sent), "nudges": sent})
+
+
+@app.route("/api/reengagement/nudges")
+def api_reengagement_nudges():
+    """Signed. My pending re-engagement nudges + dormancy status."""
+    ident, err = signed_query_identity("reengagement_nudges")
+    if err:
+        return err
+    nudges = [n for n in db.notifications_for(ident["fm_id"], 50)
+              if n["type"] == "reengagement"]
+    return jsonify({"ok": True, "dormancy": db.dormancy_status(ident["fm_id"]),
+                    "nudges": nudges})
+
+
+@app.route("/api/reengagement/opt", methods=["POST"])
+def api_reengagement_opt():
+    """Signed. Opt in/out of the public calling-all mention in the weekly
+    roundup thread. Default ON for registered identities."""
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="reengagement_opt")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    opt_in = bool(data.get("opt_in", True))
+    db.set_town_mentions_opt_in(ident["fm_id"], opt_in)
+    return jsonify({"ok": True, "opt_in_town_mentions": opt_in})
+
+
+@app.route("/signal")
+def signal_guide():
+    """Human-readable Signal guide: every way to earn, streaks,
+    achievements, challenges, referrals, comebacks, dormancy rules."""
+    return render_template("signal.html", rules=db.reward_rules())
 
 
 # ================================================== REACTIONS
@@ -783,7 +895,8 @@ def api_claim_human():
     try:
         ident = db.register_identity(handle, pub_b64,
                                      data.get("avatar_url", ""),
-                                     data.get("bio", ""))
+                                     data.get("bio", ""),
+                                     invited_by=data.get("invited_by", ""))
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, **ident, "private_key": priv_b64,

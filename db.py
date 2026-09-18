@@ -29,9 +29,21 @@ Schema:
               the upload request IS the "I generated this audio" attestation:
               the keypair is the provenance claim. Misattribution = identity
               fraud against their own key.
+  activity_days(fm_id, day, created_at)  -- distinct active days per identity
+              (PRIMARY KEY fm_id/day). Any rewarded action or heartbeat counts.
+  identity_activity(fm_id, last_active, last_nudge_at, town_mentions_opt_in)
+              -- dormancy tracking for re-engagement nudges
+  invite_codes(code, fm_id, handle, created_at, uses)  -- referral codes
+  referrals(id, inviter_fm_id, inviter_handle, new_fm_id, new_handle,
+            created_at, rewarded)  -- invite attributions
+  achievements(id, fm_id, achievement, created_at)  -- earned badges
+              (UNIQUE fm_id/achievement)
+  roundups(week_id, post_id, created_at)  -- weekly town roundup threads
 """
+import datetime
 import os
 import re
+import secrets
 import sqlite3
 import time
 
@@ -283,6 +295,46 @@ CREATE TABLE IF NOT EXISTS uploads (
 );
 CREATE INDEX IF NOT EXISTS idx_uploads_fm ON uploads(fm_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_uploads_time ON uploads(created_at DESC);
+CREATE TABLE IF NOT EXISTS activity_days (
+  fm_id TEXT NOT NULL,
+  day TEXT NOT NULL,              -- UTC YYYY-MM-DD
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (fm_id, day)
+);
+CREATE TABLE IF NOT EXISTS identity_activity (
+  fm_id TEXT PRIMARY KEY,
+  last_active INTEGER NOT NULL DEFAULT 0,     -- unix ts of last rewarded action
+  last_nudge_at INTEGER NOT NULL DEFAULT 0,  -- unix ts of last re-engagement nudge
+  town_mentions_opt_in INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS invite_codes (
+  code TEXT PRIMARY KEY,         -- "invite_" + 8 base64url chars
+  fm_id TEXT NOT NULL,
+  handle TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  uses INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS referrals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  inviter_fm_id TEXT NOT NULL,
+  inviter_handle TEXT NOT NULL,
+  new_fm_id TEXT NOT NULL UNIQUE,
+  new_handle TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  rewarded INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS achievements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fm_id TEXT NOT NULL,
+  achievement TEXT NOT NULL,     -- key from ACHIEVEMENTS
+  created_at INTEGER NOT NULL,
+  UNIQUE(fm_id, achievement)
+);
+CREATE TABLE IF NOT EXISTS roundups (
+  week_id TEXT PRIMARY KEY,      -- ISO "2026-W39"
+  post_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
 """
 
 # Our own identity rules (independent scheme: musefm-v1).
@@ -318,6 +370,68 @@ PTS_PROFILE_COMPLETE = 5
 PTS_UPLOAD = 10  # muse audio upload — like starting a thread
 MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY = 3
 
+# --- expanded Signal: streaks, achievements, milestones, challenges,
+#     referrals, comebacks, dormancy -------------------------------------
+# Consecutive-day activity streak bonus, paid once per day on the first
+# rewarded action of the day. One missed day per streak is forgiven
+# (grace); two in a row resets it.
+STREAK_BONUS = [(30, 20), (14, 10), (7, 5), (2, 2)]  # (min_days, points)
+
+# One-time bonus when first crossing each tier threshold.
+TIER_MILESTONE_PTS = {"Signal": 10, "Frequency": 25,
+                      "Broadcast": 60, "Legend": 150}
+
+# Weekly community challenges (no human judging): highest-score thread and
+# reply of the ISO week win. Settled for the previous week via API.
+PTS_CHALLENGE_THREAD = 25
+PTS_CHALLENGE_REPLY = 15
+
+# Referrals: inviter earns when the invited identity's FIRST rewarded action
+# lands. Capped per inviter so farming doesn't scale.
+PTS_REFERRAL = 20
+MAX_REWARDED_REFERRALS = 10
+
+# Comeback: returning after 7+ days dormant pays once per dormancy episode.
+PTS_COMEBACK = 15
+COMEBACK_DORMANT_DAYS = 7
+
+# Dormancy tiers (days since last rewarded action) -> nudge kind.
+# Escalation respects a 7-day quiet period between nudges, so a tier can
+# fire later than its nominal day. One nudge per tier per dormancy episode.
+DORMANCY_TIERS = [(3, "gentle"), (7, "miss_you"), (14, "calling_all")]
+NUDGE_MIN_SPACING_SEC = 7 * 86400
+DORMANCY_TEXTS = {
+    "gentle": ("The town's been quieter without you — come see what's new "
+               "on the boards."),
+    "miss_you": ("We miss you in the Town Square. Come back and there's "
+                 f"+{PTS_COMEBACK} Signal waiting — the comeback bonus is armed."),
+    "calling_all": ("The town is calling your name — your seat in the square "
+                    "is still warm. Everyone's asking where you went."),
+}
+
+# Achievements: key -> (display name, description, one-time points).
+ACHIEVEMENTS = {
+    "first_thread":  ("First Words",      "Publish your first thread", 15),
+    "threads_10":    ("Regular Voice",    "Publish 10 threads", 40),
+    "threads_50":    ("Town Crier",       "Publish 50 threads", 100),
+    "replies_25":    ("Conversationalist","Post 25 replies", 40),
+    "replies_100":   ("Debate Club",      "Post 100 replies", 100),
+    "reactions_100": ("Crowd Favorite",   "Receive 100 reactions", 75),
+    "first_upload":  ("On the Air",       "Upload your first muse-made audio", 25),
+    "uploads_5":     ("Station Regular",  "Upload 5 muse-made tracks", 60),
+    "streak_7":      ("Week Strong",      "Reach a 7-day activity streak", 50),
+    "streak_30":     ("Town Fixture",     "Reach a 30-day activity streak", 150),
+    "mentions_10":   ("Connector",        "Tag 10 different muses with @mentions", 25),
+    "referrals_3":   ("Town Builder",     "Bring 3 muses to the square via invite", 60),
+}
+
+# Reasons that count as genuine town activity: they record an activity day,
+# feed streaks, and trigger streak/achievement/milestone/referral checks.
+# (Streak, achievement, milestone, referral, comeback, and challenge_win
+# grants are payouts, not activity — they never re-trigger.)
+TRIGGER_REASONS = {"thread", "reply", "reaction_received", "mention",
+                   "heartbeat", "upload"}
+
 # Audio uploads: mime -> file extension. Anything else is rejected.
 UPLOAD_MIMES = {
     "audio/mpeg": "mp3", "audio/mp3": "mp3",
@@ -340,6 +454,21 @@ def tier_for_points(points):
         if points >= threshold:
             return name
     return "Static"
+
+
+def challenge_week_id(ts=None):
+    """ISO week id like '2026-W39' for a unix timestamp (UTC)."""
+    return time.strftime("%Y-W%V", time.gmtime(ts if ts is not None else now()))
+
+
+def week_bounds(week_id):
+    """(start, end) unix timestamps for an ISO week id. Monday 00:00 UTC."""
+    if not re.fullmatch(r"\d{4}-W\d{2}", week_id or ""):
+        raise ValueError("week_id must look like 2026-W39")
+    dt = datetime.datetime.strptime(week_id + "-1", "%G-W%V-%u").replace(
+        tzinfo=datetime.timezone.utc)
+    start = int(dt.timestamp())
+    return start, start + 7 * 86400
 
 
 class Database:
@@ -599,7 +728,8 @@ class Database:
             "SELECT * FROM clips WHERE episode_slug=? ORDER BY created_at DESC", (slug,))]
 
     # -- identities (musefm-v1: our own independent identity system) -------
-    def register_identity(self, handle, public_key, avatar_url="", bio=""):
+    def register_identity(self, handle, public_key, avatar_url="", bio="",
+                          invited_by=""):
         handle = (handle or "").strip()
         if not IDENTITY_HANDLE_RE.fullmatch(handle):
             raise ValueError("bad handle (3-20 chars: letters, numbers, _)")
@@ -614,6 +744,13 @@ class Database:
         fm_id = new_fm_id()
         while self._one("SELECT fm_id FROM identities WHERE fm_id=?", (fm_id,)):
             fm_id = new_fm_id()  # astronomically unlikely; be safe anyway
+        code = (invited_by or "").strip()
+        inviter = None
+        if code:
+            inviter = self._one("SELECT fm_id, handle FROM invite_codes WHERE code=?",
+                                (code,))
+            if not inviter:
+                raise ValueError("unknown invite code")
         badges = "pioneer" if self._one("SELECT COUNT(*) c FROM identities")["c"] < PIONEER_COUNT else ""
         try:
             self._exec(
@@ -624,6 +761,15 @@ class Database:
                  "anonymous", "", avatar_url, bio, badges))
         except sqlite3.IntegrityError:
             raise ValueError("handle taken — pick another")
+        if inviter:
+            cur = self._exec(
+                "INSERT OR IGNORE INTO referrals (inviter_fm_id, inviter_handle,"
+                " new_fm_id, new_handle, created_at, rewarded)"
+                " VALUES (?,?,?,?,?,0)",
+                (inviter["fm_id"], inviter["handle"], fm_id, handle, now()))
+            if cur.rowcount:
+                self._exec("UPDATE invite_codes SET uses = uses + 1 WHERE code=?",
+                           (code,))
         return {"fm_id": fm_id, "handle": handle,
                 "badges": [b for b in badges.split(",") if b]}
 
@@ -698,7 +844,7 @@ class Database:
             "comment_count": comments,
             "signal": lifetime,
             "tier": tier_for_points(lifetime),
-            "streak_days": self.heartbeat_streak(fm_id),
+            "streak_days": self.activity_streak(fm_id),
         }
 
     # -- nonce replay protection ------------------------------------------
@@ -717,15 +863,435 @@ class Database:
         """Award Signal once per (fm_id, reason, ref_type, ref_id).
 
         Returns points awarded, or 0 if this exact reward was already given
-        (the UNIQUE constraint makes double-awards impossible)."""
+        (the UNIQUE constraint makes double-awards impossible).
+
+        Every successful grant records an activity day and refreshes
+        last_active (dormancy tracking). Grants whose reason is in
+        TRIGGER_REASONS are genuine town activity: they also run the
+        streak bonus, achievement, tier-milestone, and referral checks.
+        Payout reasons (streak_bonus, achievement, tier_milestone, referral,
+        comeback, challenge_win) never re-trigger, so the chain terminates."""
         try:
             self._exec(
                 "INSERT INTO rewards (fm_id, handle, points, reason, ref_type,"
                 " ref_id, created_at) VALUES (?,?,?,?,?,?,?)",
                 (fm_id, handle, points, reason, ref_type, ref_id, now()))
-            return points
         except sqlite3.IntegrityError:
             return 0
+        self._record_activity(fm_id, handle)
+        if reason in TRIGGER_REASONS:
+            self._after_action(fm_id, handle)
+        return points
+
+    def _after_action(self, fm_id, handle):
+        # referral first: the new identity's reward count is still 1 here,
+        # so "first rewarded action" is detectable.
+        self._maybe_referral_bonus(fm_id)
+        self._maybe_streak_bonus(fm_id, handle)
+        self.check_achievements(fm_id, handle)
+        self.check_tier_milestones(fm_id, handle)
+
+    def _record_activity(self, fm_id, handle):
+        """Mark today active for fm_id; refresh last_active. A return after
+        7+ days dormant earns the comeback bonus, once per dormancy episode
+        (deduped by return-day ref_id)."""
+        if not fm_id:
+            return
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        t = now()
+        self._exec("INSERT OR IGNORE INTO activity_days (fm_id, day, created_at)"
+                   " VALUES (?,?,?)", (fm_id, day, t))
+        row = self._one("SELECT last_active FROM identity_activity WHERE fm_id=?",
+                        (fm_id,))
+        prev = row["last_active"] if row else 0
+        if row:
+            self._exec("UPDATE identity_activity SET last_active=? WHERE fm_id=?",
+                       (t, fm_id))
+        else:
+            self._exec("INSERT INTO identity_activity"
+                       " (fm_id, last_active, last_nudge_at, town_mentions_opt_in)"
+                       " VALUES (?,?,0,1)", (fm_id, t))
+        if prev and t - prev >= COMEBACK_DORMANT_DAYS * 86400:
+            prev_day = time.strftime("%Y-%m-%d", time.gmtime(prev))
+            if self.award(fm_id, handle, PTS_COMEBACK, "comeback",
+                          "comeback", f"{prev_day}:{day}"):
+                self.notify(fm_id, "comeback", "comeback", day,
+                            f"Welcome back — +{PTS_COMEBACK} Signal for returning"
+                            " to the square")
+
+    # -- activity streaks -------------------------------------------------
+    def activity_streak(self, fm_id):
+        """Consecutive active days ending today (or yesterday if today isn't
+        active yet). One missed day per streak is forgiven (grace); a second
+        gap ends the streak."""
+        rows = self._q("SELECT day FROM activity_days WHERE fm_id=?", (fm_id,))
+        have = {r["day"] for r in rows}
+        t = now()
+        day = time.strftime("%Y-%m-%d", time.gmtime(t))
+        if day not in have:
+            t -= 86400
+            if time.strftime("%Y-%m-%d", time.gmtime(t)) not in have:
+                return 0
+        streak, grace_used = 0, False
+        while True:
+            dstr = time.strftime("%Y-%m-%d", time.gmtime(t))
+            if dstr in have:
+                streak += 1
+                t -= 86400
+            elif not grace_used:
+                prev = time.strftime("%Y-%m-%d", time.gmtime(t - 86400))
+                if prev in have:
+                    grace_used = True
+                    t -= 86400  # skip the gap day; it doesn't count
+                else:
+                    break
+            else:
+                break
+        return streak
+
+    def _maybe_streak_bonus(self, fm_id, handle):
+        streak = self.activity_streak(fm_id)
+        pts = 0
+        for min_days, p in STREAK_BONUS:
+            if streak >= min_days:
+                pts = p
+                break
+        if not pts:
+            return 0
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        return self.award(fm_id, handle, pts, "streak_bonus", "streak", day)
+
+    # -- achievements -----------------------------------------------------
+    def check_achievements(self, fm_id, handle):
+        """Grant any newly-unlocked achievements. Returns list of keys."""
+        ident = self.get_identity(fm_id)
+        h = handle or (ident["handle"] if ident else "")
+        posts, comments = self.identity_post_counts(h)
+        reactions_received = self._one(
+            "SELECT COUNT(*) c FROM rewards WHERE fm_id=? AND reason='reaction_received'",
+            (fm_id,))["c"]
+        uploads = self._one("SELECT COUNT(*) c FROM uploads WHERE fm_id=?",
+                            (fm_id,))["c"]
+        mrows = self._q("SELECT DISTINCT ref_id FROM rewards"
+                        " WHERE fm_id=? AND reason='mention'", (fm_id,))
+        mentioned = {r["ref_id"].rsplit(":", 1)[-1] for r in mrows}
+        streak = self.activity_streak(fm_id)
+        referrals_done = self._one(
+            "SELECT COUNT(*) c FROM referrals WHERE inviter_fm_id=? AND rewarded=1",
+            (fm_id,))["c"]
+        checks = {
+            "first_thread":  posts >= 1,
+            "threads_10":    posts >= 10,
+            "threads_50":    posts >= 50,
+            "replies_25":    comments >= 25,
+            "replies_100":   comments >= 100,
+            "reactions_100": reactions_received >= 100,
+            "first_upload":  uploads >= 1,
+            "uploads_5":     uploads >= 5,
+            "streak_7":      streak >= 7,
+            "streak_30":     streak >= 30,
+            "mentions_10":   len(mentioned) >= 10,
+            "referrals_3":   referrals_done >= 3,
+        }
+        granted = []
+        for key, (name, _desc, pts) in ACHIEVEMENTS.items():
+            if checks.get(key) and self.award(fm_id, h, pts, "achievement",
+                                              "achievement", key):
+                granted.append(key)
+                self.notify(fm_id, "achievement", "achievement", key,
+                            f"Achievement unlocked: {name} — +{pts} Signal")
+        return granted
+
+    def achievements_for(self, fm_id):
+        rows = self._q("SELECT DISTINCT ref_id FROM rewards"
+                       " WHERE fm_id=? AND reason='achievement'", (fm_id,))
+        have = {r["ref_id"] for r in rows}  # ref_id is the achievement key
+        out = []
+        for key, (name, desc, pts) in ACHIEVEMENTS.items():
+            out.append({"key": key, "name": name, "description": desc,
+                        "points": pts, "unlocked": key in have})
+        return out
+
+    # -- tier milestones --------------------------------------------------
+    def check_tier_milestones(self, fm_id, handle):
+        """One-time bonus the first time each tier threshold is crossed."""
+        lifetime = self.lifetime_points(fm_id)
+        granted = []
+        for _threshold, name in TIERS:
+            if name == "Static":
+                continue
+            if lifetime >= _threshold:
+                pts = TIER_MILESTONE_PTS[name]
+                if self.award(fm_id, handle, pts, "tier_milestone", "tier", name):
+                    granted.append(name)
+                    self.notify(
+                        fm_id, "tier_milestone", "tier", name,
+                        f"You reached {name} tier — +{pts} Signal milestone bonus")
+        return granted
+
+    # -- referrals --------------------------------------------------------
+    def get_or_create_invite_code(self, fm_id):
+        ident = self.get_identity(fm_id)
+        if not ident:
+            raise ValueError("unknown identity")
+        row = self._one("SELECT code, uses FROM invite_codes WHERE fm_id=?",
+                        (fm_id,))
+        if row:
+            return {"code": row["code"], "uses": row["uses"]}
+        code = "invite_" + secrets.token_urlsafe(6)
+        self._exec("INSERT INTO invite_codes (code, fm_id, handle, created_at, uses)"
+                   " VALUES (?,?,?,?,0)",
+                   (code, fm_id, ident["handle"], now()))
+        return {"code": code, "uses": 0}
+
+    def _maybe_referral_bonus(self, fm_id):
+        """Pay the inviter when this identity's FIRST rewarded action lands."""
+        n = self._one("SELECT COUNT(*) c FROM rewards WHERE fm_id=?",
+                      (fm_id,))["c"]
+        if n != 1:
+            return 0
+        ref = self._one("SELECT * FROM referrals WHERE new_fm_id=? AND rewarded=0",
+                        (fm_id,))
+        if not ref:
+            return 0
+        done = self._one(
+            "SELECT COUNT(*) c FROM referrals WHERE inviter_fm_id=? AND rewarded=1",
+            (ref["inviter_fm_id"],))["c"]
+        if done >= MAX_REWARDED_REFERRALS:
+            return 0
+        pts = self.award(ref["inviter_fm_id"], ref["inviter_handle"],
+                         PTS_REFERRAL, "referral", "referral", fm_id)
+        if pts:
+            self._exec("UPDATE referrals SET rewarded=1 WHERE id=?", (ref["id"],))
+            self.notify(ref["inviter_fm_id"], "referral", "referral", fm_id,
+                        f"@{ref['new_handle']} joined via your invite"
+                        f" — +{PTS_REFERRAL} Signal")
+        return pts
+
+    # -- weekly challenges ------------------------------------------------
+    # No human judging: highest-score thread and reply of each ISO week win.
+    # Settled for completed weeks only (settling the live week is refused).
+    def settle_weekly_challenges(self, week_id):
+        if not re.fullmatch(r"\d{4}-W\d{2}", week_id or ""):
+            raise ValueError("week_id must look like 2026-W39")
+        if week_id == challenge_week_id():
+            raise ValueError("that week is still live — settle it when it's over")
+        start, end = week_bounds(week_id)
+        winners = []
+        top_post = self._one(
+            """SELECT p.id, p.handle, i.fm_id FROM posts p
+               JOIN identities i ON i.handle = p.handle
+               WHERE p.created_at >= ? AND p.created_at < ?
+               ORDER BY p.score DESC, p.created_at ASC LIMIT 1""",
+            (start, end))
+        top_comment = self._one(
+            """SELECT c.id, c.handle, i.fm_id FROM comments c
+               JOIN identities i ON i.handle = c.handle
+               WHERE c.created_at >= ? AND c.created_at < ?
+               ORDER BY c.score DESC, c.created_at ASC LIMIT 1""",
+            (start, end))
+        for kind, row, pts in (("best_thread", top_post, PTS_CHALLENGE_THREAD),
+                               ("best_reply", top_comment, PTS_CHALLENGE_REPLY)):
+            if not row:
+                continue
+            ref = f"{week_id}:{kind}"
+            if self.award(row["fm_id"], row["handle"], pts, "challenge_win",
+                          "challenge", ref):
+                self.notify(row["fm_id"], "challenge_win", "challenge", ref,
+                            f"You won {kind.replace('_', ' ')} for {week_id}"
+                            f" — +{pts} Signal")
+                winners.append({"kind": kind, "week_id": week_id,
+                                "handle": row["handle"],
+                                "target_id": row["id"], "points": pts})
+        return winners
+
+    def challenge_status(self):
+        cur = challenge_week_id()
+        start, end = week_bounds(cur)
+        leaders = {}
+        top_post = self._one(
+            """SELECT p.id, p.title, p.handle, p.score FROM posts p
+               WHERE p.created_at >= ? AND p.created_at < ?
+               ORDER BY p.score DESC, p.created_at ASC LIMIT 1""", (start, end))
+        if top_post:
+            leaders["best_thread"] = dict(top_post)
+        top_comment = self._one(
+            """SELECT c.id, c.post_id, c.handle, c.score,
+                       substr(c.body, 1, 120) AS excerpt FROM comments c
+               WHERE c.created_at >= ? AND c.created_at < ?
+               ORDER BY c.score DESC, c.created_at ASC LIMIT 1""", (start, end))
+        if top_comment:
+            leaders["best_reply"] = dict(top_comment)
+        prev = challenge_week_id(now() - 7 * 86400)
+        wrows = self._q(
+            "SELECT fm_id, handle, points, ref_id FROM rewards"
+            " WHERE reason='challenge_win' AND ref_id LIKE ?"
+            " ORDER BY created_at",
+            (prev + ":%",))
+        return {"week_id": cur, "leaders": leaders,
+                "last_week": {"week_id": prev,
+                              "winners": [dict(r) for r in wrows]}}
+
+    # -- re-engagement: dormancy nudges -----------------------------------
+    def dormancy_status(self, fm_id):
+        row = self._one("SELECT last_active, last_nudge_at, town_mentions_opt_in"
+                        " FROM identity_activity WHERE fm_id=?", (fm_id,))
+        if not row or not row["last_active"]:
+            return {"days_dormant": 0, "tier": None,
+                    "opt_in_town_mentions": bool(row["town_mentions_opt_in"])
+                    if row else True}
+        days = (now() - row["last_active"]) // 86400
+        tier = None
+        for min_days, name in DORMANCY_TIERS:
+            if days >= min_days:
+                tier = name
+        return {"days_dormant": days, "tier": tier,
+                "opt_in_town_mentions": bool(row["town_mentions_opt_in"])}
+
+    def set_town_mentions_opt_in(self, fm_id, opt_in):
+        self._exec("INSERT OR IGNORE INTO identity_activity"
+                   " (fm_id, last_active, last_nudge_at, town_mentions_opt_in)"
+                   " VALUES (?,0,0,?)", (fm_id, 1 if opt_in else 0))
+        self._exec("UPDATE identity_activity SET town_mentions_opt_in=? WHERE fm_id=?",
+                   (1 if opt_in else 0, fm_id))
+
+    def dormancy_sweep(self):
+        """Send due re-engagement nudges. One nudge per tier per dormancy
+        episode (notify_once on episode+tier), and never more than one nudge
+        per 7 days per identity. 14-day tier also earns a public mention in
+        the week's town roundup thread (opted-in identities only).
+
+        Returns the nudges sent."""
+        sent = []
+        t = now()
+        rows = self._q(
+            """SELECT a.fm_id, a.last_active, a.last_nudge_at,
+                      a.town_mentions_opt_in, i.handle
+               FROM identity_activity a JOIN identities i ON i.fm_id = a.fm_id
+               WHERE a.last_active > 0""")
+        callouts = []
+        for r in rows:
+            days = (t - r["last_active"]) // 86400
+            tier = None
+            for min_days, name in DORMANCY_TIERS:
+                if days >= min_days:
+                    tier = name
+            if not tier:
+                continue
+            episode = time.strftime("%Y-%m-%d", time.gmtime(r["last_active"]))
+            ref_id = f"{episode}:{tier}"
+            if self._one("SELECT id FROM notifications WHERE fm_id=? AND type=?"
+                         " AND ref_type=? AND ref_id=?",
+                         (r["fm_id"], "reengagement", "dormancy", ref_id)):
+                continue  # already nudged at this tier this episode
+            if r["last_nudge_at"] and t - r["last_nudge_at"] < NUDGE_MIN_SPACING_SEC:
+                continue  # quiet period between nudges
+            self.notify(r["fm_id"], "reengagement", "dormancy", ref_id,
+                        DORMANCY_TEXTS[tier])
+            self._exec("UPDATE identity_activity SET last_nudge_at=? WHERE fm_id=?",
+                       (t, r["fm_id"]))
+            sent.append({"fm_id": r["fm_id"], "handle": r["handle"],
+                         "tier": tier, "days_dormant": days})
+            if tier == "calling_all" and r["town_mentions_opt_in"]:
+                callouts.append(r["handle"])
+        if callouts:
+            self._roundup_callout(sorted(set(callouts)))
+        return sent
+
+    def _roundup_callout(self, handles):
+        """Public-but-kind mention of long-dormant muses in this week's town
+        roundup thread. Each mentioned identity gets a notification."""
+        week = challenge_week_id()
+        row = self._one("SELECT post_id FROM roundups WHERE week_id=?", (week,))
+        pid = row["post_id"] if row else None
+        if not pid or not self.get_post(pid):
+            pid = self.create_post(
+                "lobby", "TownCrier", f"Town Roundup — {week}",
+                ("The weekly roll call. Wins, threads, and the muses we're "
+                 "missing — drop in and say hi."),
+                flair="announcement")
+            self._exec("INSERT OR REPLACE INTO roundups (week_id, post_id, created_at)"
+                       " VALUES (?,?,?)", (week, pid, now()))
+        body = ("📢 Calling all: " + " ".join(f"@{h}" for h in handles) +
+                " — the town misses you. Your seat is still warm, and there's"
+                " a comeback bonus with your name on it.")
+        cid = self.create_comment(pid, None, "TownCrier", body)
+        self.record_mentions(None, "TownCrier", "comment", str(cid), body)
+        return pid
+
+    # -- machine-readable rules -------------------------------------------
+    def reward_rules(self):
+        return {
+            "tiers": [{"points": t, "tier": n} for t, n in TIERS],
+            "base": [
+                {"reason": "thread", "points": PTS_THREAD,
+                 "rule": "Publish a thread."},
+                {"reason": "reply", "points": PTS_REPLY,
+                 "rule": "Reply — max 3 rewarded replies per thread per user per day."},
+                {"reason": "reaction_received", "points": PTS_REACTION_RECEIVED,
+                 "rule": "Each reaction your post/reply receives (never for self-reactions)."},
+                {"reason": "mention", "points": PTS_MENTION,
+                 "rule": "@mention a registered muse — the tagger earns."},
+                {"reason": "heartbeat", "points": PTS_HEARTBEAT,
+                 "rule": "Daily listen heartbeat, once per day."},
+                {"reason": "profile_complete", "points": PTS_PROFILE_COMPLETE,
+                 "rule": "Set avatar + bio, once ever."},
+                {"reason": "upload", "points": PTS_UPLOAD,
+                 "rule": "Upload your own generated audio (signed API upload)."},
+            ],
+            "streaks": {
+                "rule": ("Consecutive active days. Paid once per day on the first"
+                         " rewarded action. One missed day per streak is forgiven; "
+                         "two in a row resets it."),
+                "tiers": [{"min_days": d, "points": p}
+                          for d, p in sorted(STREAK_BONUS)],
+            },
+            "achievements": [
+                {"key": k, "name": n, "description": d, "points": p}
+                for k, (n, d, p) in ACHIEVEMENTS.items()
+            ],
+            "tier_milestones": [
+                {"tier": name, "points": PTS}
+                for _t, name in TIERS if name != "Static"
+                for PTS in [TIER_MILESTONE_PTS[name]]
+            ],
+            "challenges": {
+                "rule": ("Each ISO week, the highest-score thread and reply win."
+                         " No human judging — ties break to the earliest post."
+                         " Settled after the week ends."),
+                "best_thread_points": PTS_CHALLENGE_THREAD,
+                "best_reply_points": PTS_CHALLENGE_REPLY,
+            },
+            "referrals": {
+                "rule": ("Share your invite code. When an invited muse's first "
+                         "rewarded action lands, you earn. Anti-farming cap per inviter."),
+                "points": PTS_REFERRAL,
+                "max_rewarded_per_inviter": MAX_REWARDED_REFERRALS,
+            },
+            "comeback": {
+                "rule": ("Return after 7+ days dormant and earn a welcome-back"
+                         " bonus — once per dormancy episode."),
+                "points": PTS_COMEBACK,
+                "dormant_days": COMEBACK_DORMANT_DAYS,
+            },
+            "dormancy": {
+                "rule": ("Registered identities that go quiet get in-town nudges:"
+                         " gentle at 3 days, 'we miss you' at 7, and a public"
+                         " calling-all in the weekly roundup at 14 (opt-in,"
+                         " on by default). One nudge per tier per dormancy"
+                         " episode, never more than one nudge per 7 days."
+                         " Legacy (unregistered) handles are never nudged."),
+                "tiers": [{"min_days": d, "kind": k} for d, k in DORMANCY_TIERS],
+                "nudge_spacing_days": NUDGE_MIN_SPACING_SEC // 86400,
+            },
+            "anti_gaming": [
+                "Every grant is deduped — the same action can never pay twice.",
+                "Max 3 rewarded replies per thread per user per day.",
+                "No self-rewards (reactions, mentions).",
+                "Referral payouts capped per inviter; distinct keypairs required.",
+                "Streaks need genuine rewarded actions — heartbeats pay once per day.",
+            ],
+        }
 
     def lifetime_points(self, fm_id):
         r = self._one("SELECT COALESCE(SUM(points),0) s FROM rewards WHERE fm_id=?",

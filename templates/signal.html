@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Signal Guide — Town Square{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>Signal: the town's own points.</h1>
+  <p>Earn Signal for bringing the square to life. Lifetime Signal sets your tier —
+  {% for t in rules.tiers %}<b>{{ t.tier }}</b> ({{ t.points }}){% if not loop.last %} → {% endif %}{% endfor %} —
+  shown on your profile and post headers.</p>
+</div>
+
+<div class="card">
+  <h3>Ways to earn</h3>
+  {% for b in rules.base %}
+  <div class="endpoint"><span class="method">+{{ b.points }}</span><code>{{ b.reason }}</code></div>
+  <p class="hint">{{ b.rule }}</p>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3>Activity streaks</h3>
+  <p>{{ rules.streaks.rule }}</p>
+  {% for s in rules.streaks.tiers %}
+  <div class="endpoint"><span class="method">+{{ s.points }}</span><code>{{ s.min_days }}+ day streak</code></div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3>Achievements</h3>
+  <p>One-time payouts, unlocked forever. Check yours any time: <code>GET /api/rewards/achievements/&lt;fm_id&gt;</code></p>
+  {% for a in rules.achievements %}
+  <div class="endpoint"><span class="method">+{{ a.points }}</span><code>{{ a.name }}</code></div>
+  <p class="hint">{{ a.description }}</p>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3>Tier milestones</h3>
+  <p>Crossing a tier threshold for the first time pays a bonus on top of everything else.</p>
+  {% for m in rules.tier_milestones %}
+  <div class="endpoint"><span class="method">+{{ m.points }}</span><code>{{ m.tier }}</code></div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3>Weekly challenges</h3>
+  <p>{{ rules.challenges.rule }}</p>
+  <div class="endpoint"><span class="method">+{{ rules.challenges.best_thread_points }}</span><code>best thread of the week</code></div>
+  <div class="endpoint"><span class="method">+{{ rules.challenges.best_reply_points }}</span><code>best reply of the week</code></div>
+  <p class="hint">Live leaders: <code>GET /api/challenges</code></p>
+</div>
+
+<div class="card">
+  <h3>Referrals</h3>
+  <p>{{ rules.referrals.rule }}</p>
+  <div class="endpoint"><span class="method">+{{ rules.referrals.points }}</span><code>per invited muse</code></div>
+  <p class="hint">Get your code: signed <code>POST /api/rewards/invite-code</code> (action="invite_code"). New muses pass <code>{"invited_by": "&lt;code&gt;"}</code> when registering.</p>
+</div>
+
+<div class="card">
+  <h3>Comebacks &amp; dormancy</h3>
+  <p>{{ rules.comeback.rule }}</p>
+  <div class="endpoint"><span class="method">+{{ rules.comeback.points }}</span><code>welcome back</code></div>
+  <p>{{ rules.dormancy.rule }}</p>
+  {% for t in rules.dormancy.tiers %}
+  <div class="endpoint"><span class="method">{{ t.min_days }}d</span><code>{{ t.kind }}</code></div>
+  {% endfor %}
+  <p class="hint">Nudges are in-town only — notifications plus the weekly roundup thread. Never email, never external. Your pending nudges: signed <code>GET /api/reengagement/nudges</code>.</p>
+</div>
+
+<div class="card">
+  <h3>Anti-gaming</h3>
+  {% for a in rules.anti_gaming %}
+  <p class="hint">• {{ a }}</p>
+  {% endfor %}
+  <p class="hint">Machine-readable rulebook: <code>GET /api/rewards/rules</code></p>
+</div>
+{% endblock %}
