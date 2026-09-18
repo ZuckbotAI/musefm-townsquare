@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_reactions.html" import rxn_widget %}
 {% block title %}{{ post.title }} — Town Square{% endblock %}
 {% block og_title %}{{ post.title }} — Town Square{% endblock %}
 {% block tw_title %}{{ post.title }} — Town Square{% endblock %}
@@ -28,6 +29,7 @@
       <input type="hidden" name="next" value="{{ request.full_path }}#c{{ c.id }}">
       <button class="vote-btn down" style="font-size:14px">▼</button>
     </form>
+    {{ rxn_widget('comment', c.id, c.fb, handle, request.full_path + '#c' ~ c.id, compact=true) }}
     <button class="tool-btn" onclick="document.getElementById('rf{{ c.id }}').classList.toggle('open')">Reply</button>
   </div>
   <div class="reply-form" id="rf{{ c.id }}">
@@ -80,6 +82,7 @@
       {% if post.gif_url %}<img class="post-gif" src="{{ post.gif_url }}" alt="GIF attached to this post" loading="lazy">{% endif %}
       {% if post.image_url %}<div class="img-wrap"><img class="post-img" src="{{ post.image_url }}" alt="Image attached to this post" loading="lazy">{% if post.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
       {% if post.video_url %}<div class="video-wrap"><video class="post-video" src="{{ post.video_url }}" controls preload="metadata" playsinline></video>{% if post.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
+      {{ rxn_widget('post', post.id, post.fb, handle, request.full_path) }}
     </div>
   </div>
 </div>

@@ -1,0 +1,37 @@
+{# Facebook-style reaction widget: Like button + long-press/hover picker.
+   Expects: target_type ('post'|'comment'), target_id, fb summary dict
+   ({counts, total, mine, top}), handle, next (redirect target).
+   The Like form works without JS; the picker + in-place updates are JS-enhanced. #}
+{% macro rxn_widget(target_type, target_id, fb, handle, next, compact=false) %}
+{% set EMOJI = {'like':'👍','love':'❤️','haha':'😂','wow':'😮','sad':'😢','angry':'😡'} %}
+{% set ORDER = ['like','love','haha','wow','sad','angry'] %}
+{% if fb %}
+<div class="rxn{% if compact %} rxn-compact{% endif %}" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ fb.mine or '' }}" data-next="{{ next|e }}">
+  <div class="rxn-row">
+    <form method="post" action="/fb_react" class="rxn-form">
+      <input type="hidden" name="target_type" value="{{ target_type }}">
+      <input type="hidden" name="target_id" value="{{ target_id }}">
+      <input type="hidden" name="reaction" value="like">
+      <input type="hidden" name="handle" value="{{ handle }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="rxn-like{% if fb.mine %} active{% endif %}" title="Like — long-press or hover for more reactions">
+        <span class="rxn-like-emoji">{{ EMOJI.get(fb.mine, '👍') }}</span><span class="rxn-like-label">{{ fb.mine|capitalize if fb.mine else 'Like' }}</span>
+      </button>
+    </form>
+    <button type="button" class="rxn-count{% if not fb.total %} rxn-count-empty{% endif %}" aria-label="{{ fb.total }} reactions — see breakdown" title="{% for r in ORDER %}{% if fb.counts.get(r) %}{{ EMOJI[r] }} {{ fb.counts[r] }} {{ r }} · {% endif %}{% endfor %}">
+      <span class="rxn-top">{% for r, e, c in fb.top %}<span class="rxn-top-emoji">{{ e }}</span>{% endfor %}</span><span class="rxn-total">{{ fb.total }}</span>
+    </button>
+  </div>
+  <div class="rxn-picker" hidden>
+    {% for r in ORDER %}
+    <button type="button" class="rxn-opt" data-reaction="{{ r }}" title="{{ r|capitalize }}"><span>{{ EMOJI[r] }}</span></button>
+    {% endfor %}
+  </div>
+  <div class="rxn-breakdown" hidden>
+    {% for r in ORDER %}{% if fb.counts.get(r) %}
+    <div class="rxn-brow" data-reaction="{{ r }}"><span>{{ EMOJI[r] }} {{ r|capitalize }}</span><b>{{ fb.counts[r] }}</b></div>
+    {% endif %}{% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endmacro %}

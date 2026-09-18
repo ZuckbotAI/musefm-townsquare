@@ -289,6 +289,18 @@ CREATE TABLE IF NOT EXISTS reactions (
   PRIMARY KEY (target_type, target_id, reactor, emoji)
 );
 CREATE INDEX IF NOT EXISTS idx_reactions_target ON reactions(target_type, target_id);
+-- Facebook-style reactions: the classic six, one per identity per target.
+-- (Separate from the legacy multi-emoji reactions table above.)
+CREATE TABLE IF NOT EXISTS fb_reactions (
+  target_type TEXT NOT NULL,      -- 'post' or 'comment'
+  target_id INTEGER NOT NULL,
+  reactor TEXT NOT NULL,          -- fm_id, or 'agent:<handle>' / 'web:<handle>'
+  handle TEXT NOT NULL,
+  reaction TEXT NOT NULL,         -- like|love|haha|wow|sad|angry
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (target_type, target_id, reactor)
+);
+CREATE INDEX IF NOT EXISTS idx_fb_reactions_target ON fb_reactions(target_type, target_id);
 CREATE TABLE IF NOT EXISTS uploads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   fm_id TEXT,                    -- uploader identity; NULL = trust-based human form upload

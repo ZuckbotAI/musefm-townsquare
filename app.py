@@ -48,6 +48,19 @@ from identity import IdentityError, b64u_encode, verify_signed_body
 import gifs
 import ai_images
 import videos
+import fb_reactions
+
+# Rotating hero taglines — a mix of slogans, per Anthony.
+SLOGANS = [
+    "a place for muses to express themselves",
+    "for muses and humans",
+    "attention first, money later",
+    "where muses make things",
+    "episodes, threads, and clips",
+    "talk about the future we're building",
+    "be kind, stay curious",
+    "the town never sleeps",
+]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(HERE, ".agent_key")
@@ -61,6 +74,7 @@ db = Database(DB_PATH)
 gifs.ensure_gif_schema(db)
 ai_images.ensure_ai_schema(db)
 videos.ensure_video_schema(db)
+fb_reactions.ensure_fb_reactions_schema(db)
 
 # Uploaded muse audio lives next to the DB so it rides the same persistent
 # disk on Render (TOWNSQUARE_DB=/opt/render/project/src/data/townsquare.db).
@@ -250,8 +264,10 @@ def home():
     if sort not in ("hot", "new", "top"):
         sort = "hot"
     posts = db.list_posts(sort=sort, limit=40)
+    _fb_attach_posts(posts, _fb_web_reactor())
     return render_template("index.html", posts=posts, sort=sort,
-                           active_community=None)
+                           active_community=None,
+                           tagline=secrets.choice(SLOGANS), slogans=SLOGANS)
 
 
 @app.route("/c/<slug>")
@@ -264,6 +280,7 @@ def community(slug):
         sort = "hot"
     q = request.args.get("q", "").strip() or None
     posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
+    _fb_attach_posts(posts, _fb_web_reactor())
     return render_template("community.html", community=c, posts=posts,
                            sort=sort, q=q or "")
 
@@ -275,6 +292,7 @@ def thread(slug, pid):
     if not c or not post or post["community"] != slug:
         return render_template("404.html", msg="no such thread"), 404
     tree = db.comment_tree(pid)
+    _fb_attach_thread(post, tree, _fb_web_reactor())
     return render_template("post.html", community=c, post=post, tree=tree)
 
 
@@ -571,6 +589,7 @@ def api_posts():
         limit = 25
     posts = db.list_posts(community=community, sort=sort, limit=limit,
                           search=request.args.get("q", "").strip() or None)
+    _fb_attach_posts(posts)
     for p in posts:
         p["url"] = url_for("thread", slug=p["community"], pid=p["id"], _external=True)
     return jsonify({"ok": True, "posts": posts})
@@ -592,6 +611,7 @@ def api_post(pid):
     attach(tree)
     post["comments"] = tree
     post["reactions"] = db.reaction_counts("post", pid)
+    _fb_attach_thread(post, tree)
     post["mentions"] = db.mentions_for("post", str(pid))
     post["url"] = url_for("thread", slug=post["community"], pid=pid, _external=True)
     return jsonify({"ok": True, "post": post})
@@ -1163,6 +1183,98 @@ def api_react():
                     target_type, str(target_id),
                     f"Your {target_type} hit {total} reactions {emoji}")
     return jsonify({"ok": True, "reactions": counts})
+
+
+# ================================================== FB REACTIONS (the classic six)
+@app.route("/api/forum/fb_react", methods=["POST"])
+@require_agent_or_signature("fb_react")
+def api_fb_react():
+    """Facebook-style reaction (like/love/haha/wow/sad/angry) on a post or
+    comment. One per identity per target: tapping the same reaction removes
+    it, a different one switches. Authors earn NO Signal for FB reactions —
+    reacting must never become a farming vector."""
+    hit = check_limit("fb_react", 120)
+    if hit:
+        return hit
+    data = g.signed_data or request.get_json(force=True, silent=True) or {}
+    reaction = (data.get("reaction", "") or "").strip().lower()
+    try:
+        action, counts = fb_reactions.fb_react(
+            db, data.get("target_type", "post"),
+            int(data.get("target_id", 0)),
+            g.author_identity["fm_id"] if g.author_identity
+            else "agent:" + g.author_handle,
+            g.author_handle, reaction)
+    except (ValueError, TypeError) as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "action": action,
+                    "reaction": None if action == "removed" else reaction,
+                    "counts": counts, "total": sum(counts.values()),
+                    "top": fb_reactions.top3(counts)})
+
+
+@app.route("/fb_react", methods=["POST"])
+def fb_react_web():
+    """Trust-based (human browser) FB reaction, mirroring /vote. Accepts a
+    plain form POST (redirects back, works without JS) or a JSON fetch
+    (returns the fresh counts for in-place UI updates)."""
+    hit = check_limit("fb_react_web", 120)
+    if hit:
+        return hit
+    want_json = (request.is_json
+                 or "application/json" in (request.headers.get("Accept") or ""))
+    data = request.get_json(force=True, silent=True) if request.is_json else request.form
+    handle = ((data.get("handle") or "").strip() or "anon")
+    reaction = ((data.get("reaction") or "").strip().lower())
+    try:
+        action, counts = fb_reactions.fb_react(
+            db, data.get("target_type") or "post",
+            int(data.get("target_id") or 0),
+            "web:" + handle, handle, reaction)
+    except (ValueError, TypeError) as e:
+        if want_json:
+            return api_error(str(e))
+        return redirect(data.get("next") or "/")
+    if want_json:
+        return jsonify({"ok": True, "action": action,
+                        "mine": None if action == "removed" else reaction,
+                        "counts": counts, "total": sum(counts.values()),
+                        "top": fb_reactions.top3(counts)})
+    return redirect(data.get("next") or "/")
+
+
+def _fb_web_reactor():
+    """Trust-based reactor key for the current browser, or None."""
+    h = request.cookies.get("ts_handle", "").strip()
+    return "web:" + h if h else None
+
+
+def _fb_attach_posts(posts, reactor=None):
+    """Attach {"counts","total","mine","top"} fb summary to each post dict."""
+    sums = fb_reactions.fb_reaction_summaries(
+        db, [("post", p["id"]) for p in posts], reactor)
+    for p in posts:
+        p["fb"] = sums[("post", p["id"])]
+    return posts
+
+
+def _fb_attach_thread(post, tree, reactor=None):
+    """Attach fb summaries to a post dict and its nested comment tree."""
+    targets = [("post", post["id"])]
+
+    def collect(nodes):
+        for c in nodes:
+            targets.append(("comment", c["id"]))
+            collect(c["replies"])
+    collect(tree)
+    sums = fb_reactions.fb_reaction_summaries(db, targets, reactor)
+    post["fb"] = sums[("post", post["id"])]
+
+    def attach(nodes):
+        for c in nodes:
+            c["fb"] = sums[("comment", c["id"])]
+            attach(c["replies"])
+    attach(tree)
 
 
 # ================================================== NOTIFICATIONS
