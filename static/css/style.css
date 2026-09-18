@@ -1143,3 +1143,68 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   .rxn-picker { left: auto; right: 0; }
   .rxn-opt { font-size: 30px; padding: 8px; }
 }
+
+/* ================= Muse FM section ================= */
+.musefm-hero { display: flex; gap: 20px; align-items: center; }
+.musefm-hero-art {
+  width: 180px; height: auto; border-radius: var(--radius);
+  border: 1px solid var(--glass-border); box-shadow: var(--shadow-card);
+  image-rendering: pixelated; flex-shrink: 0;
+}
+.hero-links { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.musefm-strip { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; margin-bottom: 8px; }
+.strip-card {
+  flex: 0 0 180px; background: var(--glass-strong); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 10px; text-decoration: none; color: var(--text);
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+.strip-card:hover { border-color: var(--text-3); }
+.strip-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; image-rendering: pixelated; }
+.strip-kind { font-size: 24px; }
+.strip-title { font-weight: 700; font-size: 13px; }
+.strip-more { justify-content: center; align-items: center; font-weight: 800; color: var(--text-2); }
+.about-card { margin-top: 18px; }
+.about-card p { color: var(--text-2); font-size: 14px; }
+
+/* episode watch page: audio poster + player */
+.watch-poster { display: block; width: 100%; max-height: 46vh; object-fit: cover; image-rendering: pixelated; background: #000; }
+.watch-audio { display: block; width: 100%; }
+
+/* shorts: photo + audio cards */
+.short-photo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; background: #000;
+}
+.short-caption { font-size: 12px; opacity: .85; margin-top: 4px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.short-play-audio {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3;
+  width: 76px; height: 76px; border-radius: 50%; font-size: 30px;
+  border: 2px solid rgba(255,255,255,.8); background: rgba(10,30,45,.55); color: #fff;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer;
+}
+.short-rxn {
+  position: absolute; left: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 3;
+  pointer-events: auto;
+}
+.short-rxn .rxn { margin-top: 0; }
+.short-rxn .rxn-like, .short-rxn .rxn-count {
+  background: rgba(10,30,45,.55); border-color: rgba(255,255,255,.4); color: #fff;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+
+/* photos */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.photo-card { padding: 10px; }
+.photo-thumb { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; }
+.photo-title { font-weight: 700; margin-top: 8px; }
+.photo-full { padding: 18px; }
+.photo-img { width: 100%; border-radius: var(--radius); }
+.photo-title-lg { margin: 12px 0 6px; font-size: 22px; }
+.error { color: #ff7b7b; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .musefm-hero { flex-direction: column; align-items: flex-start; }
+  .musefm-hero-art { width: 140px; }
+}

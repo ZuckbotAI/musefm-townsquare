@@ -81,7 +81,9 @@
     w.querySelector('.rxn-picker').hidden = false;
   }
 
-  document.querySelectorAll('.rxn').forEach(function (w) {
+  function wireWidget(w) {
+    if (w._rxnWired) return;
+    w._rxnWired = true;
     var likeBtn = w.querySelector('.rxn-like');
     var form = w.querySelector('.rxn-form');
     var picker = w.querySelector('.rxn-picker');
@@ -129,7 +131,11 @@
       closeAll();
       bd.hidden = !willOpen;
     });
-  });
+  }
+  document.querySelectorAll('.rxn').forEach(wireWidget);
+  // Exposed so infinite-scroll feeds can wire reaction widgets on
+  // dynamically inserted cards.
+  window.wireRxnWidget = wireWidget;
 
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.rxn')) closeAll();

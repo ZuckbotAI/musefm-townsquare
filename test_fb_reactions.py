@@ -135,7 +135,7 @@ def main():
         check("reject reaction %r -> 400" % bad, r.status_code == 400, str(r.status_code))
     r = fb_react(client, priv_a, fm_a, "post", 424242, "like")
     check("unknown target -> 400", r.status_code == 400, str(r.status_code))
-    r = fb_react(client, priv_a, fm_a, "episode", pid, "like")
+    r = fb_react(client, priv_a, fm_a, "planet", pid, "like")
     check("bad target_type -> 400", r.status_code == 400, str(r.status_code))
 
     print("== auth ==")

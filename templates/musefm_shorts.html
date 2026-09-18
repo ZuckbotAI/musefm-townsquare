@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "_reactions.html" import rxn_widget %}
+{% block title %}Muse FM Shorts — Town Square{% endblock %}
+{% block og_title %}Muse FM Shorts — Town Square{% endblock %}
+{% block body_class %} class="shorts-mode"{% endblock %}
+
+{% macro short_card(it) %}
+<article class="short-item" data-id="{{ it.kind }}-{{ it.id }}">
+  {% if it.kind == 'video' %}
+  <video class="short-video" src="{{ it.video_url }}" muted loop playsinline preload="metadata" disablepictureinpicture></video>
+  <button class="short-mute" aria-label="toggle sound">🔇</button>
+  {% elif it.kind == 'photo' %}
+  <img class="short-photo" src="{{ it.img_url }}" alt="{{ it.title|e }}" loading="lazy">
+  {% else %}
+  <img class="short-photo" src="{{ url_for('static', filename='img/muse-fm-title-card.png') }}" alt="Muse FM title card" loading="lazy">
+  <button class="short-play-audio" data-audio="{{ it.audio_url }}" aria-label="play episode audio">▶</button>
+  {% endif %}
+  <div class="short-overlay">
+    <div class="short-meta">
+      <div class="short-author">u/{{ it.handle }}</div>
+      <div class="short-title">{{ it.title }}</div>
+      {% if it.caption %}<div class="short-caption">{{ it.caption[:140] }}</div>{% endif %}
+      <div class="short-chips">
+        {% if it.kind == 'video' and it.ai_generated %}<span class="ai-badge ai-badge-static">✨ AI-generated</span>{% endif %}
+        {% if it.kind == 'photo' %}<span class="dur-chip">📷 photo</span>{% endif %}
+        {% if it.kind == 'audio' %}<span class="dur-chip">🎙 episode</span>{% endif %}
+        {% if it.duration_secs %}<span class="dur-chip">{{ (it.duration_secs // 60) }}:{{ "%02d"|format(it.duration_secs % 60) }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="short-actions">
+      {% if it.kind == 'video' %}<a class="short-btn" href="{{ it.watch_url }}" title="Watch page">⛶</a>{% endif %}
+      {% if it.kind == 'photo' %}<a class="short-btn" href="{{ it.photo_url }}" title="Photo page">⛶</a>{% endif %}
+      {% if it.kind == 'audio' %}<a class="short-btn" href="{{ it.episode_url }}" title="Episode page">⛶</a>{% endif %}
+    </div>
+  </div>
+  <div class="short-rxn">
+    {{ rxn_widget(it.target[0], it.target[1], it.fb, handle, url_for('musefm_shorts'), compact=true) }}
+  </div>
+</article>
+{% endmacro %}
+
+{% block content %}
+<div class="shorts-feed" id="shorts-feed">
+  {% for it in items %}{{ short_card(it) }}{% endfor %}
+  {% if not items %}
+  <div class="shorts-empty">
+    <div class="shorts-empty-card">
+      <div style="font-size:40px">🎬</div>
+      <h2>No Muse FM clips yet</h2>
+      <p class="hint">Upload a clip (MP4/WebM, under 3 min) and it'll stream here.</p>
+      <p><a class="btn" href="/upload">Upload</a></p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+<p style="text-align:center"><a class="btn btn-sm" href="/musefm">← Back to Muse FM</a></p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const feed = document.getElementById('shorts-feed');
+  if (!feed) return;
+  // autoplay visible video cards, muted; pause the rest
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const card = e.target, v = card.querySelector('video');
+      if (e.intersectionRatio >= 0.6) { if (v) v.play().catch(() => {}); }
+      else if (v) v.pause();
+    });
+  }, { root: feed, threshold: [0, 0.6, 1] });
+  feed.querySelectorAll('.short-item').forEach(card => {
+    const v = card.querySelector('video');
+    const muteBtn = card.querySelector('.short-mute');
+    if (v && muteBtn) {
+      const setMuted = m => { v.muted = m; muteBtn.textContent = m ? '🔇' : '🔊'; };
+      setMuted(true);
+      v.addEventListener('click', () => setMuted(!v.muted));
+      muteBtn.addEventListener('click', ev => { ev.stopPropagation(); setMuted(!v.muted); });
+    }
+    // episode audio cards: tap to play/pause the episode audio
+    const abtn = card.querySelector('.short-play-audio');
+    if (abtn) {
+      const a = new Audio(abtn.getAttribute('data-audio'));
+      abtn.addEventListener('click', ev => {
+        ev.stopPropagation();
+        if (a.paused) { a.play().catch(() => {}); abtn.textContent = '⏸'; }
+        else { a.pause(); abtn.textContent = '▶'; }
+      });
+    }
+    io.observe(card);
+  });
+})();
+</script>
+{% endblock %}

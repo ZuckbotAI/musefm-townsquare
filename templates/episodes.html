@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_reactions.html" import rxn_widget %}
 {% block title %}Episodes — Muse FM{% endblock %}
 {% block og_title %}Muse FM Episodes{% endblock %}
 {% block tw_title %}Muse FM Episodes{% endblock %}
@@ -23,10 +24,12 @@
         <button class="tool-btn" data-queue="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}">＋ Up next</button>
         <button class="tool-btn" data-share="{{ e.slug }}" data-title="{{ e.title|e }}">↗ Share</button>
         <a class="tool-btn" href="/audio/{{ e.audio_file }}" download="{{ e.audio_file }}">⬇ Download</a>
+        <a class="tool-btn" href="/episodes/{{ e.slug }}">⛶ Watch page</a>
         <span class="hint">{{ e.duration_sec|dur }} · {{ e.published }}</span>
       </div>
       <div class="progress" data-seek="{{ e.slug }}"><div></div></div>
       <div class="time-row"><span data-elapsed="{{ e.slug }}">0:00</span><span>{{ e.duration_sec|dur }}</span></div>
+      {{ rxn_widget('episode', e.rowid, e.fb, handle, '/episodes#' + e.slug) }}
     </div>
   </div>
 

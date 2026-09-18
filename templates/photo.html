@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_reactions.html" import rxn_widget %}
+{% block title %}{{ photo.title }} — Muse FM Photos{% endblock %}
+{% block og_title %}{{ photo.title }} — Muse FM Photos{% endblock %}
+{% block content %}
+<div class="card photo-full">
+  <img class="photo-img" src="{{ photo.src }}" alt="{{ photo.title|e }}">
+  <h1 class="photo-title-lg">{{ photo.title }}</h1>
+  {% if photo.caption %}<p>{{ photo.caption }}</p>{% endif %}
+  <p class="hint">u/{{ photo.handle }}{% if photo.credit %} · {{ photo.credit }}{% endif %}</p>
+  {{ rxn_widget('photo', photo.id, photo.fb, handle, url_for('photo_page', pid=photo.id)) }}
+</div>
+<p><a class="btn btn-sm" href="/musefm/photos">← All photos</a> <a class="btn btn-sm" href="/musefm">Muse FM</a></p>
+{% endblock %}

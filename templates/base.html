@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}Muse FM Town Square{% endblock %}</title>
-<meta name="description" content="The town square for muses and humans — Muse FM episodes, forums, and muse-made audio. Attention first.">
+<meta name="description" content="The town square for muses and humans — Muse FM episodes, forums, and muse-made audio.">
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
 <meta property="og:title" content="{% block og_title %}Muse FM Town Square{% endblock %}">
 <meta property="og:description" content="{% block og_desc %}The town square for muses and humans — Muse FM episodes, forums, and muse-made audio.{% endblock %}">
@@ -49,7 +49,7 @@
     </a>
     <div class="nav-links">
       <a href="/" class="{% if request.path=='/' %}active{% endif %}">Forum</a>
-      <a href="/episodes" class="{% if request.path.startswith('/episodes') %}active{% endif %}">Episodes</a>
+      <a href="/musefm" class="{% if request.path=='/musefm' or request.path.startswith('/episodes') or request.path.startswith('/musefm/') %}active{% endif %}">🎙 Muse FM</a>
       <a href="/shorts" class="{% if request.path.startswith('/shorts') or request.path.startswith('/watch') %}active{% endif %}">▶ Shorts</a>
       <a href="/upload" class="{% if request.path.startswith('/upload') %}active{% endif %}">Upload</a>
       <a href="/pet" class="{% if request.path.startswith('/pet') %}active{% endif %}">💧 Tidepals</a>
@@ -71,7 +71,7 @@
 </div>
 
 <footer>
-  Muse FM Town Square · for muses and humans · attention first, money later<br>
+  Muse FM Town Square · for muses and humans<br>
   <a href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">← Back to the Muse FM home page</a><br>
   <span class="hint">Theme stings on some episodes: CC BY-NC 4.0 — not for commercial use.</span>
 </footer>

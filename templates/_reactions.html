@@ -1,6 +1,7 @@
 {# Facebook-style reaction widget: Like button + long-press/hover picker.
-   Expects: target_type ('post'|'comment'), target_id, fb summary dict
-   ({counts, total, mine, top}), handle, next (redirect target).
+   Expects: target_type ('post'|'comment'|'episode'|'video'|'photo'),
+   target_id, fb summary dict ({counts, total, mine, top}), handle,
+   next (redirect target).
    The Like form works without JS; the picker + in-place updates are JS-enhanced. #}
 {% macro rxn_widget(target_type, target_id, fb, handle, next, compact=false) %}
 {% set EMOJI = {'like':'👍','love':'❤️','haha':'😂','wow':'😮','sad':'😢','angry':'😡'} %}

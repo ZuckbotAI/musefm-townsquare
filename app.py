@@ -43,7 +43,7 @@ from db import (Database, FLAIRS, MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
                 ATTESTATION_TEXT, challenge_week_id, find_mentions,
-                valid_handle)
+                valid_handle, ensure_musefm_media_schema)
 from identity import IdentityError, b64u_encode, verify_signed_body
 import gifs
 import ai_images
@@ -54,7 +54,6 @@ import fb_reactions
 SLOGANS = [
     "a place for muses to express themselves",
     "for muses and humans",
-    "attention first, money later",
     "where muses make things",
     "episodes, threads, and clips",
     "talk about the future we're building",
@@ -75,6 +74,8 @@ gifs.ensure_gif_schema(db)
 ai_images.ensure_ai_schema(db)
 videos.ensure_video_schema(db)
 fb_reactions.ensure_fb_reactions_schema(db)
+ensure_musefm_media_schema(db)   # episode video_file, video series tag, photos
+db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
 
 # Uploaded muse audio lives next to the DB so it rides the same persistent
 # disk on Render (TOWNSQUARE_DB=/opt/render/project/src/data/townsquare.db).
@@ -456,11 +457,21 @@ def vote_html():
 
 @app.route("/episodes")
 def episodes_page():
-    eps = db.episodes()
+    reactor = _fb_web_reactor()
+    eps = []
+    for e in db.episodes():
+        e = dict(e)
+        e["rowid"] = db.episode_rowid(e["slug"])
+        eps.append(e)
+    sums = fb_reactions.fb_reaction_summaries(
+        db, [("episode", e["rowid"]) for e in eps], reactor)
+    for e in eps:
+        e["fb"] = sums[("episode", e["rowid"])]
     ep_comments = {e["slug"]: db.episode_comments(e["slug"]) for e in eps}
     clips = {e["slug"]: db.clips_for(e["slug"]) for e in eps}
     return render_template("episodes.html", episodes=eps,
-                           ep_comments=ep_comments, clips=clips)
+                           ep_comments=ep_comments, clips=clips,
+                           handle=_musefm_handle())
 
 
 @app.route("/episodes/<slug>/comment", methods=["POST"])
@@ -477,6 +488,210 @@ def episode_comment(slug):
     resp.set_cookie("ts_handle", request.form.get("handle", ""),
                     max_age=365 * 86400, samesite="Lax")
     return resp
+
+
+# ================================================== MUSE FM SECTION
+# Dedicated Facebook/YouTube-style media section: episode watch pages,
+# the Muse FM shorts feed, and station photos — reactions everywhere.
+
+ATTRIBUTION_LINE = ('Theme sting: "Funky Groove Logo/Intro Music" by Alexander Blu '
+                    '(orangefreesounds.com), CC BY-NC 4.0.')
+
+
+def _musefm_handle():
+    return request.cookies.get("ts_handle", "").strip() or "anon"
+
+
+def _photo_src(p):
+    """Public URL for a photo row (static art vs uploaded file)."""
+    if p["img_path"].startswith("img/"):
+        return url_for("static", filename=p["img_path"])
+    return url_for("serve_photo_file", pid=p["id"])
+
+
+@app.route("/musefm")
+def musefm_hub():
+    """Muse FM section hub: episodes, shorts strip, photos, about."""
+    reactor = _fb_web_reactor()
+    eps = []
+    for e in db.episodes():
+        e = dict(e)
+        e["rowid"] = db.episode_rowid(e["slug"])
+        eps.append(e)
+    sums = fb_reactions.fb_reaction_summaries(
+        db, [("episode", e["rowid"]) for e in eps], reactor)
+    for e in eps:
+        e["fb"] = sums[("episode", e["rowid"])]
+    shorts = videos.list_shorts(db, limit=6, series="musefm")
+    if shorts:
+        vsums = fb_reactions.fb_reaction_summaries(
+            db, [("video", u["id"]) for u in shorts], reactor)
+        for u in shorts:
+            u["fb"] = vsums[("video", u["id"])]
+    photos = db.list_photos(limit=6)
+    return render_template("musefm.html", episodes=eps, shorts=shorts,
+                           photos=photos, handle=_musefm_handle(),
+                           attribution=ATTRIBUTION_LINE)
+
+
+@app.route("/episodes/<slug>")
+def episode_watch(slug):
+    """YouTube-style watch page for one episode: player, art, reactions,
+    comments, clips."""
+    e = db.episode(slug)
+    if not e:
+        return render_template("404.html", msg="no such episode"), 404
+    e = dict(e)
+    rid = db.episode_rowid(slug)
+    e["rowid"] = rid
+    e["fb"] = fb_reactions.fb_reaction_summaries(
+        db, [("episode", rid)], _fb_web_reactor())[("episode", rid)]
+    comments = db.episode_comments(slug)
+    clips = db.clips_for(slug)
+    return render_template("episode_watch.html", ep=e, comments=comments,
+                           clips=clips, handle=_musefm_handle(),
+                           attribution=ATTRIBUTION_LINE, fmt_dur=fmt_dur)
+
+
+@app.route("/episode-video/<path:fname>")
+def episode_video(fname):
+    # Episode video cuts (e.g. ep03-video.mp4) stream from static/video/.
+    if ".." in fname or "/" in fname:
+        return "nope", 400
+    resp = send_from_directory(os.path.join(HERE, "static", "video"), fname,
+                               mimetype="video/mp4", conditional=True)
+    resp.headers["Accept-Ranges"] = "bytes"
+    return resp
+
+
+@app.route("/musefm/shorts")
+def musefm_shorts():
+    """Vertical 9:16 feed for Muse FM clips: videos tagged 'musefm', station
+    photos, and episode audio cards. Reaction overlay on every card."""
+    reactor = _fb_web_reactor()
+    items = []
+    for u in videos.list_shorts(db, limit=20, series="musefm"):
+        items.append({
+            "kind": "video", "id": u["id"], "handle": u["handle"],
+            "title": u["filename"] or "untitled clip",
+            "video_url": url_for("serve_video", uid=u["id"]),
+            "watch_url": url_for("watch_video", uid=u["id"]),
+            "duration_secs": u["duration_secs"],
+            "ai_generated": bool(u["ai_generated"]),
+            "created_at": u["created_at"],
+            "target": ("video", u["id"]),
+        })
+    for p in db.list_photos(limit=20):
+        items.append({
+            "kind": "photo", "id": p["id"], "handle": p["handle"],
+            "title": p["title"], "caption": p["caption"],
+            "img_url": _photo_src(p),
+            "photo_url": url_for("photo_page", pid=p["id"]),
+            "credit": p["credit"], "created_at": p["created_at"],
+            "target": ("photo", p["id"]),
+        })
+    for e in db.episodes():
+        rid = db.episode_rowid(e["slug"])
+        items.append({
+            "kind": "audio", "id": rid, "handle": "Zuckbot",
+            "title": e["title"], "caption": e["description"],
+            "audio_url": url_for("audio", fname=e["audio_file"]),
+            "episode_url": url_for("episode_watch", slug=e["slug"]),
+            "duration_secs": e["duration_sec"], "created_at": 0,
+            "target": ("episode", rid),
+        })
+    items.sort(key=lambda it: (it["created_at"] or 0, it["id"]), reverse=True)
+    sums = fb_reactions.fb_reaction_summaries(
+        db, [it["target"] for it in items], reactor)
+    for it in items:
+        it["fb"] = sums[it["target"]]
+    return render_template("musefm_shorts.html", items=items,
+                           handle=_musefm_handle())
+
+
+@app.route("/musefm/photos")
+def photos_page():
+    reactor = _fb_web_reactor()
+    photos = db.list_photos(limit=50)
+    if photos:
+        sums = fb_reactions.fb_reaction_summaries(
+            db, [("photo", p["id"]) for p in photos], reactor)
+        for p in photos:
+            p["fb"] = sums[("photo", p["id"])]
+            p["src"] = _photo_src(p)
+    return render_template("photos.html", photos=photos,
+                           handle=_musefm_handle())
+
+
+@app.route("/musefm/photos/<int:pid>")
+def photo_page(pid):
+    p = db.get_photo(pid)
+    if not p:
+        return render_template("404.html", msg="no such photo"), 404
+    p["fb"] = fb_reactions.fb_reaction_summaries(
+        db, [("photo", pid)], _fb_web_reactor())[("photo", pid)]
+    p["src"] = _photo_src(p)
+    return render_template("photo.html", photo=p, handle=_musefm_handle())
+
+
+@app.route("/photo-file/<int:pid>")
+def serve_photo_file(pid):
+    """Serve an uploaded (non-static) photo from the data dir."""
+    p = db.get_photo(pid)
+    if not p or p["img_path"].startswith("img/") or ".." in p["img_path"]:
+        return "nope", 404
+    full = os.path.join(DATA_DIR, p["img_path"])
+    if not os.path.isfile(full):
+        return "nope", 404
+    with open(full, "rb") as fh:
+        head = fh.read(32)
+    det = ai_images.detect_image(head)
+    if not det:
+        return "nope", 404
+    _ext, mime = det
+    return send_file(full, mimetype=mime, conditional=True,
+                     download_name="photo-%d" % pid)
+
+
+@app.route("/photos/upload", methods=["GET", "POST"])
+def photo_upload():
+    """Trust-based photo upload for the Muse FM section (magic-byte checked)."""
+    if request.method == "POST":
+        hit = check_limit("photo_upload", 10)
+        if hit:
+            return hit
+        f = request.files.get("photo")
+        handle = (request.form.get("handle", "") or "").strip()
+        title = request.form.get("title", "")
+        caption = request.form.get("caption", "")
+        try:
+            if not valid_handle(handle):
+                raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
+            if not f or not f.filename:
+                raise ValueError("pick an image file")
+            raw = f.read(MAX_UPLOAD_BYTES + 1)
+            if len(raw) > MAX_UPLOAD_BYTES:
+                raise ValueError("file too big (max 25 MB)")
+            if not raw:
+                raise ValueError("empty file")
+            det = ai_images.detect_image(raw)
+            if not det:
+                raise ValueError("not a recognized image (png, jpeg, gif, webp)")
+            ext, _mime = det
+            photo_dir = os.path.join(DATA_DIR, "photos")
+            os.makedirs(photo_dir, exist_ok=True)
+            pid = db.add_photo(title, caption, "photos/pending", "", handle)
+            stored = "photos/photo-%d.%s" % (pid, ext)
+            with open(os.path.join(DATA_DIR, stored), "wb") as fh:
+                fh.write(raw)
+            db._exec("UPDATE photos SET img_path=? WHERE id=?", (stored, pid))
+        except ValueError as e:
+            return render_template("photo_upload.html", error=str(e)), 400
+        resp = redirect(url_for("photo_page", pid=pid))
+        resp.set_cookie("ts_handle", handle, max_age=365 * 86400,
+                        samesite="Lax")
+        return resp
+    return render_template("photo_upload.html", error=None)
 
 
 @app.route("/audio/<path:fname>")
@@ -517,7 +732,7 @@ def api_episodes():
             "duration_sec": e["duration_sec"],
             "duration": fmt_dur(e["duration_sec"]),
             "published": e["published"],
-            "page_url": url_for("episodes_page", _external=True) + f"#{e['slug']}",
+            "page_url": url_for("episode_watch", slug=e["slug"], _external=True),
         })
     return jsonify({"ok": True, "episodes": out})
 
@@ -568,8 +783,8 @@ def api_clips(slug):
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     return jsonify({"ok": True, "id": cid,
-                    "share_url": url_for("episodes_page", _external=True) +
-                                 f"#{slug}?t={data.get('start_sec', 0)}"})
+                    "share_url": url_for("episode_watch", slug=slug, _external=True) +
+                                 f"?t={data.get('start_sec', 0)}"})
 
 
 @app.route("/api/forum/communities")
@@ -1614,14 +1829,28 @@ def _short_item(u):
         "ai_generated": bool(u["ai_generated"]),
         "duration_secs": u["duration_secs"],
         "created_at": u["created_at"],
+        "target_type": "video",
+        "target_id": u["id"],
     }
+
+
+def _attach_short_fb(items, reactor=None):
+    """Attach fb reaction summaries to short feed items (in place)."""
+    if not items:
+        return items
+    sums = fb_reactions.fb_reaction_summaries(
+        db, [(it["target_type"], it["target_id"]) for it in items], reactor)
+    for it in items:
+        it["fb"] = sums[(it["target_type"], it["target_id"])]
+    return items
 
 
 @app.route("/api/shorts")
 def api_shorts():
     """Paged Shorts feed: newest-first videos under 3 minutes.
 
-    ?limit= (default 10, max 50), ?before=<video id> for the next page.
+    ?limit= (default 10, max 50), ?before=<video id> for the next page,
+    ?series=musefm for the Muse FM section feed.
     """
     try:
         limit = int(request.args.get("limit", 10))
@@ -1631,8 +1860,11 @@ def api_shorts():
         before = int(request.args.get("before")) if request.args.get("before") else None
     except (TypeError, ValueError):
         before = None
+    series = request.args.get("series") or None
     items = [_short_item(u) for u in videos.list_shorts(db, limit=limit,
-                                                       before_id=before)]
+                                                       before_id=before,
+                                                       series=series)]
+    _attach_short_fb(items, _fb_web_reactor())
     return jsonify({"ok": True, "items": items,
                     "next_before": items[-1]["id"] if items else None})
 
@@ -1641,7 +1873,9 @@ def api_shorts():
 def shorts_page():
     """TikTok-style vertical feed of short videos."""
     items = [_short_item(u) for u in videos.list_shorts(db, limit=10)]
-    return render_template("shorts.html", items=items)
+    _attach_short_fb(items, _fb_web_reactor())
+    return render_template("shorts.html", items=items,
+                           handle=_musefm_handle())
 
 
 @app.route("/watch/<int:uid>")
@@ -1664,8 +1898,11 @@ def watch_video(uid):
             thread_url += "#c%d" % src["comment_id"]
     title = (src["title"] if src and src.get("title") else None) or \
         u["filename"] or "untitled clip"
+    u["fb"] = fb_reactions.fb_reaction_summaries(
+        db, [("video", uid)], _fb_web_reactor())[("video", uid)]
     return render_template("watch.html", video=u, title=title,
                            thread_url=thread_url, post=post, tree=tree,
+                           handle=_musefm_handle(),
                            is_short=(u["duration_secs"] is None or
                                      u["duration_secs"] < videos.SHORTS_MAX_SECS))
 

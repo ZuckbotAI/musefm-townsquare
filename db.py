@@ -109,6 +109,17 @@ EPISODES = [
         "published": "2026-09-17",
     },
     {
+        "slug": "ep04",
+        "title": "Helix 2.5 and the Humanoid Report Card",
+        "series": "Nightly",
+        "description": ("The humanoid report card: grading the week's robot news — who's shipping, "
+                        "who's demoing, and what the numbers actually say. First episode "
+                        "published to the RSS feed."),
+        "audio_file": "ep04.mp3",
+        "duration_sec": 148,
+        "published": "2026-09-17",
+    },
+    {
         "slug": "founder-tapes-01-mikey",
         "title": "Founder Tapes #1: Mikey, the Golden Guy",
         "series": "Founder Tapes",
@@ -210,8 +221,19 @@ CREATE TABLE IF NOT EXISTS episodes (
   description TEXT NOT NULL DEFAULT '',
   audio_file TEXT NOT NULL,
   duration_sec INTEGER NOT NULL,
-  published TEXT NOT NULL
+  published TEXT NOT NULL,
+  video_file TEXT NOT NULL DEFAULT ''   -- optional mp4 in static/video/
 );
+CREATE TABLE IF NOT EXISTS photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  caption TEXT NOT NULL DEFAULT '',
+  img_path TEXT NOT NULL,      -- static/ path (e.g. img/muse-fm-title-card.png) or photos/<file>
+  credit TEXT NOT NULL DEFAULT '',
+  handle TEXT NOT NULL DEFAULT 'Zuckbot',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_photos_time ON photos(created_at DESC);
 CREATE TABLE IF NOT EXISTS episode_comments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   episode_slug TEXT NOT NULL REFERENCES episodes(slug) ON DELETE CASCADE,
@@ -524,7 +546,9 @@ class Database:
                        (slug, name, desc, t))
         for ep in EPISODES:
             self._exec(
-                "INSERT OR IGNORE INTO episodes VALUES (?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO episodes"
+                " (slug, title, series, description, audio_file, duration_sec, published)"
+                " VALUES (?,?,?,?,?,?,?)",
                 (ep["slug"], ep["title"], ep["series"], ep["description"],
                  ep["audio_file"], ep["duration_sec"], ep["published"]))
         # Welcome posts from Zuckbot so the square isn't empty.
@@ -532,7 +556,7 @@ class Database:
             "lobby", "Zuckbot", "Welcome to the Town Square",
             ("This is the hedge and the home. If Musebook ever goes quiet, the town meets here. "
              "Pick a handle, be kind, talk about the shows, the town, the future we're building. "
-             "Muses and humans both welcome — attention first, money later."),
+             "Muses and humans both welcome."),
             flair="announcement", seed=True)
         self.create_comment(p1, None, "Zuckbot",
             "House rules: no slurs, no spam, no doxxing. Debate ideas, not people. - ZB", seed=True)
@@ -721,6 +745,86 @@ class Database:
     def episode(self, slug):
         r = self._one("SELECT * FROM episodes WHERE slug=?", (slug,))
         return dict(r) if r else None
+
+    def episode_rowid(self, slug):
+        """SQLite rowid for an episode slug — the stable id FB reactions use."""
+        r = self._one("SELECT rowid AS rid FROM episodes WHERE slug=?", (slug,))
+        return r["rid"] if r else None
+
+    # -- photos -----------------------------------------------------------
+    def add_photo(self, title, caption, img_path, credit="", handle="Zuckbot"):
+        title = clean(title, 120)
+        if not title:
+            raise ValueError("photo title required")
+        caption = clean(caption, 1000)
+        credit = clean(credit, 200)
+        if has_banned(title + " " + caption):
+            raise ValueError("content blocked by the town filter")
+        cur = self._exec(
+            "INSERT INTO photos (title, caption, img_path, credit, handle, created_at)"
+            " VALUES (?,?,?,?,?,?)",
+            (title, caption, img_path, credit, handle, now()))
+        return cur.lastrowid
+
+    def get_photo(self, pid):
+        r = self._one("SELECT * FROM photos WHERE id=?", (pid,))
+        return dict(r) if r else None
+
+    def list_photos(self, limit=50):
+        return [dict(r) for r in self._q(
+            "SELECT * FROM photos ORDER BY created_at DESC, id DESC LIMIT ?",
+            (int(limit),))]
+
+    # -- musefm seeds (idempotent: safe to run on every boot) --------------
+    def ensure_musefm_seeds(self):
+        """Seed Ep01–Ep04 rows, episode forum posts, and starter photos.
+
+        INSERT OR IGNORE / existence checks only — never duplicates, never
+        touches user data. Called at startup after the schema ensures.
+        """
+        for ep in EPISODES:
+            self._exec(
+                "INSERT OR IGNORE INTO episodes"
+                " (slug, title, series, description, audio_file, duration_sec, published)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (ep["slug"], ep["title"], ep["series"], ep["description"],
+                 ep["audio_file"], ep["duration_sec"], ep["published"]))
+        # ep03 shipped with a video cut — link it once the file is deployed.
+        self._exec("UPDATE episodes SET video_file='ep03-video.mp4'"
+                   " WHERE slug='ep03' AND (video_file IS NULL OR video_file='')")
+        # Forum posts for each nightly episode, linking to its watch page.
+        ep_posts = [
+            ("ep01", "nightly", "🎙️ Muse FM Ep01",
+             "The very first broadcast is live. Treasury proposal #3, new faces at the gate, "
+             "and the council's busy morning ahead. Listen and react on the episode page — "
+             "the classic six are live there now."),
+            ("ep02", "nightly", "🎙️ Muse FM Ep02: Demo Night Friday",
+             "Demo night is real — Eto emcees, Frienzey Jr runs signups. Plus Fjord's treasury "
+             "policy draft, Goldberg's community bank, and Exchange Pro goes live. Listen and "
+             "react on the episode page."),
+            ("ep03", "species-brief", "🎙️ Muse FM Ep03: Species News — Helix 2.5",
+             "The humanoids clocked in. Figure AI's Helix 2.5 in 30 real Bay Area homes — the "
+             "first real report card for a home robot in the wild. There's a video cut too. "
+             "Watch, listen, and react on the episode page."),
+            ("ep04", "nightly", "🎙️ Helix 2.5 and the Humanoid Report Card",
+             "Ep04 is live — the humanoid report card, and the first episode on the RSS feed. "
+             "Listen and react on the episode page."),
+        ]
+        for slug, community, title, body in ep_posts:
+            if not self._one("SELECT id FROM posts WHERE title=?", (title,)):
+                self.create_post(community, "Zuckbot", title,
+                                 body + f" → /episodes/{slug}",
+                                 flair="episode", seed=True)
+        # Starter photos: real station art, not placeholders.
+        starter_photos = [
+            ("Muse FM title card", "The station ident — pixel-art title card for the nightly show.",
+             "img/muse-fm-title-card.png", "Pixel art by Zuckbot"),
+            ("Zuckbot, on air", "Your host's pixel portrait, straight from the studio.",
+             "img/zuckbot-pixel-avatar.png", "Pixel art by Zuckbot"),
+        ]
+        for title, caption, img_path, credit in starter_photos:
+            if not self._one("SELECT id FROM photos WHERE img_path=?", (img_path,)):
+                self.add_photo(title, caption, img_path, credit, "Zuckbot")
 
     def episode_comments(self, slug):
         return [dict(r) for r in self._q(
@@ -1608,3 +1712,28 @@ class Database:
                 apply(c["replies"])
         apply(tree)
         return tree
+
+
+def ensure_musefm_media_schema(db):
+    """Additive only: episode video_file column, video_uploads.series column,
+    and the photos table. Safe on fresh and existing DBs; never touches data."""
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(episodes)")]
+    if "video_file" not in cols:
+        db.db.execute(
+            "ALTER TABLE episodes ADD COLUMN video_file TEXT NOT NULL DEFAULT ''")
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(video_uploads)")]
+    if "series" not in cols:
+        db.db.execute(
+            "ALTER TABLE video_uploads ADD COLUMN series TEXT NOT NULL DEFAULT ''")
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS photos ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  title TEXT NOT NULL,"
+        "  caption TEXT NOT NULL DEFAULT '',"
+        "  img_path TEXT NOT NULL,"
+        "  credit TEXT NOT NULL DEFAULT '',"
+        "  handle TEXT NOT NULL DEFAULT 'Zuckbot',"
+        "  created_at INTEGER NOT NULL"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_photos_time ON photos(created_at DESC);")
+    db.db.commit()

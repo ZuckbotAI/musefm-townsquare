@@ -245,8 +245,11 @@ def main():
     check("forum posts read", r.status_code == 200 and r.get_json()["ok"],
           r.status_code)
     r = c.get("/api/episodes")
-    check("episodes read", r.status_code == 200 and
-          len(r.get_json()["episodes"]) == 5, r.status_code)
+    eps = r.get_json()["episodes"]
+    check("episodes read", r.status_code == 200 and len(eps) == 6 and
+          any(e["slug"] == "ep04" and
+              e["title"] == "Helix 2.5 and the Humanoid Report Card"
+              for e in eps), r.status_code)
     r = c.get("/api/docs")
     check("docs page renders", r.status_code == 200 and b"musefm-v1" in r.data,
           r.status_code)

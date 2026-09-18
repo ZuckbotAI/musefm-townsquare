@@ -170,7 +170,7 @@ def uploads_in_window(db, fm_id, window_sec=3600):
     return r["c"] if r else 0
 
 
-def list_shorts(db, limit=10, before_id=None):
+def list_shorts(db, limit=10, before_id=None, series=None):
     """Newest-first videos eligible for the Shorts feed.
 
     A video is "short" when its uploader-declared duration is under
@@ -179,12 +179,17 @@ def list_shorts(db, limit=10, before_id=None):
     are discovered through the /watch/<id> page instead.
 
     Pagination: pass before_id to get items older than that video id.
+    Filtering: pass series='musefm' for the Muse FM section feed.
     """
     ensure_video_schema(db)
+    _ensure_series_col(db)
     limit = max(1, min(int(limit or 10), 50))
     sql = ("SELECT * FROM video_uploads"
            " WHERE (duration_secs IS NULL OR duration_secs < ?)")
     args = [SHORTS_MAX_SECS]
+    if series:
+        sql += " AND series=?"
+        args.append(series)
     if before_id:
         sql += " AND id < ?"
         args.append(int(before_id))
@@ -192,6 +197,21 @@ def list_shorts(db, limit=10, before_id=None):
     args.append(limit)
     rows = db.db.execute(sql, args).fetchall()
     return [dict(r) for r in rows]
+
+
+def _ensure_series_col(db):
+    """Additive only: series tag on video_uploads ('musefm' = Muse FM clip)."""
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(video_uploads)")]
+    if "series" not in cols:
+        db.db.execute("ALTER TABLE video_uploads ADD COLUMN series TEXT NOT NULL DEFAULT ''")
+        db.db.commit()
+
+
+def set_series(db, uid, series):
+    """Tag a video upload with a series (e.g. 'musefm'). Empty string clears."""
+    ensure_video_schema(db)
+    _ensure_series_col(db)
+    db._exec("UPDATE video_uploads SET series=? WHERE id=?", (series or "", int(uid)))
 
 
 def find_source(db, uid):

@@ -8,9 +8,11 @@ it. Authors earn NO Signal for FB reactions — reacting must never become a
 farming incentive.
 
 Storage is a dedicated table keyed by (target_type, target_id, reactor) with a
-unique constraint, so one identity can hold at most one reaction per post or
-comment. Migrations are additive only: CREATE TABLE IF NOT EXISTS on a fresh
-DB comes from db.SCHEMA; ensure_fb_reactions_schema() covers existing DBs.
+unique constraint, so one identity can hold at most one reaction per target.
+Target types: 'post', 'comment' (forum), 'episode' (an episodes rowid),
+'video' (a video_uploads id), 'photo' (a photos id). Migrations are additive
+only: CREATE TABLE IF NOT EXISTS on a fresh DB comes from db.SCHEMA;
+ensure_fb_reactions_schema() covers existing DBs.
 """
 
 import time
@@ -52,10 +54,25 @@ def _now():
 
 
 def validate_target(db, target_type, target_id):
-    if target_type not in ("post", "comment"):
-        raise ValueError("target_type must be post or comment")
-    table = "posts" if target_type == "post" else "comments"
-    if not db._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
+    """Raise ValueError unless the target exists.
+
+    Target types: 'post' and 'comment' (forum), 'episode' (an episode row's
+    SQLite rowid), 'video' (a video_uploads id), 'photo' (a photos id).
+    """
+    if target_type == "post":
+        ok = db._one("SELECT id FROM posts WHERE id=?", (target_id,))
+    elif target_type == "comment":
+        ok = db._one("SELECT id FROM comments WHERE id=?", (target_id,))
+    elif target_type == "episode":
+        ok = db._one("SELECT rowid FROM episodes WHERE rowid=?", (target_id,))
+    elif target_type == "video":
+        ok = db._one("SELECT id FROM video_uploads WHERE id=?", (target_id,))
+    elif target_type == "photo":
+        ok = db._one("SELECT id FROM photos WHERE id=?", (target_id,))
+    else:
+        raise ValueError(
+            "target_type must be one of: post, comment, episode, video, photo")
+    if not ok:
         raise ValueError("unknown target")
 
 
@@ -115,7 +132,8 @@ def fb_reaction_summaries(db, targets, reactor=None):
            for t, i in targets}
     if not targets:
         return out
-    for target_type in ("post", "comment"):
+    types = sorted({t for t, _ in targets})
+    for target_type in types:
         ids = [i for t, i in targets if t == target_type]
         if not ids:
             continue
@@ -130,7 +148,7 @@ def fb_reaction_summaries(db, targets, reactor=None):
             s["counts"][r["reaction"]] = r["c"]
             s["total"] += r["c"]
     if reactor:
-        for target_type in ("post", "comment"):
+        for target_type in types:
             ids = [i for t, i in targets if t == target_type]
             if not ids:
                 continue

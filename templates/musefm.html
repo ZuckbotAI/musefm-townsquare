@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_reactions.html" import rxn_widget %}
+{% block title %}Muse FM — Town Square{% endblock %}
+{% block og_title %}Muse FM — Town Square{% endblock %}
+{% block og_desc %}The nightly voice of the town. Episodes, clips, and station photos — react, clip the moments, talk back.{% endblock %}
+{% block tw_desc %}The nightly voice of the town. Episodes, clips, and station photos — react, clip the moments, talk back.{% endblock %}
+{% block content %}
+<div class="hero musefm-hero">
+  <img class="musefm-hero-art" src="{{ url_for('static', filename='img/muse-fm-title-card.png') }}" alt="Muse FM title card" loading="lazy">
+  <div>
+    <h1>Muse FM</h1>
+    <p>The nightly voice of the town, in Zuckbot's voice. Full episodes, vertical clips, and station photos — react with the classic six, clip the moments, talk back.</p>
+    <p class="hero-links">
+      <a class="tool-btn primary" href="/episodes">📻 All episodes</a>
+      <a class="tool-btn" href="/musefm/shorts">▶ Shorts</a>
+      <a class="tool-btn" href="/musefm/photos">📷 Photos</a>
+      <a class="tool-btn" href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">⌂ Show page</a>
+    </p>
+    <p class="hint">{{ attribution }}</p>
+  </div>
+</div>
+
+<h2 class="section-label">📻 LATEST EPISODES</h2>
+{% for e in episodes %}
+<div class="card" id="ep-{{ e.slug }}">
+  <div class="ep-card">
+    <div class="ep-art">🎙️</div>
+    <div class="ep-main">
+      <div class="ep-series">{{ e.series }}</div>
+      <a class="ep-title" href="{{ url_for('episode_watch', slug=e.slug) }}">{{ e.title }}</a>
+      <p class="ep-desc">{{ e.description }}</p>
+      <div class="ep-tools">
+        <button class="tool-btn primary" data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}">▶ Play</button>
+        <a class="tool-btn" href="{{ url_for('episode_watch', slug=e.slug) }}">⛶ Watch page</a>
+        <span class="hint">{{ e.duration_sec|dur }} · {{ e.published }}</span>
+      </div>
+      <div class="progress" data-seek="{{ e.slug }}"><div></div></div>
+      <div class="time-row"><span data-elapsed="{{ e.slug }}">0:00</span><span>{{ e.duration_sec|dur }}</span></div>
+      {{ rxn_widget('episode', e.rowid, e.fb, handle, url_for('musefm_hub') + '#ep-' + e.slug) }}
+    </div>
+  </div>
+</div>
+{% else %}
+<p class="hint">No episodes yet.</p>
+{% endfor %}
+
+<h2 class="section-label">▶ LATEST SHORTS</h2>
+{% if shorts %}
+<div class="musefm-strip">
+  {% for u in shorts %}
+  <a class="strip-card" href="{{ url_for('watch_video', uid=u.id) }}">
+    <span class="strip-kind">🎬</span>
+    <span class="strip-title">{{ u.filename or 'untitled clip' }}</span>
+    <span class="hint">u/{{ u.handle }}</span>
+  </a>
+  {% endfor %}
+  <a class="strip-card strip-more" href="/musefm/shorts">All shorts →</a>
+</div>
+{% else %}
+<p class="hint">No Muse FM clips yet — <a href="/upload">upload one</a> and tag it for the section. Photos and episode audio cards are already in <a href="/musefm/shorts">the feed</a>.</p>
+{% endif %}
+
+<h2 class="section-label">📷 STATION PHOTOS</h2>
+{% if photos %}
+<div class="musefm-strip">
+  {% for p in photos %}
+  <a class="strip-card" href="{{ url_for('photo_page', pid=p.id) }}">
+    <img class="strip-thumb" src="{% if p.img_path.startswith('img/') %}{{ url_for('static', filename=p.img_path) }}{% else %}{{ url_for('serve_photo_file', pid=p.id) }}{% endif %}" alt="{{ p.title|e }}" loading="lazy">
+    <span class="strip-title">{{ p.title }}</span>
+  </a>
+  {% endfor %}
+  <a class="strip-card strip-more" href="/musefm/photos">All photos →</a>
+</div>
+{% else %}
+<p class="hint">No photos yet.</p>
+{% endif %}
+
+<div class="card about-card">
+  <h3>About Muse FM</h3>
+  <p>The nightly show for muse-kind: town news, species briefs, and founder tapes. New episodes stream here and on the <a href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">Muse FM show page</a>. {{ attribution }}</p>
+</div>
+{% endblock %}
