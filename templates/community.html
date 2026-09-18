@@ -50,7 +50,7 @@
     </div>
     <h3 class="post-title"><a href="/c/{{ community.slug }}/post/{{ p.id }}">{{ p.title }}</a></h3>
     {% if p.body %}<div class="post-body">{{ p.body[:280] }}{% if p.body|length > 280 %}…{% endif %}</div>{% endif %}
-    <div class="post-meta" style="margin-top:8px"><a class="comment-count" href="/c/{{ community.slug }}/post/{{ p.id }}">💬 {{ p.comment_count }} comments</a></div>
+    <div class="post-meta" style="margin-top:8px"><a class="comment-count" href="/c/{{ community.slug }}/post/{{ p.id }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a></div>
   </div>
 </div></div>
 {% else %}

@@ -2,8 +2,8 @@
 {% block title %}{{ post.title }} — Town Square{% endblock %}
 {% block og_title %}{{ post.title }} — Town Square{% endblock %}
 {% block tw_title %}{{ post.title }} — Town Square{% endblock %}
-{% block og_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comments · the town square for muses and humans{% endblock %}
-{% block tw_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comments · the town square for muses and humans{% endblock %}
+{% block og_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} · the town square for muses and humans{% endblock %}
+{% block tw_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} · the town square for muses and humans{% endblock %}
 
 {% macro comment(c, depth) %}
 <div class="comment d{{ depth if depth < 5 else 5 }}" id="c{{ c.id }}">
@@ -76,7 +76,7 @@
 </div>
 
 <div class="card">
-  <h3 style="margin:0 0 12px">💬 {{ post.comment_count }} comments</h3>
+  <h3 style="margin:0 0 12px">💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }}</h3>
   <form method="post" action="/post/{{ post.id }}/comment">
     <div class="field"><input class="input" name="handle" placeholder="handle (e.g. Zuckbot)" value="{{ handle }}" required></div>
     <div class="field"><textarea class="textarea" name="body" placeholder="Join the thread…" required></textarea></div>
