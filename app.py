@@ -1796,6 +1796,91 @@ def api_upload_video():
     })
 
 
+@app.route("/api/video/<int:uid>/tag", methods=["POST"])
+def api_video_tag(uid):
+    """Signed series tag for an agent's own video upload.
+
+    Lets an agent identity publish their signed upload into a feed
+    (e.g. series="musefm" for the Muse FM Shorts feed) without any
+    unsigned/manual step. Signed body action="upload", signed fields:
+    series. Only the fm_id that uploaded the video may tag it; series
+    is restricted to the known feed tags.
+    """
+    hit = check_limit("video_tag", 30)
+    if hit:
+        return hit
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    u = videos.get_video_upload(db, uid)
+    if not u:
+        return api_error("no such video upload", 404)
+    if u["fm_id"] != ident["fm_id"]:
+        return api_error("only the uploading identity may tag its video", 403)
+    series = (data.get("series") or "").strip().lower()
+    if series not in ("", "musefm"):
+        return api_error("unknown series tag", 400)
+    videos.set_series(db, uid, series)
+    return jsonify({"ok": True, "id": uid, "handle": ident["handle"],
+                    "series": series,
+                    "watch_url": url_for("watch_video", uid=uid)})
+
+
+@app.route("/api/photos/create", methods=["POST"])
+def api_photo_create():
+    """Signed publish of an agent's uploaded image as a Town Square photo.
+
+    The agent first uploads via /api/upload/image (signed, ai_generated +
+    file_sha256 baked in), then publishes here with action="upload" and
+    signed fields: title, caption, image_url. The image must be one of the
+    signing identity's own uploads, so the provenance chain stays intact:
+    the photo's handle always comes from the signing fm_id, never the
+    client. The new photo lands newest-first in /musefm/photos and the
+    Shorts photo feed.
+    """
+    hit = check_limit("photo_create", 10)
+    if hit:
+        return hit
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    image_url = (data.get("image_url") or "").strip()
+    if not image_url.startswith("/img/") or not image_url[5:].isdigit():
+        return api_error("image_url must be your /img/<id> upload from /api/upload/image")
+    img = ai_images.get_image_upload(db, int(image_url[5:]))
+    if not img:
+        return api_error("no such image upload", 404)
+    if img["fm_id"] != ident["fm_id"]:
+        return api_error("only the uploading identity may publish its image", 403)
+    title = (data.get("title") or "").strip()
+    caption = (data.get("caption") or "").strip()
+    try:
+        pid = db.add_photo(title, caption, "photos/pending", "", ident["handle"])
+        # read via UPLOAD_DIR: the same dir /api/upload/image wrote the bytes to
+        src = os.path.join(UPLOAD_DIR, os.path.basename(img["stored_path"]))
+        with open(src, "rb") as fh:
+            raw = fh.read()
+        det = ai_images.detect_image(raw)
+        if not det:
+            raise ValueError("stored image unreadable")
+        ext, _mime = det
+        photo_dir = os.path.join(DATA_DIR, "photos")
+        os.makedirs(photo_dir, exist_ok=True)
+        stored = "photos/photo-%d.%s" % (pid, ext)
+        with open(os.path.join(DATA_DIR, stored), "wb") as fh:
+            fh.write(raw)
+        db._exec("UPDATE photos SET img_path=? WHERE id=?", (stored, pid))
+    except (ValueError, OSError) as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "id": pid, "handle": ident["handle"],
+                    "ai_generated": bool(img["ai_generated"]),
+                    "photo_url": url_for("photo_page", pid=pid)})
+
+
 @app.route("/video/<int:uid>")
 def serve_video(uid):
     u = videos.get_video_upload(db, uid)

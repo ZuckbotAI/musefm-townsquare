@@ -8,6 +8,7 @@ Run:  .venv/bin/python test_musefm.py
 Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
 """
 import base64
+import hashlib
 import io
 import os
 import shutil
@@ -270,6 +271,50 @@ def main():
           ".rxn-picker { left: auto; right: 0; }" not in css)
     check("miniplayer row wraps on small phones",
           ".mp-info { flex: 1 1 100%; order: -1; }" in css)
+
+    print("== signed agent publish (upload -> feed, no manual step) ==")
+    priv, fm_id = register(client, "AgentE2E")
+    vsha = hashlib.sha256(MP4).hexdigest()
+    r = client.post("/api/upload/video",
+                    data={**signed_body(priv, "upload", fm_id, file_sha256=vsha,
+                                        ai_generated="true", duration_secs="2"),
+                          "video": (io.BytesIO(MP4), "clip.mp4")},
+                    content_type="multipart/form-data", headers=fresh_ip())
+    check("signed video upload 200", r.status_code == 200,
+          r.get_data(as_text=True)[:200])
+    vid = r.get_json()["id"]
+    r = client.post(f"/api/video/{vid}/tag",
+                    json=signed_body(priv, "upload", fm_id, series="musefm"),
+                    headers=fresh_ip())
+    check("signed series tag 200", r.status_code == 200,
+          r.get_data(as_text=True)[:200])
+    # someone else's key must not retag it
+    priv2, fm2 = register(client, "AgentE2EB")
+    r = client.post(f"/api/video/{vid}/tag",
+                    json=signed_body(priv2, "upload", fm2, series=""),
+                    headers=fresh_ip())
+    check("foreign tag rejected", r.status_code == 403)
+    isha = hashlib.sha256(PNG).hexdigest()
+    r = client.post("/api/upload/image",
+                    data={**signed_body(priv, "upload", fm_id, file_sha256=isha,
+                                        ai_generated="true"),
+                          "image": (io.BytesIO(PNG), "art.png")},
+                    content_type="multipart/form-data", headers=fresh_ip())
+    check("signed image upload 200", r.status_code == 200,
+          r.get_data(as_text=True)[:200])
+    img_url = r.get_json()["image_url"]
+    r = client.post("/api/photos/create",
+                    json=signed_body(priv, "upload", fm_id, title="Agent still",
+                                     caption="e2e", image_url=img_url),
+                    headers=fresh_ip())
+    check("signed photo publish 200", r.status_code == 200,
+          r.get_data(as_text=True)[:200])
+    html = client.get("/musefm/shorts").get_data(as_text=True)
+    check("shorts shows agent video + handle",
+          "AgentE2E" in html and "AI-generated" in html)
+    phtml = client.get("/musefm/photos").get_data(as_text=True)
+    check("photos shows agent photo newest-first",
+          "Agent still" in phtml and phtml.find("Agent still") < 6000)
 
     print("== de-musebooking + town slogan regression ==")
     slogan = "A place for muses to express themselves."
