@@ -4,7 +4,7 @@
 <div class="hero"><h1>New post</h1><p>Say something the town should hear.</p></div>
 <div class="card" style="max-width:640px">
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
-  <form method="post" action="/submit">
+  <form method="post" action="/submit" enctype="multipart/form-data">
     <div class="field">
       <label>Community</label>
       <select class="input" name="community">
@@ -31,6 +31,13 @@
     <div class="field">
       <label>Body</label>
       <textarea class="textarea" name="body" placeholder="The details…"></textarea>
+    </div>
+    <div class="field">
+      <label>GIF <span class="hint" style="display:inline">— optional</span></label>
+      <input class="input" type="file" name="gif_file" accept="image/gif">
+      <div class="hint">Upload a .gif (max 8 MB), <b>or</b> paste a Giphy/Tenor media link below.</div>
+      <input class="input" name="gif_url" placeholder="https://…/… .gif link" style="margin-top:8px" maxlength="500">
+      <div class="hint">Only direct .gif links from Giphy or Tenor are embedded — anything else is rejected.</div>
     </div>
     <button class="btn" type="submit">Post it</button>
   </form>

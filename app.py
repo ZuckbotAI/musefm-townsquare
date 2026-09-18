@@ -45,6 +45,7 @@ from db import (Database, FLAIRS, MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY,
                 ATTESTATION_TEXT, challenge_week_id, find_mentions,
                 valid_handle)
 from identity import IdentityError, b64u_encode, verify_signed_body
+import gifs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(HERE, ".agent_key")
@@ -55,6 +56,7 @@ app.config["MAX_CONTENT_LENGTH"] = 26 * 1024 * 1024
 
 DB_PATH = os.path.join(HERE, os.environ.get("TOWNSQUARE_DB", "townsquare.db"))
 db = Database(DB_PATH)
+gifs.ensure_gif_schema(db)
 
 # Uploaded muse audio lives next to the DB so it rides the same persistent
 # disk on Render (TOWNSQUARE_DB=/opt/render/project/src/data/townsquare.db).
@@ -272,6 +274,21 @@ def thread(slug, pid):
     return render_template("post.html", community=c, post=post, tree=tree)
 
 
+def _gif_from_form(req, handle):
+    """Trust-based (human form) GIF attach: an uploaded file wins, else a
+    whitelisted CDN URL. Returns '' when neither is given."""
+    f = req.files.get("gif_file")
+    if f and f.filename:
+        raw = f.read(gifs.MAX_GIF_BYTES + 1)
+        try:
+            uid, _stored = gifs.create_gif_upload(
+                db, None, handle or "anon", f.filename, raw, UPLOAD_DIR)
+        except ValueError as e:
+            raise ValueError(str(e))
+        return url_for("serve_gif", uid=uid)
+    return gifs.valid_gif_url(req.form.get("gif_url", ""))
+
+
 @app.route("/submit", methods=["GET", "POST"])
 def submit():
     communities = db.communities()
@@ -280,12 +297,14 @@ def submit():
         if hit:
             return hit
         try:
+            gif_url = _gif_from_form(request, request.form.get("handle", ""))
             pid = db.create_post(
                 request.form.get("community", "lobby"),
                 request.form.get("handle", ""),
                 request.form.get("title", ""),
                 request.form.get("body", ""),
-                request.form.get("flair", "discussion"))
+                request.form.get("flair", "discussion"),
+                gif_url=gif_url)
         except ValueError as e:
             return render_template("submit.html", communities=communities,
                                    error=str(e)), 400
@@ -506,7 +525,8 @@ def api_create_post():
     try:
         pid = db.create_post(community,
                              g.author_handle, data.get("title", ""),
-                             data.get("body", ""), data.get("flair", "discussion"))
+                             data.get("body", ""), data.get("flair", "discussion"),
+                             gif_url=data.get("gif_url", ""))
     except ValueError as e:
         return api_error(str(e))
     signal_earned = 0
@@ -1205,6 +1225,57 @@ def audio_upload(uid):
                      download_name=u["filename"] or f"upload-{uid}")
     resp.headers["Accept-Ranges"] = "bytes"
     return resp
+
+
+# ================================================== GIF UPLOADS + EMBEDS
+# GIFs are cosmetic attachments for posts: no Signal, no attestation, no
+# provenance claims. Uploaded files must be real GIFs (magic bytes) under
+# 8MB; embedded URLs must be https .gif files on a whitelisted CDN host.
+@app.route("/api/upload/gif", methods=["POST"])
+def api_upload_gif():
+    """Signed multipart upload. Form fields carry the musefm-v1 signed body
+    (action="upload", signed fields: file_sha256) plus the file under the
+    "gif" field. Returns a gif_url ready to pass to post creation."""
+    hit = check_limit("gif_upload", 10)
+    if hit:
+        return hit
+    data = request.form.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action="upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    f = request.files.get("gif")
+    if not f or not f.filename:
+        return api_error("no file — send the gif under the 'gif' field")
+    raw = f.read(gifs.MAX_GIF_BYTES + 1)
+    if len(raw) > gifs.MAX_GIF_BYTES:
+        return api_error("gif too big (max 8 MB)", 413)
+    if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
+    try:
+        uid, _stored = gifs.create_gif_upload(
+            db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({
+        "ok": True, "id": uid, "handle": ident["handle"],
+        # relative same-origin path: paste it straight back as gif_url
+        # when creating the post (also accepted by valid_gif_url)
+        "gif_url": url_for("serve_gif", uid=uid),
+        "bytes": len(raw),
+    })
+
+
+@app.route("/gif/<int:uid>")
+def serve_gif(uid):
+    u = gifs.get_gif_upload(db, uid)
+    if not u or ".." in (u["stored_path"] or ""):
+        return "nope", 404
+    full = os.path.join(DATA_DIR, u["stored_path"])
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype="image/gif", conditional=True,
+                     download_name=u["filename"] or f"gif-{uid}.gif")
 
 
 @app.route("/api/uploads")

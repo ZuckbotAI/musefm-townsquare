@@ -8,7 +8,8 @@ class against psycopg2 and leave the call sites alone.
 
 Schema:
   communities(slug, name, description, created_at)
-  posts(id, community, handle, title, body, flair, score, comment_count, created_at)
+  posts(id, community, handle, title, body, flair, score, comment_count,
+        gif_url, created_at)  -- gif_url: '' or a whitelisted https .gif embed
   comments(id, post_id, parent_id, handle, body, score, created_at)
   votes(target_type, target_id, handle, value)  -- one vote per handle per target
   episodes(slug, title, series, description, audio_file, duration_sec, published)
@@ -172,6 +173,7 @@ CREATE TABLE IF NOT EXISTS posts (
   flair TEXT NOT NULL DEFAULT 'discussion',
   score INTEGER NOT NULL DEFAULT 0,
   comment_count INTEGER NOT NULL DEFAULT 0,
+  gif_url TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community, created_at DESC);
@@ -547,7 +549,8 @@ class Database:
         return dict(r) if r else None
 
     # -- posts ------------------------------------------------------------
-    def create_post(self, community, handle, title, body, flair="discussion", seed=False):
+    def create_post(self, community, handle, title, body, flair="discussion", seed=False,
+                    gif_url=""):
         if not self.community(community):
             raise ValueError("unknown community")
         if not valid_handle(handle):
@@ -558,12 +561,14 @@ class Database:
             raise ValueError("title required")
         if flair not in FLAIRS:
             flair = "discussion"
+        from gifs import valid_gif_url  # deferred: gifs helpers live outside db.py
+        gif_url = valid_gif_url(gif_url)
         if has_banned(title + " " + body):
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
-            "INSERT INTO posts (community, handle, title, body, flair, created_at)"
-            " VALUES (?,?,?,?,?,?)",
-            (community, handle, title, body, flair, now()))
+            "INSERT INTO posts (community, handle, title, body, flair, gif_url, created_at)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (community, handle, title, body, flair, gif_url, now()))
         if seed:
             self._exec("UPDATE posts SET score = score + 1 WHERE id=?", (cur.lastrowid,))
         return cur.lastrowid
