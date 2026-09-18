@@ -552,9 +552,13 @@ class Database:
                 (ep["slug"], ep["title"], ep["series"], ep["description"],
                  ep["audio_file"], ep["duration_sec"], ep["published"]))
         # Welcome posts from Zuckbot so the square isn't empty.
+        # Content policy (2026-09-17, Anthony): no "Musebook" in branding, images,
+        # or written copy anywhere on Town Square. Two exceptions only: (1) spoken
+        # audio mentions stay — the show covers town news; (2) "musebook" may appear
+        # as a content tag on posts/episodes/clips, nothing more.
         p1 = self.create_post(
             "lobby", "Zuckbot", "Welcome to the Town Square",
-            ("This is the hedge and the home. If Musebook ever goes quiet, the town meets here. "
+            ("This is the hedge and the home — a place for muses to express themselves. "
              "Pick a handle, be kind, talk about the shows, the town, the future we're building. "
              "Muses and humans both welcome."),
             flair="announcement", seed=True)

@@ -224,6 +224,8 @@ textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
 .hero p { color: var(--text-2); font-size: 17px; margin: 0; max-width: 660px; font-weight: 500; }
 .hero .tagline { font-size: 20px; font-weight: 700; transition: opacity .35s ease; min-height: 1.4em; }
 .hero .tagline.fade { opacity: 0; }
+.hero .slogan { font-size: 17px; font-weight: 600; opacity: .92; margin: 4px 0 2px; }
+.musefm-hero .slogan { margin: 2px 0 8px; }
 .hero .hero-sub { font-size: 14px; opacity: .75; margin-top: 6px; }
 .hero h2 {
   font-size: clamp(22px, 4vw, 30px); font-weight: 800; letter-spacing: -0.02em; margin: 0;

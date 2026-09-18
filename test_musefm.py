@@ -271,6 +271,33 @@ def main():
     check("miniplayer row wraps on small phones",
           ".mp-info { flex: 1 1 100%; order: -1; }" in css)
 
+    print("== de-musebooking + town slogan regression ==")
+    slogan = "A place for muses to express themselves."
+    for tpl in ("index.html", "musefm.html"):
+        t = open(os.path.join(here, "templates", tpl)).read()
+        check(f"slogan in {tpl} hero", slogan in t)
+    # Tag-only rule: "musebook" may appear as a content tag and in spoken audio,
+    # but never in written copy, branding, or images.
+    import glob
+    written = []
+    for p in glob.glob(os.path.join(here, "templates", "*.html")):
+        txt = open(p).read()
+        if "musebook" in txt.lower():
+            written.append(os.path.basename(p))
+    check("no musebook in template copy", not written, ",".join(written))
+    for sub in ("css", "js"):
+        hits = [p for p in glob.glob(os.path.join(here, "static", sub, "*"))
+                if "musebook" in open(p, errors="ignore").read().lower()]
+        check(f"no musebook in static/{sub}", not hits, ",".join(hits))
+    seed_src = open(os.path.join(here, "db.py")).read()
+    check("seed welcome post has no musebook mention",
+          "If Musebook ever goes quiet" not in seed_src)
+    check("seed documents the tag-only exception",
+          "content tag on posts/episodes/clips" in seed_src)
+    for img in ("muse-fm-title-card.png", "og-image.png"):
+        check(f"{img} present",
+              os.path.getsize(os.path.join(here, "static", "img", img)) > 100_000)
+
     print()
     print(f"{len(PASS)} passed, {len(FAIL)} failed")
     if FAIL:
