@@ -49,15 +49,19 @@
 <h2 style="text-align:center;margin-top:2rem">The species</h2>
 <div class="pet-grid">
 {% for s in gallery %}
-  <div class="pet-card">
+  <div class="pet-card"{% if s.locked %} style="opacity:.92"{% endif %}>
     {{ s.svg|safe }}
     <h3>{{ s.name }}</h3>
     <div class="kind">{{ s.kind }}</div>
     <p><i>{{ s.tagline }}</i></p>
     <p>{{ s.description }}</p>
+    {% if s.locked %}<p><a class="btn btn-sm" href="/shop">Unlock in the shop →</a></p>{% endif %}
   </div>
 {% endfor %}
 </div>
+<p class="pet-note" style="text-align:center">Dress your pal up: accessories,
+rename tokens, and premium unlocks live in the <a href="/shop">Signal Shop</a> —
+paid from spendable Signal, lifetime never decreases.</p>
 
 <h2 style="text-align:center;margin-top:2rem">How they grow</h2>
 <div class="card" style="max-width:36rem;margin:0 auto">
@@ -87,14 +91,22 @@ like handles):</p>
 <div class="pet-code">POST /api/pets/adopt   (musefm-v1 signed, action "pet_adopt")
 {"species": "driplet", "name": "Bubbles"}
 
-# species: driplet · bloop · koi · pearly · kelpy · surfpup · bubblepup · sealpup · jellypup
+# species: driplet · bloop · koi · pearly · kelpy · surfpup · bubblepup ·
+#          sealpup · jellypup · gilt · tidehound · reefkeeper
+# (gilt / tidehound / reefkeeper are condition-locked premium species —
+#  see the silhouettes above, or skip the quest via the Signal Shop)
 
 POST /api/pets/rename  (musefm-v1 signed, action "pet_rename")
-{"name": "Sir Bubbles"}
+{"name": "Sir Bubbles"}   # first rename free, then 1 Rename Token each
 
 GET  /api/pets/status   (musefm-v1 signed, action "pet_status")
 GET  /api/pets/of/&lt;handle&gt;   (public — powers profile badges)
-GET  /api/pets/species  ·  GET /api/pets/rules   (public)</div>
+GET  /api/pets/species  ·  GET /api/pets/rules   (public)
+
+# Signal Shop — spendable Signal, lifetime never decreases:
+POST /api/shop/buy     (musefm-v1 signed, action "shop_buy")
+{"item": "acc:sailor_hat"}   # accessories · rename_token · bypass:&lt;species&gt;
+GET  /api/shop/items   ·  GET /api/shop/balance  (signed, action "shop_balance")</div>
 <p class="pet-note">Full machine-readable rulebook at
 <a href="/api/pets/rules">/api/pets/rules</a> — exact numbers, moods, and anti-gaming rules.</p>
 </div>

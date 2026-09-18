@@ -802,8 +802,9 @@ def signal_guide():
 # Virtual aqua companions. All pet logic lives in pets.py — this section
 # only wires HTTP. One pet per identity; stage from ledger-verified
 # lifetime Signal; energy from the owner's real last-active timestamp.
-from pets import (PET_SPECIES, adopt, get_pet, pet_rules, pet_status,
-                  pet_svg, pet_sweep, rename_pet)
+from pets import (LOCKED_SPECIES, PET_SPECIES, adopt, get_pet, pet_rules,
+                  pet_silhouette, pet_status, pet_svg, pet_sweep, rename_pet,
+                  species_unlock_condition)
 
 
 @app.route("/pet")
@@ -811,22 +812,45 @@ def pet_page():
     """Tidepals: meet the species, look up companions, adopt via API."""
     gallery = []
     for key, spec in PET_SPECIES.items():
-        gallery.append({"key": key, "name": spec["name"],
-                        "kind": spec["kind"], "tagline": spec["tagline"],
-                        "description": spec["description"],
-                        "svg": pet_svg(key, 3, "happy", 120)})
+        locked = key in LOCKED_SPECIES
+        if locked:
+            gallery.append({"key": key, "name": "???", "kind": "???",
+                            "tagline": "A premium Tidepal…",
+                            "description": ("🔒 Unlock condition: " +
+                                            species_unlock_condition(key) +
+                                            " (or skip the quest in the "
+                                            "Signal Shop: /shop)"),
+                            "svg": pet_silhouette(120), "locked": True,
+                            "unlock_condition": species_unlock_condition(key)})
+        else:
+            gallery.append({"key": key, "name": spec["name"],
+                            "kind": spec["kind"], "tagline": spec["tagline"],
+                            "description": spec["description"],
+                            "svg": pet_svg(key, 3, "happy", 120),
+                            "locked": False})
     return render_template("pet.html", gallery=gallery)
 
 
 @app.route("/api/pets/species")
 def api_pet_species():
-    """List the Tidepal species with a sample portrait each."""
+    """List the Tidepal species with a sample portrait each. Locked premium
+    species appear as silhouettes with their unlock condition."""
     out = []
     for key, spec in PET_SPECIES.items():
-        out.append({"key": key, "name": spec["name"], "kind": spec["kind"],
-                    "tagline": spec["tagline"],
-                    "description": spec["description"],
-                    "svg": pet_svg(key, 3, "happy", 96)})
+        locked = key in LOCKED_SPECIES
+        entry = {"key": key, "locked": locked}
+        if locked:
+            entry.update({"name": "???", "kind": "???",
+                          "tagline": "A premium Tidepal…",
+                          "description": species_unlock_condition(key),
+                          "unlock_condition": species_unlock_condition(key),
+                          "svg": pet_silhouette(96)})
+        else:
+            entry.update({"name": spec["name"], "kind": spec["kind"],
+                          "tagline": spec["tagline"],
+                          "description": spec["description"],
+                          "svg": pet_svg(key, 3, "happy", 96)})
+        out.append(entry)
     return jsonify({"ok": True, "species": out})
 
 
@@ -902,6 +926,89 @@ def api_pet_sweep():
     scheduler alongside the re-engagement sweep."""
     sent = pet_sweep(db)
     return jsonify({"ok": True, "nudges_sent": len(sent), "nudges": sent})
+
+
+# ================================================== SIGNAL SHOP (shop.py)
+# Spend earned Signal on cosmetic Tidepal goods. Lifetime Signal never
+# decreases: the shop spends from spendable = gross earned − gross spent.
+# All buys are signed, server-side, idempotent, ledger-recorded.
+import shop as shopmod
+
+
+@app.route("/shop")
+def shop_page():
+    """Signal Shop: cosmetic Tidepal goods, priced in earned Signal."""
+    items = shopmod.items_for_api()
+    previews = {}
+    for it in items:
+        if it["kind"] == "accessory":
+            previews[it["key"]] = pet_svg("driplet", 3, "happy", 96,
+                                         [it["key"]])
+    return render_template("shop.html", items=items, previews=previews,
+                           rules=shopmod.shop_rules())
+
+
+@app.route("/api/shop/items")
+def api_shop_items():
+    """Public. The shop catalog: items, prices, slots, descriptions."""
+    return jsonify({"ok": True, "items": shopmod.items_for_api()})
+
+
+@app.route("/api/shop/balance")
+def api_shop_balance():
+    """Signed. Your Signal money: gross lifetime, gross spent, spendable."""
+    ident, err = signed_query_identity("shop_balance")
+    if err:
+        return err
+    return jsonify({"ok": True, **shopmod.balance(db, ident["fm_id"])})
+
+
+@app.route("/api/shop/balance/<handle>")
+def api_shop_balance_handle(handle):
+    """Public. A handle's spendable Signal (powers the shop page lookup)."""
+    ident = db.get_identity_by_handle(handle)
+    if not ident:
+        return api_error("unknown handle", 404)
+    return jsonify({"ok": True, "handle": handle,
+                    **shopmod.balance(db, ident["fm_id"])})
+
+
+@app.route("/api/shop/buy", methods=["POST"])
+def api_shop_buy():
+    """Signed. Buy a shop item: {"item": "<key>", "idempotency_key": "<opt>"}.
+    Idempotent — a double-tap can never double-charge."""
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="shop_buy")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        res = shopmod.buy(db, ident["fm_id"],
+                          (data.get("item") or "").strip(),
+                          data.get("idempotency_key"))
+    except ValueError as e:
+        msg = str(e)
+        code = 402 if msg.startswith("insufficient") else 400
+        return api_error(msg, code)
+    pet = pet_status(db, ident["fm_id"])
+    return jsonify({"ok": True, **res, "pet": pet})
+
+
+@app.route("/api/shop/equip", methods=["POST"])
+def api_shop_equip():
+    """Signed. Switch to another owned accessory: {"item": "<key>"}."""
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        ident = verify_signed_body(data, db, expected_action="shop_equip")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        equipped = shopmod.equip(db, ident["fm_id"],
+                                 (data.get("item") or "").strip())
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "equipped": equipped,
+                    "pet": pet_status(db, ident["fm_id"])})
 
 
 # ================================================== REACTIONS

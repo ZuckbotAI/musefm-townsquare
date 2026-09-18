@@ -830,6 +830,13 @@ class Database:
             return None
         posts, comments = self.identity_post_counts(ident["handle"])
         lifetime = self.lifetime_points(fm_id)
+        # Spendable shop balance: gross earned − gross spent. Lifetime Signal
+        # never decreases; tiers/stages/achievements always use gross.
+        # Lazy import: shop.py is an optional layer on top of db.py.
+        import shop as _shopmod
+        _shopmod.ensure_shop_schema(self)
+        spent = self._one("SELECT COALESCE(SUM(price),0) AS s FROM shop_purchases"
+                          " WHERE fm_id=?", (fm_id,))["s"] or 0
         return {
             "fm_id": ident["fm_id"],
             "handle": ident["handle"],
@@ -845,6 +852,8 @@ class Database:
             "signal": lifetime,
             "tier": tier_for_points(lifetime),
             "streak_days": self.activity_streak(fm_id),
+            "spent": spent,
+            "spendable": max(0, lifetime - spent),
         }
 
     # -- nonce replay protection ------------------------------------------

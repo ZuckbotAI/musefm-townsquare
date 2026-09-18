@@ -177,7 +177,7 @@ def main():
     print("== API ==")
     r = c.get("/api/pets/species")
     d = r.get_json()
-    check("species list", d["ok"] and len(d["species"]) == 9 and
+    check("species list", d["ok"] and len(d["species"]) == 12 and
           all(s["svg"].startswith("<svg") for s in d["species"]),
           len(d["species"]) if d.get("ok") else d)
     r = c.get("/api/pets/rules")
@@ -242,8 +242,8 @@ def main():
 
     print("== species expansion (wave 2) ==")
     new_keys = ["surfpup", "bubblepup", "sealpup", "jellypup"]
-    check("9 species registered",
-          len(pets.SPECIES_KEYS) == 9 and
+    check("12 species registered",
+          len(pets.SPECIES_KEYS) == 12 and
           all(k in pets.SPECIES_KEYS for k in new_keys), pets.SPECIES_KEYS)
     check("art registry matches species registry",
           set(pets._ART) == set(pets.SPECIES_KEYS))
@@ -263,8 +263,8 @@ def main():
     check("new eggs keep faces",
           all("z</text>" in pets.pet_svg(k, 0, "sleepy", 64)
               for k in new_keys))
-    check("rulebook lists 9 species",
-          len(pets.pet_rules()["species"]) == 9)
+    check("rulebook lists 12 species",
+          len(pets.pet_rules()["species"]) == 12)
 
     privD, fmD = reg(c, "DogLover")
     pet = pets.adopt(db, fmD, "DogLover", "surfpup", "Waverly")
@@ -287,19 +287,45 @@ def main():
 
     r = c.get("/api/pets/species")
     d = r.get_json()
-    check("species API has all 9",
-          d["ok"] and len(d["species"]) == 9 and
+    check("species API has all 12",
+          d["ok"] and len(d["species"]) == 12 and
           {s["key"] for s in d["species"]} == set(pets.SPECIES_KEYS))
     r = c.get("/api/rewards/rules")
-    check("reward rulebook tidepals has 9 species",
-          len(r.get_json()["rules"]["tidepals"]["species"]) == 9)
+    check("reward rulebook tidepals has 12 species",
+          len(r.get_json()["rules"]["tidepals"]["species"]) == 12)
 
     r = c.get("/pet")
     body = r.get_data(as_text=True)
-    check("pet page shows 9 gallery cards", body.count("pet-card") >= 10,
+    check("pet page shows 12 gallery cards", body.count("pet-card") >= 13,
           body.count("pet-card"))
     check("pet page names new species",
           all(n in body for n in ("Surfpup", "Bubbly", "Sealy", "Jelly")))
+
+    print("== locked premium species ==")
+    check("3 locked species",
+          set(pets.LOCKED_SPECIES) == {"gilt", "tidehound", "reefkeeper"})
+    check("art registry matches (12)",
+          set(pets._ART) == set(pets.SPECIES_KEYS) and
+          len(pets.SPECIES_KEYS) == 12)
+    bad3 = []
+    for key in ("gilt", "tidehound", "reefkeeper"):
+        for s in range(5):
+            for m in ("happy", "content", "sleepy"):
+                try:
+                    ET.fromstring(pets.pet_svg(key, s, m, 64))
+                except Exception as e:
+                    bad3.append((key, s, m, str(e)))
+    check("locked art XML-valid (3x5x3=45)", not bad3, bad3[:3])
+    check("locked eggs keep faces",
+          all("z</text>" in pets.pet_svg(k, 0, "sleepy", 64)
+              for k in ("gilt", "tidehound", "reefkeeper")))
+    check("unlock conditions readable",
+          all(pets.species_unlock_condition(k)
+              for k in ("gilt", "tidehound", "reefkeeper")) and
+          pets.species_unlock_condition("driplet") is None)
+    check("silhouette valid + hidden",
+          pets.pet_silhouette(64).startswith("<svg") and
+          "?" in pets.pet_silhouette(64))
 
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     sys.exit(1 if FAIL else 0)

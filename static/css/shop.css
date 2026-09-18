@@ -1,0 +1,39 @@
+/* Signal Shop — Aero glass, mobile-first. Loaded only by /shop. */
+.shop-hero{text-align:center;padding:2.2rem 1rem 1.2rem}
+.shop-hero h1{font-size:2.2rem;margin:.2rem 0}
+.shop-hero p{opacity:.85;max-width:34rem;margin:.4rem auto}
+.shop-balance{max-width:30rem;margin:1rem auto;text-align:center}
+.shop-lookup{display:flex;gap:.5rem;max-width:26rem;margin:.8rem auto}
+.shop-lookup input{flex:1}
+.shop-money{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;
+  margin:.8rem 0}
+.shop-money .pill{background:rgba(255,255,255,.55);
+  border:1px solid rgba(255,255,255,.7);border-radius:99px;
+  padding:.45rem 1rem;font-size:.9rem;
+  box-shadow:0 4px 14px rgba(14,165,233,.1)}
+.shop-money .pill b{font-variant-numeric:tabular-nums}
+.shop-money .pill.spend b{color:#0284c7}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:1rem;margin:1.2rem 0}
+.shop-card{background:rgba(255,255,255,.55);
+  border:1px solid rgba(255,255,255,.7);border-radius:22px;
+  padding:1.1rem;text-align:center;
+  box-shadow:0 8px 24px rgba(14,165,233,.12)}
+.shop-card h3{margin:.4rem 0 .1rem}
+.shop-card .kind{font-size:.8rem;opacity:.7;letter-spacing:.04em;
+  text-transform:uppercase}
+.shop-card p{font-size:.9rem;opacity:.85}
+.shop-price{display:inline-block;margin-top:.5rem;font-weight:700;
+  color:#0284c7;background:rgba(14,165,233,.12);
+  border-radius:99px;padding:.3rem .9rem}
+.shop-note{font-size:.88rem;opacity:.8;max-width:36rem;margin:.6rem auto}
+.shop-code{background:rgba(11,59,92,.06);border-radius:14px;padding:1rem;
+  overflow-x:auto;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;
+  white-space:pre}
+.shop-section-title{text-align:center;margin-top:2rem}
+@media (prefers-color-scheme:dark){
+  .shop-card,.shop-money .pill{background:rgba(20,40,60,.55);
+    border-color:rgba(255,255,255,.14)}
+  .shop-price{color:#7dd3fc;background:rgba(14,165,233,.2)}
+  .shop-money .pill.spend b{color:#7dd3fc}
+}

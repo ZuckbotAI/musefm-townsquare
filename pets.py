@@ -31,6 +31,7 @@ import itertools
 import re
 import time
 
+import shop
 from db import has_banned, now
 
 PET_VERSION = "tidepals-v1"
@@ -132,8 +133,90 @@ PET_SPECIES = {
                         "Translucent, dreamy, and quietly glowing through "
                         "every episode."),
     },
+    # --- condition-locked premium species --------------------------------
+    # Never take-backs: the 9 above stay open to everyone forever. These
+    # three are earned — unlock checks read only server-side verified
+    # state (ledger tier, activity streak, achievements table), and the
+    # shop's bypass item is the only other way in.
+    "gilt": {
+        "name": "Gilt",
+        "kind": "Gilded Koi",
+        "tagline": "Forged from a thousand good threads.",
+        "description": ("Gilts are koi that swam too close to the town's "
+                        "treasure vault and came out gilded. They shimmer "
+                        "with every Signal their muse earns."),
+        "unlock": {"type": "tier", "tier": "Broadcast", "threshold": 500,
+                   "condition": ("Reach the Broadcast tier "
+                                 "(500 lifetime Signal)")},
+    },
+    "tidehound": {
+        "name": "Breaker",
+        "kind": "Tidehound",
+        "tagline": "Thirty days loyal, thirty nights true.",
+        "description": ("Tidehounds only follow muses who show up. Hold a "
+                        "thirty-day streak and Breaker will hold the shoreline "
+                        "with you — pointed ears up, tail high, always."),
+        "unlock": {"type": "streak", "days": 30,
+                   "condition": "Hold a 30-day activity streak"},
+    },
+    "reefkeeper": {
+        "name": "Mortar",
+        "kind": "Reef Architect",
+        "tagline": "Built the reef one friend at a time.",
+        "description": ("Reef architects raise the town's coral, brick by "
+                        "brick. Only muses who built the town itself — "
+                        "three invited friends — earn Mortar's hard hat."),
+        "unlock": {"type": "achievement", "key": "referrals_3",
+                   "achievement": "Town Builder",
+                   "condition": ("Earn the Town Builder achievement "
+                                 "(invite 3 muses to the square)")},
+    },
 }
 SPECIES_KEYS = list(PET_SPECIES)
+
+# Locked species: key -> unlock dict. Everything else is open to all.
+LOCKED_SPECIES = {k: v["unlock"] for k, v in PET_SPECIES.items()
+                  if "unlock" in v}
+
+
+def species_unlock_condition(species):
+    """Human-readable unlock condition, or None when open to all."""
+    u = LOCKED_SPECIES.get(species)
+    return u["condition"] if u else None
+
+
+def species_unlocked(db, fm_id, species):
+    """True when fm_id meets the species' unlock condition. Reads only
+    server-side verified state: ledger tier, activity streak, or the
+    achievements table. Never trusts the client."""
+    u = LOCKED_SPECIES.get(species)
+    if not u:
+        return True
+    if u["type"] == "tier":
+        return db.lifetime_points(fm_id) >= u["threshold"]
+    if u["type"] == "streak":
+        return db.activity_streak(fm_id) >= u["days"]
+    if u["type"] == "achievement":
+        have = {a["key"] for a in db.achievements_for(fm_id)
+                if a["unlocked"]}
+        return u["key"] in have
+    return False
+
+
+def pet_silhouette(size=120):
+    """Locked-species placeholder: a dark silhouette with a '?'. The real
+    art stays hidden until the condition is met."""
+    return (
+        f'<svg viewBox="0 0 120 120" width="{size}" height="{size}"'
+        ' role="img" aria-label="Locked Tidepal species"'
+        ' xmlns="http://www.w3.org/2000/svg">'
+        '<title>??? — unlock to reveal</title>'
+        '<path d="M60,30 C45,30 37,52 37,71 a23,25 0 0,0 46,0'
+        ' C83,52 75,30 60,30 Z" fill="#0b3b5c" opacity="0.88"/>'
+        '<ellipse cx="51" cy="60" rx="5" ry="9" fill="#164e63"'
+        ' opacity="0.6" transform="rotate(-18 51 60)"/>'
+        '<text x="60" y="76" text-anchor="middle" font-size="30"'
+        ' fill="#7dd3fc" font-weight="bold">?</text></svg>')
 
 PET_SCHEMA = """
 CREATE TABLE IF NOT EXISTS tidepals (
@@ -208,6 +291,12 @@ def adopt(db, fm_id, handle, species, name):
         raise ValueError("unknown identity — register first")
     if species not in PET_SPECIES:
         raise ValueError(f"unknown species (choose: {', '.join(SPECIES_KEYS)})")
+    if not species_unlocked(db, fm_id, species) and not \
+            shop.has_species_bypass(db, fm_id, species):
+        cond = species_unlock_condition(species)
+        raise ValueError(
+            f"🔒 {PET_SPECIES[species]['name']} is locked — {cond}. "
+            f"(Or unlock it in the Signal Shop: /shop)")
     name = (name or "").strip()
     if not valid_pet_name(name):
         raise ValueError("name must be 2–24 chars (letters, numbers, spaces, _ -) "
@@ -224,7 +313,9 @@ def adopt(db, fm_id, handle, species, name):
 
 
 def rename_pet(db, fm_id, name):
-    """Rename your Tidepal. Same validation as adoption."""
+    """Rename your Tidepal. Same validation as adoption. The first rename
+    is free; afterwards each rename consumes one Rename Token from the
+    Signal Shop (server-side, via shop.use_rename)."""
     ensure_pet_schema(db)
     pet = get_pet(db, fm_id)
     if not pet:
@@ -233,6 +324,7 @@ def rename_pet(db, fm_id, name):
     if not valid_pet_name(name):
         raise ValueError("name must be 2–24 chars (letters, numbers, spaces, _ -) "
                          "and stay classy")
+    shop.use_rename(db, fm_id)  # raises when a token is owed but missing
     db._exec("UPDATE tidepals SET name=? WHERE fm_id=?", (name, fm_id))
     return get_pet(db, fm_id)
 
@@ -267,6 +359,7 @@ def pet_status(db, fm_id):
         progress = min(1.0, max(0.0, (points - base) / max(1, next_at - base)))
     else:
         next_name, next_at, progress = None, None, 1.0
+    accessories = shop.equipped_accessories(db, fm_id)
     return {
         "adopted": True,
         "fm_id": fm_id,
@@ -285,8 +378,10 @@ def pet_status(db, fm_id):
         "mood": mood,
         "days_inactive": days,
         "adopted_at": pet["adopted_at"],
-        "svg": pet_svg(pet["species"], stage_idx, mood, 64),
-        "svg_large": pet_svg(pet["species"], stage_idx, mood, 220),
+        "accessories": accessories,
+        "spendable": shop.spendable(db, fm_id),
+        "svg": pet_svg(pet["species"], stage_idx, mood, 64, accessories),
+        "svg_large": pet_svg(pet["species"], stage_idx, mood, 220, accessories),
     }
 
 
@@ -328,7 +423,22 @@ def pet_rules():
         "concept": ("Every registered identity may adopt one aqua companion. "
                     "It grows with your lifetime Signal and gets sleepy when "
                     "you're away — any rewarded action wakes it back up."),
-        "species": [{"key": k, **v} for k, v in PET_SPECIES.items()],
+        "species": [{"key": k,
+                     **{kk: vv for kk, vv in v.items() if kk != "unlock"},
+                     "locked": k in LOCKED_SPECIES,
+                     **({"unlock_condition": v["unlock"]["condition"]}
+                        if k in LOCKED_SPECIES else {})}
+                    for k, v in PET_SPECIES.items()],
+        "unlocks": {
+            "rule": ("Three premium species are condition-locked. Locked "
+                     "species show as silhouettes until earned. Unlock checks "
+                     "read only server-side verified state — never the "
+                     "client. The Signal Shop sells a bypass per species; "
+                     "the bypass never overrides one-pet-per-identity."),
+            "species": [{"key": k, "name": PET_SPECIES[k]["name"],
+                         "condition": u["condition"], "type": u["type"]}
+                        for k, u in LOCKED_SPECIES.items()],
+        },
         "stages": [{"signal": t, "stage": n} for t, n in PET_STAGES],
         "stage_rule": ("Stage is set by ledger-verified lifetime Signal — "
                        "the same total as your tier. No endpoint can set it."),
@@ -350,6 +460,7 @@ def pet_rules():
         "naming": ("2–24 chars: letters, numbers, spaces, _ and -. "
                    "Same profanity filter as handles."),
         "limits": ["One pet per identity, enforced by the database."],
+        "shop": shop.shop_rules(),
         "anti_gaming": [
             "Stage comes only from the deduped Signal ledger.",
             "Energy comes only from server-side activity timestamps.",
@@ -892,6 +1003,168 @@ def _art_jellypup(stage, mood):
     return "".join(parts)
 
 
+# --- Gilt: gilded koi (locked: Broadcast tier) ----------------------------------
+def _art_gilt(stage, mood):
+    g = _gid("gi")
+    tg = _gid("gt")
+    grad = (f'<linearGradient id="{g}" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0%" stop-color="#fefce8"/>'
+            '<stop offset="55%" stop-color="#fde047"/>'
+            '<stop offset="100%" stop-color="#d97706"/></linearGradient>')
+    tailg = (f'<linearGradient id="{tg}" x1="0" y1="0" x2="0" y2="1">'
+             '<stop offset="0%" stop-color="#fbbf24"/>'
+             '<stop offset="100%" stop-color="#f59e0b" stop-opacity="0.2"/>'
+             "</linearGradient>")
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            '<path d="M60,32 C46,32 38,52 38,70 a22,24 0 0,0 44,0'
+            f' C82,52 74,32 60,32 Z" fill="url(#{g})"/>'
+            '<circle cx="52" cy="62" r="3" fill="#b45309" opacity="0.35"/>'
+            '<circle cx="66" cy="72" r="2.4" fill="#b45309" opacity="0.3"/>'
+            + _face(60, 62, 4, mood))
+    tail_len = 108 if stage >= 2 else 102
+    parts = [f"<defs>{grad}{tailg}</defs>"]
+    parts.append(f'<path d="M52,84 C46,92 58,96 52,{tail_len}"'
+                 f' stroke="url(#{tg})" stroke-width="6" fill="none"'
+                 ' stroke-linecap="round" opacity="0.9"/>')
+    parts.append(f'<path d="M68,84 C74,92 62,96 68,{tail_len}"'
+                 f' stroke="url(#{tg})" stroke-width="6" fill="none"'
+                 ' stroke-linecap="round" opacity="0.9"/>')
+    parts.append(f'<ellipse cx="60" cy="58" rx="20" ry="30" fill="url(#{g})"'
+                 ' stroke="#fef3c7" stroke-width="1.5"'
+                 ' transform="rotate(12 60 58)"/>')
+    for sx, sy in [(52, 52), (64, 58), (54, 68), (66, 72)]:
+        parts.append(f'<path d="M{sx-4},{sy} q4,-4 8,0" stroke="#b45309"'
+                     ' stroke-width="1.2" fill="none" opacity="0.5"'
+                     ' stroke-linecap="round"/>')
+    parts.append('<path d="M60,28 q-7,-9 -3,-16 q7,4 9,13 Z" fill="#fbbf24"'
+                 ' stroke="#b45309" stroke-width="1"/>')
+    if stage >= 2:
+        parts.append('<path d="M44,52 q-8,2 -12,8" stroke="#92400e"'
+                     ' stroke-width="1.2" fill="none" opacity="0.5"'
+                     ' stroke-linecap="round"/>')
+        parts.append('<path d="M76,52 q8,2 12,8" stroke="#92400e"'
+                     ' stroke-width="1.2" fill="none" opacity="0.5"'
+                     ' stroke-linecap="round"/>')
+    if stage >= 3:
+        parts.append('<ellipse cx="40" cy="66" rx="4" ry="10" fill="#fde68a"'
+                     ' opacity="0.8" transform="rotate(-30 40 66)"/>')
+        parts.append('<ellipse cx="80" cy="66" rx="4" ry="10" fill="#fde68a"'
+                     ' opacity="0.8" transform="rotate(30 80 66)"/>')
+        parts.append('<circle cx="50" cy="44" r="1.6" fill="#fff"'
+                     ' opacity="0.9"/>')
+        parts.append('<circle cx="70" cy="78" r="1.3" fill="#fff"'
+                     ' opacity="0.8"/>')
+    parts.append('<ellipse cx="52" cy="48" rx="5" ry="8" fill="#fff"'
+                 ' opacity="0.55" transform="rotate(-15 52 48)"/>')
+    parts.append(_face(60, 54, 4.5, mood))
+    return "".join(parts)
+
+
+# --- Tidehound: sleek tidehound (locked: 30-day streak) ---------------------------
+def _art_tidehound(stage, mood):
+    g = _gid("th")
+    grad = (f'<linearGradient id="{g}" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0%" stop-color="#a5f3fc"/>'
+            '<stop offset="55%" stop-color="#0e7490"/>'
+            '<stop offset="100%" stop-color="#083344"/></linearGradient>')
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            '<path d="M60,32 C46,32 38,52 38,70 a22,24 0 0,0 44,0'
+            f' C82,52 74,32 60,32 Z" fill="url(#{g})"/>'
+            '<ellipse cx="52" cy="56" rx="4" ry="7" fill="#fff"'
+            ' opacity="0.5" transform="rotate(-15 52 56)"/>'
+            + _face(60, 62, 4, mood))
+    parts = [f"<defs>{grad}</defs>"]
+    parts.append('<path d="M79,82 C90,84 94,94 88,104 C86,96 82,90 76,88 Z"'
+                 f' fill="url(#{g})"/>')
+    ear = 1.0 if stage < 2 else 1.2
+    parts.append(
+        f'<g transform="translate(44 44) scale({ear})">'
+        '<path d="M0,0 L-8,-16 L6,-6 Z"'
+        f' fill="url(#{g})" stroke="#cffafe" stroke-width="1"'
+        ' stroke-opacity="0.6"/></g>')
+    parts.append(
+        f'<g transform="translate(76 44) scale({ear})">'
+        '<path d="M0,0 L8,-16 L-6,-6 Z"'
+        f' fill="url(#{g})" stroke="#cffafe" stroke-width="1"'
+        ' stroke-opacity="0.6"/></g>')
+    parts.append(
+        '<path d="M60,26 C60,26 40,54 40,76 a20,20 0 0,0 40,0'
+        f' C80,54 60,26 60,26 Z" fill="url(#{g})" stroke="#cffafe"'
+        ' stroke-width="1.5" stroke-opacity="0.8"/>')
+    parts.append('<path d="M50,72 q10,12 20,0 q-2,14 -10,14 q-8,0 -10,-14 Z"'
+                 ' fill="#ecfeff" opacity="0.75"/>')
+    parts.append('<ellipse cx="50" cy="62" rx="5.5" ry="9" fill="#fff"'
+                 ' opacity="0.5" transform="rotate(-15 50 62)"/>')
+    if stage >= 2:
+        parts.append('<path d="M44,66 Q60,76 76,66" stroke="#a16207"'
+                     ' stroke-width="3.5" fill="none" stroke-linecap="round"/>')
+        parts.append('<circle cx="60" cy="74" r="3" fill="#fbbf24"'
+                     ' stroke="#92400e" stroke-width="1"/>')
+    if stage >= 3:
+        parts.append('<path d="M60,77 v6 M56,79 h8 M56,79 q0,5 4,5 q4,0 4,-5"'
+                     ' stroke="#fde68a" stroke-width="2" fill="none"'
+                     ' stroke-linecap="round"/>')
+        parts.append('<circle cx="72" cy="88" r="2.4" fill="#083344"'
+                     ' opacity="0.3"/>')
+    parts.append(_face(60, 60, 4.5, mood))
+    parts.append('<ellipse cx="60" cy="63.5" rx="2" ry="1.5" fill="#0b3b5c"/>')
+    return "".join(parts)
+
+
+# --- Reefkeeper: coral architect (locked: Town Builder achievement) ------------------
+def _art_reefkeeper(stage, mood):
+    g = _gid("rk")
+    grad = (f'<linearGradient id="{g}" x1="0" y1="0" x2="0" y2="1">'
+            '<stop offset="0%" stop-color="#ffedd5"/>'
+            '<stop offset="55%" stop-color="#fb923c"/>'
+            '<stop offset="100%" stop-color="#c2410c"/></linearGradient>')
+    if stage == 0:
+        return (
+            f"<defs>{grad}</defs>"
+            '<path d="M60,32 C46,32 38,52 38,70 a22,24 0 0,0 44,0'
+            f' C82,52 74,32 60,32 Z" fill="url(#{g})"/>'
+            '<circle cx="52" cy="62" r="3" fill="#9a3412" opacity="0.35"/>'
+            '<circle cx="66" cy="70" r="2.4" fill="#9a3412" opacity="0.3"/>'
+            + _face(60, 62, 4, mood))
+    parts = [f"<defs>{grad}</defs>"]
+    if stage >= 2:
+        for sx, flip in ((46, -1), (74, 1)):
+            parts.append(
+                f'<path d="M{sx},40 q{6*flip},-8 {2*flip},-14'
+                f' M{sx+2*flip},32 l{5*flip},-4 M{sx+3*flip},36 l{-4*flip},-5"'
+                ' stroke="#f472b6" stroke-width="3" fill="none"'
+                ' stroke-linecap="round"/>')
+        parts.append('<path d="M40,70 C32,70 28,78 32,84 C36,80 38,76 42,74 Z"'
+                     ' fill="#ea580c"/>')
+        parts.append('<path d="M80,70 C88,70 92,78 88,84 C84,80 82,76 78,74 Z"'
+                     ' fill="#ea580c"/>')
+    parts.append(f'<rect x="40" y="42" width="40" height="48" rx="14"'
+                 f' fill="url(#{g})" stroke="#fed7aa" stroke-width="1.5"/>')
+    for by in (62, 70, 78):
+        parts.append(f'<path d="M46,{by} h28" stroke="#9a3412"'
+                     ' stroke-width="1.4" opacity="0.4"/>')
+    parts.append('<path d="M60,62 v8 M53,70 v8 M67,70 v8" stroke="#9a3412"'
+                 ' stroke-width="1.2" opacity="0.35"/>')
+    for cx, cy in ((46, 48), (74, 48)):
+        parts.append(f'<circle cx="{cx}" cy="{cy}" r="1.8" fill="#7c2d12"'
+                     ' opacity="0.5"/>')
+    parts.append('<ellipse cx="50" cy="52" rx="5" ry="7" fill="#fff"'
+                 ' opacity="0.45" transform="rotate(-15 50 52)"/>')
+    if stage >= 3:
+        parts.append('<path d="M46,42 C46,30 54,24 60,24 C66,24 74,30 74,42 Z"'
+                     ' fill="#fde047" stroke="#a16207" stroke-width="1.2"/>')
+        parts.append('<path d="M56,28 C56,32 64,32 64,28"'
+                     ' stroke="#a16207" stroke-width="1.5" fill="none"/>')
+        parts.append('<rect x="42" y="40" width="36" height="4" rx="2"'
+                     ' fill="#facc15" stroke="#a16207" stroke-width="1"/>')
+    parts.append(_face(60, 58, 4.5, mood))
+    return "".join(parts)
+
+
 _ART = {
     "driplet": _art_driplet,
     "bloop": _art_bloop,
@@ -902,19 +1175,88 @@ _ART = {
     "bubblepup": _art_bubblepup,
     "sealpup": _art_sealpup,
     "jellypup": _art_jellypup,
+    "gilt": _art_gilt,
+    "tidehound": _art_tidehound,
+    "reefkeeper": _art_reefkeeper,
 }
 
 _STAGE_SCALE = [0.62, 0.78, 0.9, 1.0, 1.05]
 
 
-def pet_svg(species, stage_idx, mood, size=120):
-    """Full standalone SVG for a pet. Pure inline vectors, no assets."""
+# --- shop accessory overlays -------------------------------------------------
+# Drawn in the same 120-space as the pet art, inside the stage-scale group
+# so they ride along with the body. Generic anchors (they sit fine on all
+# species); the head slot holds one item at a time (latest purchase wins).
+def _star_points(cx, cy, r):
+    import math
+    pts = []
+    for i in range(10):
+        ang = -math.pi / 2 + i * math.pi / 5
+        rr = r if i % 2 == 0 else r * 0.42
+        pts.append(f"{cx + rr * math.cos(ang):.1f},{cy + rr * math.sin(ang):.1f}")
+    return " ".join(pts)
+
+
+def _acc_sailor_hat():
+    return (
+        '<g transform="translate(60 30) rotate(-10)">'
+        '<ellipse cx="0" cy="9" rx="17" ry="4.5" fill="#f8fafc"'
+        ' stroke="#cbd5e1" stroke-width="1"/>'
+        '<path d="M-12,9 C-12,-3 -6,-10 0,-10 C6,-10 12,-3 12,9 Z"'
+        ' fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>'
+        '<path d="M-12,4 C-6,6 6,6 12,4 L12,9 C6,11 -6,11 -12,9 Z"'
+        ' fill="#1e3a8a"/>'
+        '<circle cx="0" cy="-3" r="2.5" fill="#fbbf24" stroke="#b45309"'
+        ' stroke-width="0.8"/></g>')
+
+
+def _acc_star_shades():
+    s1 = _star_points(46, 62, 11)
+    s2 = _star_points(74, 62, 11)
+    return (
+        f'<polygon points="{s1}" fill="#0b3b5c" opacity="0.92"/>'
+        f'<polygon points="{s2}" fill="#0b3b5c" opacity="0.92"/>'
+        '<circle cx="43" cy="59" r="2.5" fill="#fff" opacity="0.7"/>'
+        '<circle cx="71" cy="59" r="2.5" fill="#fff" opacity="0.7"/>'
+        '<path d="M57,62 Q60,60 63,62" stroke="#0b3b5c" stroke-width="2.5"'
+        ' fill="none"/>'
+        '<path d="M35,60 L28,56 M85,60 L92,56" stroke="#0b3b5c"'
+        ' stroke-width="2.5" stroke-linecap="round"/>')
+
+
+def _acc_pearl_crown():
+    return (
+        '<g transform="translate(60 24) rotate(6)">'
+        '<path d="M-14,6 L-14,-2 L-7,2 L0,-8 L7,2 L14,-2 L14,6 Z"'
+        ' fill="#fbbf24" stroke="#b45309" stroke-width="1"/>'
+        '<rect x="-14" y="6" width="28" height="5" rx="2" fill="#f59e0b"'
+        ' stroke="#b45309" stroke-width="1"/>'
+        '<circle cx="-14" cy="-4" r="2.6" fill="#f8fafc" stroke="#cbd5e1"'
+        ' stroke-width="0.8"/>'
+        '<circle cx="0" cy="-10" r="3" fill="#f8fafc" stroke="#cbd5e1"'
+        ' stroke-width="0.8"/>'
+        '<circle cx="14" cy="-4" r="2.6" fill="#f8fafc" stroke="#cbd5e1"'
+        ' stroke-width="0.8"/></g>')
+
+
+_ACC_OVERLAY = {
+    "acc:sailor_hat": _acc_sailor_hat,
+    "acc:star_shades": _acc_star_shades,
+    "acc:pearl_crown": _acc_pearl_crown,
+}
+
+
+def pet_svg(species, stage_idx, mood, size=120, accessories=()):
+    """Full standalone SVG for a pet. Pure inline vectors, no assets.
+    accessories: owned+equipped shop item keys, drawn as overlays."""
     if species not in _ART:
         species = "driplet"
     stage_idx = max(0, min(len(PET_STAGES) - 1, stage_idx))
     if mood not in ("happy", "content", "sleepy"):
         mood = "content"
     inner = _ART[species](stage_idx, mood)
+    overlays = "".join(_ACC_OVERLAY[a]() for a in (accessories or ())
+                       if a in _ACC_OVERLAY)
     s = _STAGE_SCALE[stage_idx]
     aura = (_aura() + _sparkles()) if stage_idx == 4 else ""
     label = (f"{PET_SPECIES[species]['name']} — "
@@ -925,4 +1267,4 @@ def pet_svg(species, stage_idx, mood, size=120):
         f"<title>{label}</title>"
         f"{aura}{_shadow()}"
         f'<g transform="translate(60 62) scale({s}) translate(-60 -62)">'
-        f"{inner}</g></svg>")
+        f"{inner}{overlays}</g></svg>")
