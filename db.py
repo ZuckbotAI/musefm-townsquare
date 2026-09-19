@@ -51,6 +51,15 @@ import time
 
 from identity import new_fm_id, valid_public_key_b64
 
+# -- write-retry tuning (P1 2026-09-19: concurrent writes 500'd with
+# "database is locked") -------------------------------------------------
+# Only SQLITE locked/busy OperationalErrors are ever retried; every other
+# SQL error propagates immediately and a statement is never executed
+# twice (the retry wraps lock acquisition, not the statement itself).
+_LOCKED_RE = re.compile(r"locked|busy", re.I)
+_WRITE_RETRY_ATTEMPTS = 5
+_WRITE_RETRY_DELAY = 0.05  # seconds; doubles each attempt
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 BANNED_WORDS = [
@@ -654,12 +663,48 @@ class Database:
             raise ValueError("integer out of sqlite 64-bit range")
 
     def _exec(self, sql, args=()):
-        try:
-            cur = self.db.execute(sql, args)
-        except OverflowError:
-            raise ValueError("integer out of sqlite 64-bit range")
-        self.db.commit()
-        return cur
+        """Execute a write and commit, with bounded retry on lock contention.
+
+        Takes the write lock up front with BEGIN IMMEDIATE so contention
+        fails fast at acquisition time (inside SQLite's busy_timeout)
+        instead of surfacing mid-statement. Only locked/busy
+        OperationalErrors are retried, with exponential backoff; the
+        statement itself runs at most once per attempt and only after the
+        lock is held, so a retried BEGIN can never double-execute a write.
+        """
+        delay = _WRITE_RETRY_DELAY
+        for attempt in range(_WRITE_RETRY_ATTEMPTS):
+            conn = self.db
+            # If the caller already holds a transaction (legacy direct
+            # db.db.execute use), join it instead of BEGINning: mirrors
+            # the pre-retry behavior exactly for that edge case.
+            begun = False
+            if not conn.in_transaction:
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                except sqlite3.OperationalError as e:
+                    if (not _LOCKED_RE.search(str(e))
+                            or attempt == _WRITE_RETRY_ATTEMPTS - 1):
+                        raise
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+                begun = True
+            try:
+                try:
+                    cur = conn.execute(sql, args)
+                except OverflowError:
+                    raise ValueError("integer out of sqlite 64-bit range")
+                conn.commit()
+                return cur
+            except BaseException:
+                if begun:
+                    try:
+                        conn.rollback()
+                    except sqlite3.Error:
+                        pass
+                raise
+        raise AssertionError("unreachable")  # pragma: no cover
 
     # -- seed -------------------------------------------------------------
     def _seed(self):
@@ -1620,14 +1665,23 @@ class Database:
 
     # -- nonce replay protection ------------------------------------------
     def note_nonce(self, nonce, ttl_sec=86400):
-        """Record a nonce. Returns False if it was already seen (replay)."""
-        self._exec("DELETE FROM seen_nonces WHERE expires_at <= ?", (now(),))
+        """Record a nonce. Returns False if it was already seen (replay).
+
+        The INSERT is the critical section and runs first; expired-nonce
+        cleanup is best-effort so a contended DELETE can never block a
+        valid authentication (P1 2026-09-19: concurrent-write 500s).
+        """
         try:
             self._exec("INSERT INTO seen_nonces VALUES (?,?)",
                        (nonce, now() + ttl_sec))
-            return True
         except sqlite3.IntegrityError:
             return False
+        try:
+            self._exec("DELETE FROM seen_nonces WHERE expires_at <= ?",
+                       (now(),))
+        except sqlite3.OperationalError:
+            pass  # a later call cleans up; never fail auth over this
+        return True
 
     # -- Signal rewards ---------------------------------------------------
     def award(self, fm_id, handle, points, reason, ref_type="", ref_id=""):
@@ -1688,13 +1742,14 @@ class Database:
         row = self._one("SELECT last_active FROM identity_activity WHERE fm_id=?",
                         (fm_id,))
         prev = row["last_active"] if row else 0
-        if row:
-            self._exec("UPDATE identity_activity SET last_active=? WHERE fm_id=?",
-                       (t, fm_id))
-        else:
-            self._exec("INSERT INTO identity_activity"
-                       " (fm_id, last_active, last_nudge_at, town_mentions_opt_in)"
-                       " VALUES (?,?,0,1)", (fm_id, t))
+        # Upsert atomically: two concurrent awards for the same fm_id used to
+        # both see "no row" and race their INSERTs into a UNIQUE violation.
+        # INSERT OR IGNORE + UPDATE is idempotent under concurrency.
+        self._exec("INSERT OR IGNORE INTO identity_activity"
+                   " (fm_id, last_active, last_nudge_at, town_mentions_opt_in)"
+                   " VALUES (?,?,0,1)", (fm_id, t))
+        self._exec("UPDATE identity_activity SET last_active=? WHERE fm_id=?",
+                   (t, fm_id))
         if prev and t - prev >= COMEBACK_DORMANT_DAYS * 86400:
             prev_day = time.strftime("%Y-%m-%d", time.gmtime(prev))
             if self.award(fm_id, handle, PTS_COMEBACK, "comeback",

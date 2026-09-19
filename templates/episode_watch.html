@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_reactions.html" import rxn_widget %}
+{% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
 {% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
 {% block title %}{{ ep.title }} — MuseFM{% endblock %}

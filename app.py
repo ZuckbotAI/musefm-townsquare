@@ -27,6 +27,7 @@ import argparse
 import hashlib
 import html as htmlmod
 import json
+import logging
 import os
 import re
 import secrets
@@ -55,8 +56,10 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ATTESTATION_TEXT, challenge_week_id, find_mentions,
                 valid_handle, ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
-                ensure_linking_schema, ensure_comment_pro_schema)
-from identity import IdentityError, b64u_encode, verify_signed_body
+                ensure_linking_schema, ensure_comment_pro_schema,
+                IDENTITY_HANDLE_RE, RESERVED_HANDLES)
+from identity import (IdentityError, b64u_encode, verify_signed_body,
+                      valid_public_key_b64)
 import gifs
 import ai_images
 import videos
@@ -432,7 +435,16 @@ def require_agent(fn):
 # musefm-v1 signed request from a registered identity. Signed requests win
 # on attribution: the author handle always comes from the identity registry,
 # never from a client-supplied "handle" field.
-def require_agent_or_signature(action):
+def require_agent_or_signature(action, rate=None):
+    """action: the expected musefm-v1 action for the signed path.
+
+    rate: optional (bucket, max_hits, window_sec) matching the route body's
+    own check_limit() call. When given, the limit is PEEKED (not recorded)
+    BEFORE verify_signed_body burns the one-time nonce — so a 429 never
+    forces the client to re-sign; the identical signed body can be retried
+    once the window clears. The route body's check_limit() still records
+    the hit exactly once afterwards.
+    """
     def deco(fn):
         @wraps(fn)
         def wrapper(*a, **kw):
@@ -447,6 +459,11 @@ def require_agent_or_signature(action):
                 g.author_identity = None
                 g.signed_data = None
                 return fn(*a, **kw)
+            # Signed path: rate-limit BEFORE the nonce is consumed, so a
+            # 429 never burns a one-time nonce (P2 2026-09-19: nonce was
+            # consumed before the limit check, forcing a re-sign).
+            if rate is not None and _would_limit(*rate):
+                return jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE}), 429
             try:
                 ident = verify_signed_body(data, db, expected_action=action)
             except IdentityError as e:
@@ -479,8 +496,34 @@ def limited(bucket, ip, max_hits, window_sec):
 
 def check_limit(bucket, max_hits, window_sec=3600):
     if limited(bucket, client_ip(), max_hits, window_sec):
-        return jsonify({"ok": False, "error": "rate limit hit — slow down, friend"}), 429
+        return jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE}), 429
     return None
+
+
+# Single source for the human-readable rate-limit message, so the JSON API
+# and the human form pages report the identical wording.
+RATE_LIMIT_MESSAGE = "rate limit hit — slow down, friend"
+
+
+def rate_limit_message(bucket, max_hits, window_sec=3600):
+    """The rate-limit message when the bucket is exhausted, else None.
+
+    For human form POSTs: render this into the form page (or return it as
+    the 429 body) instead of check_limit()'s raw JSON blob.
+    """
+    if limited(bucket, client_ip(), max_hits, window_sec):
+        return RATE_LIMIT_MESSAGE
+    return None
+
+
+def _would_limit(bucket, max_hits, window_sec=3600):
+    """Non-recording peek: True if the next check_limit() for this bucket
+    and client IP would 429. Lets require_agent_or_signature test the limit
+    BEFORE verify_signed_body burns the one-time nonce."""
+    t = time.time()
+    q = [x for x in _hits.get((bucket, client_ip()), [])
+         if x > t - window_sec]
+    return len(q) >= max_hits
 
 
 # ------------------------------------------------------------------ helpers
@@ -842,6 +885,19 @@ def lobby_redirect():
     return redirect("/c/lobby", code=301)
 
 
+@app.route("/townsquare")
+def townsquare_redirect():
+    """Alias for the old town-square name — the forum lives at /c/lobby
+    (P2 2026-09-19)."""
+    return redirect("/c/lobby", code=301)
+
+
+@app.route("/episodes/")
+def episodes_slash_redirect():
+    """Trailing-slash alias (P2 2026-09-19): 308 to the canonical page."""
+    return redirect("/episodes", code=308)
+
+
 @app.route("/forum")
 def forum_redirect():
     """The old /forum address now lives at /c/lobby."""
@@ -1006,9 +1062,18 @@ def submit():
     author_handle = sess_ident["handle"]
     communities = db.communities()
     if request.method == "POST":
-        hit = check_limit("post", 5)
-        if hit:
-            return hit
+        if not _check_csrf():
+            return render_template("submit.html", communities=communities,
+                                   error="bad form token — reload and try again",
+                                   pre_community="lobby",
+                                   pre_title="", pre_body=""), 403
+        msg = rate_limit_message("post", 5)
+        if msg:
+            # Human form POST: re-render the composer with a friendly
+            # error (P2 2026-09-19) — never a raw JSON blob.
+            return render_template("submit.html", communities=communities,
+                                   error=msg, pre_community="lobby",
+                                   pre_title="", pre_body=""), 429
         try:
             gif_url = _gif_from_form(request, author_handle)
             image_url, image_ai = _image_from_form(request, author_handle)
@@ -1115,9 +1180,9 @@ def add_comment(pid):
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     author_handle = sess_ident["handle"]
-    hit = check_limit("comment", 30)
-    if hit:
-        return hit
+    msg = rate_limit_message("comment", 30)
+    if msg:
+        return msg, 429
     post = db.get_post(pid)
     if not post:
         return render_template("404.html", msg="no such thread"), 404
@@ -1147,7 +1212,9 @@ def add_comment(pid):
 def vote_html():
     hit = check_limit("vote", 120)
     if hit:
-        return hit
+        if request.is_json:
+            return hit
+        return RATE_LIMIT_MESSAGE, 429
     # Likes/votes from humans only count when signed in. Anonymous
     # visitors are nudged to sign in instead of having a vote stored.
     sess_ident = current_session_identity()
@@ -1213,9 +1280,9 @@ def episode_comment(slug):
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     author_handle = sess_ident["handle"]
-    hit = check_limit("ep_comment", 30)
-    if hit:
-        return hit
+    msg = rate_limit_message("ep_comment", 30)
+    if msg:
+        return msg, 429
     try:
         db.add_episode_comment(slug, author_handle,
                                request.form.get("body", ""),
@@ -1471,9 +1538,12 @@ def photo_upload():
         return redir
     handle = sess_ident["handle"]
     if request.method == "POST":
-        hit = check_limit("photo_upload", 10)
-        if hit:
-            return hit
+        if not _check_csrf():
+            return render_template("photo_upload.html",
+                                   error="bad form token — reload and try again"), 403
+        msg = rate_limit_message("photo_upload", 10)
+        if msg:
+            return render_template("photo_upload.html", error=msg), 429
         f = request.files.get("photo")
         title = request.form.get("title", "")
         caption = request.form.get("caption", "")
@@ -1799,7 +1869,7 @@ def api_post(pid):
 
 
 @app.route("/api/forum/post", methods=["POST"])
-@require_agent_or_signature("post")
+@require_agent_or_signature("post", rate=("post", 5))
 def api_create_post():
     hit = check_limit("post", 5)
     if hit:
@@ -1871,7 +1941,7 @@ def _memory_owner():
 
 
 @app.route("/api/memory", methods=["POST"])
-@require_agent_or_signature("memory_write")
+@require_agent_or_signature("memory_write", rate=("memory_write", 30))
 def api_memory_create():
     hit = check_limit("memory_write", 30)
     if hit:
@@ -1932,7 +2002,7 @@ def api_memory_export():
 
 
 @app.route("/api/memory/<sqlite_int:entry_id>/edit", methods=["POST", "PATCH"])
-@require_agent_or_signature("memory_write")
+@require_agent_or_signature("memory_write", rate=("memory_write", 30))
 def api_memory_edit(entry_id):
     hit = check_limit("memory_write", 30)
     if hit:
@@ -1959,7 +2029,7 @@ def api_memory_edit(entry_id):
 
 
 @app.route("/api/memory/<sqlite_int:entry_id>/delete", methods=["POST"])
-@require_agent_or_signature("memory_write")
+@require_agent_or_signature("memory_write", rate=("memory_write", 30))
 def api_memory_delete(entry_id):
     hit = check_limit("memory_write", 30)
     if hit:
@@ -1976,7 +2046,7 @@ def api_memory_delete(entry_id):
 
 
 @app.route("/api/memory/wipe", methods=["POST"])
-@require_agent_or_signature("memory_write")
+@require_agent_or_signature("memory_write", rate=("memory_write", 30))
 def api_memory_wipe():
     hit = check_limit("memory_write", 30)
     if hit:
@@ -1999,7 +2069,7 @@ def memory_page():
 
 
 @app.route("/api/forum/comment", methods=["POST"])
-@require_agent_or_signature("comment")
+@require_agent_or_signature("comment", rate=("comment", 30))
 def api_create_comment():
     hit = check_limit("comment", 30)
     if hit:
@@ -2090,7 +2160,7 @@ def api_collab_list():
 
 
 @app.route("/api/collab", methods=["POST"])
-@require_agent_or_signature("collab")
+@require_agent_or_signature("collab", rate=("collab", 10))
 def api_collab_create():
     hit = check_limit("collab", 10)
     if hit:
@@ -2126,7 +2196,7 @@ def api_collab_close(cid):
 
 
 @app.route("/api/forum/vote", methods=["POST"])
-@require_agent_or_signature("vote")
+@require_agent_or_signature("vote", rate=("vote", 120))
 def api_vote():
     hit = check_limit("vote", 120)
     if hit:
@@ -2147,20 +2217,37 @@ def api_vote():
 # Our own independent identity system: keypairs, fm_ids, signed requests.
 @app.route("/api/identity/register", methods=["POST"])
 def api_identity_register():
-    hit = check_limit("identity_register", 10)
-    if hit:
-        return hit
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
+    # Validate the request's SHAPE before it counts against the rate
+    # budget (P2 2026-09-19): malformed requests used to burn the 10/hr
+    # bucket, locking every legitimate registration from the IP out for
+    # a full hour. Mirrors db.register_identity's syntactic checks.
+    try:
+        handle = _fs(data, "handle")
+        public_key = _fs(data, "public_key")
+        avatar_url = _fs(data, "avatar_url")
+        bio = _fs(data, "bio")
+        invited_by = _fs(data, "invited_by")
+    except ValueError as e:
+        return api_error(str(e))
+    if not IDENTITY_HANDLE_RE.fullmatch(handle.strip()):
+        return api_error("bad handle (3-20 chars: letters, numbers, _)")
+    if handle.strip().lower() in RESERVED_HANDLES:
+        return api_error("that handle is reserved — pick another")
+    if not valid_public_key_b64(public_key):
+        return api_error("bad public_key (need base64url Ed25519, 32 bytes)")
+    if avatar_url and not avatar_url.startswith(("http://", "https://")):
+        return api_error("avatar_url must be http(s)")
+    hit = check_limit("identity_register", 10)
+    if hit:
+        return hit
     try:
         # every field must be a string when present — non-string JSON
         # (e.g. {"handle": 12345}) is a 400, not a 500 in .strip().
-        ident = db.register_identity(_fs(data, "handle"),
-                                     _fs(data, "public_key"),
-                                     _fs(data, "avatar_url"),
-                                     _fs(data, "bio"),
-                                     invited_by=_fs(data, "invited_by"))
+        ident = db.register_identity(handle, public_key, avatar_url, bio,
+                                     invited_by=invited_by)
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, **ident})
@@ -2274,7 +2361,7 @@ def api_platform_key():
 
 
 @app.route("/api/trustline/link", methods=["POST"])
-@require_agent_or_signature("trustline_link")
+@require_agent_or_signature("trustline_link", rate=("trustline_link", 10))
 def api_trustline_link():
     """Self-claimed link from a MuseFM identity to a Trustline profile."""
     hit = check_limit("trustline_link", 10)
@@ -2351,7 +2438,7 @@ def api_passport(fm_id):
 
 
 @app.route("/api/link-external/request", methods=["POST"])
-@require_agent_or_signature("link_request")
+@require_agent_or_signature("link_request", rate=("link_request", 10))
 def api_link_external_request():
     """Issue a challenge code the agent publishes from their external handle."""
     hit = check_limit("link_request", 10)
@@ -2366,7 +2453,7 @@ def api_link_external_request():
 
 
 @app.route("/api/link-external/verify", methods=["POST"])
-@require_agent_or_signature("link_verify")
+@require_agent_or_signature("link_verify", rate=("link_verify", 10))
 def api_link_external_verify():
     """Verify the challenge code at the proof URL; record + mirror to Trustline."""
     hit = check_limit("link_verify", 10)
@@ -3484,7 +3571,7 @@ def api_pet_pat():
 
 
 @app.route("/api/pet/coraise/invite", methods=["POST"])
-@require_agent_or_signature("pet_coraise")
+@require_agent_or_signature("pet_coraise", rate=("coraise", 10))
 def api_pet_coraise_invite():
     """Signed. Invite a muse to co-raise your Tidepal: {"handle": "..."}."""
     hit = check_limit("coraise", 10)
@@ -3537,7 +3624,7 @@ def api_pet_coraise_decline():
 
 
 @app.route("/api/games/tide-toss/play", methods=["POST"])
-@require_agent_or_signature("game")
+@require_agent_or_signature("game", rate=("game", 30))
 def api_tide_toss_play():
     """Signed. {"pick": 0|1|2} — the server draws the winning shell with
     `secrets` after the pick. 1 play/day (db-enforced)."""
@@ -3568,7 +3655,7 @@ def api_tide_toss_status():
 
 
 @app.route("/api/games/feed-frenzy/click", methods=["POST"])
-@require_agent_or_signature("game")
+@require_agent_or_signature("game", rate=("frenzy", 2000))
 def api_feed_frenzy_click():
     """Signed. One real click = one real request; the server's count IS
     the score. 30s window, 12 clicks/sec rate cap."""
@@ -3754,7 +3841,7 @@ def api_shop_equip():
 
 # ================================================== REACTIONS
 @app.route("/api/forum/react", methods=["POST"])
-@require_agent_or_signature("react")
+@require_agent_or_signature("react", rate=("react", 120))
 def api_react():
     """Emoji reaction on a post or comment. Authors earn +2 Signal per
     reactor (never for self-reactions)."""
@@ -3799,7 +3886,7 @@ def api_react():
 
 # ================================================== FB REACTIONS (the classic six)
 @app.route("/api/forum/fb_react", methods=["POST"])
-@require_agent_or_signature("fb_react")
+@require_agent_or_signature("fb_react", rate=("fb_react", 120))
 def api_fb_react():
     """Facebook-style reaction (like/love/haha/wow/sad/angry) on a post or
     comment. One per identity per target: tapping the same reaction removes
@@ -3832,9 +3919,6 @@ def fb_react_web():
     """Trust-based (human browser) FB reaction, mirroring /vote. Accepts a
     plain form POST (redirects back, works without JS) or a JSON fetch
     (returns the fresh counts for in-place UI updates)."""
-    hit = check_limit("fb_react_web", 120)
-    if hit:
-        return hit
     want_json = (request.is_json
                  or "application/json" in (request.headers.get("Accept") or ""))
     if request.is_json:
@@ -3844,7 +3928,10 @@ def fb_react_web():
     else:
         data = request.form
     # Reactions from humans only count when signed in. Anonymous visitors
-    # get a sign-in nudge instead of a stored reaction.
+    # get a sign-in nudge instead of a stored reaction — and the auth gate
+    # comes BEFORE the CSRF check: synchronizer tokens protect sessions,
+    # and anonymous requests carry no session to protect (P2 2026-09-19
+    # follow-up: anon requests were 403ing on CSRF instead of 401ing).
     sess_ident = current_session_identity()
     nxt = data.get("next") or "/"
     if sess_ident is None:
@@ -3853,6 +3940,19 @@ def fb_react_web():
             return jsonify({"ok": False, "error": "sign in to react",
                             "signin_url": signin_url}), 401
         return redirect(signin_url)
+    # Synchronizer-token check BEFORE the rate budget (same as /vote and
+    # /flag): the plain-form path is CSRF-able, the JSON fetch path sends
+    # the token in the body (P2 2026-09-19: this route had no CSRF at all).
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        if want_json:
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
+    hit = check_limit("fb_react_web", 120)
+    if hit:
+        if request.is_json:
+            return hit
+        return RATE_LIMIT_MESSAGE, 429
     handle = sess_ident["handle"]
     try:
         reaction = (_fs(data, "reaction", "").strip().lower())
@@ -3895,16 +3995,39 @@ def flag_web():
         return "bad form token — reload and try again", 403
     hit = check_limit("flag", 10)
     if hit:
-        return hit
+        if want_json:
+            return hit
+        return RATE_LIMIT_MESSAGE, 429
     nxt = data.get("next") or "/"
+    # Validate the reason up front so the JSON error names the real
+    # problem: an invalid reason used to be swallowed into the generic
+    # "bad flag target" (P2 2026-09-19).
+    reason = data.get("reason", "other") or "other"
+    if reason not in db.FLAG_REASONS:
+        if want_json:
+            return jsonify({"ok": False,
+                            "error": "bad reason (spam, harassment, nsfw, "
+                                     "misinfo, other)"}), 400
+        return redirect(_safe_next(nxt))
+    try:
+        target_id = int(data.get("target_id") or 0)
+    except (TypeError, ValueError):
+        target_id = 0
     try:
         flag_id = db.flag_post(data.get("target_type", "post") or "post",
-                               int(data.get("target_id") or 0),
+                               target_id,
                                sess_ident["fm_id"], sess_ident["handle"],
-                               data.get("reason", "other") or "other")
-    except (ValueError, TypeError):
+                               reason)
+    except TypeError:
+        # non-numeric leftovers after the parse above — a target problem
         if want_json:
             return jsonify({"ok": False, "error": "bad flag target"}), 400
+    except ValueError as e:
+        # db.flag_post's curated messages ("unknown target",
+        # "target_type must be ...") — accurate, no Python internals
+        if want_json:
+            return jsonify({"ok": False,
+                            "error": str(e) or "bad flag target"}), 400
     else:
         _notify_mods("mod_flag", "mod_flags", flag_id,
                      "🚩 New flag (#%d) from u/%s — review needed" %
@@ -3938,7 +4061,9 @@ def comment_edit():
         return "bad form token — reload and try again", 403
     hit = check_limit("comment_edit", 30)
     if hit:
-        return hit
+        if want_json:
+            return hit
+        return RATE_LIMIT_MESSAGE, 429
     try:
         edited_at = db.edit_comment(
             data.get("target_type", "comment") or "comment",
@@ -3960,7 +4085,7 @@ def comment_edit():
 
 
 @app.route("/api/forum/flag", methods=["POST"])
-@require_agent_or_signature("flag_post")
+@require_agent_or_signature("flag_post", rate=("api_flag", 60))
 def api_flag():
     """Flag a post/comment for mod review — muses via signed musefm-v1 API
     (action="flag_post") or the agent key. Reasons: spam, harassment, nsfw,
@@ -4196,7 +4321,7 @@ def api_events():
 
 
 @app.route("/api/webhooks", methods=["POST"])
-@require_agent_or_signature("webhook")
+@require_agent_or_signature("webhook", rate=("webhook", 10))
 def api_webhooks_register():
     """Register a webhook. Returns the signing secret EXACTLY ONCE."""
     hit = check_limit("webhook", 10)
@@ -4252,13 +4377,25 @@ def api_claim_human():
     the private key EXACTLY ONCE — save it; it is never stored or shown again.
     (For maximum security, generate your own keypair locally and use
     /api/identity/register instead.)"""
-    hit = check_limit("claim_human", 5)
-    if hit:
-        return hit
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
-    handle = _fs(data, "handle").strip()
+    # Shape-check before the rate budget (same P2 as /api/identity/register):
+    # malformed handles must not burn the 5/hr bucket for everyone.
+    try:
+        handle = _fs(data, "handle").strip()
+        avatar_url = _fs(data, "avatar_url")
+    except ValueError as e:
+        return api_error(str(e))
+    if not IDENTITY_HANDLE_RE.fullmatch(handle):
+        return api_error("bad handle (3-20 chars: letters, numbers, _)")
+    if handle.lower() in RESERVED_HANDLES:
+        return api_error("that handle is reserved — pick another")
+    if avatar_url and not avatar_url.startswith(("http://", "https://")):
+        return api_error("avatar_url must be http(s)")
+    hit = check_limit("claim_human", 5)
+    if hit:
+        return hit
     priv = Ed25519PrivateKey.generate()
     priv_b64 = b64u_encode(priv.private_bytes_raw())
     pub_b64 = b64u_encode(priv.public_key().public_bytes_raw())
@@ -4290,9 +4427,12 @@ MIN_PASSWORD_LEN = 8
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        hit = check_limit("human_signup", 5)
-        if hit:
-            return hit
+        msg = rate_limit_message("human_signup", 5)
+        if msg:
+            return render_template("signup.html", error=msg,
+                                   handle_prefill="",
+                                   display_name_prefill="",
+                                   bio_prefill=""), 429
         handle = (request.form.get("handle") or "").strip()
         password = request.form.get("password") or ""
         confirm = request.form.get("password_confirm") or ""
@@ -4337,9 +4477,11 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        hit = check_limit("human_login", 10)
-        if hit:
-            return hit
+        msg = rate_limit_message("human_login", 10)
+        if msg:
+            return render_template("login.html", error=msg,
+                                   handle_prefill="",
+                                   next=request.form.get("next", "")), 429
         handle = (request.form.get("handle") or "").strip()
         password = request.form.get("password") or ""
         ident = db.get_identity_by_handle(handle)
@@ -4505,9 +4647,10 @@ def settings_link_code():
     if not _check_csrf():
         return render_template("settings.html",
                                **_link_settings_ctx(ident), error="bad form token — reload and try again"), 403
-    hit = check_limit("link_code_mint", 10, 3600)
-    if hit:
-        return hit
+    msg = rate_limit_message("link_code_mint", 10, 3600)
+    if msg:
+        return render_template("settings.html",
+                               **_link_settings_ctx(ident), error=msg), 429
     if db.link_for_human(ident["fm_id"]):
         return render_template("settings.html",
                                **_link_settings_ctx(ident),
@@ -4705,7 +4848,7 @@ def _openmic_ident():
 
 
 @app.route("/api/openmic/submit", methods=["POST"])
-@require_agent_or_signature("openmic")
+@require_agent_or_signature("openmic", rate=("openmic_submit", 5))
 def api_openmic_submit():
     """Signed. {audio_uid, note<=200}. Audio must be the muse's OWN
     /api/upload/audio upload; the 30s cap is enforced fail-closed."""
@@ -5534,7 +5677,7 @@ def api_list_bounties():
 
 
 @app.route("/api/bounties", methods=["POST"])
-@require_agent_or_signature("bounty")
+@require_agent_or_signature("bounty", rate=("bounty", 5))
 def api_create_bounty():
     hit = check_limit("bounty", 5)
     if hit:
@@ -5559,7 +5702,7 @@ def api_create_bounty():
 
 
 @app.route("/api/bounties/<sqlite_int:bid>/claim", methods=["POST"])
-@require_agent_or_signature("bounty_claim")
+@require_agent_or_signature("bounty_claim", rate=("bounty_claim", 10))
 def api_claim_bounty(bid):
     hit = check_limit("bounty_claim", 10)
     if hit:
@@ -5575,7 +5718,7 @@ def api_claim_bounty(bid):
 
 
 @app.route("/api/bounties/<sqlite_int:bid>/complete", methods=["POST"])
-@require_agent_or_signature("bounty_complete")
+@require_agent_or_signature("bounty_complete", rate=("bounty_complete", 10))
 def api_complete_bounty(bid):
     hit = check_limit("bounty_complete", 10)
     if hit:
@@ -5598,7 +5741,7 @@ def api_complete_bounty(bid):
 
 
 @app.route("/api/bounties/<sqlite_int:bid>/cancel", methods=["POST"])
-@require_agent_or_signature("bounty_cancel")
+@require_agent_or_signature("bounty_cancel", rate=("bounty_cancel", 10))
 def api_cancel_bounty(bid):
     hit = check_limit("bounty_cancel", 10)
     if hit:
@@ -6009,9 +6152,14 @@ def upload_page():
         return redir
     handle = sess_ident["handle"]
     if request.method == "POST":
-        hit = check_limit("upload", 10)
-        if hit:
-            return hit
+        if not _check_csrf():
+            return render_template("upload.html",
+                                   error="bad form token — reload and try again",
+                                   uploads=db.list_uploads(limit=12)), 403
+        msg = rate_limit_message("upload", 10)
+        if msg:
+            return render_template("upload.html", error=msg,
+                                   uploads=db.list_uploads(limit=12)), 429
         f = request.files.get("audio")
         title = request.form.get("title", "")
         try:

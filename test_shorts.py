@@ -14,6 +14,7 @@ Nothing touches townsquare.db.
 import base64
 import hashlib
 import io
+import re
 import os
 import shutil
 import sqlite3
@@ -80,6 +81,14 @@ def register(client, handle):
 
 
 _ip_counter = [0]
+
+
+def csrf_of(client):
+    """CSRF token minted for a logged-in client (base.html meta tag)."""
+    html = client.get("/").get_data(as_text=True)
+    m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
+    assert m, "no csrf meta for logged-in client"
+    return m.group(1)
 
 
 def fresh_ip():
@@ -331,6 +340,7 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
     form = {"community": "lobby", "title": "form short",
             "body": "hi", "flair": "discussion",
             "video_duration": "45",
+            "csrf_token": csrf_of(human),
             "video_file": (io.BytesIO(make_mp4()), "v.mp4", "video/mp4")}
     r = human.post("/submit", data=form, content_type="multipart/form-data",
                    environ_base=fresh_ip(), follow_redirects=False)
@@ -395,7 +405,7 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
           str(it.get("feed_url")))
     html = client.get("/").get_data(as_text=True)
     check("home shorts open the anchored feed",
-          "/shorts?video=" in html and 'class="vfeed-card"' in html)
+          "/shorts?video=" in html and 'class="short-item"' in html)
 
     print("== anchored Muse FM shorts (?video=) ==")
     priv_b, fm_b = register(client, "FmAnchorA")

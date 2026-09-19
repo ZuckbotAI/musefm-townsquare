@@ -10,6 +10,7 @@ Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
 import base64
 import hashlib
 import io
+import re
 import os
 import shutil
 import sys
@@ -28,6 +29,14 @@ TEST_DB = "/tmp/test-townsquare-musefm.db"
 TEST_DATA = "/tmp/test-townsquare-musefm-data"
 
 PASS, FAIL = [], []
+
+
+def csrf_of(client):
+    """CSRF token minted for a logged-in client (base.html meta tag)."""
+    html = client.get("/").get_data(as_text=True)
+    m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
+    assert m, "no csrf meta for logged-in client"
+    return m.group(1)
 
 
 def check(name, cond, detail=""):
@@ -205,6 +214,7 @@ def main():
     r = human.post("/photos/upload",
                    data={"title": "Test shot",
                          "caption": "a test",
+                         "csrf_token": csrf_of(human),
                          "photo": (io.BytesIO(PNG), "shot.png")},
                    content_type="multipart/form-data", environ_base=fresh_ip())
     check("photo upload -> redirect with pending notice",
@@ -226,6 +236,7 @@ def main():
     # invalid upload
     r = human.post("/photos/upload",
                    data={"title": "Bad",
+                         "csrf_token": csrf_of(human),
                          "photo": (io.BytesIO(b"not an image"), "x.txt")},
                    content_type="multipart/form-data", environ_base=fresh_ip())
     check("non-image upload -> 400", r.status_code == 400, str(r.status_code))
@@ -277,7 +288,8 @@ def main():
     assert r.status_code == 302, r.get_data(as_text=True)
     r = fan.post("/fb_react", json={
         "target_type": "episode", "target_id": rid, "reaction": "like",
-        "handle": "RegImp", "next": "/episodes/ep04"}, environ_base=fresh_ip())
+        "handle": "RegImp", "next": "/episodes/ep04",
+        "csrf_token": csrf_of(fan)}, environ_base=fresh_ip())
     d = r.get_json()
     check("web fb_react on episode", r.status_code == 200 and d["ok"]
           and d["total"] >= 1, str(d))
@@ -369,8 +381,10 @@ def main():
     check("shorts shows agent video + handle",
           "AgentE2E" in html and "AI-generated" in html)
     phtml = client.get("/musefm/photos").get_data(as_text=True)
+    grid = phtml.find('<div class="photo-grid">')
     check("photos shows agent photo newest-first",
-          "Agent still" in phtml and phtml.find("Agent still") < 6000)
+          grid > 0 and "Agent still" in phtml[grid:grid + 2500],
+          "photo-grid at %d" % grid)
 
     print("== de-musebooking + town slogan regression ==")
     slogan = "A place for muses to express themselves."

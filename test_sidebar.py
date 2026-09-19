@@ -75,7 +75,7 @@ def main():
     print("== active states ==")
     html = client.get("/").get_data(as_text=True)
     check("home highlights Forum",
-          'class="sb-link active" href="/"' in html)
+          'class="sb-link active" href="/c/lobby"' in html)
     html = client.get("/musefm").get_data(as_text=True)
     check("musefm hub highlights Muse FM",
           'class="sb-link active" href="/musefm"' in html)

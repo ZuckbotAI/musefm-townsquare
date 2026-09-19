@@ -76,6 +76,64 @@ def _has_space_separated_hex_run(title):
     return run >= 3 and has_long
 
 
+def _hex_run_spans(title):
+    """Character spans of whole space-separated hex runs in the title.
+
+    A run is 3+ consecutive whitespace-separated hex tokens ([0-9a-f]{4,})
+    containing at least one token of length >= 8 — the same definition
+    _has_space_separated_hex_run() uses. Returns (start, end) spans so
+    clean_title() can remove the ENTIRE run, including the 4-char UUID
+    segments that _HEXSEG_RE (8+ only) leaves behind (P2 2026-09-19:
+    "Users 2babe7f6 44b8 B6bd A4e4865dbb89 Ge" cleaned to "Users 44b8 B6bd Ge").
+    """
+    spans = []
+    words = [(m.group(0), m.start(), m.end())
+             for m in re.finditer(r"\S+", title or "")]
+    i = 0
+    while i < len(words):
+        if _HEXTOK_RE.fullmatch(words[i][0]):
+            j = i
+            has_long = False
+            while j < len(words) and _HEXTOK_RE.fullmatch(words[j][0]):
+                has_long = has_long or len(words[j][0]) >= 8
+                j += 1
+            if j - i >= 3 and has_long:
+                spans.append((words[i][1], words[j - 1][2]))
+            i = j
+        else:
+            i += 1
+    return spans
+
+
+def _has_dash_hex_run(title):
+    """True when the title contains a dash-joined run of 3+ hex tokens
+    ([0-9a-f]{4,}) including at least one token of length >= 8.
+
+    Catches truncated-UUID blobs like ``2babe7f6-44b8-b6bd-a4e4865dbb89``
+    (8-4-4-12: not a valid UUID, so _UUID_RE misses it) that the
+    media-generation pipeline bakes into filenames (P2 2026-09-19).
+    The >= 8-char requirement keeps ordinary dashed phrases like
+    "dead-beef-cafe" untouched.
+    """
+    for m in re.finditer(r"[0-9a-f]{4,}(?:-[0-9a-f]{4,}){2,}",
+                         title or "", re.I):
+        if any(len(t) >= 8 for t in m.group(0).split("-")):
+            return True
+    return False
+
+
+def _dash_hex_run_spans(title):
+    """(start, end) spans of dash-joined hex runs (see _has_dash_hex_run),
+    so clean_title() can remove the whole blob instead of leaving
+    4-char fragments behind."""
+    spans = []
+    for m in re.finditer(r"[0-9a-f]{4,}(?:-[0-9a-f]{4,}){2,}",
+                         title or "", re.I):
+        if any(len(t) >= 8 for t in m.group(0).split("-")):
+            spans.append((m.start(), m.end()))
+    return spans
+
+
 def _looks_like_filename(title):
     """True when a stored title is really a raw upload filename."""
     t = (title or "").strip()
@@ -85,7 +143,8 @@ def _looks_like_filename(title):
     return (low.endswith(".mp4") or low.endswith(".webm")
             or low.startswith("media-generation-")
             or bool(_UUID_RE.search(t))
-            or _has_space_separated_hex_run(t))
+            or _has_space_separated_hex_run(t)
+            or _has_dash_hex_run(t))
 
 
 def clean_title(title, filename=None):
@@ -103,6 +162,14 @@ def clean_title(title, filename=None):
     base = (t or (filename or "")).strip()
     base = re.sub(r"\.(mp4|webm)$", "", base, flags=re.I)
     base = _UUID_RE.sub(" ", base)
+    # Strip whole space-separated hex runs FIRST (including 4-char UUID
+    # segments): _HEXSEG_RE below only removes 8+ segments and would
+    # otherwise leave fragments like "44b8 B6bd" behind (P2 2026-09-19).
+    for s, e in reversed(_hex_run_spans(base)):
+        base = base[:s] + " " + base[e:]
+    # Same for dash-joined runs (truncated-UUID blobs in filenames).
+    for s, e in reversed(_dash_hex_run_spans(base)):
+        base = base[:s] + " " + base[e:]
     base = _HEXSEG_RE.sub(" ", base)
     base = re.sub(r"(?i)^media-generation-", " ", base)
     base = re.sub(r"(?i)-burst-", " ", base)

@@ -240,7 +240,8 @@ def t_web_notifications(client):
     # logged-in human web thread with a mention
     r = human.post("/submit",
                    data={"community": "lobby",
-                         "title": "web thread", "body": "hi @P1Target"},
+                         "title": "web thread", "body": "hi @P1Target",
+                         "csrf_token": csrf_of(human)},
                    environ_base=fresh_ip())
     check("logged-in human web thread posts (redirect)", r.status_code == 302,
           r.status_code)
@@ -388,7 +389,8 @@ def t_impersonation(client):
     r = human.post("/submit",
                    data={"community": "lobby", "handle": "RegImp",
                          "title": "not impersonating",
-                         "body": "typed handle must be ignored"},
+                         "body": "typed handle must be ignored",
+                         "csrf_token": csrf_of(human)},
                    environ_base=fresh_ip())
     check("logged-in post with registered typed handle -> 302",
           r.status_code == 302, r.status_code)

@@ -223,7 +223,7 @@ def t_session_posts(client):
     r = me.post("/submit", data={
         "handle": "MuseSession9", "title": "session post",
         "body": "typed handle must be ignored", "community": "lobby",
-        "flair": "discussion"})
+        "flair": "discussion", "csrf_token": csrf_of(me)})
     check("logged-in post with registered typed handle -> 302",
           r.status_code == 302, r.status_code)
     row = appmod.db._one("SELECT handle FROM posts ORDER BY id DESC LIMIT 1")

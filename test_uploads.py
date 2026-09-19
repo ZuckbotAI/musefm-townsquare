@@ -9,6 +9,7 @@ Nothing touches townsquare.db.
 import base64
 import hashlib
 import io
+import re
 import os
 import shutil
 import sys
@@ -26,6 +27,14 @@ TEST_DB = "/tmp/test-townsquare-uploads.db"
 TEST_DATA = "/tmp/test-townsquare-uploads-data"
 
 PASS, FAIL = [], []
+
+
+def csrf_of(client):
+    """CSRF token minted for a logged-in client (base.html meta tag)."""
+    html = client.get("/").get_data(as_text=True)
+    m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
+    assert m, "no csrf meta for logged-in client"
+    return m.group(1)
 
 
 def check(name, cond, detail=""):
@@ -185,6 +194,7 @@ def main():
     r = human.post("/upload",
                    data={"title": "Human track",
                          "description": "from the form",
+                         "csrf_token": csrf_of(human),
                          "audio": (io.BytesIO(raw), "h.wav", "audio/wav")},
                    content_type="multipart/form-data")
     check("human form upload -> redirect", r.status_code == 302, str(r.status_code))

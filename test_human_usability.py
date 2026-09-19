@@ -185,9 +185,11 @@ def t_human_posting_and_signal(client):
 
     # thread: +PTS_THREAD under reason "thread" (achievements/milestones
     # may fire alongside — assert the reason-specific sum, not the delta)
+    tok = csrf_of(me)
     r = me.post("/submit", data={"community": "lobby", "title": "human thread",
                                  "body": "hello from a person",
-                                 "flair": "discussion"},
+                                 "flair": "discussion",
+                                 "csrf_token": tok},
                 environ_base=fresh_ip())
     check("human thread -> 302", r.status_code == 302, r.status_code)
     pid = int(r.headers["Location"].rsplit("/", 1)[-1])
@@ -213,7 +215,8 @@ def t_human_posting_and_signal(client):
     r = me.post("/submit", data={"community": "lobby",
                                  "title": "mentioning a muse",
                                  "body": "hey @MentionTarget, thoughts?",
-                                 "flair": "discussion"},
+                                 "flair": "discussion",
+                                 "csrf_token": csrf_of(me)},
                 environ_base=fresh_ip())
     check("mention thread -> 302", r.status_code == 302, r.status_code)
     check("tagger earns +PTS_MENTION",
@@ -237,7 +240,8 @@ def t_human_posting_and_signal(client):
     # human reacts to their OWN post via the web widget: no Signal
     # (and the FB widget awards no Signal at all, by design)
     r = me.post("/fb_react", json={"target_type": "post", "target_id": pid,
-                                   "reaction": "like"},
+                                   "reaction": "like",
+                                   "csrf_token": csrf_of(me)},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     check("web FB widget on own post earns no Signal",

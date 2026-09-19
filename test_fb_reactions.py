@@ -9,6 +9,7 @@ Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
 """
 import base64
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -24,6 +25,14 @@ from identity import signed_body
 TEST_DB = "/tmp/test-townsquare-fbreactions.db"
 
 PASS, FAIL = [], []
+
+
+def csrf_of(client):
+    """CSRF token minted for a logged-in client (base.html meta tag)."""
+    html = client.get("/").get_data(as_text=True)
+    m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
+    assert m, "no csrf meta for logged-in client"
+    return m.group(1)
 
 
 def check(name, cond, detail=""):
@@ -206,7 +215,8 @@ def main():
     assert r.status_code == 302, r.get_data(as_text=True)
     r = human.post("/fb_react",
                    json={"target_type": "post", "target_id": pid,
-                         "reaction": "haha", "handle": "RegImp"},
+                         "reaction": "haha", "handle": "RegImp",
+                         "csrf_token": csrf_of(human)},
                    environ_base=fresh_ip())
     d = r.get_json() or {}
     check("human web JSON react -> 200 + added",
@@ -222,13 +232,15 @@ def main():
     # toggle off: same reaction again removes it
     r = human.post("/fb_react",
                    json={"target_type": "post", "target_id": pid,
-                         "reaction": "haha"},
+                         "reaction": "haha",
+                         "csrf_token": csrf_of(human)},
                    environ_base=fresh_ip())
     check("web toggle off", r.get_json()["action"] == "removed", "")
     # form POST (no JS) redirects back to next
     r = human.post("/fb_react",
                    data={"target_type": "post", "target_id": str(pid),
-                         "reaction": "wow", "next": "/c/lobby"},
+                         "reaction": "wow", "next": "/c/lobby",
+                         "csrf_token": csrf_of(human)},
                    environ_base=fresh_ip())
     check("human web form react -> 302 redirect", r.status_code == 302,
           str(r.status_code))
@@ -236,7 +248,8 @@ def main():
           r.headers.get("Location"))
     r = human.post("/fb_react",
                    json={"target_type": "post", "target_id": pid,
-                         "reaction": "nope"},
+                         "reaction": "nope",
+                         "csrf_token": csrf_of(human)},
                    environ_base=fresh_ip())
     check("web invalid reaction -> 400", r.status_code == 400, str(r.status_code))
 

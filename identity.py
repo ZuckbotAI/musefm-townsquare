@@ -101,6 +101,16 @@ def render_value(v) -> str:
         return ""
     if isinstance(v, bool):
         return "true" if v else "false"
+    # Multipart transports (e.g. requests data={...}) stringify values with
+    # str(), turning a signed bool True into the string "True". Canonicalize
+    # those two exact Python-str(bool) spellings back to the bool form so a
+    # bool field survives multipart transport (P2 2026-09-19: multipart
+    # bool). Both sign and verify use render_value, so they always agree;
+    # ordinary strings ("True-ish", "truly", ...) are untouched.
+    if v == "True":
+        return "true"
+    if v == "False":
+        return "false"
     return str(v)
 
 

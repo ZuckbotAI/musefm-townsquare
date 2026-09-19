@@ -13,6 +13,7 @@ Throwaway SQLite db + Flask test client + temp DATA_DIR.
 Nothing touches townsquare.db.
 """
 import io
+import re
 import os
 import shutil
 import sys
@@ -65,6 +66,14 @@ def make_wav(seconds=1, rate=8000):
     return buf.getvalue()
 
 
+def csrf_of(client):
+    """CSRF token minted for a logged-in client (base.html meta tag)."""
+    html = client.get("/").get_data(as_text=True)
+    m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
+    assert m, "no csrf meta for logged-in client"
+    return m.group(1)
+
+
 def main():
     c = setup()
     r = c.post("/signup", data={"handle": "mimetesthuman",
@@ -79,7 +88,8 @@ def main():
     r = c.post("/upload",
                data={"audio": (io.BytesIO(PNG_BYTES), "notaudio.png",
                                "audio/mpeg"),
-                     "title": "totally-an-audio"},
+                     "title": "totally-an-audio",
+                     "csrf_token": csrf_of(c)},
                content_type="multipart/form-data",
                follow_redirects=False)
     body = r.get_data(as_text=True)[:200]
@@ -91,7 +101,8 @@ def main():
     r = c.post("/upload",
                data={"audio": (io.BytesIO(make_wav()), "real.wav",
                                "audio/wav"),
-                     "title": "real-audio"},
+                     "title": "real-audio",
+                     "csrf_token": csrf_of(c)},
                content_type="multipart/form-data",
                follow_redirects=False)
     check("real WAV upload still accepted", r.status_code in (200, 302),

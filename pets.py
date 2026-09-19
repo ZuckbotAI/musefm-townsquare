@@ -32,6 +32,7 @@ import random
 import re
 import secrets
 import sqlite3
+import threading
 import time
 
 import shop
@@ -430,9 +431,22 @@ CREATE TABLE IF NOT EXISTS tidepals (
 """
 
 
+_PET_SCHEMA_LOCK = threading.Lock()
+
+
 def ensure_pet_schema(db):
-    db._exec(PET_SCHEMA)
-    _migrate_tidepals(db)
+    # DDL takes an EXCLUSIVE SQLite lock; running CREATE TABLE / ALTER on
+    # every pet call serialized all concurrent writers behind it and
+    # produced "database is locked" 500s (P1 2026-09-19). Schema is
+    # deploy-time state: ensure once per Database instance.
+    if getattr(db, "_pet_schema_ensured", False):
+        return
+    with _PET_SCHEMA_LOCK:
+        if getattr(db, "_pet_schema_ensured", False):
+            return
+        db._exec(PET_SCHEMA)
+        _migrate_tidepals(db)
+        db._pet_schema_ensured = True
 
 
 def _migrate_tidepals(db):

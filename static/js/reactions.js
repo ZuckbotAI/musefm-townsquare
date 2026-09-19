@@ -48,11 +48,13 @@
   }
 
   function sendReaction(w, reaction) {
+    var meta = document.querySelector('meta[name="csrf-token"]');
     var body = {
       target_type: w.getAttribute('data-target-type'),
       target_id: parseInt(w.getAttribute('data-target-id'), 10),
       reaction: reaction,
-      next: w.getAttribute('data-next') || '/'
+      next: w.getAttribute('data-next') || '/',
+      csrf_token: meta ? meta.content : ''
     };
     fetch('/fb_react', {
       method: 'POST',

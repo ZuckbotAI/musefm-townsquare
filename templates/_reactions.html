@@ -10,6 +10,7 @@
 <div class="rxn{% if compact %} rxn-compact{% endif %}" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ fb.mine or '' }}" data-next="{{ next|e }}">
   <div class="rxn-row">
     <form method="post" action="/fb_react" class="rxn-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="target_type" value="{{ target_type }}">
       <input type="hidden" name="target_id" value="{{ target_id }}">
       <input type="hidden" name="reaction" value="like">

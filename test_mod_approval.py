@@ -334,6 +334,7 @@ def main():
     # human form photo upload -> pending + stays out of the gallery
     r = me.post("/photos/upload",
                 data={"title": "My human pic",
+                      "csrf_token": csrf_of(me),
                       "photo": (io.BytesIO(make_png()), "pic.png", "image/png")},
                 content_type="multipart/form-data",
                 environ_base=fresh_ip())

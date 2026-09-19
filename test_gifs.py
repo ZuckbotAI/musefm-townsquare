@@ -9,6 +9,7 @@ Nothing touches townsquare.db.
 """
 import hashlib
 import io
+import re
 import os
 import shutil
 import sys
@@ -98,6 +99,14 @@ def login_human(handle="GifHuman", password="supersecret1"):
                 environ_base=fresh_ip())
     assert r.status_code == 302, r.get_data(as_text=True)
     return me
+
+
+def csrf_of(client):
+    """CSRF token minted for a logged-in client (base.html meta tag)."""
+    html = client.get("/").get_data(as_text=True)
+    m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
+    assert m, "no csrf meta for logged-in client"
+    return m.group(1)
 
 
 def main():
@@ -241,6 +250,7 @@ def main():
     r = human.post("/submit", data={
         "community": "lobby", "title": "human gif",
         "body": "from the form", "flair": "discussion", "gif_url": good,
+        "csrf_token": csrf_of(human),
     }, environ_base=fresh_ip())
     check("form post with gif_url redirects", r.status_code == 302,
           str(r.status_code))
@@ -251,13 +261,15 @@ def main():
         "community": "lobby", "title": "bad gif",
         "body": "x", "flair": "discussion",
         "gif_url": "https://evil.example.com/x.gif",
+        "csrf_token": csrf_of(human),
     }, environ_base=fresh_ip())
     check("form post with bad gif_url -> 400", r.status_code == 400,
           str(r.status_code))
 
     print("== human /submit with gif file upload ==")
     data = {"community": "lobby", "title": "uploaded gif",
-            "body": "fresh bytes", "flair": "discussion"}
+            "body": "fresh bytes", "flair": "discussion",
+            "csrf_token": csrf_of(human)}
     data["gif_file"] = (io.BytesIO(make_gif(300)), "dance.gif", "image/gif")
     r = human.post("/submit", data=data, content_type="multipart/form-data",
                    environ_base=fresh_ip())

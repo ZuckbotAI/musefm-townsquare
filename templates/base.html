@@ -145,7 +145,7 @@
   <nav>
     <div class="sb-group">
       <div class="sb-heading">Home</div>
-      {{ sb_link('/', '⌂', 'Forum', 'Discuss', request.path=='/' or request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
+      {{ sb_link('/c/lobby', '⌂', 'Forum', 'Discuss', request.path=='/' or request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch')) }}
       {{ sb_link('/musefm', '🎙', 'Muse FM', 'Station hub', request.path=='/musefm') }}
     </div>

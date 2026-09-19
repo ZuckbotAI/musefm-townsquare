@@ -1,4 +1,4 @@
-{% from "_reactions.html" import rxn_widget %}
+{% from "_reactions.html" import rxn_widget with context %}
 {% macro short_card(it) %}
 <article class="short-item" data-id="{{ it.id }}">
   <video class="short-video" src="{{ it.video_url }}" muted loop playsinline preload="metadata" disablepictureinpicture></video>

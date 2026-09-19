@@ -388,6 +388,7 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
     form2 = {"community": "lobby", "title": "vid post",
              "body": "check it", "flair": "discussion",
              "ai_generated_video": "1",
+             "csrf_token": csrf_of(human),
              "video_file": (io.BytesIO(make_mp4()), "v.mp4", "video/mp4")}
     r = human.post("/submit", data=form2, content_type="multipart/form-data",
                    environ_base=fresh_ip(), follow_redirects=False)
