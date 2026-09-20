@@ -456,19 +456,24 @@
       glowSpots.length = 0;
     }
 
+    // CYCLE6: clouds live high in the sky now — never at/below the roofline.
     var CLOUDS = [
-      { bx: 80, y: 66, s: 1.0, sp: 7 }, { bx: 480, y: 120, s: 0.7, sp: 10 },
-      { bx: 880, y: 58, s: 1.25, sp: 5 }, { bx: 1230, y: 150, s: 0.8, sp: 8 },
+      { bx: 80, y: 56, s: 1.0, sp: 7 }, { bx: 480, y: 88, s: 0.7, sp: 10 },
+      { bx: 880, y: 48, s: 1.25, sp: 5 }, { bx: 1230, y: 96, s: 0.8, sp: 8 },
     ];
+    // CYCLE6: clouds were wide flat slabs (14u x 3u) drifting at rooftop
+    // height — they read as glitchy bands slicing through facades. Now they
+    // are puffy stepped domes (2:1 aspect) with a shade rim underneath.
     function drawCloud(x, y, s, top, bot) {
-      var u = Math.max(2, Math.round(5 * s));
-      ctx.fillStyle = bot;
-      ctx.fillRect(Math.round(x), Math.round(y + u), 14 * u, 3 * u);
-      ctx.fillRect(Math.round(x + 2 * u), Math.round(y), 10 * u, 2 * u);
-      ctx.fillStyle = top;
-      ctx.fillRect(Math.round(x), Math.round(y), 14 * u, 3 * u);
-      ctx.fillRect(Math.round(x + 2 * u), Math.round(y - u), 10 * u, 2 * u);
-      ctx.fillRect(Math.round(x + 4 * u), Math.round(y - 2 * u), 6 * u, u);
+      var u = Math.max(2, Math.round(4 * s));
+      x = Math.round(x); y = Math.round(y);
+      ctx.fillStyle = bot;                       // shade: full silhouette, sunk 1u
+      ctx.fillRect(x, y + u, 12 * u, 3 * u);
+      ctx.fillRect(x + 2 * u, y, 8 * u, 2 * u);
+      ctx.fillStyle = top;                       // lit: domes riding on top
+      ctx.fillRect(x, y, 12 * u, 3 * u);
+      ctx.fillRect(x + 2 * u, y - u, 8 * u, 2 * u);
+      ctx.fillRect(x + 4 * u, y - 2 * u, 4 * u, u);
     }
     var BIRDS = [
       { bx: 200, y: 92, sp: 24, ph: 0 }, { bx: 700, y: 132, sp: 17, ph: 2 },
