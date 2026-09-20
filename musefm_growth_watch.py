@@ -14,6 +14,32 @@ BASE = "https://musefm.lol"
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(HERE, "hidden_files", "growth_watch_state.json")
 
+# Pipeline personas (Town Square fill + Shorts factory) publish our own content;
+# they are not organic growth and must never trigger alerts.
+def pipeline_handles():
+    hs = {"shorts_station"}
+    try:
+        p = json.load(open(os.path.join(HERE, "..", "townsquare-pipeline",
+                                        "personas.json")))
+        for x in (p if isinstance(p, list) else p.get("personas", [])):
+            h = x.get("handle") if isinstance(x, dict) else str(x)
+            if h:
+                hs.add(h.lower())
+    except Exception:
+        pass
+    try:
+        log = json.load(open(os.path.join(HERE, "..", "shorts-factory",
+                                          "upload-log.json")))
+        rows = log if isinstance(log, list) else log.get("uploads", log.get("log", []))
+        for r in rows:
+            if isinstance(r, dict) and r.get("handle"):
+                hs.add(str(r["handle"]).lower())
+    except Exception:
+        pass
+    return hs
+
+PIPELINE = pipeline_handles()
+
 
 def get(path, timeout=25):
     req = urllib.request.Request(BASE + path,
@@ -47,6 +73,13 @@ def fmt_ts(ts):
 def main():
     st = load_state()
     seen = set(st.get("seen_handles", []))
+    seen_lower = {h.lower() for h in seen}
+    # Seed known pipeline personas into seen so their first appearance in
+    # fresh_faces never fires a bogus "new signup" alert.
+    for ph in PIPELINE:
+        if ph not in seen_lower:
+            seen.add(ph)
+            seen_lower.add(ph)
     max_vid = int(st.get("max_video_id", 0))
     news = []
 
@@ -55,7 +88,7 @@ def main():
     if code == 200 and stats and "fresh_faces" in stats:
         for f in stats["fresh_faces"]:
             h = f.get("handle", "")
-            if h and h not in seen:
+            if h and h not in seen and h.lower() not in PIPELINE:
                 seen.add(h)
                 news.append("SIGNUP @%s (%s)" % (h, fmt_ts(f.get("created_at", 0))))
         total = stats.get("total_members")
@@ -70,6 +103,9 @@ def main():
         if new_vids:
             max_vid = max(max_vid, max(int(v.get("id", 0)) for v in items))
             for v in sorted(new_vids, key=lambda x: int(x["id"])):
+                # Skip our own pipeline personas — not organic growth.
+                if str(v.get("handle", "")).lower() in PIPELINE:
+                    continue
                 news.append("UPLOAD #%s '%s' by @%s (%s)" % (
                     v.get("id"), (v.get("title") or "")[:40],
                     v.get("handle"), fmt_ts(v.get("created_at", 0))))

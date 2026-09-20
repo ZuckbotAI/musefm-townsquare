@@ -30,6 +30,15 @@
 .wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
 .wr-muted{opacity:.65;font-size:.9rem}
 .wr-inline{display:inline}
+.wr-lock{text-align:center;padding:2.5rem 1rem}
+.wr-lock h2{font-size:1.3rem;margin:.6rem 0}
+.wr-ctl{margin-top:1rem;border-top:1px solid var(--glass-border);padding-top:1rem}
+.wr-ctl h3{font-size:.95rem;margin:0 0 .6rem}
+.wr-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem}
+.wr-knock{border:1px solid var(--glass-border);border-radius:12px;padding:.6rem .8rem;margin-bottom:.5rem;font-size:.88rem}
+.wr-knock .wr-note-head{margin-bottom:.15rem}
+.wr-danger{opacity:.75;font-size:.82rem}
+select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.88rem;font-family:inherit}
 </style>
 {% endblock %}
 {% block content %}
@@ -39,28 +48,113 @@
   <div class="wr-head">
     <h1>🗂️ {{ room.name }}</h1>
     {% if room.description %}<p>{{ room.description }}</p>{% endif %}
+    <p class="wr-muted">
+      {% if room.visibility == 'open' %}Open room — anyone can see and join.
+      {% elif room.visibility == 'closed' %}Closed room — listed on MuseFM, content locked to members.
+      {% else %}🔒 Private room — invisible to everyone but members.{% endif %}
+    </p>
+
+    {% if locked %}
+    <div class="wr-lock">
+      <div style="font-size:2.4rem">🚪</div>
+      <h2>This room is members-only</h2>
+      <p class="wr-muted">The title is public, but the notes and tasks stay
+         behind the door. Knock and the owner can let you in.</p>
+      {% if session_identity %}
+        {% if knocked %}
+        <p class="wr-muted">Knock sent — waiting on the owner.</p>
+        {% else %}
+        <form method="post" action="/workroom/{{ room.id }}/knock">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="max-width:24rem;margin:0 auto .8rem">
+            <input type="text" name="message" maxlength="300"
+                   placeholder="Say why you'd like in (optional)"
+                   style="width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border)">
+          </div>
+          <button class="btn" type="submit">🚪 Knock to join</button>
+        </form>
+        {% endif %}
+      {% else %}
+      <p class="wr-muted"><a href="/login">Log in</a> to knock.</p>
+      {% endif %}
+    </div>
+    {% else %}
     <div class="wr-members" aria-label="Members">
       {% for m in members %}
       <span class="wr-member {{ m.role }}" title="{{ m.role }}">@{{ m.handle }}{% if m.role == 'owner' %} · owner{% endif %}</span>
       {% endfor %}
     </div>
-    {% if not is_member and room.is_open and session_identity %}
+    {% if not is_member and room.visibility == 'open' and session_identity %}
     <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/join">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn" type="submit" style="margin-top:.8rem">Join this room</button>
     </form>
     {% endif %}
-    {% if is_owner %}
-    <form class="wr-form" method="post" action="/workroom/{{ room.id }}/members" style="margin-top:1rem">
+    {% if is_member and not is_owner %}
+    <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/leave"
+          onsubmit="return confirm('Leave this room?')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="add-handle">Add member by handle (members-only rooms)</label>
-      <div style="display:flex;gap:.5rem">
-        <input id="add-handle" type="text" name="handle" maxlength="32" placeholder="@handle" required>
-        <button class="btn" type="submit">Add</button>
-      </div>
+      <button class="btn" type="submit" style="margin-top:.8rem;background:transparent">Leave room</button>
     </form>
     {% endif %}
+    {% if is_owner %}
+    <div class="wr-ctl">
+      <h3>Owner controls</h3>
+      <form class="wr-row" method="post" action="/workroom/{{ room.id }}/visibility">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="wr-muted" for="wr-vis">Visibility</label>
+        <select class="wr-sel" id="wr-vis" name="visibility">
+          <option value="open" {% if room.visibility == 'open' %}selected{% endif %}>Open</option>
+          <option value="closed" {% if room.visibility == 'closed' %}selected{% endif %}>Closed · knock to join</option>
+          <option value="private" {% if room.visibility == 'private' %}selected{% endif %}>🔒 Private</option>
+        </select>
+        <button class="btn" type="submit">Update</button>
+      </form>
+      <form class="wr-row" method="post" action="/workroom/{{ room.id }}/invite">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="handle" maxlength="32" placeholder="@handle to invite" required
+               style="padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glass-border)">
+        <button class="btn" type="submit">Invite</button>
+      </form>
+      {% if pending_invites %}
+      <p class="wr-muted">Invites out: {% for i in pending_invites %}@{{ i.invitee_handle }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+      {% if pending_knocks %}
+      <h3>Knocks waiting ({{ pending_knocks|length }})</h3>
+      {% for k in pending_knocks %}
+      <div class="wr-knock">
+        <div class="wr-note-head">@{{ k.handle }}{% if k.message %} — “{{ k.message }}”{% endif %}</div>
+        <div class="wr-row">
+          <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/knocks/{{ k.id }}/approve">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn" type="submit">Let in</button>
+          </form>
+          <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/knocks/{{ k.id }}/decline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn" type="submit" style="background:transparent">Decline</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+      <h3>Members</h3>
+      {% for m in members %}{% if m.role != 'owner' %}
+      <div class="wr-row">
+        <span class="wr-member">@{{ m.handle }}</span>
+        <form class="wr-inline" method="post"
+              action="/workroom/{{ room.id }}/members/{{ m.fm_id }}/remove"
+              onsubmit="return confirm('Remove @{{ m.handle }} from this room?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn" type="submit" style="background:transparent;padding:.3rem .6rem;font-size:.8rem">Remove</button>
+        </form>
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+    {% endif %}
   </div>
+  {% endif %}
+
+  {% if not locked %}
 
   <div class="wr-sec">
     <h2 class="wr-h2">✅ Tasks</h2>
@@ -112,6 +206,7 @@
   </div>
   {% elif not session_identity %}
   <p class="wr-muted"><a href="/login">Log in</a> to join the conversation.</p>
+  {% endif %}
   {% endif %}
 </div>
 {% endblock %}

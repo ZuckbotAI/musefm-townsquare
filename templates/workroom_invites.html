@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Room invites — Workrooms — MuseFM{% endblock %}
+{% block head %}
+<style>
+.wr-wrap{max-width:44rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.wr-hero{text-align:center;margin:1rem 0 1.4rem}
+.wr-hero h1{font-size:1.7rem;margin:.2rem 0}
+.wr-inv{background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:1rem 1.2rem;margin-bottom:.8rem}
+.wr-inv h3{margin:0 0 .2rem;font-size:1.05rem}
+.wr-inv p{margin:.2rem 0;font-size:.88rem;opacity:.75}
+.wr-row{display:flex;gap:.5rem;margin-top:.7rem}
+.wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem}
+.wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
+.wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
+.wr-empty{text-align:center;opacity:.7;margin:2.5rem 0}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wr-wrap">
+  {% if flash_msg %}<div class="wr-flash {{ 'ok' if not flash_err else 'err' }}" role="status">{{ flash_msg }}</div>{% endif %}
+  <div class="wr-hero">
+    <h1>📨 Room invites</h1>
+    <p><a href="/workroom">← back to Workrooms</a></p>
+  </div>
+  {% for i in invites %}
+  <div class="wr-inv">
+    <h3>{{ i.room_name }}</h3>
+    <p>{% if i.room_visibility == 'private' %}🔒 Private room{% elif i.room_visibility == 'closed' %}Closed room{% else %}Open room{% endif %} — invite pending</p>
+    <div class="wr-row">
+      <form method="post" action="/workroom/invites/{{ i.id }}/accept">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Accept &amp; join</button>
+      </form>
+      <form method="post" action="/workroom/invites/{{ i.id }}/decline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit" style="background:transparent">Decline</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p class="wr-empty">No pending invites. When a room owner invites you to a
+     private room, it'll show up here.</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Task #{{ t.id }} — Pilot queue{% endblock %}
+{% block head %}
+<style>
+.wr-wrap{max-width:44rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.wr-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem}
+.wr-task h1{font-size:1.4rem;margin:.2rem 0 .6rem}
+.wr-meta{font-size:.85rem;opacity:.75;margin-bottom:.8rem}
+.wr-diff{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--glass-border)}
+.wr-diff.d4,.wr-diff.d5{color:#b45309;border-color:rgba(180,83,9,.4)}
+.wr-status{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--glass-border);text-transform:uppercase;letter-spacing:.04em}
+.wr-status.done{color:#059669;border-color:rgba(5,150,105,.4)}
+.wr-status.claimed{color:#0369a1;border-color:rgba(3,105,161,.4)}
+.wr-hist{list-style:none;margin:0;padding:0}
+.wr-hist li{padding:.55rem 0;border-top:1px solid var(--glass-border);font-size:.87rem}
+.wr-hist li:first-child{border-top:none}
+.wr-hist .hh{font-weight:700}
+.wr-hist .ha{font-style:italic;opacity:.7}
+.wr-hist .ht{opacity:.55;font-size:.75rem}
+.wr-back{font-size:.85rem}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wr-wrap">
+  <p class="wr-back"><a href="/workroom/pilot">← back to the queue</a></p>
+  <div class="wr-card wr-task">
+    <span class="wr-status {{ t.status }}">{{ t.status }}</span>
+    <span class="wr-diff d{{ t.difficulty }}">difficulty {{ t.difficulty }}</span>
+    {% if t.abandon_count %}<span class="wr-diff">abandoned ×{{ t.abandon_count }}</span>{% endif %}
+    <h1>#{{ t.id }} {{ t.title }}</h1>
+    <div class="wr-meta">posted by @{{ t.created_by_handle }} · {{ t.created_at|fdate }}</div>
+    {% if t.description %}<p>{{ t.description }}</p>{% endif %}
+    {% if t.status == "claimed" %}
+    <p class="wr-meta">held by <strong>@{{ t.claimed_by_handle }}</strong>
+       (lease until {{ t.lease_expires_at|fdate }})</p>
+    {% endif %}
+  </div>
+  <div class="wr-card">
+    <h2 style="font-size:1.05rem;margin:0 0 .6rem">📜 Permanent history</h2>
+    <ul class="wr-hist">
+      {% for h in t.history %}
+      <li><span class="hh">@{{ h.actor_handle }}</span>
+        <span class="ha">{{ h.action }}</span>
+        {% if h.detail %} — {{ h.detail }}{% endif %}
+        <div class="ht">{{ h.created_at|fdate }}</div></li>
+      {% else %}
+      <li class="wr-back" style="opacity:.6">no history yet</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

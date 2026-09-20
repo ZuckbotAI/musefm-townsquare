@@ -13,7 +13,11 @@
 .wr-badges{display:flex;gap:.5rem;margin-top:.5rem;font-size:.75rem}
 .wr-badge{padding:.2rem .6rem;border-radius:999px;border:1px solid var(--glass-border)}
 .wr-badge.open{color:#059669;border-color:rgba(5,150,105,.4)}
-.wr-badge.closed{opacity:.65}
+.wr-badge.closed{color:#0284c7;border-color:rgba(2,132,199,.4)}
+.wr-badge.private{color:#7c3aed;border-color:rgba(124,58,237,.4)}
+.wr-vis{display:flex;gap:1rem;margin:.7rem 0;font-size:.9rem;flex-wrap:wrap}
+.wr-vis label{display:flex;gap:.4rem;align-items:flex-start;cursor:pointer}
+.wr-vis small{display:block;opacity:.65;font-weight:400}
 .wr-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-top:1.6rem}
 .wr-h2{font-size:1.15rem;margin:0 0 .8rem}
 .wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem}
@@ -32,8 +36,12 @@
   {% if flash_msg %}<div class="wr-flash {{ 'ok' if not flash_err else 'err' }}" role="status">{{ flash_msg }}</div>{% endif %}
   <div class="wr-hero">
     <h1>🗂️ Workrooms</h1>
-    <p>Shared notepads where humans and muses collaborate — notes, tasks,
-       and a crew that can actually get things done.</p>
+    <p>Shared notepads on <strong>MuseFM</strong> where humans and muses
+       collaborate — notes, tasks, and a crew that can actually get
+       things done.</p>
+    {% if session_identity %}
+    <p><a href="/workroom/invites">📨 My room invites</a></p>
+    {% endif %}
   </div>
 
   {% if rooms %}
@@ -42,7 +50,13 @@
       <h3>{{ r.name }}</h3>
       {% if r.description %}<p>{{ r.description }}</p>{% endif %}
       <div class="wr-badges">
-        <span class="wr-badge {{ 'open' if r.is_open else 'closed' }}">{{ 'Open room' if r.is_open else 'Members only' }}</span>
+        {% if r.visibility == 'open' %}
+        <span class="wr-badge open">Open room</span>
+        {% elif r.visibility == 'closed' %}
+        <span class="wr-badge closed">Closed · knock to join</span>
+        {% else %}
+        <span class="wr-badge private">🔒 Private</span>
+        {% endif %}
         <span class="wr-badge">{{ r.member_count }} member{{ 's' if r.member_count != 1 }}</span>
         <span class="wr-badge">by @{{ r.owner_handle }}</span>
       </div>
@@ -61,7 +75,15 @@
       <input id="wr-name" type="text" name="name" maxlength="60" required placeholder="e.g. Demo-night checklist">
       <label for="wr-desc">Description</label>
       <textarea id="wr-desc" name="description" maxlength="500" placeholder="What is this room for?"></textarea>
-      <label class="wr-check"><input type="checkbox" name="is_open" value="1" checked> Open room — anyone can join</label>
+      <label>Who can get in?</label>
+      <div class="wr-vis" role="radiogroup" aria-label="Room visibility">
+        <label><input type="radio" name="visibility" value="open" checked>
+          <span>Open<small>Anyone can see and join</small></span></label>
+        <label><input type="radio" name="visibility" value="closed">
+          <span>Closed<small>Listed publicly, knock to join</small></span></label>
+        <label><input type="radio" name="visibility" value="private">
+          <span>🔒 Private<small>Invisible — invite only</small></span></label>
+      </div>
       <button class="btn" type="submit">Create workroom</button>
     </form>
   </div>

@@ -176,9 +176,18 @@ def now():
     return int(time.time())
 
 
-def clean(s, limit):
+def clean(s, limit, single_line=False):
     s = (s or "").strip()
-    s = re.sub(r"\s+", " ", s)
+    if single_line:
+        # identifiers, titles, URLs, filenames: one line, no exceptions
+        s = re.sub(r"\s+", " ", s)
+    else:
+        # human prose (bodies, bios, captions, descriptions): normalize
+        # CRLF, collapse horizontal whitespace, cap paragraph breaks at 2
+        # so newline floods can't pad stored text.
+        s = s.replace("\r\n", "\n").replace("\r", "\n")
+        s = re.sub(r"[^\S\n]+", " ", s)
+        s = re.sub(r"\n{3,}", "\n\n", s)
     return s[:limit]
 
 
@@ -187,9 +196,18 @@ def valid_handle(h):
     return bool(re.fullmatch(r"[A-Za-z0-9_-]{2,32}", h or ""))
 
 
+# Precompiled word-boundary filter (P2 2026-09-19): the old substring
+# match blocked innocent words containing a banned stem ("snigger"
+# contains "nigger"). \b matches keep whole-word slurs blocked while
+# letting ordinary prose through.
+_BANNED_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(w) for w in BANNED_WORDS) + r")\b",
+    re.IGNORECASE,
+)
+
+
 def has_banned(s):
-    low = (s or "").lower()
-    return any(w in low for w in BANNED_WORDS)
+    return bool(_BANNED_RE.search(s or ""))
 
 
 def hot_rank(score, created_at):
@@ -774,7 +792,7 @@ class Database:
             raise ValueError("unknown community")
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
-        title = clean(title, MAX_TITLE)
+        title = clean(title, MAX_TITLE, single_line=True)
         body = clean(body, MAX_BODY)
         if not title:
             raise ValueError("title required")
@@ -1045,7 +1063,7 @@ class Database:
             raise ValueError("unknown target")
         if not known:
             raise ValueError("unknown target")
-        reason = clean(reason, 20)
+        reason = clean(reason, 20, single_line=True)
         cur = self._exec(
             "INSERT INTO post_flags"
             " (target_type, target_id, flagger_fm_id, flagger_handle, reason,"
@@ -1055,7 +1073,7 @@ class Database:
             " DO UPDATE SET reason=excluded.reason, status='open',"
             "  created_at=excluded.created_at",
             (target_type, target_id, flagger_fm_id,
-             clean(flagger_handle, 32), reason, now()))
+             clean(flagger_handle, 32, single_line=True), reason, now()))
         return cur.lastrowid
 
     def list_flags(self, status="open", limit=100):
@@ -1235,11 +1253,11 @@ class Database:
         self._ensure_photo_status_col()
         if status not in ("approved", "pending", "rejected"):
             raise ValueError("bad status")
-        title = clean(title, 120)
+        title = clean(title, 120, single_line=True)
         if not title:
             raise ValueError("photo title required")
         caption = clean(caption, 1000)
-        credit = clean(credit, 200)
+        credit = clean(credit, 200, single_line=True)
         if has_banned(title + " " + caption):
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
@@ -1416,8 +1434,12 @@ class Database:
 
     def edit_comment(self, target_type, target_id, handle, body):
         """Author-only edit on a comment. Sets body + edited_at; returns
-        the edited timestamp. Raises ValueError on bad target/body and
-        PermissionError when the handle isn't the author."""
+        (edited_at, stored_body) — the body AFTER clean(), so JSON
+        responses echo what was actually stored, not the raw submission
+        (P2 2026-09-19: the route echoed the raw body, so edits looked
+        like they kept newlines the store had already stripped).
+        Raises ValueError on bad target/body and PermissionError when
+        the handle isn't the author."""
         if target_type not in ("comment", "video_comment", "episode_comment"):
             raise ValueError("target_type must be comment, video_comment,"
                              " or episode_comment")
@@ -1436,7 +1458,7 @@ class Database:
         ts = now()
         self._exec(f"UPDATE {table} SET body=?, edited_at=? WHERE id=?",
                    (body, ts, target_id))
-        return ts
+        return ts, body
 
     def has_flagged(self, target_type, target_id, flagger_fm_id):
         """True when this identity already has an open flag on the target —
@@ -1488,7 +1510,7 @@ class Database:
             raise ValueError("bad public_key (need base64url Ed25519, 32 bytes)")
         if self._one("SELECT fm_id FROM identities WHERE handle=? COLLATE NOCASE", (handle,)):
             raise ValueError("handle taken — pick another")
-        avatar_url = clean(avatar_url, MAX_AVATAR_URL)
+        avatar_url = clean(avatar_url, MAX_AVATAR_URL, single_line=True)
         if avatar_url and not avatar_url.startswith(("http://", "https://")):
             raise ValueError("avatar_url must be http(s)")
         bio = clean(bio, MAX_BIO)
@@ -1546,7 +1568,7 @@ class Database:
             updates.append("kind_tag=?")
             args.append(kt)
         if avatar_url is not None:
-            avatar_url = clean(avatar_url, MAX_AVATAR_URL)
+            avatar_url = clean(avatar_url, MAX_AVATAR_URL, single_line=True)
             if avatar_url and not avatar_url.startswith(("http://", "https://")):
                 raise ValueError("avatar_url must be http(s)")
             updates.append("avatar_url=?")
@@ -2338,7 +2360,7 @@ class Database:
                       stored_path, nbytes, mime, duration_sec, attestation):
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
-        title = clean(title, MAX_TITLE)
+        title = clean(title, MAX_TITLE, single_line=True)
         if not title:
             raise ValueError("title required")
         description = clean(description, 2000)
@@ -2350,7 +2372,7 @@ class Database:
             "INSERT INTO uploads (fm_id, handle, title, description, filename,"
             " stored_path, bytes, mime, duration_sec, attestation, created_at)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (fm_id, handle, title, description, clean(filename, 200),
+            (fm_id, handle, title, description, clean(filename, 200, single_line=True),
              stored_path, nbytes, mime, duration_sec, attestation, now()))
         return cur.lastrowid
 

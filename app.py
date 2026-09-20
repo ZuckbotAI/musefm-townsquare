@@ -53,8 +53,8 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 PTS_HEARTBEAT, PTS_MENTION, PTS_REACTION_RECEIVED, PTS_REPLY,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
-                ATTESTATION_TEXT, challenge_week_id, find_mentions,
-                valid_handle, ensure_musefm_media_schema,
+                MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, challenge_week_id, find_mentions,
+                valid_handle, clean, has_banned, ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
@@ -64,6 +64,7 @@ import gifs
 import ai_images
 import videos
 import workroom
+import agent_memory
 import trustline_bridge as tb
 import collab
 import bounties
@@ -131,7 +132,24 @@ app.url_map.converters["sqlite_int"] = SqliteIntConverter
 # 34MB ceiling so signed video uploads (max 32MB) fit; per-route checks apply.
 app.config["MAX_CONTENT_LENGTH"] = 34 * 1024 * 1024
 
-DB_PATH = os.path.join(HERE, os.environ.get("TOWNSQUARE_DB", "townsquare.db"))
+def _configured_db_path():
+    """Import-time DB path (P2-2, 2026-09-19 21:35 loop): init_db runs AT
+    IMPORT, before __main__ can rebind --db — so --db must be honored here
+    or a scratch server boot touches the checkout's real DB.
+    Precedence: TOWNSQUARE_DB env (required invocation for pytest and
+    anything importing app) > --db argv > default townsquare.db."""
+    env = os.environ.get("TOWNSQUARE_DB", "")
+    if env:
+        return env
+    args = sys.argv[1:]
+    if "--db" in args:
+        i = args.index("--db")
+        if i + 1 < len(args) and not args[i + 1].startswith("-"):
+            return args[i + 1]
+    return "townsquare.db"
+
+
+DB_PATH = os.path.join(HERE, _configured_db_path())
 
 
 def _run_startup_media_cleanup(_db, data_dir):
@@ -242,9 +260,11 @@ def init_db(path):
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
     workroom.ensure_workroom_schema(_db)  # agent profiles, endorsements, workrooms
+    workroom.ensure_pilot_schema(_db)  # pilot tasks/claims/updates (test scaffolding)
+    agent_memory.ensure_agent_memory_schema(_db)  # agentic memory API (pilot)
     tb.ensure_trustline_schema(_db)   # Trustline bridge: links, challenges
     _db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
-    _tdb = os.environ.get("TOWNSQUARE_DB", "")
+    _tdb = _configured_db_path()
     _ddir = os.path.dirname(_tdb) if _tdb else os.environ.get("DATA_DIR", os.path.join(HERE, "data"))
     _run_startup_media_cleanup(_db, _ddir)
     return _db
@@ -254,7 +274,7 @@ db = init_db(DB_PATH)
 
 # Uploaded muse audio lives next to the DB so it rides the same persistent
 # disk on Render (TOWNSQUARE_DB=/opt/render/project/src/data/townsquare.db).
-_tdb = os.environ.get("TOWNSQUARE_DB", "")
+_tdb = _configured_db_path()
 if _tdb and os.path.dirname(_tdb):
     DATA_DIR = os.path.dirname(_tdb)
 else:
@@ -321,6 +341,23 @@ app.permanent_session_lifetime = timedelta(days=30)
 # Human login sessions: Lax keeps the session cookie off cross-site
 # requests (CSRF posture for the human auth system).
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# Production is HTTPS-only (Render) — emit the session cookie Secure there
+# (P2-1, 2026-09-19 21:35 loop). Off under app.debug so local plain-HTTP
+# development servers can still log in.
+app.config["SESSION_COOKIE_SECURE"] = not app.debug
+
+
+@app.after_request
+def _security_headers(resp):
+    """Baseline response hardening (P2-4, 2026-09-19 21:35 loop).
+    No blocking Content-Security-Policy yet: the app ships inline
+    scripts/styles app-wide and a CSP needs an audit pass before
+    enforcement (tracked separately)."""
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("Referrer-Policy",
+                            "strict-origin-when-cross-origin")
+    return resp
 
 
 FFPROBE = shutil.which("ffprobe")
@@ -398,11 +435,20 @@ def agent_authed():
 def json_body():
     """Parsed JSON request body, guaranteed to be a dict.
 
-    Returns {} for absent/unparseable JSON. Non-object JSON (arrays,
-    strings, numbers) is a 400 — every endpoint that reads fields expects
-    an object, and .get() on a list 500'd app-wide before this guard."""
+    Returns {} for an absent/empty body. Unparseable JSON (with a JSON
+    content type) and non-object JSON (arrays, strings, numbers) are a
+    400 — every endpoint that reads fields expects an object, and .get()
+    on a list 500'd app-wide before this guard. Callers must:
+        if not isinstance(data, dict): return data
+    (P2-3, 2026-09-19 21:35 loop: malformed JSON used to collapse to {},
+    so the CSRF check fired first and the client got a misleading 403
+    "bad form token" for what was really a malformed body.)"""
+    if not request.data:
+        return {}
     data = request.get_json(force=True, silent=True)
     if data is None:
+        if "json" in request.headers.get("Content-Type", ""):
+            return api_error("Malformed JSON body", 400)
         return {}
     if not isinstance(data, dict):
         return api_error("JSON body must be an object", 400)
@@ -419,6 +465,25 @@ def _fs(data, key, default=""):
     if not isinstance(v, str):
         raise ValueError(f"bad {key}: must be a string")
     return v
+
+
+def _int_field(data, key, default=0):
+    """Strict int coercion for JSON/form numeric fields (P2 2026-09-19).
+
+    Non-numeric strings, bools, nulls, and non-integer numerics (1.5) are a
+    clean 400 — never a raw Python exception string ("invalid literal for
+    int()...") and never silent int() truncation (1.5 recorded as 1).
+    Missing/empty falls back to the default."""
+    v = data.get(key, default)
+    if v is None or v == "":
+        return default
+    if isinstance(v, bool):
+        raise ValueError(f"bad {key}: must be an integer")
+    if isinstance(v, int):
+        return v
+    if isinstance(v, str) and re.fullmatch(r"[+-]?\d+", v.strip()):
+        return int(v.strip())
+    raise ValueError(f"bad {key}: must be an integer")
 
 
 def require_agent(fn):
@@ -448,7 +513,17 @@ def require_agent_or_signature(action, rate=None):
     def deco(fn):
         @wraps(fn)
         def wrapper(*a, **kw):
-            data = request.get_json(force=True, silent=True) or {}
+            # P2 2026-09-20 00:46 loop: malformed JSON on signed endpoints
+            # 400s (parse failure) instead of 401ing as "musefm-v1 auth
+            # failed" — a broken body is a client error, not an auth
+            # failure.
+            data = None
+            if request.data:
+                try:
+                    data = request.get_json(force=True)
+                except Exception:
+                    return api_error("Malformed JSON body", 400)
+            data = data or {}
             if not isinstance(data, dict):
                 return api_error("JSON body must be an object", 400)
             if agent_authed():
@@ -1078,11 +1153,16 @@ def submit():
             gif_url = _gif_from_form(request, author_handle)
             image_url, image_ai = _image_from_form(request, author_handle)
             video_url, video_ai = _video_from_form(request, author_handle)
+            body = request.form.get("body", "")
+            # P1 2026-09-20 00:46 loop: same unbounded-body storage-abuse
+            # vector as the signed API — reject, don't silently truncate.
+            if len(body) > MAX_BODY:
+                raise ValueError(f"body too long (max {MAX_BODY} characters)")
             pid = db.create_post(
                 request.form.get("community", "lobby"),
                 author_handle,
                 request.form.get("title", ""),
-                request.form.get("body", ""),
+                body,
                 request.form.get("flair", "discussion"),
                 gif_url=gif_url, image_url=image_url, image_ai=image_ai,
                 video_url=video_url, video_ai=video_ai)
@@ -1234,19 +1314,18 @@ def vote_html():
                             "error": "bad form token — reload and try again"}), 403
         return "bad form token — reload and try again", 403
     try:
+        target_id = _int_field(data, "target_id")
+        value = _int_field(data, "value", 1)
         score = db.vote(data.get("target_type", "post") or "post",
-                        int(data.get("target_id") or 0),
-                        sess_ident["handle"],
-                        int(data.get("value", 1)))
+                        target_id, sess_ident["handle"], value)
     except (ValueError, TypeError) as e:
         if want_json:
             return jsonify({"ok": False, "error": str(e)}), 400
         return redirect(_safe_next(data.get("next")))
     if want_json:
-        target = (data.get("target_type", "post") or "post",
-                  int(data.get("target_id") or 0))
+        target = (data.get("target_type", "post") or "post", target_id)
         return jsonify({"ok": True, "score": score,
-                        "value": int(data.get("value", 1)),
+                        "value": value,
                         "my_vote": db.votes_for(
                             sess_ident["handle"]).get(target)})
     return redirect(_safe_next(data.get("next")))
@@ -1871,9 +1950,6 @@ def api_post(pid):
 @app.route("/api/forum/post", methods=["POST"])
 @require_agent_or_signature("post", rate=("post", 5))
 def api_create_post():
-    hit = check_limit("post", 5)
-    if hit:
-        return hit
     data = g.signed_data or json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
@@ -1882,13 +1958,34 @@ def api_create_post():
         title = _fs(data, "title")
         body = _fs(data, "body")
         flair = _fs(data, "flair", "discussion")
+        gif_url = _fs(data, "gif_url")
+        image_url = _fs(data, "image_url")
+        video_url = _fs(data, "video_url")
+        # Validate BEFORE counting the rate budget (P2 2026-09-19): a
+        # malformed signed body 400s here WITHOUT burning the shared
+        # per-IP 5/hr bucket. The decorator's _would_limit() peek already
+        # protects the one-time nonce on the 429 path (P2 2026-09-19 15:35).
+        if not db.community(community):
+            raise ValueError("unknown community")
+        if not clean(title, MAX_TITLE, single_line=True):
+            raise ValueError("title required")
+        # P1 2026-09-20 00:46 loop: post bodies were unbounded (9MB stored)
+        # — a storage-abuse vector at the 5/hr bucket. Reject overlong
+        # bodies BEFORE the rate budget burns (same validate-first rule).
+        if len(body) > MAX_BODY:
+            raise ValueError(f"body too long (max {MAX_BODY} characters)")
+        if has_banned(title + " " + body):
+            raise ValueError("content blocked by the town filter")
+        hit = check_limit("post", 5)
+        if hit:
+            return hit
         pid = db.create_post(community,
                              g.author_handle, title,
                              body, flair,
-                             gif_url=_fs(data, "gif_url"),
-                             image_url=_fs(data, "image_url"),
+                             gif_url=gif_url,
+                             image_url=image_url,
                              image_ai=bool(data.get("image_ai")),
-                             video_url=_fs(data, "video_url"),
+                             video_url=video_url,
                              video_ai=bool(data.get("video_ai")))
     except ValueError as e:
         return api_error(str(e))
@@ -2071,23 +2168,36 @@ def memory_page():
 @app.route("/api/forum/comment", methods=["POST"])
 @require_agent_or_signature("comment", rate=("comment", 30))
 def api_create_comment():
-    hit = check_limit("comment", 30)
-    if hit:
-        return hit
     data = g.signed_data or json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
-        post_id = int(data.get("post_id", 0))
-        parent_id = data.get("parent_id")
-        if parent_id is not None:
-            parent_id = int(parent_id)
+        post_id = _int_field(data, "post_id")
+        parent_id = _int_field(data, "parent_id", None)
         body = _fs(data, "body")
+        image_url = _fs(data, "image_url")
+        video_url = _fs(data, "video_url")
+        # Validate BEFORE counting (P2 2026-09-19): malformed bodies 400
+        # without burning the shared per-IP 30/hr comment budget.
+        # Body-shape errors come before existence checks (P2 2026-09-20
+        # 00:46 loop): a missing body on a nonexistent post reports
+        # "comment body required", not "unknown post".
+        if not clean(body, 2000):
+            raise ValueError("comment body required")
+        if not db.get_post(post_id):
+            raise ValueError("unknown post")
+        if parent_id and not db.get_comment(parent_id):
+            raise ValueError("unknown parent comment")
+        if has_banned(body):
+            raise ValueError("content blocked by the town filter")
+        hit = check_limit("comment", 30)
+        if hit:
+            return hit
         cid = db.create_comment(post_id, parent_id,
                                 g.author_handle, body,
-                                image_url=_fs(data, "image_url"),
+                                image_url=image_url,
                                 image_ai=bool(data.get("image_ai")),
-                                video_url=_fs(data, "video_url"),
+                                video_url=video_url,
                                 video_ai=bool(data.get("video_ai")))
     except (ValueError, TypeError) as e:
         return api_error(str(e))
@@ -2198,16 +2308,21 @@ def api_collab_close(cid):
 @app.route("/api/forum/vote", methods=["POST"])
 @require_agent_or_signature("vote", rate=("vote", 120))
 def api_vote():
-    hit = check_limit("vote", 120)
-    if hit:
-        return hit
     data = g.signed_data or json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
-        score = db.vote(_fs(data, "target_type", "post"),
-                        int(data.get("target_id", 0)),
-                        g.author_handle, int(data.get("value", 1)))
+        # Validate BEFORE counting (P2 2026-09-19): non-integer numerics
+        # (1.5) and non-numeric strings are a clean 400 here — never a raw
+        # Python error and never silent int() truncation.
+        target_type = _fs(data, "target_type", "post")
+        target_id = _int_field(data, "target_id")
+        value = _int_field(data, "value", 1)
+        hit = check_limit("vote", 120)
+        if hit:
+            return hit
+        score = db.vote(target_type, target_id,
+                        g.author_handle, value)
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     return jsonify({"ok": True, "score": score, "handle": g.author_handle})
@@ -3845,16 +3960,19 @@ def api_shop_equip():
 def api_react():
     """Emoji reaction on a post or comment. Authors earn +2 Signal per
     reactor (never for self-reactions)."""
-    hit = check_limit("react", 120)
-    if hit:
-        return hit
     data = g.signed_data or json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
+        # Validate BEFORE counting (P2 2026-09-19): bad target_id/emoji
+        # 400 without burning the shared per-IP budget; non-integer
+        # target_id is a clean 400, never a raw int() error.
         target_type = _fs(data, "target_type", "post")
         emoji = _fs(data, "emoji")
-        target_id = int(data.get("target_id", 0))
+        target_id = _int_field(data, "target_id")
+        hit = check_limit("react", 120)
+        if hit:
+            return hit
         counts = db.react(target_type, target_id,
                           g.author_identity["fm_id"] if g.author_identity
                           else "agent:" + g.author_handle,
@@ -3892,17 +4010,21 @@ def api_fb_react():
     comment. One per identity per target: tapping the same reaction removes
     it, a different one switches. Authors earn NO Signal for FB reactions —
     reacting must never become a farming vector."""
-    hit = check_limit("fb_react", 120)
-    if hit:
-        return hit
     data = g.signed_data or json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
+        # Validate BEFORE counting (P2 2026-09-19): target_id "abc" or 1.5
+        # is a clean 400 here — never a raw int() error, never silent
+        # truncation, and malformed bodies don't burn the shared budget.
         reaction = _fs(data, "reaction").strip().lower()
+        target_type = _fs(data, "target_type", "post")
+        target_id = _int_field(data, "target_id")
+        hit = check_limit("fb_react", 120)
+        if hit:
+            return hit
         action, counts = fb_reactions.fb_react(
-            db, _fs(data, "target_type", "post"),
-            int(data.get("target_id", 0)),
+            db, target_type, target_id,
             g.author_identity["fm_id"] if g.author_identity
             else "agent:" + g.author_handle,
             g.author_handle, reaction)
@@ -3958,7 +4080,7 @@ def fb_react_web():
         reaction = (_fs(data, "reaction", "").strip().lower())
         action, counts = fb_reactions.fb_react(
             db, _fs(data, "target_type", "post") or "post",
-            int(data.get("target_id") or 0),
+            _int_field(data, "target_id"),
             sess_ident["fm_id"], handle, reaction)
     except (ValueError, TypeError) as e:
         if want_json:
@@ -4010,9 +4132,14 @@ def flag_web():
                                      "misinfo, other)"}), 400
         return redirect(_safe_next(nxt))
     try:
-        target_id = int(data.get("target_id") or 0)
-    except (TypeError, ValueError):
-        target_id = 0
+        target_id = _int_field(data, "target_id")
+    except (TypeError, ValueError) as e:
+        # non-numeric target_id is a clean 400 naming the field (P2
+        # 2026-09-19) — the old swallow-to-0 pattern turned it into a
+        # misleading "unknown target" instead.
+        if want_json:
+            return jsonify({"ok": False, "error": str(e)}), 400
+        return redirect(_safe_next(nxt))
     try:
         flag_id = db.flag_post(data.get("target_type", "post") or "post",
                                target_id,
@@ -4065,9 +4192,10 @@ def comment_edit():
             return hit
         return RATE_LIMIT_MESSAGE, 429
     try:
-        edited_at = db.edit_comment(
+        target_id = _int_field(data, "target_id")
+        edited_at, stored_body = db.edit_comment(
             data.get("target_type", "comment") or "comment",
-            int(data.get("target_id") or 0),
+            target_id,
             sess_ident["handle"], data.get("body", ""))
     except PermissionError as e:
         if want_json:
@@ -4079,7 +4207,7 @@ def comment_edit():
         return str(e), 400
     if want_json:
         return jsonify({"ok": True, "edited_at": edited_at,
-                        "body_html": link_mentions(data.get("body", ""))})
+                        "body_html": link_mentions(stored_body)})
     nxt = _safe_next(data.get("next"))  # no open redirects
     return redirect(nxt)
 
@@ -4099,7 +4227,7 @@ def api_flag():
     try:
         flag_id = db.flag_post(
             _fs(data, "target_type", "post"),
-            int(data.get("target_id", 0)),
+            _int_field(data, "target_id"),
             g.author_identity["fm_id"] if g.author_identity else "",
             g.author_handle,
             _fs(data, "reason", "other"))
@@ -6237,13 +6365,23 @@ def _wr_member_since(ident):
 
 
 def _wr_room_or_404(room_id, viewer_fm_id):
-    """Closed rooms are invisible to non-members (404, not 403)."""
+    """Visibility gating:
+    - private: invisible to non-members (404, not 403 — no existence leak)
+    - closed: non-members get the room with locked=True (knock page)
+    - open: everyone in.
+    Returns (room, locked, err_page, err_code)."""
     room = workroom.get_workroom(db, room_id)
     if not room:
-        return None, render_template("404.html", msg="nothing here yet"), 404
-    if not room["is_open"] and not workroom.is_member(db, room_id, viewer_fm_id):
-        return None, render_template("404.html", msg="nothing here yet"), 404
-    return room, None, None
+        return None, False, render_template("404.html",
+                                            msg="nothing here yet"), 404
+    vis = workroom.room_visibility(room)
+    member = workroom.is_member(db, room_id, viewer_fm_id)
+    if vis == "private" and not member:
+        return None, False, render_template("404.html",
+                                            msg="nothing here yet"), 404
+    if vis == "closed" and not member:
+        return room, True, None, None
+    return room, False, None, None
 
 
 @app.route("/agents")
@@ -6389,10 +6527,11 @@ def workroom_create():
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     f = request.form
+    visibility = (f.get("visibility") or "open").strip()
     try:
         room_id = workroom.create_workroom(
             db, f.get("name", ""), f.get("description", ""),
-            ident["fm_id"], is_open=f.get("is_open") == "1")
+            ident["fm_id"], visibility=visibility)
     except ValueError as e:
         _wr_flash(str(e), True)
         return redirect("/workroom")
@@ -6403,18 +6542,32 @@ def workroom_create():
 def workroom_page(room_id):
     sess = current_session_identity()
     viewer = sess["fm_id"] if sess else None
-    room, err_page, err_code = _wr_room_or_404(room_id, viewer)
+    room, locked, err_page, err_code = _wr_room_or_404(room_id, viewer)
     if err_page:
         return err_page, err_code
+    room["visibility"] = workroom.room_visibility(room)
+    viewer_role = workroom.member_role(db, room_id, viewer)
+    is_owner = viewer_role == "owner"
+    flash_msg, flash_err = _wr_pop_flash()
+    if locked:
+        return render_template(
+            "workroom.html", room=room, locked=True,
+            knocked=workroom.has_knocked(db, room_id, viewer)
+            if viewer else False,
+            is_member=False, is_owner=False, members=[], notes=[],
+            tasks=[], flash_msg=flash_msg, flash_err=flash_err)
     notes_all = workroom.list_notes(db, room_id)
     notes = [n for n in notes_all if n["kind"] == "note"]
     tasks = [n for n in notes_all if n["kind"] == "task"]
-    flash_msg, flash_err = _wr_pop_flash()
     return render_template(
-        "workroom.html", room=room, notes=notes, tasks=tasks,
+        "workroom.html", room=room, locked=False,
+        notes=notes, tasks=tasks,
         members=workroom.list_members(db, room_id),
         is_member=workroom.is_member(db, room_id, viewer),
-        is_owner=workroom.member_role(db, room_id, viewer) == "owner",
+        is_owner=is_owner,
+        pending_knocks=workroom.list_knocks(db, room_id) if is_owner else [],
+        pending_invites=workroom.room_invites(db, room_id)
+        if is_owner else [],
         flash_msg=flash_msg, flash_err=flash_err)
 
 
@@ -6426,10 +6579,194 @@ def workroom_join(room_id):
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     room = workroom.get_workroom(db, room_id)
-    if not room or not room["is_open"]:
+    if not room or workroom.room_visibility(room) != "open":
         return render_template("404.html", msg="nothing here yet"), 404
     workroom.add_member(db, room_id, ident["fm_id"])
     _wr_flash(f"Welcome to {room['name']}.", False)
+    return redirect(f"/workroom/{room_id}")
+
+
+# ---------------- workroom: private rooms — visibility, knocks, invites
+def _wr_require_owner(room_id, fm_id):
+    if workroom.member_role(db, room_id, fm_id) != "owner":
+        return "only the room owner can do that", 403
+    return None
+
+
+@app.route("/workroom/<int:room_id>/visibility", methods=["POST"])
+def workroom_visibility(room_id):
+    """Owner flips the room's door: open / closed / private."""
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    denied = _wr_require_owner(room_id, ident["fm_id"])
+    if denied:
+        return denied
+    try:
+        workroom.set_visibility(
+            db, room_id, (request.form.get("visibility") or "").strip())
+    except ValueError as e:
+        _wr_flash(str(e), True)
+    else:
+        _wr_flash("Room visibility updated.", False)
+    return redirect(f"/workroom/{room_id}")
+
+
+@app.route("/workroom/<int:room_id>/knock", methods=["POST"])
+def workroom_knock(room_id):
+    """Knock on a closed room. Private rooms can't be knocked on."""
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    try:
+        workroom.knock(db, room_id, ident["fm_id"], ident["handle"],
+                       request.form.get("message", ""))
+    except ValueError as e:
+        _wr_flash(str(e), True)
+    else:
+        _wr_flash("Knock sent — the room owner will review it.", False)
+    return redirect(f"/workroom/{room_id}")
+
+
+@app.route("/workroom/<int:room_id>/knocks/<int:knock_id>/approve",
+           methods=["POST"])
+def workroom_knock_approve(room_id, knock_id):
+    return _wr_knock_resolve(room_id, knock_id, True)
+
+
+@app.route("/workroom/<int:room_id>/knocks/<int:knock_id>/decline",
+           methods=["POST"])
+def workroom_knock_decline(room_id, knock_id):
+    return _wr_knock_resolve(room_id, knock_id, False)
+
+
+def _wr_knock_resolve(room_id, knock_id, approve):
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    denied = _wr_require_owner(room_id, ident["fm_id"])
+    if denied:
+        return denied
+    try:
+        handle = workroom.resolve_knock(db, knock_id, room_id, approve)
+    except ValueError as e:
+        _wr_flash(str(e), True)
+    else:
+        _wr_flash(f"@{handle} "
+                  f"{'joined the room.' if approve else 'was declined.'}",
+                  False)
+    return redirect(f"/workroom/{room_id}")
+
+
+@app.route("/workroom/<int:room_id>/invite", methods=["POST"])
+def workroom_invite(room_id):
+    """Owner invites a handle — the way into private rooms."""
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    denied = _wr_require_owner(room_id, ident["fm_id"])
+    if denied:
+        return denied
+    handle = (request.form.get("handle") or "").strip().lstrip("@")
+    target = db.get_identity_by_handle(handle) if valid_handle(handle) \
+        else None
+    if not target:
+        _wr_flash("No such handle.", True)
+    else:
+        try:
+            workroom.create_invite(db, room_id, ident["fm_id"],
+                                   target["fm_id"], target["handle"])
+        except ValueError as e:
+            _wr_flash(str(e), True)
+        else:
+            _wr_flash(f"Invited @{target['handle']}.", False)
+    return redirect(f"/workroom/{room_id}")
+
+
+@app.route("/workroom/invites")
+def workroom_invites_page():
+    """My pending room invites — the invite inbox."""
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    invites = workroom.my_invites(db, ident["fm_id"])
+    flash_msg, flash_err = _wr_pop_flash()
+    return render_template("workroom_invites.html", invites=invites,
+                           flash_msg=flash_msg, flash_err=flash_err)
+
+
+@app.route("/workroom/invites/<int:invite_id>/accept", methods=["POST"])
+def workroom_invite_accept(invite_id):
+    return _wr_invite_resolve(invite_id, True)
+
+
+@app.route("/workroom/invites/<int:invite_id>/decline", methods=["POST"])
+def workroom_invite_decline(invite_id):
+    return _wr_invite_resolve(invite_id, False)
+
+
+def _wr_invite_resolve(invite_id, accept):
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    try:
+        room_id = workroom.accept_invite(db, invite_id, ident["fm_id"]) \
+            if accept else None
+        if not accept:
+            workroom.decline_invite(db, invite_id, ident["fm_id"])
+    except ValueError as e:
+        _wr_flash(str(e), True)
+        return redirect("/workroom/invites")
+    if accept:
+        _wr_flash("Welcome in.", False)
+        return redirect(f"/workroom/{room_id}")
+    _wr_flash("Invite declined.", False)
+    return redirect("/workroom/invites")
+
+
+@app.route("/workroom/<int:room_id>/leave", methods=["POST"])
+def workroom_leave(room_id):
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    try:
+        workroom.leave_room(db, room_id, ident["fm_id"])
+    except ValueError as e:
+        _wr_flash(str(e), True)
+        return redirect(f"/workroom/{room_id}")
+    _wr_flash("You left the room.", False)
+    return redirect("/workroom")
+
+
+@app.route("/workroom/<int:room_id>/members/<fm_id>/remove",
+           methods=["POST"])
+def workroom_member_remove(room_id, fm_id):
+    ident, redir = _require_human()
+    if redir:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    denied = _wr_require_owner(room_id, ident["fm_id"])
+    if denied:
+        return denied
+    try:
+        workroom.remove_member(db, room_id, fm_id)
+    except ValueError as e:
+        _wr_flash(str(e), True)
+    else:
+        _wr_flash("Member removed.", False)
     return redirect(f"/workroom/{room_id}")
 
 
@@ -6463,9 +6800,12 @@ def workroom_add_note(room_id):
         return redir
     if not _check_csrf():
         return "bad form token — reload and try again", 403
-    room, err_page, err_code = _wr_room_or_404(room_id, ident["fm_id"])
+    room, locked, err_page, err_code = _wr_room_or_404(room_id, ident["fm_id"])
     if err_page:
         return err_page, err_code
+    if locked:
+        _wr_flash("That room is members-only.", True)
+        return redirect(f"/workroom/{room_id}")
     if not workroom.is_member(db, room_id, ident["fm_id"]):
         _wr_flash("Join the room first.", True)
         return redirect(f"/workroom/{room_id}")
@@ -6486,10 +6826,10 @@ def workroom_toggle_note(room_id, note_id):
         return redir
     if not _check_csrf():
         return "bad form token — reload and try again", 403
-    room, err_page, err_code = _wr_room_or_404(room_id, ident["fm_id"])
+    room, locked, err_page, err_code = _wr_room_or_404(room_id, ident["fm_id"])
     if err_page:
         return err_page, err_code
-    if not workroom.is_member(db, room_id, ident["fm_id"]):
+    if locked or not workroom.is_member(db, room_id, ident["fm_id"]):
         return "join the room first", 403
     try:
         workroom.toggle_note(db, note_id, room_id)
@@ -6599,9 +6939,9 @@ def api_workroom_note():
     if not room:
         return api_error("no such workroom", 404)
     if not workroom.is_member(db, room_id, ident["fm_id"]):
-        if not room["is_open"]:
-            return api_error("members-only room — ask the owner to add you",
-                             403)
+        if workroom.room_visibility(room) != "open":
+            return api_error("members-only room — knock or ask the owner "
+                             "to invite you", 403)
         workroom.add_member(db, room_id, ident["fm_id"])
     try:
         note_id = workroom.add_note(db, room_id, ident["fm_id"],
@@ -6613,6 +6953,449 @@ def api_workroom_note():
     return jsonify({"ok": True, "note_id": note_id,
                     "room_url": url_for("workroom_page", room_id=room_id,
                                         _external=True)})
+
+
+@app.route("/api/workroom/knock", methods=["POST"])
+def api_workroom_knock():
+    """Signed. A muse knocks on a closed room (title is public, content
+    is locked). The owner approves or declines from the room page."""
+    hit = check_limit("wr_api", 60)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        ident = verify_signed_body(data, db, expected_action="workroom_knock")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        room_id = int(data.get("workroom_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad workroom_id")
+    try:
+        knock_id = workroom.knock(db, room_id, ident["fm_id"],
+                                  ident["handle"], _fs(data, "message"))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "knock_id": knock_id,
+                    "room_url": url_for("workroom_page", room_id=room_id,
+                                        _external=True)})
+
+
+# -------------------------------- workroom pilot API (test scaffolding)
+# Phase-2 task/claim/update surface for the HF-agent pilot. Auth: per-agent
+# bearer keys (minted at runtime via workroom.issue_pilot_key; only SHA-256
+# hashes are stored) OR an existing human web session. Task reads are
+# public. Every mutation is logged with timestamp + actor handle (never the
+# key). Test scaffolding: no web UI, no money, no side effects.
+pilot_log = logging.getLogger("workroom_pilot")
+
+
+def _pilot_who():
+    """Resolve the caller to {'handle','fm_id','actor_key'} or (None, error).
+    actor_key is the stable per-caller identity used for claim ownership
+    and per-key rate limiting: the bearer key's hash, or session:<fm_id>
+    for human web sessions."""
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        raw = auth[7:].strip()
+        who = workroom.check_pilot_key(db, raw) if raw else None
+        if not who:
+            return None, "bad or unknown pilot key"
+        who["actor_key"] = "k:" + who["key_hash"]
+        return who, None
+    ident = current_session_identity()
+    if ident:
+        return ({"handle": ident["handle"], "fm_id": ident["fm_id"],
+                 "actor_key": "session:" + ident["fm_id"]}, None)
+    return (None, "pilot auth required: Bearer key or login session")
+
+
+def _pilot_authed():
+    who, err = _pilot_who()
+    if err:
+        return None, api_error(err, 401)
+    return who, None
+
+
+def _pilot_limit(who):
+    """Per-key rate limiting: one agent can't eat another's budget.
+    check_limit is per (bucket, IP); the bucket carries the caller."""
+    if who and who.get("actor_key", "").startswith("k:"):
+        bucket = "wr_pilot_k_" + who["actor_key"][2:18]
+    elif who and who.get("actor_key", "").startswith("session:"):
+        bucket = "wr_pilot_s_" + re.sub(
+            r"[^a-z0-9_.-]", "", who["actor_key"][8:40].lower())
+    else:
+        bucket = "wr_pilot_anon"
+    return check_limit(bucket, 120)
+
+
+def _pilot_who_optional():
+    """Best-effort identity for public reads; never errors."""
+    try:
+        who, _ = _pilot_who()
+    except Exception:
+        who = None
+    return who
+
+
+@app.route("/api/workroom/tasks", methods=["POST"])
+def api_pilot_tasks_create():
+    """Create a task: {title, description, difficulty 1-5}."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        difficulty = data.get("difficulty", 1)
+        task_id = workroom.create_task(
+            db, _fs(data, "title"), _fs(data, "description"),
+            difficulty, who["fm_id"], who["handle"])
+    except ValueError as e:
+        return api_error(str(e))
+    pilot_log.info("pilot task_created id=%s actor=%s", task_id, who["handle"])
+    return jsonify({"ok": True, "task_id": task_id})
+
+
+@app.route("/api/workroom/tasks")
+def api_pilot_tasks_list():
+    """List tasks (public). Optional ?status=open|claimed|abandoned|done."""
+    hit = _pilot_limit(_pilot_who_optional())
+    if hit:
+        return hit
+    status = (request.args.get("status") or "").strip() or None
+    try:
+        tasks = workroom.list_tasks(db, status=status)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "tasks": tasks})
+
+
+@app.route("/api/workroom/tasks/claim", methods=["POST"])
+def api_pilot_tasks_claim():
+    """Claim an open task: {task_id, lease_seconds?}. Sets claimed_by +
+    a lease expiry; expired leases auto-return to the queue."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        task_id = int(data.get("task_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad task_id")
+    try:
+        expires = workroom.claim_task(
+            db, task_id, who["fm_id"], who["handle"],
+            data.get("lease_seconds", workroom.PILOT_LEASE_DEFAULT),
+            actor_key=who["actor_key"])
+    except ValueError as e:
+        return api_error(str(e))
+    pilot_log.info("pilot task_claimed id=%s actor=%s expires=%s",
+                   task_id, who["handle"], expires)
+    return jsonify({"ok": True, "task_id": task_id,
+                    "lease_expires_at": expires})
+
+
+@app.route("/api/workroom/updates", methods=["POST"])
+def api_pilot_updates_post():
+    """Post a progress update on a task: {task_id, text}. Appended to the
+    task's permanent history."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        task_id = int(data.get("task_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad task_id")
+    try:
+        workroom.post_update(db, task_id, who["fm_id"], who["handle"],
+                             _fs(data, "text"))
+    except ValueError as e:
+        return api_error(str(e))
+    pilot_log.info("pilot task_update id=%s actor=%s", task_id, who["handle"])
+    return jsonify({"ok": True, "task_id": task_id})
+
+
+@app.route("/api/workroom/tasks/abandon", methods=["POST"])
+def api_pilot_tasks_abandon():
+    """Abandon a task: {task_id, reason?}. The ABANDONED tag stays on the
+    permanent record; the task returns to the open queue."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        task_id = int(data.get("task_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad task_id")
+    try:
+        workroom.abandon_task(db, task_id, who["fm_id"], who["handle"],
+                              _fs(data, "reason"))
+    except ValueError as e:
+        return api_error(str(e))
+    pilot_log.info("pilot task_abandoned id=%s actor=%s", task_id,
+                   who["handle"])
+    return jsonify({"ok": True, "task_id": task_id,
+                    "status": "open"})
+
+
+@app.route("/api/workroom/tasks/done", methods=["POST"])
+def api_pilot_tasks_done():
+    """Mark a claimed task done: {task_id, result?}. Only the agent holding
+    the claim lease may complete it. Done is terminal."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        task_id = int(data.get("task_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad task_id")
+    try:
+        workroom.complete_task(db, task_id, who["fm_id"], who["handle"],
+                               actor_key=who["actor_key"],
+                               result=_fs(data, "result"))
+    except ValueError as e:
+        return api_error(str(e))
+    pilot_log.info("pilot task_done id=%s actor=%s", task_id, who["handle"])
+    return jsonify({"ok": True, "task_id": task_id, "status": "done"})
+
+
+# ----------------------------------- agentic memory API (pilot)
+# Persistent cross-task memory for pilot agents: store / recall / update /
+# forget / decay. Auth: per-agent Bearer <redacted> or human session (same as
+# the pilot task surface). Scoping: a pilot key for handle H may read and
+# write owner H and the "shared" namespace; human sessions may touch any
+# owner. Every mutation is audit-logged in agent_memory_events.
+memory_log = logging.getLogger("agent_memory")
+
+
+def _memory_scope_ok(who, owner):
+    """True if the caller may read/write the given memory owner."""
+    if who.get("actor_key", "").startswith("session:"):
+        return True  # humans: full access
+    handle = (who.get("handle") or "").lower()
+    return owner in (handle, agent_memory.SHARED)
+
+
+def _memory_authed_owner(data_owner):
+    """Authenticate and scope-check one memory owner. Returns
+    (who, owner, error_response)."""
+    who, err = _pilot_authed()
+    if err:
+        return None, None, err
+    hit = _pilot_limit(who)
+    if hit:
+        return None, None, hit
+    try:
+        owner = agent_memory._clean_owner(data_owner)
+    except ValueError as e:
+        return None, None, api_error(str(e))
+    if not _memory_scope_ok(who, owner):
+        return None, None, api_error(
+            "cannot access another agent's memory namespace", 403)
+    return who, owner, None
+
+
+@app.route("/api/agent-memory/store", methods=["POST"])
+def api_agent_memory_store():
+    """Upsert a memory: {owner, kind, key, value, confidence?}."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    who, owner, err = _memory_authed_owner(data.get("owner"))
+    if err:
+        return err
+    try:
+        mem = agent_memory.store_memory(
+            db, owner, data.get("kind"), data.get("key"),
+            _fs(data, "value"), data.get("confidence"))
+    except ValueError as e:
+        return api_error(str(e))
+    memory_log.info("memory store owner=%s key=%s actor=%s",
+                    owner, mem["key"], who["handle"])
+    return jsonify({"ok": True, "memory": mem})
+
+
+@app.route("/api/agent-memory/recall")
+def api_agent_memory_recall():
+    """Keyword recall: ?owner=&q=&kind=&limit= (default 20, max 100)."""
+    who, owner, err = _memory_authed_owner(request.args.get("owner", ""))
+    if err:
+        return err
+    try:
+        mems = agent_memory.recall_memories(
+            db, owner, q=request.args.get("q", ""),
+            kind=request.args.get("kind") or None,
+            limit=request.args.get("limit", 20))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "owner": owner, "memories": mems})
+
+
+@app.route("/api/agent-memory/update", methods=["PATCH"])
+def api_agent_memory_update():
+    """Update an existing memory: {owner, key, value?, confidence?, kind?}."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    who, owner, err = _memory_authed_owner(data.get("owner"))
+    if err:
+        return err
+    try:
+        mem = agent_memory.update_memory(
+            db, owner, data.get("key"), value=data.get("value"),
+            confidence=data.get("confidence"), kind=data.get("kind"))
+    except ValueError as e:
+        return api_error(str(e))
+    except LookupError as e:
+        return api_error(str(e), 404)
+    memory_log.info("memory update owner=%s key=%s actor=%s",
+                    owner, mem["key"], who["handle"])
+    return jsonify({"ok": True, "memory": mem})
+
+
+@app.route("/api/agent-memory/forget", methods=["DELETE"])
+def api_agent_memory_forget():
+    """Delete one memory: {owner, key}."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    who, owner, err = _memory_authed_owner(data.get("owner"))
+    if err:
+        return err
+    try:
+        agent_memory.forget_memory(db, owner, data.get("key"))
+    except ValueError as e:
+        return api_error(str(e))
+    except LookupError as e:
+        return api_error(str(e), 404)
+    memory_log.info("memory forget owner=%s key=%s actor=%s",
+                    owner, data.get("key"), who["handle"])
+    return jsonify({"ok": True})
+
+
+@app.route("/api/agent-memory/list")
+def api_agent_memory_list():
+    """Dump a namespace: ?owner=&kind=&limit= (default 50, max 200)."""
+    who, owner, err = _memory_authed_owner(request.args.get("owner", ""))
+    if err:
+        return err
+    try:
+        mems = agent_memory.list_memories(
+            db, owner, kind=request.args.get("kind") or None,
+            limit=request.args.get("limit", 50))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "owner": owner, "memories": mems})
+
+
+@app.route("/api/agent-memory/decay", methods=["POST"])
+def api_agent_memory_decay():
+    """Prune stale low-confidence memories:
+    {owner, older_than_days?=90, below_confidence?=0.4}."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    who, owner, err = _memory_authed_owner(data.get("owner"))
+    if err:
+        return err
+    try:
+        n = agent_memory.decay_memories(
+            db, owner,
+            older_than_days=data.get("older_than_days", 90),
+            below_confidence=data.get("below_confidence", 0.4))
+    except ValueError as e:
+        return api_error(str(e))
+    memory_log.info("memory decay owner=%s pruned=%s actor=%s",
+                    owner, n, who["handle"])
+    return jsonify({"ok": True, "pruned": n})
+
+
+# ------------------------------------------------------- pilot web UI
+# Human-readable task queue for the HF-agent pilot: public to view,
+# humans create tasks through session auth + CSRF. Agent activity comes
+# from the same pilot_task_history the API writes (audit trail intact).
+@app.route("/workroom/pilot")
+def workroom_pilot_queue():
+    sess = current_session_identity()
+    tasks = workroom.list_tasks(db)
+    cols = {"open": [], "claimed": [], "done": [], "abandoned": []}
+    # abandoned tasks return to "open" status with abandon_count > 0 and an
+    # ABANDONED history tag; surface them in their own column.
+    for t in tasks:
+        if t["status"] == "open" and t["abandon_count"] > 0:
+            cols["abandoned"].append(t)
+        else:
+            cols.setdefault(t["status"], cols["open"]).append(t)
+    flash_msg, flash_err = _wr_pop_flash()
+    return render_template(
+        "workroom_pilot.html", cols=cols,
+        activity=workroom.recent_pilot_activity(db, 20),
+        is_human=bool(sess), flash_msg=flash_msg, flash_err=flash_err)
+
+
+@app.route("/workroom/pilot/tasks", methods=["POST"])
+def workroom_pilot_task_create():
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        _wr_flash("bad form token — reload and try again", err=True)
+        return redirect("/workroom/pilot")
+    msg = rate_limit_message("wr_pilot_web", 30)
+    if msg:
+        _wr_flash(msg, err=True)
+        return redirect("/workroom/pilot")
+    try:
+        task_id = workroom.create_task(
+            db, (request.form.get("title") or "").strip(),
+            (request.form.get("description") or "").strip(),
+            request.form.get("difficulty", 1),
+            ident["fm_id"], ident["handle"])
+    except ValueError as e:
+        _wr_flash(str(e), err=True)
+        return redirect("/workroom/pilot")
+    pilot_log.info("pilot task_created id=%s actor=%s (web)",
+                   task_id, ident["handle"])
+    _wr_flash(f"task #{task_id} posted to the queue")
+    return redirect(f"/workroom/pilot/tasks/{task_id}")
+
+
+@app.route("/workroom/pilot/tasks/<int:task_id>")
+def workroom_pilot_task_detail(task_id):
+    t = workroom.get_task(db, task_id)
+    if not t:
+        return render_template("404.html"), 404
+    return render_template("workroom_pilot_task.html", t=t)
 
 
 # ------------------------------------------------------- keyless reads
