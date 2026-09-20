@@ -584,21 +584,23 @@
     }
 
     // distant rooftop silhouettes for parallax depth (drawn before the shops).
-    // Kept low, short, and hazy: they should peek through gaps and sit just
-    // under the shop rooflines, never read as duplicate buildings.
+    // CYCLE5: flat rectangles in a bright sky always read as glitchy bands,
+    // never as rooftops (proven by sky-only render) — so the distant layer now
+    // draws ONLY at night, where it is a near-invisible dark haze (approved
+    // look). Day/dusk/dawn get a clean sky; depth comes from the buildings,
+    // festoons, chimneys, and smoke instead.
     function drawDistant(t) {
-      var col = phase === 'night' ? '#141f38' : (phase === 'day' ? '#bcd7f0' : '#8b77a9');
-      var roofC = phase === 'night' ? '#0d1529' : (phase === 'day' ? '#a9c7e7' : '#756491');
+      if (phase !== 'night') return;
       ctx.globalAlpha = 0.5;
       for (var k = 0; k < 8; k++) {
-        var bx = k * 170 - 40 + Math.sin(t * 0.1 + k * 1.3) * 2;
-        var bw = 130, bh = 34 + ((k * 53) % 26);
-        var by = 208 - bh;
-        ctx.fillStyle = col; ctx.fillRect(Math.round(bx), by, bw, bh);
-        ctx.fillStyle = roofC; ctx.fillRect(Math.round(bx) - 6, by - 10, bw + 12, 10);
+        var nbx = k * 170 - 40 + Math.sin(t * 0.1 + k * 1.3) * 2;
+        var nbw = 130, nbh = 34 + ((k * 53) % 26);
+        var nby = 208 - nbh;
+        ctx.fillStyle = '#141f38'; ctx.fillRect(Math.round(nbx), nby, nbw, nbh);
+        ctx.fillStyle = '#0d1529'; ctx.fillRect(Math.round(nbx) - 6, nby - 10, nbw + 12, 10);
         if (PHASES[phase].lamps && k % 2 === 0) {
           ctx.fillStyle = 'rgba(255,233,163,0.30)';
-          ctx.fillRect(Math.round(bx) + 20 + (k * 37) % 60, by + 14, 8, 10);
+          ctx.fillRect(Math.round(nbx) + 20 + (k * 37) % 60, nby + 14, 8, 10);
         }
       }
       ctx.globalAlpha = 1;
