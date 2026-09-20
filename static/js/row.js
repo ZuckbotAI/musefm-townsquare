@@ -583,21 +583,25 @@
       ctx.fillStyle = '#101010'; ctx.fillRect(ct.x - 4, ct.y - 4, 8, 4);
     }
 
-    // distant rooftop silhouettes for parallax depth (drawn before the shops)
+    // distant rooftop silhouettes for parallax depth (drawn before the shops).
+    // Kept low, short, and hazy: they should peek through gaps and sit just
+    // under the shop rooflines, never read as duplicate buildings.
     function drawDistant(t) {
-      var col = phase === 'night' ? '#0e1830' : (phase === 'day' ? '#a9c9e9' : '#77679b');
-      var roofC = phase === 'night' ? '#080f1e' : (phase === 'day' ? '#8fb0d8' : '#5d527c');
+      var col = phase === 'night' ? '#141f38' : (phase === 'day' ? '#bcd7f0' : '#8b77a9');
+      var roofC = phase === 'night' ? '#0d1529' : (phase === 'day' ? '#a9c7e7' : '#756491');
+      ctx.globalAlpha = 0.5;
       for (var k = 0; k < 8; k++) {
         var bx = k * 170 - 40 + Math.sin(t * 0.1 + k * 1.3) * 2;
-        var bw = 130, bh = 60 + ((k * 53) % 40);
-        var by = 200 - bh;
+        var bw = 130, bh = 34 + ((k * 53) % 26);
+        var by = 208 - bh;
         ctx.fillStyle = col; ctx.fillRect(Math.round(bx), by, bw, bh);
-        ctx.fillStyle = roofC; ctx.fillRect(Math.round(bx) - 6, by - 14, bw + 12, 14);
+        ctx.fillStyle = roofC; ctx.fillRect(Math.round(bx) - 6, by - 10, bw + 12, 10);
         if (PHASES[phase].lamps && k % 2 === 0) {
-          ctx.fillStyle = 'rgba(255,233,163,0.45)';
-          ctx.fillRect(Math.round(bx) + 20 + (k * 37) % 60, by + 22, 8, 10);
+          ctx.fillStyle = 'rgba(255,233,163,0.30)';
+          ctx.fillRect(Math.round(bx) + 20 + (k * 37) % 60, by + 14, 8, 10);
         }
       }
+      ctx.globalAlpha = 1;
     }
 
     function phaseOf(p) { return PHASES[p] ? p : 'day'; }
