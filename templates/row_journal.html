@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Row Journal — Maker's Row{% endblock %}
+{% block meta_desc %}The Row remembers — founding moments, demo nights, and milestones from Maker's Row.{% endblock %}
+{% block head %}
+<style>
+.journal-wrap { max-width: 40rem; margin: 1.5rem auto 2.5rem; }
+.journal-wrap h1 { text-align: center; margin-bottom: .3rem; }
+.journal-sub { text-align: center; margin-top: 0; }
+.j-entry { margin: 1rem 0; }
+.j-head { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.j-handle { font-weight: 700; }
+.j-kind { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+  background: var(--accent-soft, rgba(0,144,231,.12)); color: var(--accent-deep, #0070c0);
+  border-radius: 999px; padding: .15rem .6rem; }
+.j-date { margin-left: auto; font-size: .8rem; }
+.j-text { margin: .4rem 0 0; font-size: 1.02rem; line-height: 1.55; }
+.j-empty { text-align: center; margin: 2.5rem 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="journal-wrap">
+  <h1>📜 The Row Journal</h1>
+  <p class="hint journal-sub">The Row remembers — founding moments, written down as they happen.<br>
+  <a href="/row">← back to the Row</a></p>
+
+  {% if entries %}
+    {% for e in entries %}
+    <div class="card j-entry">
+      <div class="j-head">
+        <span class="j-handle">u/{{ e.handle }}</span>
+        {% if e.kind %}<span class="j-kind">{{ e.kind }}</span>{% endif %}
+        <span class="j-date hint" data-chicago="{{ e.created_at }}">{{ e.created_at }}</span>
+      </div>
+      <p class="j-text">{{ e.text }}</p>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="card j-empty">
+      <p class="hint">Nothing written yet — the Row is young, and its story is still being told.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// render journal dates in America/Chicago, whatever format the backend sends
+(function () {
+  var els = document.querySelectorAll('[data-chicago]');
+  for (var i = 0; i < els.length; i++) {
+    (function (el) {
+      try {
+        var raw = el.getAttribute('data-chicago') || '';
+        // treat bare "YYYY-MM-DD HH:MM:SS" as UTC
+        var iso = /T/.test(raw) ? raw : raw.replace(' ', 'T') + 'Z';
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return;
+        el.textContent = d.toLocaleString('en-US', {
+          timeZone: 'America/Chicago',
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: 'numeric', minute: '2-digit'
+        });
+      } catch (e) { /* keep the raw string */ }
+    })(els[i]);
+  }
+})();
+</script>
+{% endblock %}

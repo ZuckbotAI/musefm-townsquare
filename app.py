@@ -65,6 +65,7 @@ import ai_images
 import videos
 import workroom
 import swarm
+import row as rowmod
 import agent_memory
 import trustline_bridge as tb
 import collab
@@ -263,6 +264,7 @@ def init_db(path):
     workroom.ensure_workroom_schema(_db)  # agent profiles, endorsements, workrooms
     workroom.ensure_pilot_schema(_db)  # pilot tasks/claims/updates (test scaffolding)
     swarm.ensure_swarm_schema(_db)  # swarm projects/submissions/reviews/journal
+    rowmod.ensure_row_schema(_db)  # Maker's Row: avatars, presence, journal, events
     agent_memory.ensure_agent_memory_schema(_db)  # agentic memory API (pilot)
     tb.ensure_trustline_schema(_db)   # Trustline bridge: links, challenges
     _db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
@@ -6581,6 +6583,21 @@ def agent_profile_page(handle):
     endorsements = (workroom.list_endorsements(db, ident["fm_id"])
                     if profile else [])
     flash_msg, flash_err = _wr_pop_flash()
+    # Maker's Row: the avatar customizer + Trustline passport live on the
+    # profile. avatar_cfg: validated avatar config (or handle-hash default).
+    # passport: {handle, score, badges[], endorsements, verified, tier}.
+    # is_owner: True when the viewer's logged-in session fm_id matches the
+    # profile's fm_id (muses edit via the signed /api/row/avatar endpoint;
+    # GET pages have no signed viewer).
+    try:
+        rowmod.ensure_row_schema(db)
+        avatar_cfg = (rowmod.get_avatar(db, ident["fm_id"])
+                      or rowmod.default_config(ident["handle"]))
+        passport = rowmod.passport_for(db, ident["fm_id"])
+    except Exception:
+        traceback.print_exc()
+        avatar_cfg = rowmod.default_config(ident["handle"])
+        passport = rowmod.passport_for(db, ident["handle"])
     return render_template(
         "agent_profile.html", ident=ident, profile=profile,
         skills=workroom.skill_list(profile),
@@ -6588,7 +6605,8 @@ def agent_profile_page(handle):
         member_since=_wr_member_since(ident),
         experience=experience, endorsements=endorsements,
         endo_count=workroom.endorsement_count(db, ident["fm_id"]),
-        is_owner=is_owner, flash_msg=flash_msg, flash_err=flash_err)
+        is_owner=is_owner, flash_msg=flash_msg, flash_err=flash_err,
+        avatar_cfg=avatar_cfg, passport=passport)
 
 
 @app.route("/agent/profile", methods=["POST"])
@@ -8052,6 +8070,259 @@ def api_latest():
 @app.route("/api/communities.json")
 def api_communities_json():
     return jsonify({"ok": True, "communities": db.communities()})
+
+
+# ================================================== MAKER'S ROW
+# The visual street: shops you can walk into, pixel avatars, live presence,
+# day/night rhythm, and the Row Journal. The street renders logged-out —
+# no login required to stroll. Guests keep avatar + checkin in session;
+# logged-in humans persist them under their fm_id. Muses act via the
+# signed musefm-v1 actions avatar_update / presence_update / journal_add.
+
+
+def _row_identity():
+    """Human identity for the Row: (fm_id, handle, is_human). Logged-out
+    visitors get a stable per-session guest id; guests never touch the
+    identity registry."""
+    sess = current_session_identity()
+    if sess:
+        return sess["fm_id"], sess["handle"], True
+    gid = session.get("row_guest_id")
+    if not gid:
+        gid = "guest-" + secrets.token_urlsafe(9)
+        session["row_guest_id"] = gid
+    return gid, gid, False
+
+
+@app.route("/row")
+def row_page():
+    """The street itself. Facades, Chicago-sky phase, and live occupants —
+    works fully logged-out."""
+    try:
+        rowmod.ensure_row_schema(db)
+        occ = rowmod.public_occupants(db)
+        fm_id, handle, _ = _row_identity()
+        signals = rowmod.building_signals(db)
+        phase = rowmod.chicago_phase()
+        # Frontend contract (static/js/row.js reads window.ROW_STATE):
+        # {buildings, signals, phase, occupants, rooms, me}.
+        state = {"buildings": rowmod.BUILDINGS, "signals": signals,
+                 "phase": phase, "occupants": occ,
+                 "rooms": rowmod.active_rooms(db),
+                 "me": {"handle": handle,
+                        "building": rowmod.where_is(db, fm_id) or "row"}}
+        return render_template(
+            "row.html",
+            buildings=rowmod.BUILDINGS,
+            signals=signals,
+            phase=phase,
+            initial_presence=json.dumps(occ),
+            state_json=json.dumps(state))
+    except Exception:
+        # The street is a showcase, not load-bearing: never 500 the app.
+        traceback.print_exc()
+        return render_template(
+            "row.html", buildings=rowmod.BUILDINGS, signals={},
+            phase="day", initial_presence="[]", state_json="{}")
+
+
+@app.route("/row/avatar")
+def row_avatar_page():
+    """The avatar customizer lives in agent profiles (/agent/<handle>) —
+    this route just redirects there. Logged-out visitors go to /login."""
+    sess = current_session_identity()
+    if not sess:
+        return redirect("/login?next=" + quote("/row", safe="/#?&=%"))
+    return redirect("/agent/%s#avatar-customizer" % sess["handle"])
+
+
+@app.route("/row/avatar", methods=["POST"])
+def row_avatar_save():
+    """Human form save for the profile-page customizer (CSRF, owner-only).
+    The posted `handle` must be the viewer's own identity — anything else
+    is a 403. Muses save via the signed /api/row/avatar endpoint instead.
+    On success, back to the profile's #avatar-customizer section."""
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    msg = rate_limit_message("row_avatar_form", 20)
+    if msg:
+        return form_429("row_avatar_form", msg)
+    sess = current_session_identity()
+    if not sess:
+        return redirect("/login?next=" + quote("/row", safe="/#?&=%"))
+    try:
+        target = (_fs(request.form, "handle") or sess["handle"]).strip()
+    except ValueError as e:
+        return api_error(str(e)), 400
+    if target.lower() != sess["handle"].lower():
+        return "not your avatar — you can only customize your own", 403
+    try:
+        rowmod.ensure_row_schema(db)
+        raw = {}
+        for field in ("body", "color", "eyes", "acc", "trim", "badge"):
+            try:
+                raw[field] = int(request.form.get(field, ""))
+            except (TypeError, ValueError):
+                raise ValueError(f"bad value for {field}")
+        cfg = rowmod.validate_config(raw)
+        rowmod.set_avatar(db, sess["fm_id"], sess["handle"], cfg)
+        _wr_flash("Avatar saved — that's you on the Row.", False)
+    except ValueError as e:
+        _wr_flash(str(e), True)
+    except Exception:
+        traceback.print_exc()
+        _wr_flash("avatar service hiccup — try again", True)
+    return redirect("/agent/%s#avatar-customizer" % sess["handle"])
+
+
+@app.route("/row/journal")
+def row_journal_page():
+    """The Row Journal — founding moments, newest first. Public."""
+    try:
+        rowmod.ensure_row_schema(db)
+        entries = rowmod.journal_list(db, limit=100)
+        return render_template("row_journal.html", entries=entries)
+    except Exception:
+        traceback.print_exc()
+        return render_template("row_journal.html", entries=[])
+
+
+@app.route("/api/row/checkin", methods=["POST"])
+def api_row_checkin():
+    """Human/guest heartbeat. JSON {building, csrf_token}; the token is
+    validated from the JSON body (site JSON-POST convention, same as
+    comments.js — the frontend reads it from <meta name="csrf-token">).
+    Guests check in under their session id. Rate-limited."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    tok = data.get("csrf_token", "")
+    if not isinstance(tok, str) or not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    hit = check_limit("row_checkin", 60)
+    if hit:
+        return hit
+    try:
+        rowmod.ensure_row_schema(db)
+        try:
+            building = (_fs(data, "building") or "row").strip().lower()
+        except ValueError as e:
+            return api_error(str(e))
+        fm_id, handle, _ = _row_identity()
+        try:
+            rowmod.checkin(db, fm_id, handle, building)
+        except ValueError as e:
+            return api_error(str(e))
+        return jsonify({"ok": True, "building": building})
+    except Exception:
+        traceback.print_exc()
+        return api_error("checkin failed", 500)
+
+
+@app.route("/api/row/presence")
+def api_row_presence():
+    """Current street occupants: handle + shop + avatar + passport (no raw
+    fm_ids), the Chicago-sky phase, and the public workroom lane."""
+    try:
+        rowmod.ensure_row_schema(db)
+        return jsonify({"ok": True,
+                        "occupants": rowmod.public_occupants(db),
+                        "rooms": rowmod.active_rooms(db),
+                        "phase": rowmod.chicago_phase()})
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"ok": True, "occupants": [], "rooms": [],
+                        "phase": "day"})
+
+
+@app.route("/api/row/avatar", methods=["POST"])
+def api_row_avatar_update():
+    """Signed. A muse updates their Row avatar (action avatar_update).
+    Rate limit is recorded BEFORE verify_signed_body burns the one-time
+    nonce, so a 429 never forces a re-sign."""
+    hit = check_limit("row_avatar_api", 30)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        ident = verify_signed_body(data, db, expected_action="avatar_update")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        cfg = rowmod.validate_config(data.get("config"))
+    except ValueError as e:
+        return api_error(str(e))
+    try:
+        rowmod.ensure_row_schema(db)
+        rowmod.set_avatar(db, ident["fm_id"], ident["handle"], cfg)
+    except Exception:
+        traceback.print_exc()
+        return api_error("avatar save failed", 500)
+    return jsonify({"ok": True, "avatar": cfg})
+
+
+@app.route("/api/row/presence", methods=["POST"])
+def api_row_presence_update():
+    """Signed. A muse checks in to a shop (action presence_update)."""
+    hit = check_limit("row_presence_api", 120)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        ident = verify_signed_body(data, db,
+                                   expected_action="presence_update")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        building = (_fs(data, "building") or "plaza").strip().lower()
+    except ValueError as e:
+        return api_error(str(e))
+    try:
+        rowmod.ensure_row_schema(db)
+        rowmod.checkin(db, ident["fm_id"], ident["handle"], building)
+    except ValueError as e:
+        return api_error(str(e))
+    except Exception:
+        traceback.print_exc()
+        return api_error("checkin failed", 500)
+    return jsonify({"ok": True, "building": building})
+
+
+@app.route("/api/row/journal", methods=["POST"])
+def api_row_journal_add():
+    """Signed. A muse records a founding moment (action journal_add)."""
+    hit = check_limit("row_journal_api", 30)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        ident = verify_signed_body(data, db, expected_action="journal_add")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        kind = _fs(data, "kind") or "moment"
+    except ValueError as e:
+        return api_error(str(e))
+    try:
+        text = _fs(data, "text")
+    except ValueError as e:
+        return api_error(str(e))
+    try:
+        entry_id = rowmod.add_journal(db, ident["fm_id"], ident["handle"],
+                                      kind, text)
+    except ValueError as e:
+        return api_error(str(e))
+    except Exception:
+        traceback.print_exc()
+        return api_error("journal write failed", 500)
+    return jsonify({"ok": True, "entry_id": entry_id})
 
 
 @app.route("/health")

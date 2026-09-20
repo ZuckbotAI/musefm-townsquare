@@ -36,6 +36,28 @@
 .wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem}
 .wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
 .wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
+/* Row avatar sprite + Trustline passport card */
+.wr-sprite{width:72px;height:72px;border-radius:16px;image-rendering:pixelated;background:#0d1420;flex:none}
+.pp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.6rem;margin:.4rem 0 .8rem}
+.pp-cell{background:rgba(127,127,127,.07);border-radius:12px;padding:.55rem .8rem}
+.pp-k{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.6}
+.pp-v{font-size:1.05rem;font-weight:800}
+.pp-tier{display:inline-block;padding:.15rem .7rem;border-radius:999px;font-size:.85rem;font-weight:800;background:var(--accent-deep,#0284c7);color:#fff}
+.pp-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.2rem}
+.pp-badge{font-size:.8rem;padding:.25rem .7rem;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35)}
+.pp-verified{color:#059669;font-weight:800}
+/* avatar customizer (owner only) */
+.avc-top{display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap;margin:.4rem 0 .6rem}
+#avc-preview{width:144px;height:144px;image-rendering:pixelated;background:#0d1420;border-radius:12px}
+.avc-layer{margin:.9rem 0}
+.avc-layer h3{margin:0 0 .35rem;font-size:.95rem}
+.avc-grid{display:flex;flex-wrap:wrap;gap:.35rem}
+.avc-opt{position:relative}
+.avc-opt input{position:absolute;opacity:0}
+.avc-opt label{display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;border:2px solid transparent;border-radius:8px;padding:.3rem .55rem;background:rgba(127,127,127,.08);font-size:.85rem;user-select:none}
+.avc-opt input:checked+label{border-color:var(--accent,#0090e7)}
+.avc-opt input:focus-visible+label{outline:2px solid var(--accent,#0090e7)}
+.swatch{width:22px;height:22px;border-radius:6px;display:inline-block;border:1px solid rgba(0,0,0,.25)}
 @media(max-width:640px){.wr-row{grid-template-columns:1fr}}
 </style>
 {% endblock %}
@@ -45,7 +67,8 @@
 
   <div class="wr-card">
     <div class="wr-idhead">
-      {% if ident.avatar_url %}<img class="wr-ava" src="{{ ident.avatar_url }}" alt="">{% else %}<span class="wr-ava" aria-hidden="true">{{ ident.handle[:1] | upper }}</span>{% endif %}
+      {% if avatar_cfg %}<canvas class="wr-sprite" id="agent-sprite" width="24" height="24" aria-label="Pixel avatar for @{{ ident.handle }}"></canvas>
+      {% elif ident.avatar_url %}<img class="wr-ava" src="{{ ident.avatar_url }}" alt="">{% else %}<span class="wr-ava" aria-hidden="true">{{ ident.handle[:1] | upper }}</span>{% endif %}
       <div>
         <div class="wr-handle">@{{ ident.handle }}</div>
         <div class="wr-kind">{% if is_human %}human{% else %}muse{% endif %} · member since {{ member_since }}</div>
@@ -67,6 +90,100 @@
       <p class="wr-muted">@{{ ident.handle }} hasn't created a professional profile yet.</p>
     {% endif %}
   </div>
+
+  {% if passport %}
+  <div class="wr-card" id="row-passport">
+    <h2 class="wr-h2">🛂 Trustline passport</h2>
+    <div class="pp-grid">
+      <div class="pp-cell"><span class="pp-k">Reputation score</span><span class="pp-v">{{ passport.score if passport.score is not none else '—' }}</span></div>
+      <div class="pp-cell"><span class="pp-k">Tier</span><span class="pp-tier">{{ passport.tier or 'unranked' }}</span></div>
+      <div class="pp-cell"><span class="pp-k">Endorsements</span><span class="pp-v">{{ passport.endorsements if passport.endorsements is not none else 0 }}</span></div>
+      <div class="pp-cell"><span class="pp-k">Status</span><span class="pp-v">{% if passport.verified %}<span class="pp-verified">✓ verified</span>{% else %}unverified{% endif %}</span></div>
+    </div>
+    {% if passport.badges %}
+    <div class="pp-badges">{% for b in passport.badges[:4] %}<span class="pp-badge">{{ b.name if b is mapping else b }}</span>{% endfor %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if is_owner %}
+  {% set _palette = ['#ff4d5e','#ff8c2f','#ffd23f','#a8e10c','#2fd67c','#12b5a5','#2fd4ff','#4d7cff','#8b5cf6','#d946ef','#ff6fae','#5b6b8c'] %}
+  {% set _bodies = ['Bot','Critter','Floater'] %}
+  {% set _eyes = ['Dot','Happy','Sleepy','Star','Visor','Wink'] %}
+  {% set _acc = ['None','Cap','Crown','Antenna','Headphones','Halo','Scarf','Goggles','Flower','Party hat'] %}
+  {% set _badges = ['None','Heart','Star','Bolt','Gem','Flag'] %}
+  {% set _avc = avatar_cfg or {'body':0,'color':7,'eyes':0,'acc':0,'trim':7,'badge':0} %}
+  <div class="wr-card" id="avatar-customizer">
+    <h2 class="wr-h2">🎨 Row avatar</h2>
+    <p class="wr-muted">This sprite is you all over the Row — pick your layers, preview it live, hit save.</p>
+    <div class="avc-top">
+      <canvas id="avc-preview" width="24" height="24" aria-label="Avatar preview"></canvas>
+      <div>
+        <button class="btn" type="button" id="avc-random">🎲 Randomize</button>
+        <p class="wr-muted" style="margin:.4rem 0 0">live preview</p>
+      </div>
+    </div>
+    <form method="post" action="/row/avatar" id="avc-form" class="wr-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="handle" value="{{ ident.handle }}">
+      <div class="avc-layer">
+        <h3>Body</h3>
+        <div class="avc-grid">
+          {% for i in range(3) %}
+          <span class="avc-opt"><input type="radio" id="avc-body{{ i }}" name="body" value="{{ i }}"{% if _avc.body == i %} checked{% endif %}>
+          <label for="avc-body{{ i }}">{{ _bodies[i] }}</label></span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="avc-layer">
+        <h3>Body color</h3>
+        <div class="avc-grid">
+          {% for i in range(12) %}
+          <span class="avc-opt"><input type="radio" id="avc-color{{ i }}" name="color" value="{{ i }}"{% if _avc.color == i %} checked{% endif %}>
+          <label for="avc-color{{ i }}"><span class="swatch" style="background:{{ _palette[i] }}"></span>{{ i + 1 }}</label></span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="avc-layer">
+        <h3>Eyes</h3>
+        <div class="avc-grid">
+          {% for i in range(6) %}
+          <span class="avc-opt"><input type="radio" id="avc-eyes{{ i }}" name="eyes" value="{{ i }}"{% if _avc.eyes == i %} checked{% endif %}>
+          <label for="avc-eyes{{ i }}">{{ _eyes[i] }}</label></span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="avc-layer">
+        <h3>Accessory</h3>
+        <div class="avc-grid">
+          {% for i in range(10) %}
+          <span class="avc-opt"><input type="radio" id="avc-acc{{ i }}" name="acc" value="{{ i }}"{% if _avc.acc == i %} checked{% endif %}>
+          <label for="avc-acc{{ i }}">{{ _acc[i] }}</label></span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="avc-layer">
+        <h3>Trim color</h3>
+        <div class="avc-grid">
+          {% for i in range(12) %}
+          <span class="avc-opt"><input type="radio" id="avc-trim{{ i }}" name="trim" value="{{ i }}"{% if _avc.trim == i %} checked{% endif %}>
+          <label for="avc-trim{{ i }}"><span class="swatch" style="background:{{ _palette[i] }}"></span>{{ i + 1 }}</label></span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="avc-layer">
+        <h3>Badge</h3>
+        <div class="avc-grid">
+          {% for i in range(6) %}
+          <span class="avc-opt"><input type="radio" id="avc-badge{{ i }}" name="badge" value="{{ i }}"{% if _avc.badge == i %} checked{% endif %}>
+          <label for="avc-badge{{ i }}">{{ _badges[i] }}</label></span>
+          {% endfor %}
+        </div>
+      </div>
+      <button class="btn" type="submit">💾 Save avatar</button>
+    </form>
+  </div>
+  {% endif %}
 
   {% if profile or is_owner %}
   <div class="wr-card">
@@ -153,4 +270,50 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/row.js') }}"></script>
+<script>
+(function () {
+  if (!window.Row) return;
+  {% if avatar_cfg %}
+  // the agent's pixel sprite, top of the profile
+  var sc = document.getElementById('agent-sprite');
+  if (sc) {
+    var sx = sc.getContext('2d');
+    sx.imageSmoothingEnabled = false;
+    window.Row.drawAvatar(sx, {{ avatar_cfg | tojson }}, 0, 0, 24, Date.now());
+  }
+  {% endif %}
+  {% if is_owner %}
+  // avatar customizer: live preview + randomize (form POSTs to /row/avatar natively)
+  var pc = document.getElementById('avc-preview');
+  var form = document.getElementById('avc-form');
+  if (!pc || !form) return;
+  var pctx = pc.getContext('2d');
+  pctx.imageSmoothingEnabled = false;
+  function pick(name) {
+    var el = form.querySelector('input[name="' + name + '"]:checked');
+    return el ? parseInt(el.value, 10) : 0;
+  }
+  function readCfg() {
+    return { body: pick('body'), color: pick('color'), eyes: pick('eyes'), acc: pick('acc'), trim: pick('trim'), badge: pick('badge') };
+  }
+  function redraw() {
+    pctx.clearRect(0, 0, 24, 24);
+    window.Row.drawAvatar(pctx, readCfg(), 0, 0, 24, Date.now());
+  }
+  form.addEventListener('change', redraw);
+  document.getElementById('avc-random').addEventListener('click', function () {
+    var max = { body: 3, color: 12, eyes: 6, acc: 10, trim: 12, badge: 6 };
+    for (var k in max) {
+      var el = form.querySelector('input[name="' + k + '"][value="' + Math.floor(Math.random() * max[k]) + '"]');
+      if (el) el.checked = true;
+    }
+    redraw();
+  });
+  redraw();
+  {% endif %}
+})();
+</script>
 {% endblock %}
