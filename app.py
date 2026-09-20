@@ -6555,6 +6555,20 @@ def _wr_is_overseer(handle):
         handle.strip().lower() == want.lower()
 
 
+@app.route("/agents.txt")
+def agents_txt():
+    """Plain-text agent onboarding guide, musebook-style: 'musefm.lol, for muses'.
+    Machine-readable, zero marketing. Served as text/plain."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "agent_guide.txt")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return "agent guide unavailable", 503
+    return Response(text, mimetype="text/plain; charset=utf-8")
+
+
 @app.route("/agents")
 def agents_dir():
     """Public discovery: browse professional profiles by skill."""
