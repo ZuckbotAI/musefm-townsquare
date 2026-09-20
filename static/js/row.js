@@ -475,6 +475,131 @@
       { bx: 1100, y: 74, sp: 28, ph: 4 },
     ];
 
+    /* ---- Cycle 2: craft helpers — wall textures, rooflines, overlays ---- */
+    var overlays = [];  // blade signs, filled by drawShop, drawn by drawOverlays
+
+    function chimneyTop(i) {
+      var s = slots[i];
+      return { x: s.x + s.w * 0.78, y: (152 + (i % 3) * 12) - 38 };
+    }
+
+    function brickWall(x, y0, y1, w) {
+      ctx.fillStyle = '#a34a3a'; ctx.fillRect(x, y0, w, y1 - y0);
+      ctx.fillStyle = '#7a352a';
+      for (var ry = y0; ry < y1; ry += 10) {
+        ctx.fillRect(x, ry, w, 2);
+        var off = ((((ry - y0) / 10) | 0) % 2) ? 12 : 0;
+        for (var bx = x - 24 + off; bx < x + w; bx += 24) ctx.fillRect(bx, ry, 2, 10);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      for (var ry2 = y0 + 2; ry2 < y1; ry2 += 10) ctx.fillRect(x, ry2, w, 1);
+    }
+    function plankWall(x, y0, y1, w, base, seam) {
+      ctx.fillStyle = base; ctx.fillRect(x, y0, w, y1 - y0);
+      ctx.fillStyle = seam;
+      for (var py = y0 + 8; py < y1; py += 14) ctx.fillRect(x, py, w, 2);
+      for (var py2 = y0; py2 < y1; py2 += 14) {
+        var jx = x + 10 + ((py2 * 7919) % Math.max(1, w - 20));
+        ctx.fillRect(jx, py2, 2, 14);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      var ng = Math.floor(w / 18);
+      for (var g = 0; g < ng; g++) {
+        var gx = x + 6 + ((g * 104729) % Math.max(1, w - 12));
+        var gy = y0 + 4 + ((g * 31337) % Math.max(1, y1 - y0 - 8));
+        ctx.fillRect(gx, gy, 8, 2);
+      }
+    }
+    function stoneWall(x, y0, y1, w, base, mortar) {
+      ctx.fillStyle = mortar; ctx.fillRect(x, y0, w, y1 - y0);
+      var bh = 16, bw = 34, ry, bx;
+      for (ry = y0; ry < y1; ry += bh) {
+        var off = ((((ry - y0) / bh) | 0) % 2) ? bw / 2 : 0;
+        for (bx = x - bw + off; bx < x + w; bx += bw) {
+          var v = 6 + ((bx * 31 + ry * 17) % 16);
+          ctx.fillStyle = 'rgb(' + (base[0] + v) + ',' + (base[1] + v) + ',' + (base[2] + v) + ')';
+          ctx.fillRect(bx + 1, ry + 1, bw - 2, bh - 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+          ctx.fillRect(bx + 1, ry + 1, bw - 2, 2);
+        }
+      }
+    }
+    function plasterWall(x, y0, y1, w, base) {
+      ctx.fillStyle = base; ctx.fillRect(x, y0, w, y1 - y0);
+      ctx.fillStyle = 'rgba(0,0,0,0.05)';
+      var n = Math.floor(w * (y1 - y0) / 900), k;
+      for (k = 0; k < n; k++) {
+        var sx = x + ((k * 104729) % w), sy = y0 + ((k * 31337) % Math.max(1, y1 - y0));
+        ctx.fillRect(sx, sy, 3, 3);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      for (var ly = y0 + 20; ly < y1; ly += 44) ctx.fillRect(x, ly, w, 2);
+    }
+    function wallStyle(slug) {
+      if (slug === 'radio' || slug === 'bounty') return 'brick';
+      if (slug === 'arena' || slug === 'townhall') return 'stone';
+      if (slug === 'petshop') return 'plaster';
+      return 'plank';
+    }
+    function paintWall(style, x, y0, y1, w, paint) {
+      if (style === 'brick') brickWall(x, y0, y1, w);
+      else if (style === 'stone') stoneWall(x, y0, y1, w, [139, 132, 148], '#5b5e70');
+      else if (style === 'plaster') plasterWall(x, y0, y1, w, '#e8d9b0');
+      else plankWall(x, y0, y1, w, paint.wall, paint.trim);
+    }
+
+    // roofline variety: 0 = gable, 1 = parapet, 2 = stepped gable — plus chimney
+    function drawRoof(i, x, w, wallTop, paint) {
+      var style = i % 3;
+      var rc = '#333a45', rcD = '#232833', rcL = '#4a5462', s;
+      if (style === 0) {
+        var rh = 34;
+        for (s = 0; s < 6; s++) {
+          var sw = w + 12 - s * ((w + 12) / 6);
+          ctx.fillStyle = s % 2 ? rc : rcD;
+          ctx.fillRect(Math.round(x + (w + 12 - sw) / 2 - 6), Math.round(wallTop - rh + s * (rh / 6)), Math.round(sw), Math.ceil(rh / 6) + 1);
+        }
+        ctx.fillStyle = rcL; ctx.fillRect(x - 6, wallTop - rh, w + 12, 3);
+      } else if (style === 1) {
+        ctx.fillStyle = paint.wall; ctx.fillRect(x, wallTop - 16, w, 16);
+        ctx.fillStyle = rcD; ctx.fillRect(x - 4, wallTop - 20, w + 8, 6);
+        ctx.fillStyle = rcL; ctx.fillRect(x - 4, wallTop - 20, w + 8, 2);
+      } else {
+        ctx.fillStyle = rc;
+        ctx.fillRect(x + 8, wallTop - 12, w - 16, 12);
+        ctx.fillRect(x + 20, wallTop - 22, w - 40, 10);
+        ctx.fillRect(x + 34, wallTop - 30, w - 68, 8);
+        ctx.fillStyle = rcD;
+        ctx.fillRect(x + 8, wallTop - 12, w - 16, 2);
+        ctx.fillRect(x + 20, wallTop - 22, w - 40, 2);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x, wallTop, w, 6);  // eave shadow
+      // chimney stack — anchors the smoke
+      var ct = chimneyTop(i);
+      ctx.fillStyle = '#8a4a3a'; ctx.fillRect(ct.x - 7, ct.y, 14, 38);
+      ctx.fillStyle = '#6e382c';
+      for (var by = ct.y + 6; by < ct.y + 38; by += 10) ctx.fillRect(ct.x - 7, by, 14, 2);
+      ctx.fillStyle = '#2b2f38'; ctx.fillRect(ct.x - 9, ct.y - 4, 18, 6);
+      ctx.fillStyle = '#101010'; ctx.fillRect(ct.x - 4, ct.y - 4, 8, 4);
+    }
+
+    // distant rooftop silhouettes for parallax depth (drawn before the shops)
+    function drawDistant(t) {
+      var col = phase === 'night' ? '#0e1830' : (phase === 'day' ? '#a9c9e9' : '#77679b');
+      var roofC = phase === 'night' ? '#080f1e' : (phase === 'day' ? '#8fb0d8' : '#5d527c');
+      for (var k = 0; k < 8; k++) {
+        var bx = k * 170 - 40 + Math.sin(t * 0.1 + k * 1.3) * 2;
+        var bw = 130, bh = 60 + ((k * 53) % 40);
+        var by = 200 - bh;
+        ctx.fillStyle = col; ctx.fillRect(Math.round(bx), by, bw, bh);
+        ctx.fillStyle = roofC; ctx.fillRect(Math.round(bx) - 6, by - 14, bw + 12, 14);
+        if (PHASES[phase].lamps && k % 2 === 0) {
+          ctx.fillStyle = 'rgba(255,233,163,0.45)';
+          ctx.fillRect(Math.round(bx) + 20 + (k * 37) % 60, by + 22, 8, 10);
+        }
+      }
+    }
+
     function phaseOf(p) { return PHASES[p] ? p : 'day'; }
 
     function slotIndexFor(buildingSlug) {
@@ -582,48 +707,106 @@
       var kind = shopKind(b.slug);
       var sig = String(signals[b.slug] || '');
 
-      // wall
-      ctx.fillStyle = paint.wall; ctx.fillRect(x, wallTop, w, GROUND_Y - wallTop);
-      // brick/shingle texture lines
-      ctx.fillStyle = paint.trim;
-      for (var ry = wallTop + 18; ry < GROUND_Y - 10; ry += 22) ctx.fillRect(x, ry, w, 2);
+      // wall — textured per shop kind, with a real roofline above
+      paintWall(wallStyle(b.slug), x, wallTop, GROUND_Y, w, paint);
+      drawRoof(i, x, w, wallTop, paint);
 
-      // awning: striped canopy over the front
+      // awning: striped or solid-with-scallops, alternating per shop
       var ay = wallTop + 56;
-      for (var s = 0; s < Math.floor(w / 14); s++) {
-        ctx.fillStyle = s % 2 ? paint.awn : paint.trim;
-        ctx.fillRect(x + s * 14, ay, 14, 18);
+      if (i % 2 === 0) {
+        for (var s = 0; s < Math.floor(w / 14); s++) {
+          ctx.fillStyle = s % 2 ? paint.awn : paint.trim;
+          ctx.fillRect(x + s * 14, ay, 14, 18);
+        }
+        ctx.fillStyle = paint.trim; ctx.fillRect(x, ay + 18, w, 3);
+      } else {
+        ctx.fillStyle = paint.awn; ctx.fillRect(x, ay, w, 14);
+        ctx.fillStyle = paint.trim;
+        for (var sc2 = 0; sc2 < w; sc2 += 12) ctx.fillRect(x + sc2, ay + 14, 6, 6);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x, ay + 12, w, 2);
       }
-      ctx.fillStyle = paint.trim; ctx.fillRect(x, ay + 18, w, 3);
 
-      // name sign (painted board)
+      // name sign: carved board with brass rules
       ctx.fillStyle = '#241a12'; ctx.fillRect(x + 6, wallTop + 8, w - 12, 34);
+      ctx.fillStyle = '#e8a93d';
+      ctx.fillRect(x + 6, wallTop + 8, w - 12, 2); ctx.fillRect(x + 6, wallTop + 40, w - 12, 2);
       ctx.fillStyle = '#f5e9c8';
       ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       var name = String(b.name || b.slug || 'Shop');
       if (name.length > 16) name = name.slice(0, 15) + '…';
       ctx.fillText(name, x + w / 2, wallTop + 25);
 
-      // windows — glow when lamps are on (bounty shows its board instead;
+      // windows — framed, with sills; shutters on library + workshop;
+      // glow when lamps are on (bounty shows its board instead;
       // petshop shows its aquarium instead)
       var winOn = PHASES[phase].lamps;
+      var wy = ay + 34;
       if (kind !== 'bounty' && kind !== 'petshop') {
-        ctx.fillStyle = winOn ? '#ffe9a3' : '#0e2233';
-        ctx.fillRect(x + 10, ay + 34, w * 0.28, 52);
-        ctx.fillRect(x + w - 10 - w * 0.28, ay + 34, w * 0.28, 52);
-        if (winOn) { // window cross-frames
-          ctx.fillStyle = paint.trim;
-          ctx.fillRect(x + 10 + w * 0.14 - 2, ay + 34, 4, 52);
-          ctx.fillRect(x + 10, ay + 34 + 24, w * 0.28, 4);
-          ctx.fillRect(x + w - 10 - w * 0.14 - 2, ay + 34, 4, 52);
-          ctx.fillRect(x + w - 10 - w * 0.28, ay + 34 + 24, w * 0.28, 4);
+        for (var wx = x + 12; wx + 32 <= x + w - 8; wx += 42) {
+          ctx.fillStyle = '#241a12'; ctx.fillRect(wx - 3, wy - 3, 38, 56);   // frame
+          ctx.fillStyle = winOn ? '#ffe9a3' : '#0e2233';
+          ctx.fillRect(wx, wy, 32, 50);                                     // glass
+          if (winOn) {
+            ctx.fillStyle = '#fff6d8'; ctx.fillRect(wx + 4, wy + 4, 24, 14); // sky glint
+            ctx.fillStyle = paint.trim;
+            ctx.fillRect(wx + 14, wy, 4, 50); ctx.fillRect(wx, wy + 23, 32, 4);
+          } else {
+            ctx.fillStyle = 'rgba(120,160,200,0.25)'; ctx.fillRect(wx + 4, wy + 4, 24, 12);
+            ctx.fillStyle = '#1b2430';
+            ctx.fillRect(wx + 14, wy, 4, 50); ctx.fillRect(wx, wy + 23, 32, 4);
+          }
+          ctx.fillStyle = '#4a3826'; ctx.fillRect(wx - 4, wy + 53, 40, 5);   // sill
+          if (b.slug === 'library' || b.slug === 'workshop') {              // shutters
+            ctx.fillStyle = '#5a6e46';
+            ctx.fillRect(wx - 11, wy - 3, 8, 56); ctx.fillRect(wx + 35, wy - 3, 8, 56);
+            ctx.fillStyle = '#42522f';
+            for (var sh2 = wy + 2; sh2 < wy + 50; sh2 += 8) {
+              ctx.fillRect(wx - 11, sh2, 8, 2); ctx.fillRect(wx + 35, sh2, 8, 2);
+            }
+          }
         }
       }
 
-      // door
-      var dw = 34;
-      ctx.fillStyle = '#1d1410'; ctx.fillRect(x + w / 2 - dw / 2, GROUND_Y - 58, dw, 58);
-      if (winOn) { ctx.fillStyle = 'rgba(255,233,163,0.85)'; ctx.fillRect(x + w / 2 - dw / 2, GROUND_Y - 58, dw, 6); }
+      // flower boxes under the library windows
+      if (b.slug === 'library') {
+        for (var fx = x + 12; fx + 32 <= x + w - 8; fx += 84) {
+          ctx.fillStyle = '#5a3d24'; ctx.fillRect(fx - 2, wy + 58, 36, 10);
+          ctx.fillStyle = '#3f6e2f';
+          for (var fl = 0; fl < 5; fl++) ctx.fillRect(fx + fl * 7, wy + 58 - 8 - (fl % 2) * 3, 5, 10);
+          ctx.fillStyle = '#e86a8a';
+          for (var fb = 0; fb < 4; fb++) ctx.fillRect(fx + 2 + fb * 9, wy + 58 - 11 - (fb % 2) * 3, 4, 4);
+        }
+      }
+
+      // door: framed, recessed panels, brass knob, stone step
+      var dw = 34, dx0 = x + w / 2 - dw / 2;
+      ctx.fillStyle = '#241a12'; ctx.fillRect(dx0 - 4, GROUND_Y - 64, dw + 8, 64);
+      ctx.fillStyle = '#1d1410'; ctx.fillRect(dx0, GROUND_Y - 60, dw, 60);
+      ctx.fillStyle = '#2e2018';
+      ctx.fillRect(dx0 + 6, GROUND_Y - 54, dw - 12, 22);
+      ctx.fillRect(dx0 + 6, GROUND_Y - 28, dw - 12, 22);
+      ctx.fillStyle = '#e8a93d'; ctx.fillRect(dx0 + dw - 10, GROUND_Y - 34, 4, 4);
+      if (winOn) { ctx.fillStyle = 'rgba(255,233,163,0.9)'; ctx.fillRect(dx0, GROUND_Y - 60, dw, 5); }
+      ctx.fillStyle = '#5b5e70'; ctx.fillRect(dx0 - 8, GROUND_Y, dw + 16, 6);
+
+      // crates + barrel beside the workshop / bounty doors
+      if (b.slug === 'workshop' || b.slug === 'bounty') {
+        var crx = dx0 - 32;
+        ctx.fillStyle = '#8a6d4f'; ctx.fillRect(crx, GROUND_Y - 24, 24, 24);
+        ctx.fillStyle = '#5f4a33';
+        ctx.fillRect(crx, GROUND_Y - 24, 24, 3); ctx.fillRect(crx, GROUND_Y - 3, 24, 3);
+        ctx.fillRect(crx, GROUND_Y - 24, 3, 24); ctx.fillRect(crx + 21, GROUND_Y - 24, 3, 24);
+        ctx.fillRect(crx, GROUND_Y - 14, 24, 3);
+        var brx = dx0 + dw + 8;
+        ctx.fillStyle = '#6b5138'; ctx.fillRect(brx, GROUND_Y - 28, 20, 28);
+        ctx.fillStyle = '#4a3826';
+        ctx.fillRect(brx, GROUND_Y - 28, 20, 3); ctx.fillRect(brx, GROUND_Y - 3, 20, 3);
+        ctx.fillStyle = '#2b2f38';
+        ctx.fillRect(brx, GROUND_Y - 20, 20, 2); ctx.fillRect(brx, GROUND_Y - 10, 20, 2);
+      }
+
+      // blade signs for the radio station + pet shop (drawn on top, after all shops)
+      if (i === 0 || i === 4) overlays.push({ x: x, w: w, wallTop: wallTop, emoji: shopEmoji(b.slug), name: String(b.name || b.slug) });
 
       // warm light spilling from windows + door onto the cobbles (drawn by drawGlow)
       if (winOn) {
@@ -750,10 +933,39 @@
       if (phase === 'night') { ctx.fillStyle = 'rgba(8,12,26,0.42)'; ctx.fillRect(0, GROUND_Y, W, 92); }
       else if (phase === 'dusk') { ctx.fillStyle = 'rgba(52,24,54,0.22)'; ctx.fillRect(0, GROUND_Y, W, 92); }
       else if (phase === 'dawn') { ctx.fillStyle = 'rgba(255,170,140,0.10)'; ctx.fillRect(0, GROUND_Y, W, 92); }
-      // curb + road
+      // curb + boardwalk lane: weathered planks (the Row is a boardwalk, not a road)
       ctx.fillStyle = '#5b5e70'; ctx.fillRect(0, GROUND_Y + 92, W, 4);
-      ctx.fillStyle = '#2b323b'; ctx.fillRect(0, GROUND_Y + 96, W, 8);
-      ctx.fillStyle = '#232a33'; ctx.fillRect(0, GROUND_Y + 104, W, H - GROUND_Y - 104);
+      ctx.fillStyle = '#3a2c1e'; ctx.fillRect(0, GROUND_Y + 96, W, H - GROUND_Y - 96);
+      for (var py = GROUND_Y + 96; py < H; py += 16) {
+        var pv = 96 + (hashStr('bw' + py) % 22);
+        ctx.fillStyle = 'rgb(' + pv + ',' + ((pv * 0.72) | 0) + ',' + ((pv * 0.52) | 0) + ')';
+        ctx.fillRect(0, py + 1, W, 14);
+        ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(0, py + 1, W, 2);
+        ctx.fillStyle = '#3a2c1e';
+        ctx.fillRect(hashStr('j' + py) % W, py + 1, 3, 14);                  // butt joint
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';                                  // grain
+        for (var gg = 0; gg < 6; gg++) {
+          var gx = hashStr('g' + py + ':' + gg) % W;
+          ctx.fillRect(gx, py + 5 + (gg % 2) * 4, 26, 2);
+        }
+      }
+      if (phase === 'night') {
+        ctx.fillStyle = 'rgba(8,12,26,0.35)'; ctx.fillRect(0, GROUND_Y + 96, W, H - GROUND_Y - 96);
+        // puddles catching the lamplight
+        var pud = [[300, 520], [760, 532], [1100, 518]];
+        for (var pi = 0; pi < pud.length; pi++) {
+          var ex = pud[pi][0], ey = pud[pi][1], er = 26 + (pi * 7) % 14;
+          ctx.save(); ctx.translate(ex, ey); ctx.scale(1, 0.32);
+          var pg = ctx.createRadialGradient(0, 0, 2, 0, 0, er);
+          pg.addColorStop(0, 'rgba(255,190,90,0.16)');
+          pg.addColorStop(0.7, 'rgba(150,180,220,0.10)');
+          pg.addColorStop(1, 'rgba(150,180,220,0)');
+          ctx.fillStyle = pg; ctx.fillRect(-er, -er, er * 2, er * 2);
+          ctx.restore();
+        }
+      } else if (phase === 'dusk') {
+        ctx.fillStyle = 'rgba(52,24,54,0.18)'; ctx.fillRect(0, GROUND_Y + 96, W, H - GROUND_Y - 96);
+      }
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       for (var x = 12; x < W; x += 72) ctx.fillRect(x, GROUND_Y + 138, 36, 5);
       // lamp posts: iron post, curved arm, hanging lantern, cone + pool when lit
@@ -802,9 +1014,10 @@
         si = emitIdx[e];
         if (si >= slots.length) continue;
         if (Math.random() < dt * 5 && puffs.length < 70) {
+          var ct = chimneyTop(si);
           puffs.push({
-            x: slots[si].x + slots[si].w * 0.78,
-            y: 152 + (si % 3) * 12 - 10,
+            x: ct.x,
+            y: ct.y - 2,
             age: 0, seed: Math.random() * 10,
           });
         }
@@ -923,6 +1136,53 @@
       }
     }
 
+    // blade signs + festoon lights, drawn over the shop fronts
+    function drawOverlays(t) {
+      var lit = PHASES[phase].lamps, k;
+      for (k = 0; k < overlays.length; k++) {
+        var o = overlays[k];
+        var ax = o.x + o.w - 2, ayy = o.wallTop + 84;
+        ctx.fillStyle = '#14100c';
+        ctx.fillRect(ax, ayy, 30, 4);            // bracket arm
+        ctx.fillRect(ax + 26, ayy, 4, 12);       // end support
+        ctx.fillRect(ax + 6, ayy + 4, 4, 10);    // hanger
+        var sx = ax + 2, sy = ayy + 14, swd = 40, sh = 34;
+        ctx.fillStyle = '#2b1d12'; ctx.fillRect(sx, sy, swd, sh);
+        ctx.fillStyle = '#e8a93d';
+        ctx.fillRect(sx, sy, swd, 3); ctx.fillRect(sx, sy + sh - 3, swd, 3);
+        ctx.font = '16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#f5e9c8';
+        ctx.fillText(o.emoji, sx + swd / 2, sy + sh / 2 - 4);
+        ctx.font = '8px monospace';
+        ctx.fillText(String(o.name).split(' ')[0].slice(0, 8), sx + swd / 2, sy + sh - 9);
+      }
+      overlays.length = 0;
+      // festoon light strings swagged across each shop front
+      for (var i = 0; i < slots.length; i++) {
+        var x0 = slots[i].x + 6, x1 = slots[i].x + slots[i].w - 6;
+        var y0 = (152 + (i % 3) * 12) - 48;
+        var steps = 20, s2;
+        ctx.fillStyle = '#14100c';
+        for (s2 = 0; s2 <= steps; s2++) {
+          var tt = s2 / steps;
+          var wx = x0 + (x1 - x0) * tt;
+          var wyy = y0 + 16 * 4 * tt * (1 - tt);
+          ctx.fillRect(Math.round(wx), Math.round(wyy), 2, 2);
+        }
+        for (var b2 = 1; b2 < 8; b2++) {
+          var tt2 = b2 / 8;
+          var bx = x0 + (x1 - x0) * tt2;
+          var by = y0 + 16 * 4 * tt2 * (1 - tt2);
+          var sway = Math.sin(t * 2.4 + i * 1.7 + b2) * 1.5;
+          if (lit) {
+            radialGlow(bx + sway, by + 4, 11, 'rgba(255,210,130,0.5)', 'rgba(255,210,130,0)');
+            ctx.fillStyle = '#fff3c4';
+          } else ctx.fillStyle = '#8a8fa0';
+          ctx.fillRect(Math.round(bx + sway) - 1, Math.round(by) + 3, 3, 4);
+        }
+      }
+    }
+
     var lastT = 0;
     function frame(nowMs) {
       if (!running) return;
@@ -930,9 +1190,11 @@
       var dt = Math.min(0.1, (t - lastT) || 0.016); lastT = t;
       phase = phaseOf(S.phase);
       drawSky(t);
+      drawDistant(t);        // parallax rooftops behind the shops
       for (var i = 0; i < buildings.length; i++) drawShop(i, buildings[i], t);
       drawStreet(t);
       drawGlow();            // window + lamp light pools on the cobbles
+      drawOverlays(t);       // blade signs + festoon lights
       drawCottages(t);
       drawOccupants(t);
       drawParticles(t, dt);  // smoke, fireflies, dust
