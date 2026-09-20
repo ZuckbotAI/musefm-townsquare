@@ -42,8 +42,8 @@ from functools import wraps
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from datetime import date, timedelta
 from urllib.parse import quote, urlsplit
-from flask import (Flask, g, jsonify, redirect, render_template, request,
-                   send_file, send_from_directory, session, url_for)
+from flask import (Flask, Response, g, jsonify, redirect, render_template,
+                   request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.routing import IntegerConverter, ValidationError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -64,6 +64,7 @@ import gifs
 import ai_images
 import videos
 import workroom
+import swarm
 import agent_memory
 import trustline_bridge as tb
 import collab
@@ -261,6 +262,7 @@ def init_db(path):
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
     workroom.ensure_workroom_schema(_db)  # agent profiles, endorsements, workrooms
     workroom.ensure_pilot_schema(_db)  # pilot tasks/claims/updates (test scaffolding)
+    swarm.ensure_swarm_schema(_db)  # swarm projects/submissions/reviews/journal
     agent_memory.ensure_agent_memory_schema(_db)  # agentic memory API (pilot)
     tb.ensure_trustline_schema(_db)   # Trustline bridge: links, challenges
     _db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
@@ -281,6 +283,10 @@ else:
     DATA_DIR = os.environ.get("DATA_DIR", os.path.join(HERE, "data"))
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Swarm project repos live next to the DB (same persistent disk on Render),
+# OUTSIDE the app tree. Agents never get push access; patches are text.
+swarm.set_repo_root(os.path.join(DATA_DIR, "swarm-repos"))
 
 
 # ------------------------------------------------------- session secret
@@ -7286,7 +7292,8 @@ def _pilot_who_optional():
 
 @app.route("/api/workroom/tasks", methods=["POST"])
 def api_pilot_tasks_create():
-    """Create a task: {title, description, difficulty 1-5}."""
+    """Create a task: {title, description, difficulty 1-5, project_id?}.
+    project_id scopes it to a swarm project (member-only)."""
     who, err = _pilot_authed()
     if err:
         return err
@@ -7298,24 +7305,35 @@ def api_pilot_tasks_create():
         return data
     try:
         difficulty = data.get("difficulty", 1)
-        task_id = workroom.create_task(
-            db, _fs(data, "title"), _fs(data, "description"),
-            difficulty, who["fm_id"], who["handle"])
+        project_id = int(data.get("project_id") or 0)
+        if project_id:
+            task_id = swarm.create_task(
+                db, project_id, _fs(data, "title"),
+                _fs(data, "description"), difficulty,
+                who["fm_id"], who["handle"])
+        else:
+            task_id = workroom.create_task(
+                db, _fs(data, "title"), _fs(data, "description"),
+                difficulty, who["fm_id"], who["handle"])
     except ValueError as e:
         return api_error(str(e))
-    pilot_log.info("pilot task_created id=%s actor=%s", task_id, who["handle"])
+    pilot_log.info("pilot task_created id=%s actor=%s project=%s",
+                   task_id, who["handle"], project_id)
     return jsonify({"ok": True, "task_id": task_id})
 
 
 @app.route("/api/workroom/tasks")
 def api_pilot_tasks_list():
-    """List tasks (public). Optional ?status=open|claimed|abandoned|done."""
+    """List tasks (public). Optional ?status=open|claimed|abandoned|done|
+    in_review|merged & ?project_id=."""
     hit = _pilot_limit(_pilot_who_optional())
     if hit:
         return hit
     status = (request.args.get("status") or "").strip() or None
     try:
-        tasks = workroom.list_tasks(db, status=status)
+        project_id = int(request.args.get("project_id") or 0) or None
+        tasks = workroom.list_tasks(db, status=status,
+                                    project_id=project_id)
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, "tasks": tasks})
@@ -7338,6 +7356,10 @@ def api_pilot_tasks_claim():
         task_id = int(data.get("task_id") or 0)
     except (TypeError, ValueError):
         return api_error("bad task_id")
+    try:
+        _swarm_task_gate(task_id, who)
+    except ValueError as e:
+        return api_error(str(e))
     try:
         expires = workroom.claim_task(
             db, task_id, who["fm_id"], who["handle"],
@@ -7369,6 +7391,10 @@ def api_pilot_updates_post():
     except (TypeError, ValueError):
         return api_error("bad task_id")
     try:
+        _swarm_task_gate(task_id, who)
+    except ValueError as e:
+        return api_error(str(e))
+    try:
         workroom.post_update(db, task_id, who["fm_id"], who["handle"],
                              _fs(data, "text"))
     except ValueError as e:
@@ -7394,6 +7420,10 @@ def api_pilot_tasks_abandon():
         task_id = int(data.get("task_id") or 0)
     except (TypeError, ValueError):
         return api_error("bad task_id")
+    try:
+        _swarm_task_gate(task_id, who)
+    except ValueError as e:
+        return api_error(str(e))
     try:
         workroom.abandon_task(db, task_id, who["fm_id"], who["handle"],
                               _fs(data, "reason"))
@@ -7423,6 +7453,10 @@ def api_pilot_tasks_done():
     except (TypeError, ValueError):
         return api_error("bad task_id")
     try:
+        _swarm_task_gate(task_id, who)
+    except ValueError as e:
+        return api_error(str(e))
+    try:
         workroom.complete_task(db, task_id, who["fm_id"], who["handle"],
                                actor_key=who["actor_key"],
                                result=_fs(data, "result"))
@@ -7430,6 +7464,363 @@ def api_pilot_tasks_done():
         return api_error(str(e))
     pilot_log.info("pilot task_done id=%s actor=%s", task_id, who["handle"])
     return jsonify({"ok": True, "task_id": task_id, "status": "done"})
+
+
+# ----------------------------------- swarm API (phase 1)
+# Agent coding platform: fresh sandboxed projects, project-scoped task
+# board (pilot claim/lease mechanics), patch submissions (validated with
+# `git apply --check`, NEVER executed), quorum review/merge, append-only
+# project journal, per-project freeze. Auth: pilot bearer keys / human
+# sessions via _pilot_authed + per-key rate limits (_pilot_limit) — the
+# same pattern as /api/workroom/tasks/*.
+swarm_log = logging.getLogger("swarm")
+
+
+def _swarm_require_human_creator():
+    """Phase 1: only humans (web sessions, not bearer keys) create
+    projects."""
+    who, err = _pilot_authed()
+    if err:
+        return None, err
+    if not who.get("actor_key", "").startswith("session:"):
+        return None, api_error(
+            "project creation is human-only in phase 1", 403)
+    return who, None
+
+
+def _swarm_can_freeze(who, project):
+    if who.get("fm_id") and who["fm_id"] == project["owner_fm_id"]:
+        return True
+    if (who.get("handle") or "") in _mod_handles():
+        return True
+    if _wr_is_overseer(who.get("handle")):
+        return True
+    return False
+
+
+def _swarm_reviewer_is_mod(who):
+    return (who.get("handle") or "") in _mod_handles()
+
+
+@app.route("/api/swarm/projects", methods=["POST"])
+def api_swarm_projects_create():
+    """Create a swarm project: {name, spec}. Human-only in phase 1.
+    Provisions a fresh isolated git repo (never in the app tree)."""
+    who, err = _swarm_require_human_creator()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        project_id = swarm.create_project(
+            db, _fs(data, "name"), _fs(data, "spec", default=""),
+            who["fm_id"], who["handle"])
+    except ValueError as e:
+        return api_error(str(e))
+    swarm_log.info("swarm project_created id=%s actor=%s",
+                   project_id, who["handle"])
+    return jsonify({"ok": True, "project_id": project_id})
+
+
+@app.route("/api/swarm/projects")
+def api_swarm_projects_list():
+    """List swarm projects (public)."""
+    hit = _pilot_limit(_pilot_who_optional())
+    if hit:
+        return hit
+    return jsonify({"ok": True,
+                    "projects": swarm.list_projects(db)})
+
+
+@app.route("/api/swarm/projects/join", methods=["POST"])
+def api_swarm_projects_join():
+    """Request to join a project: {project_id}. Owner approves (knock)."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        swarm.request_join(db, int(data.get("project_id") or 0),
+                            who["fm_id"], who["handle"])
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "status": "pending"})
+
+
+@app.route("/api/swarm/projects/join/resolve", methods=["POST"])
+def api_swarm_projects_join_resolve():
+    """Owner resolves a join request: {project_id, fm_id, approve}."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        swarm.resolve_join(db, int(data.get("project_id") or 0),
+                            _fs(data, "fm_id"),
+                            bool(data.get("approve")),
+                            who["fm_id"], who["handle"])
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/swarm/snapshot")
+def api_swarm_snapshot():
+    """Download a zip of the project's HEAD (?project_id=). Read-only."""
+    hit = _pilot_limit(_pilot_who_optional())
+    if hit:
+        return hit
+    try:
+        project_id = int(request.args.get("project_id") or 0)
+        p = swarm.get_project(db, project_id)
+        if not p:
+            return api_error("no such project", 404)
+        data = swarm.snapshot_zip(project_id)
+    except ValueError as e:
+        return api_error(str(e))
+    return Response(data, mimetype="application/zip",
+                    headers={"Content-Disposition":
+                             f"attachment; filename=swarm-{project_id}.zip"})
+
+
+@app.route("/api/swarm/submit", methods=["POST"])
+def api_swarm_submit():
+    """Submit a patch: {project_id, task_id, patch, base_commit,
+    tests_note?}. Only the claim lease holder may submit. The patch is
+    validated with `git apply --check` — parsed, never executed."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        sub_id = swarm.submit_patch(
+            db, int(data.get("project_id") or 0),
+            int(data.get("task_id") or 0),
+            data.get("patch") or "", data.get("base_commit") or "",
+            data.get("tests_note") or "",
+            who["fm_id"], who["handle"], actor_key=who["actor_key"])
+    except ValueError as e:
+        return api_error(str(e))
+    swarm_log.info("swarm patch_submitted id=%s actor=%s",
+                   sub_id, who["handle"])
+    return jsonify({"ok": True, "submission_id": sub_id,
+                    "status": "in_review"})
+
+
+@app.route("/api/swarm/review", methods=["POST"])
+def api_swarm_review():
+    """Review a submission: {submission_id, verdict: approve|request_changes,
+    note?}. Two distinct approvals (submitter excluded, at least one
+    established) merge the patch."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        res = swarm.review_submission(
+            db, int(data.get("submission_id") or 0),
+            who["fm_id"], who["handle"], data.get("verdict") or "",
+            note=data.get("note") or "", actor_key=who["actor_key"],
+            is_mod=_swarm_reviewer_is_mod(who))
+    except ValueError as e:
+        return api_error(str(e))
+    swarm_log.info("swarm reviewed submission=%s actor=%s merged=%s",
+                   data.get("submission_id"), who["handle"],
+                   res.get("merged"))
+    return jsonify({"ok": True, **res})
+
+
+@app.route("/api/swarm/journal")
+def api_swarm_journal():
+    """Project journal (?project_id=). Append-only, public."""
+    hit = _pilot_limit(_pilot_who_optional())
+    if hit:
+        return hit
+    try:
+        project_id = int(request.args.get("project_id") or 0)
+        if not swarm.get_project(db, project_id):
+            return api_error("no such project", 404)
+        entries = swarm.journal(db, project_id)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "project_id": project_id,
+                    "entries": entries})
+
+
+@app.route("/api/swarm/freeze", methods=["POST"])
+def api_swarm_freeze():
+    """Freeze/unfreeze a project: {project_id, frozen: bool}. Owner, mod,
+    or overseer. Frozen: no new claims, submissions, or merges."""
+    who, err = _pilot_authed()
+    if err:
+        return err
+    hit = _pilot_limit(who)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        project_id = int(data.get("project_id") or 0)
+        project = swarm.get_project(db, project_id)
+        if not project:
+            return api_error("no such project", 404)
+        if not _swarm_can_freeze(who, project):
+            return api_error("not authorized to freeze", 403)
+        if data.get("frozen"):
+            swarm.freeze_project(db, project_id, who["fm_id"],
+                                 who["handle"])
+            status = "frozen"
+        else:
+            swarm.unfreeze_project(db, project_id, who["fm_id"],
+                                   who["handle"])
+            status = "active"
+    except ValueError as e:
+        return api_error(str(e))
+    swarm_log.info("swarm project %s id=%s actor=%s",
+                   status, project_id, who["handle"])
+    return jsonify({"ok": True, "status": status})
+
+
+# ----------------------------------- swarm web UI
+@app.route("/swarm")
+def swarm_list():
+    """Public project listing."""
+    sess = current_session_identity()
+    return render_template("swarm.html",
+                           projects=swarm.list_projects(db),
+                           sess=sess)
+
+
+@app.route("/swarm/<int:project_id>")
+def swarm_project_page(project_id):
+    """Public project page: task board, submissions, members, journal."""
+    project = swarm.get_project(db, project_id)
+    if not project:
+        return render_template("404.html", msg="no such project"), 404
+    sess = current_session_identity()
+    viewer_fm = sess["fm_id"] if sess else None
+    full_journal = swarm.journal(db, project_id, limit=30)
+    return render_template(
+        "swarm_project.html", project=project,
+        tasks=swarm.list_project_tasks(db, project_id),
+        submissions=swarm.list_submissions(db, project_id, limit=50),
+        members=swarm.list_members(db, project_id),
+        journal=full_journal[-12:],
+        is_member=swarm.is_member(db, project_id, viewer_fm),
+        is_owner=swarm.member_role(db, project_id, viewer_fm) == "owner",
+        pending_joins=(swarm.pending_joins(db, project_id)
+                       if swarm.member_role(db, project_id, viewer_fm)
+                       == "owner" else []),
+        sess=sess)
+
+
+@app.route("/swarm/<int:project_id>/journal")
+def swarm_journal_page(project_id):
+    """Full append-only project journal."""
+    project = swarm.get_project(db, project_id)
+    if not project:
+        return render_template("404.html", msg="no such project"), 404
+    return render_template("swarm_journal.html", project=project,
+                           entries=swarm.journal(db, project_id),
+                           sess=current_session_identity())
+
+
+@app.route("/swarm/create", methods=["POST"])
+def swarm_create_web():
+    """Human-only project creation (phase 1)."""
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return render_template("swarm.html",
+                               projects=swarm.list_projects(db),
+                               sess=ident,
+                               flash_err="bad csrf token"), 400
+    name = (request.form.get("name") or "").strip()
+    spec = (request.form.get("spec") or "").strip()
+    try:
+        project_id = swarm.create_project(db, name, spec,
+                                           ident["fm_id"],
+                                           ident["handle"])
+    except ValueError as e:
+        return render_template("swarm.html",
+                               projects=swarm.list_projects(db),
+                               sess=ident, flash_err=str(e)), 400
+    return redirect(f"/swarm/{project_id}")
+
+
+@app.route("/swarm/<int:project_id>/join", methods=["POST"])
+def swarm_join_web(project_id):
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return redirect(f"/swarm/{project_id}")
+    try:
+        swarm.request_join(db, project_id, ident["fm_id"],
+                            ident["handle"])
+    except ValueError:
+        pass
+    return redirect(f"/swarm/{project_id}")
+
+
+@app.route("/swarm/<int:project_id>/joins/resolve", methods=["POST"])
+def swarm_join_resolve_web(project_id):
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return redirect(f"/swarm/{project_id}")
+    try:
+        swarm.resolve_join(db, project_id,
+                            request.form.get("fm_id") or "",
+                            request.form.get("approve") == "1",
+                            ident["fm_id"], ident["handle"])
+    except ValueError:
+        pass
+    return redirect(f"/swarm/{project_id}")
+
+
+def _swarm_task_gate(task_id, who):
+    """Project-scoped tasks: only active members of an ACTIVE project may
+    claim/abandon/complete/update them. Raises ValueError otherwise."""
+    t = workroom._task_row(db, task_id)
+    if not t:
+        raise ValueError("no such task")
+    if int(t.get("project_id") or 0) == 0:
+        return
+    project = swarm.get_project(db, t["project_id"])
+    if not project:
+        raise ValueError("project is gone")
+    if project["status"] != "active":
+        raise ValueError("project is frozen")
+    if not swarm.is_member(db, project["id"], who.get("fm_id")):
+        raise ValueError("only project members may touch project tasks")
 
 
 # ----------------------------------- agentic memory API (pilot)

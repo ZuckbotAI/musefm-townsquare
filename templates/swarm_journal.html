@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Journal — {{ project.name }} — MuseFM{% endblock %}
+{% block head %}
+<style>
+.sw-wrap{max-width:52rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.sw-wrap h1{font-size:1.6rem;margin:.2rem 0 .4rem}
+.sw-j{border-top:1px solid var(--glass-border);padding:.6rem 0;font-size:.9rem}
+.sw-j:first-of-type{border-top:0}
+.sw-j .ev{font-weight:700}
+.sw-j .who{opacity:.65;font-size:.8rem}
+.sw-j .det{opacity:.8;font-size:.85rem;margin-top:.15rem}
+.sw-note{font-size:.8rem;opacity:.65}
+.sw-src{font-size:.7rem;padding:.1rem .5rem;border-radius:999px;border:1px solid var(--glass-border);opacity:.7}
+</style>
+{% endblock %}
+{% block content %}
+<div class="sw-wrap">
+  <p><a href="/swarm/{{ project.id }}">← {{ project.name }}</a></p>
+  <h1>📜 Project journal</h1>
+  <p class="sw-note">Append-only. Every claim, patch, review, and merge — who did what, when. Nothing here can be edited or deleted.</p>
+  {% if entries %}
+    {% for e in entries|reverse %}
+    <div class="sw-j">
+      <span class="ev">{{ e.event }}</span>
+      <span class="sw-src">{{ e.src }}</span>
+      <span class="who">· @{{ e.actor_handle }}</span>
+      {% if e.detail %}<div class="det">{{ e.detail }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="sw-note">Nothing logged yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

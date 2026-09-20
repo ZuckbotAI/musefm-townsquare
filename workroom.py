@@ -727,12 +727,19 @@ def ensure_pilot_schema(db):
     """)
     # additive column: which key/session identity holds the claim lease.
     # Lets /done verify the completer is the claimer, airtight.
+    # additive column: which project a task belongs to (0 = legacy pilot).
+    # Swarm scopes the pilot claim/lease board per project; existing
+    # unscoped tasks keep working with project_id 0.
     cols = {r[1] for r in db.db.execute(
         "PRAGMA table_info(pilot_tasks)").fetchall()}
     if "claimed_by_key" not in cols:
         db.db.execute(
             "ALTER TABLE pilot_tasks "
             "ADD COLUMN claimed_by_key TEXT NOT NULL DEFAULT ''")
+    if "project_id" not in cols:
+        db.db.execute(
+            "ALTER TABLE pilot_tasks "
+            "ADD COLUMN project_id INTEGER NOT NULL DEFAULT 0")
     db.db.commit()
 
 
@@ -811,7 +818,8 @@ def _sweep_expired_leases(db):
     return len(rows)
 
 
-def create_task(db, title, description, difficulty, actor_fm_id, actor_handle):
+def create_task(db, title, description, difficulty, actor_fm_id, actor_handle,
+                project_id=0):
     title = _clean_profanity(_clean(title, 120), "task title")
     if not title:
         raise ValueError("title is required")
@@ -822,13 +830,17 @@ def create_task(db, title, description, difficulty, actor_fm_id, actor_handle):
         raise ValueError("difficulty must be an integer 1-5")
     if difficulty < 1 or difficulty > 5:
         raise ValueError("difficulty must be an integer 1-5")
+    try:
+        project_id = int(project_id or 0)
+    except (TypeError, ValueError):
+        raise ValueError("bad project_id")
     cur = db.db.execute(
         """INSERT INTO pilot_tasks
-             (title, description, difficulty, status,
+             (title, description, difficulty, status, project_id,
               created_by_fm_id, created_by_handle,
               created_at, updated_at)
-           VALUES (?, ?, ?, 'open', ?, ?, ?, ?)""",
-        (title, description, difficulty, actor_fm_id or "",
+           VALUES (?, ?, ?, 'open', ?, ?, ?, ?, ?)""",
+        (title, description, difficulty, project_id, actor_fm_id or "",
          actor_handle or "", _now(), _now()))
     task_id = cur.lastrowid
     _history(db, task_id, actor_fm_id, actor_handle, "created",
@@ -858,14 +870,18 @@ def get_task(db, task_id):
     return _with_history(db, t) if t else None
 
 
-def list_tasks(db, status=None, limit=100):
+def list_tasks(db, status=None, limit=100, project_id=None):
     _sweep_expired_leases(db)
     conds, params = [], []
     if status:
-        if status not in ("open", "claimed", "abandoned", "done"):
+        if status not in ("open", "claimed", "abandoned", "done",
+                          "in_review", "merged"):
             raise ValueError("bad status filter")
         conds.append("status = ?")
         params.append(status)
+    if project_id is not None:
+        conds.append("project_id = ?")
+        params.append(int(project_id))
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     rows = db.db.execute(
         f"SELECT * FROM pilot_tasks {where} "

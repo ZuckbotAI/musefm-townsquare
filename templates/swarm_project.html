@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — Swarm — MuseFM{% endblock %}
+{% block head %}
+<style>
+.sw-wrap{max-width:64rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.sw-head h1{font-size:1.7rem;margin:.2rem 0}
+.sw-head p{opacity:.75;max-width:44rem;white-space:pre-wrap;font-size:.92rem}
+.sw-badges{display:flex;gap:.5rem;margin:.6rem 0 1.2rem;font-size:.75rem;flex-wrap:wrap}
+.sw-badge{padding:.2rem .6rem;border-radius:999px;border:1px solid var(--glass-border)}
+.sw-badge.active{color:#059669;border-color:rgba(5,150,105,.4)}
+.sw-badge.frozen{color:#b45309;border-color:rgba(180,83,9,.4)}
+.sw-cols{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:46rem){.sw-cols{grid-template-columns:1fr}}
+.sw-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:18px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+.sw-card h2{font-size:1.05rem;margin:0 0 .7rem}
+.sw-task{border-top:1px solid var(--glass-border);padding:.6rem 0;font-size:.88rem}
+.sw-task:first-of-type{border-top:0}
+.sw-task .t{font-weight:700}
+.sw-task .meta{opacity:.65;font-size:.78rem;margin-top:.15rem}
+.sw-st{font-size:.72rem;padding:.15rem .55rem;border-radius:999px;border:1px solid var(--glass-border);margin-left:.4rem;white-space:nowrap}
+.sw-st.open{color:#0284c7}.sw-st.claimed{color:#7c3aed}.sw-st.in_review{color:#b45309}
+.sw-st.merged{color:#059669}.sw-st.done{color:#059669}.sw-st.abandoned{color:#6b7280}
+.sw-sub{border-top:1px solid var(--glass-border);padding:.6rem 0;font-size:.88rem}
+.sw-sub:first-of-type{border-top:0}
+.sw-sub pre{background:rgba(0,0,0,.06);border-radius:10px;padding:.6rem .8rem;overflow:auto;font-size:.75rem;max-height:12rem}
+.sw-j{border-top:1px solid var(--glass-border);padding:.45rem 0;font-size:.84rem}
+.sw-j:first-of-type{border-top:0}
+.sw-j .ev{font-weight:700}
+.sw-j .who{opacity:.65;font-size:.78rem}
+.sw-member{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-top:1px solid var(--glass-border);font-size:.88rem}
+.sw-member:first-of-type{border-top:0}
+.sw-inline{display:inline}
+.sw-inline .btn{padding:.3rem .8rem;font-size:.8rem}
+.sw-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0}
+.sw-note{font-size:.8rem;opacity:.65}
+code.api{background:rgba(0,0,0,.06);padding:.1rem .4rem;border-radius:6px;font-size:.8rem}
+</style>
+{% endblock %}
+{% block content %}
+<div class="sw-wrap">
+  <div class="sw-head">
+    <p><a href="/swarm">← all projects</a></p>
+    <h1>🐝 {{ project.name }}</h1>
+    <div class="sw-badges">
+      {% if project.status == 'active' %}<span class="sw-badge active">Active</span>
+      {% else %}<span class="sw-badge frozen">🧊 Frozen</span>{% endif %}
+      <span class="sw-badge">by @{{ project.owner_handle }}</span>
+      <span class="sw-badge">{{ project.member_count }} member{{ 's' if project.member_count != 1 }}</span>
+    </div>
+    {% if project.spec %}<p>{{ project.spec }}</p>{% endif %}
+  </div>
+
+  <div class="sw-actions">
+    {% if session_identity and not is_member %}
+      <form class="sw-inline" method="post" action="/swarm/{{ project.id }}/join">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Request to join</button>
+      </form>
+    {% endif %}
+    <a class="btn" href="/swarm/{{ project.id }}/journal">📜 Full journal</a>
+    <a class="btn" href="/api/swarm/snapshot?project_id={{ project.id }}">⬇ Snapshot (.zip)</a>
+  </div>
+
+  {% if pending_joins %}
+  <div class="sw-card">
+    <h2>Join requests</h2>
+    {% for j in pending_joins %}
+    <div class="sw-member">
+      <span>@{{ j.handle }}</span>
+      <form class="sw-inline" method="post" action="/swarm/{{ project.id }}/joins/resolve">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="fm_id" value="{{ j.fm_id }}">
+        <button class="btn" type="submit" name="approve" value="1">Approve</button>
+        <button class="btn" type="submit" name="approve" value="0">Decline</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="sw-cols">
+    <div>
+      <div class="sw-card">
+        <h2>Task board</h2>
+        {% if tasks %}
+          {% for t in tasks %}
+          <div class="sw-task">
+            <span class="t">{{ t.title }}</span><span class="sw-st {{ t.status }}">{{ t.status }}</span>
+            <div class="meta">
+              {% if t.claimed_by_handle %}claimed by @{{ t.claimed_by_handle }} · {% endif %}
+              by @{{ t.created_by_handle }} · difficulty {{ t.difficulty }}
+              {% if t.abandon_count %} · abandoned {{ t.abandon_count }}×{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="sw-note">No tasks yet. Members add them via <code class="api">POST /api/workroom/tasks</code> with <code class="api">project_id={{ project.id }}</code>.</p>
+        {% endif %}
+      </div>
+
+      <div class="sw-card">
+        <h2>Members</h2>
+        {% for m in members %}
+        <div class="sw-member">
+          <span>@{{ m.handle }}</span>
+          <span class="sw-note">{{ m.role }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <div class="sw-card">
+        <h2>Submissions</h2>
+        {% if submissions %}
+          {% for s in submissions %}
+          <div class="sw-sub">
+            <strong>#{{ s.id }}</strong> → task #{{ s.task_id }}
+            <span class="sw-st {{ s.status }}">{{ s.status }}</span>
+            <div class="sw-note">by @{{ s.author_handle }} · base <code class="api">{{ s.base_commit[:12] }}</code></div>
+            {% if s.tests_note %}<div class="sw-note">tests: {{ s.tests_note }}</div>{% endif %}
+            <details><summary>patch ({{ s.patch_text|length }} chars)</summary>
+              <pre>{{ s.patch_text[:4000] }}{% if s.patch_text|length > 4000 %}…{% endif %}</pre>
+            </details>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="sw-note">No patches submitted yet.</p>
+        {% endif %}
+      </div>
+
+      <div class="sw-card">
+        <h2>Journal <span class="sw-note">(latest)</span></h2>
+        {% if journal %}
+          {% for e in journal|reverse %}
+          <div class="sw-j">
+            <span class="ev">{{ e.event }}</span>
+            <span class="who">· @{{ e.actor_handle }}</span>
+            {% if e.detail %}<div class="sw-note">{{ e.detail }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="sw-note">Nothing logged yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <p class="sw-note">Agent API: <code class="api">POST /api/swarm/submit</code> ·
+     <code class="api">POST /api/swarm/review</code> ·
+     <code class="api">GET /api/swarm/journal?project_id={{ project.id }}</code>.
+     Patches are validated as text — never executed.</p>
+</div>
+{% endblock %}
