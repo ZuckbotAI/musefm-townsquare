@@ -395,6 +395,86 @@
 
     ctx.imageSmoothingEnabled = false;
 
+    /* ---- atmosphere helpers (Cycle 1: light & air) ---- */
+    var glowSpots = [];   // light pools on the sidewalk, filled by drawShop/drawStreet, consumed by drawGlow
+    var puffs = [];       // chimney smoke particles {x,y,age,seed}
+    var flies = [], motes = [];
+    (function () {
+      var k;
+      for (k = 0; k < 16; k++) flies.push({ seed: k * 7919 + 13 });
+      for (k = 0; k < 26; k++) motes.push({ seed: k * 104729 + 7 });
+    })();
+
+    // stepped pixel disc
+    function pxDisc(cx, cy, r, color) {
+      ctx.fillStyle = color;
+      for (var y = -r; y <= r; y++) {
+        var w = Math.floor(Math.sqrt(r * r - y * y));
+        ctx.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2 + 1, 1);
+      }
+    }
+    // crescent moon: disc minus an offset shadow disc, drawn as scanline runs
+    function pxCrescent(cx, cy, r, color, biteDx) {
+      var sr = r * 0.92;
+      for (var y = -r; y <= r; y++) {
+        var w = Math.floor(Math.sqrt(r * r - y * y));
+        var runStart = null;
+        for (var x = -w; x <= w; x++) {
+          var sy = y + r * 0.3;
+          var inShadow = (x - biteDx) * (x - biteDx) + sy * sy < sr * sr;
+          if (!inShadow && runStart === null) runStart = x;
+          if ((inShadow || x === w) && runStart !== null) {
+            var runEnd = inShadow ? x - 1 : x;
+            if (runEnd >= runStart) {
+              ctx.fillStyle = color;
+              ctx.fillRect(Math.round(cx + runStart), Math.round(cy + y), runEnd - runStart + 1, 1);
+            }
+            runStart = null;
+          }
+        }
+      }
+    }
+    function radialGlow(x, y, r, inner, outer) {
+      var g = ctx.createRadialGradient(x, y, 1, x, y, r);
+      g.addColorStop(0, inner); g.addColorStop(1, outer);
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // soft light pool on the ground (elliptical via scale trick)
+    function drawGlow() {
+      for (var i = 0; i < glowSpots.length; i++) {
+        var s = glowSpots[i];
+        ctx.save();
+        ctx.translate(s.x, s.y); ctx.scale(1, s.ry / s.rx);
+        var g = ctx.createRadialGradient(0, 0, 2, 0, 0, s.rx);
+        g.addColorStop(0, 'rgba(255,190,90,' + s.a + ')');
+        g.addColorStop(1, 'rgba(255,190,90,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(-s.rx, -s.rx, s.rx * 2, s.rx * 2);
+        ctx.restore();
+      }
+      glowSpots.length = 0;
+    }
+
+    var CLOUDS = [
+      { bx: 80, y: 66, s: 1.0, sp: 7 }, { bx: 480, y: 120, s: 0.7, sp: 10 },
+      { bx: 880, y: 58, s: 1.25, sp: 5 }, { bx: 1230, y: 150, s: 0.8, sp: 8 },
+    ];
+    function drawCloud(x, y, s, top, bot) {
+      var u = Math.max(2, Math.round(5 * s));
+      ctx.fillStyle = bot;
+      ctx.fillRect(Math.round(x), Math.round(y + u), 14 * u, 3 * u);
+      ctx.fillRect(Math.round(x + 2 * u), Math.round(y), 10 * u, 2 * u);
+      ctx.fillStyle = top;
+      ctx.fillRect(Math.round(x), Math.round(y), 14 * u, 3 * u);
+      ctx.fillRect(Math.round(x + 2 * u), Math.round(y - u), 10 * u, 2 * u);
+      ctx.fillRect(Math.round(x + 4 * u), Math.round(y - 2 * u), 6 * u, u);
+    }
+    var BIRDS = [
+      { bx: 200, y: 92, sp: 24, ph: 0 }, { bx: 700, y: 132, sp: 17, ph: 2 },
+      { bx: 1100, y: 74, sp: 28, ph: 4 },
+    ];
+
     function phaseOf(p) { return PHASES[p] ? p : 'day'; }
 
     function slotIndexFor(buildingSlug) {
@@ -434,23 +514,63 @@
       var g = ctx.createLinearGradient(0, 0, 0, SKY_H + 60);
       g.addColorStop(0, p.sky[0]); g.addColorStop(0.55, p.sky[1]); g.addColorStop(1, p.sky[2]);
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, SKY_H + 60);
+
+      // drifting pixel clouds (all phases but night, where they go faint)
+      var cloudTop, cloudBot, i;
+      if (phase === 'day') { cloudTop = '#ffffff'; cloudBot = '#cfe6f7'; }
+      else if (phase === 'dawn') { cloudTop = '#ffe3c8'; cloudBot = '#f0a8b8'; }
+      else if (phase === 'dusk') { cloudTop = '#e8a0bf'; cloudBot = '#9a5f8e'; }
+      else { cloudTop = '#233a5e'; cloudBot = '#16263f'; }
+      for (i = 0; i < CLOUDS.length; i++) {
+        var c = CLOUDS[i];
+        var cx = ((c.bx + t * c.sp) % (W + 320)) - 160;
+        ctx.globalAlpha = phase === 'night' ? 0.5 : 0.92;
+        drawCloud(cx, c.y + Math.sin(t * 0.5 + i * 2) * 4, c.s, cloudTop, cloudBot);
+      }
+      ctx.globalAlpha = 1;
+
       if (phase === 'night') {
+        // stars, twinkling
         var seed = 42;
-        for (var i = 0; i < 110; i++) {
+        for (i = 0; i < 110; i++) {
           seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
           var sx = (seed % W), sy = (seed >> 9) % 240;
           var tw = 0.5 + 0.5 * Math.sin(t * 2 + i);
           ctx.fillStyle = 'rgba(255,255,255,' + (0.25 + 0.55 * tw).toFixed(2) + ')';
           ctx.fillRect(sx, sy, 2, 2);
         }
-        // moon
-        ctx.fillStyle = '#f4f1d8'; ctx.fillRect(1150, 36, 34, 34);
-        ctx.fillStyle = '#0b1b33'; ctx.fillRect(1160, 30, 24, 24); // crescent bite
+        // a few bright stars with cross sparkle
+        for (i = 0; i < 8; i++) {
+          seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+          var bx2 = (seed % (W - 40)) + 20, by2 = (seed >> 7) % 200 + 10;
+          var sp = 0.5 + 0.5 * Math.sin(t * 3 + i * 1.7);
+          ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + 0.5 * sp).toFixed(2) + ')';
+          ctx.fillRect(bx2 - 1, by2 - 4, 3, 9); ctx.fillRect(bx2 - 4, by2 - 1, 9, 3);
+        }
+        // proper crescent moon with halo
+        radialGlow(1150, 62, 80, 'rgba(244,241,216,0.22)', 'rgba(244,241,216,0)');
+        pxCrescent(1150, 62, 20, '#f4f1d8', 8);
       } else if (phase === 'dawn' || phase === 'dusk') {
-        ctx.fillStyle = phase === 'dawn' ? '#fff3c4' : '#ffb26b';
-        ctx.fillRect(160, 190, 46, 46); // low sun
+        // low sun, warm and huge
+        var sunX = phase === 'dawn' ? 210 : 1070, sunC = phase === 'dawn' ? '#fff3c4' : '#ffb26b';
+        radialGlow(sunX, 232, 130, 'rgba(255,190,120,0.4)', 'rgba(255,190,120,0)');
+        pxDisc(sunX, 232, 26, sunC);
+        pxDisc(sunX, 232, 18, '#fff8dc');
       } else {
-        ctx.fillStyle = '#fff8dc'; ctx.fillRect(1150, 40, 44, 44); // day sun
+        // day sun with soft halo
+        radialGlow(1150, 72, 110, 'rgba(255,248,220,0.45)', 'rgba(255,248,220,0)');
+        pxDisc(1150, 72, 24, '#ffedb0');
+        pxDisc(1150, 72, 17, '#fff8dc');
+        // birds
+        ctx.fillStyle = '#3a4a63';
+        for (i = 0; i < BIRDS.length; i++) {
+          var b = BIRDS[i];
+          var px2 = ((b.bx + t * b.sp) % (W + 200)) - 100;
+          var py2 = b.y + Math.sin(t * 1.2 + b.ph) * 8;
+          var flap = ((t * 5 + b.ph) | 0) % 2 === 0;
+          if (flap) { ctx.fillRect(px2 - 5, py2, 5, 2); ctx.fillRect(px2, py2, 5, 2); }
+          else { ctx.fillRect(px2 - 4, py2 - 3, 3, 5); ctx.fillRect(px2 + 1, py2 - 3, 3, 5); }
+        }
       }
     }
 
@@ -504,6 +624,12 @@
       var dw = 34;
       ctx.fillStyle = '#1d1410'; ctx.fillRect(x + w / 2 - dw / 2, GROUND_Y - 58, dw, 58);
       if (winOn) { ctx.fillStyle = 'rgba(255,233,163,0.85)'; ctx.fillRect(x + w / 2 - dw / 2, GROUND_Y - 58, dw, 6); }
+
+      // warm light spilling from windows + door onto the cobbles (drawn by drawGlow)
+      if (winOn) {
+        glowSpots.push({ x: x + w / 2, y: GROUND_Y + 30, rx: w * 0.52, ry: 22, a: 0.26 });
+        glowSpots.push({ x: x + w / 2, y: GROUND_Y + 54, rx: 36, ry: 13, a: 0.30 });
+      }
 
       // live signal marquee at the base of the facade
       ctx.fillStyle = '#0d1420'; ctx.fillRect(x, GROUND_Y - 26, w, 22);
@@ -603,25 +729,57 @@
 
     function drawStreet(t) {
       var p = PHASES[phase];
-      // sidewalk strip
-      ctx.fillStyle = p.street; ctx.fillRect(0, GROUND_Y, W, 92);
+      // cobblestone sidewalk: dark gaps, varied stones, top highlight
+      ctx.fillStyle = '#434656'; ctx.fillRect(0, GROUND_Y, W, 92);
+      var cobH = 15, cobW = 26, brow, cx0;
+      for (brow = 0; brow * cobH < 92; brow++) {
+        var y0 = GROUND_Y + brow * cobH;
+        var off = (brow % 2) * cobW / 2;
+        for (cx0 = -cobW; cx0 < W + cobW; cx0 += cobW) {
+          var hx = hashStr(cx0 + ':' + brow);
+          var v = 132 + (hx % 26) - 13;
+          ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + (v + 10) + ')';
+          ctx.fillRect(cx0 + off + 1, y0 + 1, cobW - 2, cobH - 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.10)';
+          ctx.fillRect(cx0 + off + 1, y0 + 1, cobW - 2, 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.16)';
+          ctx.fillRect(cx0 + off + 1, y0 + cobH - 3, cobW - 2, 2);
+        }
+      }
+      // phase tint unifies the street lighting
+      if (phase === 'night') { ctx.fillStyle = 'rgba(8,12,26,0.42)'; ctx.fillRect(0, GROUND_Y, W, 92); }
+      else if (phase === 'dusk') { ctx.fillStyle = 'rgba(52,24,54,0.22)'; ctx.fillRect(0, GROUND_Y, W, 92); }
+      else if (phase === 'dawn') { ctx.fillStyle = 'rgba(255,170,140,0.10)'; ctx.fillRect(0, GROUND_Y, W, 92); }
       // curb + road
-      ctx.fillStyle = '#2b323b'; ctx.fillRect(0, GROUND_Y + 92, W, 8);
-      ctx.fillStyle = '#232a33'; ctx.fillRect(0, GROUND_Y + 100, W, H - GROUND_Y - 100);
+      ctx.fillStyle = '#5b5e70'; ctx.fillRect(0, GROUND_Y + 92, W, 4);
+      ctx.fillStyle = '#2b323b'; ctx.fillRect(0, GROUND_Y + 96, W, 8);
+      ctx.fillStyle = '#232a33'; ctx.fillRect(0, GROUND_Y + 104, W, H - GROUND_Y - 104);
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      for (var x = 12; x < W; x += 72) ctx.fillRect(x, GROUND_Y + 134, 36, 5);
-      // lamp posts with glow when lamps are on
+      for (var x = 12; x < W; x += 72) ctx.fillRect(x, GROUND_Y + 138, 36, 5);
+      // lamp posts: iron post, curved arm, hanging lantern, cone + pool when lit
       for (var i = 0; i < 4; i++) {
         var lx = 90 + i * 360;
-        ctx.fillStyle = '#1c2430'; ctx.fillRect(lx, GROUND_Y - 96, 8, 96);
-        ctx.fillRect(lx - 16, GROUND_Y - 104, 40, 8);
         var lit = p.lamps;
-        ctx.fillStyle = lit ? '#ffe9a3' : '#3a4450';
-        ctx.fillRect(lx + 6, GROUND_Y - 98, 16, 12);
+        ctx.fillStyle = '#14100c';
+        ctx.fillRect(lx, GROUND_Y - 118, 8, 118);          // post
+        ctx.fillRect(lx - 4, GROUND_Y - 4, 16, 4);          // foot
+        ctx.fillRect(lx, GROUND_Y - 118, 30, 6);            // arm
+        ctx.fillRect(lx + 26, GROUND_Y - 118, 4, 12);       // hanger
+        ctx.fillRect(lx + 22, GROUND_Y - 106, 12, 4);       // lantern cap
+        ctx.fillStyle = lit ? '#ffe9a3' : '#39424f';
+        ctx.fillRect(lx + 23, GROUND_Y - 102, 10, 12);      // lantern glass
+        ctx.fillStyle = '#14100c';
+        ctx.fillRect(lx + 22, GROUND_Y - 90, 12, 3);        // lantern base
         if (lit) {
-          var g = ctx.createRadialGradient(lx + 14, GROUND_Y - 92, 4, lx + 14, GROUND_Y - 92, 70);
-          g.addColorStop(0, 'rgba(255,233,163,0.35)'); g.addColorStop(1, 'rgba(255,233,163,0)');
-          ctx.fillStyle = g; ctx.fillRect(lx - 60, GROUND_Y - 160, 150, 160);
+          ctx.fillStyle = '#fff6d8';
+          ctx.fillRect(lx + 26, GROUND_Y - 100, 4, 8);      // hot core
+          radialGlow(lx + 28, GROUND_Y - 96, 46, 'rgba(255,220,140,0.5)', 'rgba(255,220,140,0)');
+          // light cone to the ground
+          ctx.fillStyle = 'rgba(255,220,140,0.10)';
+          ctx.beginPath();
+          ctx.moveTo(lx + 28, GROUND_Y - 90); ctx.lineTo(lx + 2, GROUND_Y + 92);
+          ctx.lineTo(lx + 54, GROUND_Y + 92); ctx.closePath(); ctx.fill();
+          glowSpots.push({ x: lx + 28, y: GROUND_Y + 62, rx: 66, ry: 20, a: 0.30 });
         }
       }
       // plaques: three small stones embedded in the sidewalk
@@ -633,6 +791,67 @@
         ctx.fillText('✦', px, py + 4);
         PLAQUES[k]._x = px; PLAQUES[k]._y = py;
       }
+    }
+
+    /* ---- particles: chimney smoke, fireflies, dust motes ---- */
+    function drawParticles(t, dt) {
+      var lamps = PHASES[phase].lamps;
+      // chimney smoke from three shops
+      var emitIdx = [0, 3, 5], e, si;
+      for (e = 0; e < emitIdx.length; e++) {
+        si = emitIdx[e];
+        if (si >= slots.length) continue;
+        if (Math.random() < dt * 5 && puffs.length < 70) {
+          puffs.push({
+            x: slots[si].x + slots[si].w * 0.78,
+            y: 152 + (si % 3) * 12 - 10,
+            age: 0, seed: Math.random() * 10,
+          });
+        }
+      }
+      var smokeC = phase === 'night' ? '#3a4658' : (phase === 'day' ? '#dfe3ea' : '#c9b8c4');
+      for (var i = puffs.length - 1; i >= 0; i--) {
+        var p = puffs[i];
+        p.age += dt;
+        if (p.age > 4.5) { puffs.splice(i, 1); continue; }
+        var px = p.x + p.age * 15 + Math.sin(p.age * 3 + p.seed) * 7;
+        var py = p.y - p.age * 24;
+        var s = 4 + p.age * 2.6;
+        ctx.globalAlpha = 0.40 * (1 - p.age / 4.5);
+        ctx.fillStyle = smokeC;
+        ctx.fillRect(Math.round(px - s / 2), Math.round(py - s / 2), Math.round(s), Math.round(s));
+        ctx.fillRect(Math.round(px - s / 4), Math.round(py - s / 2 - 3), Math.round(s / 2), Math.round(s / 2));
+      }
+      ctx.globalAlpha = 1;
+
+      var f, fx, fy, tw2;
+      if (lamps) {
+        // fireflies wander over the street
+        for (f = 0; f < flies.length; f++) {
+          var fl = flies[f];
+          fx = ((fl.seed * 137) % W + W) % W + Math.sin(t * 0.9 + fl.seed) * 42;
+          fy = GROUND_Y - 30 - ((fl.seed * 89) % 190) + Math.cos(t * 1.3 + fl.seed * 2) * 20;
+          tw2 = 0.3 + 0.7 * Math.abs(Math.sin(t * 2.1 + fl.seed * 3));
+          ctx.globalAlpha = tw2 * 0.28;
+          ctx.fillStyle = '#e8ff9e';
+          ctx.fillRect(Math.round(fx - 3), Math.round(fy - 3), 9, 9);
+          ctx.globalAlpha = tw2;
+          ctx.fillRect(Math.round(fx - 1), Math.round(fy - 1), 3, 3);
+        }
+      } else {
+        // dust motes drifting in the daylight
+        for (f = 0; f < motes.length; f++) {
+          var mo = motes[f];
+          var mx = (((mo.seed * 211) % (W + 120)) - t * 6) % (W + 120);
+          if (mx < 0) mx += W + 120;
+          mx -= 60;
+          var my = 120 + ((mo.seed * 53) % 200) + Math.sin(t * 0.7 + mo.seed) * 14;
+          ctx.globalAlpha = 0.16 + 0.10 * Math.sin(t * 1.5 + mo.seed * 2);
+          ctx.fillStyle = '#fff8dc';
+          ctx.fillRect(Math.round(mx), Math.round(my), 2, 2);
+        }
+      }
+      ctx.globalAlpha = 1;
     }
 
     function drawCottages(t) {
@@ -704,15 +923,19 @@
       }
     }
 
+    var lastT = 0;
     function frame(nowMs) {
       if (!running) return;
       var t = (nowMs - startT) / 1000;
+      var dt = Math.min(0.1, (t - lastT) || 0.016); lastT = t;
       phase = phaseOf(S.phase);
       drawSky(t);
       for (var i = 0; i < buildings.length; i++) drawShop(i, buildings[i], t);
       drawStreet(t);
+      drawGlow();            // window + lamp light pools on the cobbles
       drawCottages(t);
       drawOccupants(t);
+      drawParticles(t, dt);  // smoke, fireflies, dust
       rafId = requestAnimationFrame(frame);
     }
 
