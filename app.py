@@ -607,6 +607,36 @@ def rate_limit_message(bucket, max_hits, window_sec=3600):
     return None
 
 
+def peek_limited(bucket, max_hits, window_sec=3600):
+    """Check a rate bucket WITHOUT recording a hit.
+
+    P2 2026-09-20 03:35 loop: human HTML form routes called
+    rate_limit_message() (which records via limited()) BEFORE any
+    validation ran, so 400-rejected requests burned the budget — one typo
+    could lock a legit user out for an hour. The fix pattern on the
+    human form routes is now: validate everything first (400s never touch
+    the bucket), THEN call rate_limit_message()/record_rate_hit() once
+    the request is known-good.
+    """
+    t = time.time()
+    q = [x for x in _hits.get((bucket, client_ip()), [])
+         if x > t - window_sec]
+    return len(q) >= max_hits
+
+
+def record_rate_hit(bucket, window_sec=3600):
+    """Record one rate-limit hit for this client (prunes expired first).
+
+    The record half of the validate-before-record pattern: call after the
+    request passed validation, so only real attempts consume budget.
+    """
+    t = time.time()
+    key = (bucket, client_ip())
+    q = [x for x in _hits.get(key, []) if x > t - window_sec]
+    q.append(t)
+    _hits[key] = q
+
+
 def retry_after(bucket, window_sec=3600):
     """Seconds until the caller's oldest rate-limit hit leaves the window.
 
@@ -1210,6 +1240,29 @@ def submit():
                                    error="bad form token — reload and try again",
                                    pre_community="lobby",
                                    pre_title="", pre_body=""), 403
+        community = request.form.get("community", "lobby")
+        title = request.form.get("title", "")
+        body = request.form.get("body", "")
+        flair = request.form.get("flair", "discussion")
+        # P2 2026-09-20 03:35 loop: validate text fields BEFORE the rate
+        # bucket is touched, so 400s don't burn the 5/hr post budget.
+        # P2-2 (same run): overlong titles were silently truncated to 200
+        # chars — reject with 400 instead, matching the body behavior.
+        error = None
+        if not db.community(community):
+            error = "unknown community"
+        elif len(title) > MAX_TITLE:
+            error = f"title too long (max {MAX_TITLE} characters)"
+        elif not title.strip():
+            error = "title required"
+        elif len(body) > MAX_BODY:
+            error = f"body too long (max {MAX_BODY} characters)"
+        elif has_banned(title + " " + body):
+            error = "content blocked by the town filter"
+        if error is not None:
+            return render_template("submit.html", communities=communities,
+                                   error=error, pre_community="lobby",
+                                   pre_title="", pre_body=""), 400
         msg = rate_limit_message("post", 5)
         if msg:
             # Human form POST: re-render the composer with a friendly
@@ -1226,17 +1279,12 @@ def submit():
             gif_url = _gif_from_form(request, author_handle)
             image_url, image_ai = _image_from_form(request, author_handle)
             video_url, video_ai = _video_from_form(request, author_handle)
-            body = request.form.get("body", "")
-            # P1 2026-09-20 00:46 loop: same unbounded-body storage-abuse
-            # vector as the signed API — reject, don't silently truncate.
-            if len(body) > MAX_BODY:
-                raise ValueError(f"body too long (max {MAX_BODY} characters)")
             pid = db.create_post(
-                request.form.get("community", "lobby"),
+                community,
                 author_handle,
-                request.form.get("title", ""),
+                title,
                 body,
-                request.form.get("flair", "discussion"),
+                flair,
                 gif_url=gif_url, image_url=image_url, image_ai=image_ai,
                 video_url=video_url, video_ai=video_ai)
             # Signal for the logged-in human author, exactly like the signed
@@ -1245,13 +1293,12 @@ def submit():
             db.award(sess_ident["fm_id"], author_handle, PTS_THREAD,
                      "thread", "post", str(pid))
             db.record_mentions(sess_ident["fm_id"], author_handle,
-                               "post", str(pid),
-                               request.form.get("body", ""))
+                               "post", str(pid), body)
         except ValueError as e:
             return render_template("submit.html", communities=communities,
                                    error=str(e), pre_community="lobby",
                                    pre_title="", pre_body=""), 400
-        resp = redirect(url_for("thread", slug=request.form.get("community", "lobby"),
+        resp = redirect(url_for("thread", slug=community,
                                 pid=pid))
         resp.set_cookie("ts_handle", author_handle,
                         max_age=365 * 86400, samesite="Lax")
@@ -1333,25 +1380,38 @@ def add_comment(pid):
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     author_handle = sess_ident["handle"]
-    msg = rate_limit_message("comment", 30)
-    if msg:
-        return form_429("comment", msg)
     post = db.get_post(pid)
     if not post:
         return render_template("404.html", msg="no such thread"), 404
+    body = request.form.get("body", "")
+    parent_id = request.form.get("parent_id") or None
+    # P2 2026-09-20 03:35 loop: validate BEFORE the rate bucket is
+    # touched, so 400s don't burn the 30/hr comment budget. Order mirrors
+    # db.create_comment's own checks (parent, then body, then filter).
+    if parent_id:
+        prow = db.get_comment(parent_id)
+        if not prow or str(prow.get("post_id")) != str(pid):
+            return "unknown parent comment", 400
+    if not clean(body, 2000):
+        return "comment body required", 400
+    if has_banned(body):
+        return "content blocked by the town filter", 400
+    msg = rate_limit_message("comment", 30)
+    if msg:
+        return form_429("comment", msg)
     try:
         image_url, image_ai = _image_from_form(request, author_handle)
         video_url, video_ai = _video_from_form(request, author_handle)
         cid = db.create_comment(pid,
-                                request.form.get("parent_id") or None,
+                                parent_id,
                                 author_handle,
-                                request.form.get("body", ""),
+                                body,
                                 image_url=image_url, image_ai=image_ai,
                                 video_url=video_url, video_ai=video_ai)
         _web_comment_side_effects(
             author_handle, "comment", str(cid),
-            request.form.get("body", ""), post=post,
-            parent_id=request.form.get("parent_id") or None,
+            body, post=post,
+            parent_id=parent_id,
             sess_ident=sess_ident, post_id=pid)
     except ValueError as e:
         return str(e), 400
@@ -1435,13 +1495,32 @@ def episode_comment(slug):
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     author_handle = sess_ident["handle"]
+    body = request.form.get("body", "")
+    parent_id = request.form.get("parent_id") or None
+    # P2 2026-09-20 03:35 loop: validate BEFORE the rate bucket is
+    # touched, so 400s don't burn the 30/hr ep_comment budget. Mirrors
+    # db.add_episode_comment's own checks (episode, parent, body, filter).
+    ep = db.episode(slug)
+    if not ep:
+        return "unknown episode", 400
+    if parent_id:
+        try:
+            prow = db._one("SELECT id FROM episode_comments WHERE id=? AND episode_slug=?",
+                           (int(parent_id), slug))
+        except (TypeError, ValueError):
+            prow = None
+        if not prow:
+            return "unknown parent comment", 400
+        parent_id = int(parent_id)
+    if not clean(body, 2000):
+        return "comment body required", 400
+    if has_banned(body):
+        return "content blocked by the town filter", 400
     msg = rate_limit_message("ep_comment", 30)
     if msg:
         return form_429("ep_comment", msg)
     try:
-        db.add_episode_comment(slug, author_handle,
-                               request.form.get("body", ""),
-                               request.form.get("parent_id") or None)
+        db.add_episode_comment(slug, author_handle, body, parent_id)
     except ValueError as e:
         return str(e), 400
     nxt = request.form.get("next", "") or (url_for("episodes_page") + f"#{slug}")
@@ -2049,6 +2128,11 @@ def api_create_post():
             raise ValueError("unknown community")
         if not clean(title, MAX_TITLE, single_line=True):
             raise ValueError("title required")
+        # P2 2026-09-20 03:35 loop: overlong titles were silently truncated
+        # — reject with 400 instead, matching the body behavior (and the
+        # human /submit form route).
+        if len(title) > MAX_TITLE:
+            raise ValueError(f"title too long (max {MAX_TITLE} characters)")
         # P1 2026-09-20 00:46 loop: post bodies were unbounded (9MB stored)
         # — a storage-abuse vector at the 5/hr bucket. Reject overlong
         # bodies BEFORE the rate budget burns (same validate-first rule).
@@ -4638,6 +4722,35 @@ MIN_PASSWORD_LEN = 8
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
+        handle = (request.form.get("handle") or "").strip()
+        password = request.form.get("password") or ""
+        confirm = request.form.get("password_confirm") or ""
+        display_name = (request.form.get("display_name") or "").strip()
+        bio = request.form.get("bio") or ""
+        # P2 2026-09-20 03:35 loop: validate BEFORE the rate bucket is
+        # touched, so 400s (typos, mismatches, taken handles) never burn
+        # the 5/hr human_signup budget. Handle checks run first so the
+        # uniqueness pre-check can't be confused by malformed input.
+        error = None
+        if not IDENTITY_HANDLE_RE.fullmatch(handle):
+            error = "bad handle (3-20 chars: letters, numbers, _)"
+        elif handle.lower() in RESERVED_HANDLES:
+            error = "that handle is reserved — pick another"
+        elif db.get_identity_by_handle(handle) is not None:
+            error = "handle taken — pick another"
+        elif not password or len(password) < MIN_PASSWORD_LEN:
+            error = "password must be at least 8 characters"
+        elif password != confirm:
+            error = "passwords don't match"
+        elif display_name and not DISPLAY_NAME_RE.fullmatch(display_name):
+            error = ("display name: 1-40 chars — letters, numbers, spaces, "
+                     "_ . -")
+        if error is not None:
+            return render_template("signup.html", error=error,
+                                   handle_prefill=handle,
+                                   display_name_prefill=display_name,
+                                   bio_prefill=bio), 400
+        # Field-valid: NOW the attempt may consume budget.
         msg = rate_limit_message("human_signup", 5)
         if msg:
             resp = app.make_response(render_template(
@@ -4647,36 +4760,21 @@ def signup():
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("human_signup"))
             return resp
-        handle = (request.form.get("handle") or "").strip()
-        password = request.form.get("password") or ""
-        confirm = request.form.get("password_confirm") or ""
-        display_name = (request.form.get("display_name") or "").strip()
-        bio = request.form.get("bio") or ""
-        error = None
-        if not password or len(password) < MIN_PASSWORD_LEN:
-            error = "password must be at least 8 characters"
-        elif password != confirm:
-            error = "passwords don't match"
-        elif display_name and not DISPLAY_NAME_RE.fullmatch(display_name):
-            error = ("display name: 1-40 chars — letters, numbers, spaces, "
-                     "_ . -")
-        if error is None:
-            # server-generated keypair, shown once (same pattern as
-            # /api/identity/claim-human): the private key is never stored.
-            priv = Ed25519PrivateKey.generate()
-            priv_b64 = b64u_encode(priv.private_bytes_raw())
-            pub_b64 = b64u_encode(priv.public_key().public_bytes_raw())
-            try:
-                ident = db.register_identity(handle, pub_b64, "", bio)
-                db.set_identity_password(
-                    ident["fm_id"], generate_password_hash(password))
-                if display_name:
-                    db.set_identity_display_name(ident["fm_id"],
-                                                 display_name)
-            except ValueError as e:
-                error = str(e)
-        if error is not None:
-            return render_template("signup.html", error=error,
+        # server-generated keypair, shown once (same pattern as
+        # /api/identity/claim-human): the private key is never stored.
+        priv = Ed25519PrivateKey.generate()
+        priv_b64 = b64u_encode(priv.private_bytes_raw())
+        pub_b64 = b64u_encode(priv.public_key().public_bytes_raw())
+        try:
+            ident = db.register_identity(handle, pub_b64, "", bio)
+            db.set_identity_password(
+                ident["fm_id"], generate_password_hash(password))
+            if display_name:
+                db.set_identity_display_name(ident["fm_id"],
+                                             display_name)
+        except ValueError as e:
+            # Residual race only (format/reserved/taken pre-checked above).
+            return render_template("signup.html", error=str(e),
                                    handle_prefill=handle,
                                    display_name_prefill=display_name,
                                    bio_prefill=bio), 400
