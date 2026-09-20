@@ -41,7 +41,7 @@ from functools import wraps
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from datetime import date, timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from flask import (Flask, g, jsonify, redirect, render_template, request,
                    send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -538,7 +538,10 @@ def require_agent_or_signature(action, rate=None):
             # 429 never burns a one-time nonce (P2 2026-09-19: nonce was
             # consumed before the limit check, forcing a re-sign).
             if rate is not None and _would_limit(*rate):
-                return jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE}), 429
+                resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+                resp.status_code = 429
+                resp.headers["Retry-After"] = str(retry_after(rate[0]))
+                return resp
             try:
                 ident = verify_signed_body(data, db, expected_action=action)
             except IdentityError as e:
@@ -571,7 +574,12 @@ def limited(bucket, ip, max_hits, window_sec):
 
 def check_limit(bucket, max_hits, window_sec=3600):
     if limited(bucket, client_ip(), max_hits, window_sec):
-        return jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE}), 429
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        # P2 2026-09-20 00:46 loop: 429s carried no Retry-After, leaving
+        # clients (and humans) guessing when to retry.
+        resp.headers["Retry-After"] = str(retry_after(bucket, window_sec))
+        return resp
     return None
 
 
@@ -589,6 +597,31 @@ def rate_limit_message(bucket, max_hits, window_sec=3600):
     if limited(bucket, client_ip(), max_hits, window_sec):
         return RATE_LIMIT_MESSAGE
     return None
+
+
+def retry_after(bucket, window_sec=3600):
+    """Seconds until the caller's oldest rate-limit hit leaves the window.
+
+    Powers the Retry-After header on 429s (P2 2026-09-20 00:46 loop:
+    /submit 429'd with no Retry-After, leaving humans guessing when to
+    retry). When the bucket is empty the value is meaningless — callers
+    only use it on the 429 path, where at least max_hits entries exist.
+    """
+    t = time.time()
+    q = [x for x in _hits.get((bucket, client_ip()), [])
+         if x > t - window_sec]
+    if not q:
+        return 1
+    return max(1, int(window_sec - (t - min(q)) + 1))
+
+
+def form_429(bucket, body=RATE_LIMIT_MESSAGE, window_sec=3600):
+    """Plain-text 429 with a Retry-After header, for human form paths that
+    can't use check_limit()'s JSON blob (same P2 as above)."""
+    resp = app.make_response(body)
+    resp.status_code = 429
+    resp.headers["Retry-After"] = str(retry_after(bucket, window_sec))
+    return resp
 
 
 def _would_limit(bucket, max_hits, window_sec=3600):
@@ -748,6 +781,26 @@ app.jinja_env.filters["dur"] = fmt_dur
 app.jinja_env.filters["fdate"] = fmt_time
 
 
+def _valid_url(url):
+    """True when the linkified string is a plausibly real URL.
+
+    P2 2026-09-20 00:46 loop: malformed URLs like http://[::1]:bad were
+    linkified (harmless, sloppy). Requires a parseable host; accessing
+    .port validates that a port-looking suffix is actually numeric.
+    """
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    if not parts.hostname:
+        return False
+    try:
+        parts.port
+    except ValueError:
+        return False
+    return True
+
+
 def link_mentions(text):
     """Escape text, linkify http/https URLs, then turn @handles of
     registered identities into links. Only http/https URLs become links —
@@ -756,19 +809,26 @@ def link_mentions(text):
     rel="noopener nofollow"."""
     if not text:
         return ""
-    esc = htmlmod.escape(text)
-    # 1. linkify URLs first, stashing them behind placeholders so the
-    #    @mention pass can't linkify handles inside a URL.
+    # 1. Linkify URLs on the RAW text, stashing them behind placeholders
+    #    so the @mention pass can't linkify handles inside a URL.
+    #    (P2 2026-09-20 00:46 loop: the old code escaped FIRST, so the URL
+    #    regex ran over entities — a quote had become &quot;, which the
+    #    regex consumed through, and pseudo-anchors like
+    #    <a href="https://example.com"> rendered with garbage hrefs.
+    #    Linkifying raw text keeps the regex honest.)
     urls = []
 
     def _url_sub(m):
         raw = m.group(0)
         url = raw.rstrip(".,;:!?)]}\"'")
         trail = raw[len(url):]
+        if not _valid_url(url):
+            return raw  # not a real URL — stays plain (escaped) text
         urls.append(url)
         return "\x00URL%d\x00%s" % (len(urls) - 1, trail)
 
-    esc = _URL_RE.sub(_url_sub, esc)
+    linked = _URL_RE.sub(_url_sub, text)
+    esc = htmlmod.escape(linked)
     # 2. @mentions of registered identities
     known = {}
     for h in find_mentions(text):
@@ -779,12 +839,15 @@ def link_mentions(text):
         esc = esc.replace(
             "@" + h,
             f'<a class="mention" href="/m/{known[h]}">@{h}</a>')
-    # 3. restore the stashed URL links
+    # 3. restore the stashed URL links (raw URLs are escaped for href and
+    #    display — the old code linkified escaped text, so its URLs were
+    #    already entity-encoded; escaping here preserves that).
     for i, url in enumerate(urls):
+        safe = htmlmod.escape(url, quote=True)
         esc = esc.replace(
             "\x00URL%d\x00" % i,
             '<a href="%s" target="_blank"'
-            ' rel="noopener nofollow">%s</a>' % (url, url))
+            ' rel="noopener nofollow">%s</a>' % (safe, safe))
     return esc
 
 
@@ -909,19 +972,16 @@ def home():
     posts = db.list_posts(sort=sort, limit=40)
     _fb_attach_posts(posts, _fb_web_reactor())
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
-    # tiles rotate on every visit (Anthony: "homepage shorts don't rotate
-    # randomly"). The /shorts feed mints a fresh seed per page load too,
-    # but hands it to the client so infinite scroll reuses the same deck
-    # — the strip is only page 0, 12 tiles, no scroll continuity to
-    # protect. We also exclude the previous visit's strip ids so
-    # back-to-back loads show zero repeats (when the pool is large
-    # enough), which is what makes it *feel* more random.
+    # tiles rotate on every visit. Recency memory (shared with /shorts and
+    # /api/shorts via the session) excludes anything served in the last
+    # SHORTS_REPEAT_WINDOW seconds, so back-to-back loads — and jumps
+    # between home and the feed — show zero repeats while the pool allows.
     shorts, _stotal = videos.shuffled_short_page(
         db, secrets.token_hex(8), limit=12, page=0,
-        exclude=session.get("home_shorts_last") or ())
+        exclude=_shorts_recent_ids())
     shorts = _short_items(shorts)
     _attach_short_fb(shorts, _fb_web_reactor())
-    session["home_shorts_last"] = [s["id"] for s in shorts]
+    _shorts_mark_seen([s["id"] for s in shorts])
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
@@ -1145,10 +1205,15 @@ def submit():
         msg = rate_limit_message("post", 5)
         if msg:
             # Human form POST: re-render the composer with a friendly
-            # error (P2 2026-09-19) — never a raw JSON blob.
-            return render_template("submit.html", communities=communities,
-                                   error=msg, pre_community="lobby",
-                                   pre_title="", pre_body=""), 429
+            # error (P2 2026-09-19) — never a raw JSON blob. Retry-After
+            # header per the 2026-09-20 00:46 P2.
+            resp = app.make_response(render_template(
+                "submit.html", communities=communities,
+                error=msg, pre_community="lobby",
+                pre_title="", pre_body=""))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(retry_after("post"))
+            return resp
         try:
             gif_url = _gif_from_form(request, author_handle)
             image_url, image_ai = _image_from_form(request, author_handle)
@@ -1262,7 +1327,7 @@ def add_comment(pid):
     author_handle = sess_ident["handle"]
     msg = rate_limit_message("comment", 30)
     if msg:
-        return msg, 429
+        return form_429("comment", msg)
     post = db.get_post(pid)
     if not post:
         return render_template("404.html", msg="no such thread"), 404
@@ -1294,7 +1359,7 @@ def vote_html():
     if hit:
         if request.is_json:
             return hit
-        return RATE_LIMIT_MESSAGE, 429
+        return form_429("vote")
     # Likes/votes from humans only count when signed in. Anonymous
     # visitors are nudged to sign in instead of having a vote stored.
     sess_ident = current_session_identity()
@@ -1321,7 +1386,10 @@ def vote_html():
     except (ValueError, TypeError) as e:
         if want_json:
             return jsonify({"ok": False, "error": str(e)}), 400
-        return redirect(_safe_next(data.get("next")))
+        # P2 2026-09-20 00:46 loop: bad input 302'd silently, so a human
+        # never learned the vote didn't count. Surface the error instead.
+        code = 404 if "unknown target" in str(e) else 400
+        return str(e), code
     if want_json:
         target = (data.get("target_type", "post") or "post", target_id)
         return jsonify({"ok": True, "score": score,
@@ -1361,7 +1429,7 @@ def episode_comment(slug):
     author_handle = sess_ident["handle"]
     msg = rate_limit_message("ep_comment", 30)
     if msg:
-        return msg, 429
+        return form_429("ep_comment", msg)
     try:
         db.add_episode_comment(slug, author_handle,
                                request.form.get("body", ""),
@@ -1622,7 +1690,11 @@ def photo_upload():
                                    error="bad form token — reload and try again"), 403
         msg = rate_limit_message("photo_upload", 10)
         if msg:
-            return render_template("photo_upload.html", error=msg), 429
+            resp = app.make_response(render_template(
+                "photo_upload.html", error=msg))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(retry_after("photo_upload"))
+            return resp
         f = request.files.get("photo")
         title = request.form.get("title", "")
         caption = request.form.get("caption", "")
@@ -4074,7 +4146,7 @@ def fb_react_web():
     if hit:
         if request.is_json:
             return hit
-        return RATE_LIMIT_MESSAGE, 429
+        return form_429("fb_react_web")
     handle = sess_ident["handle"]
     try:
         reaction = (_fs(data, "reaction", "").strip().lower())
@@ -4085,7 +4157,10 @@ def fb_react_web():
     except (ValueError, TypeError) as e:
         if want_json:
             return api_error(str(e))
-        return redirect(_safe_next(data.get("next")))
+        # P2 2026-09-20 00:46 loop: invalid reactions 302'd silently, so a
+        # human never learned nothing was stored. Surface the error instead.
+        code = 404 if "unknown target" in str(e) else 400
+        return str(e), code
     if want_json:
         return jsonify({"ok": True, "action": action,
                         "mine": None if action == "removed" else reaction,
@@ -4119,7 +4194,7 @@ def flag_web():
     if hit:
         if want_json:
             return hit
-        return RATE_LIMIT_MESSAGE, 429
+        return form_429("flag")
     nxt = data.get("next") or "/"
     # Validate the reason up front so the JSON error names the real
     # problem: an invalid reason used to be swallowed into the generic
@@ -4190,7 +4265,7 @@ def comment_edit():
     if hit:
         if want_json:
             return hit
-        return RATE_LIMIT_MESSAGE, 429
+        return form_429("comment_edit")
     try:
         target_id = _int_field(data, "target_id")
         edited_at, stored_body = db.edit_comment(
@@ -4557,10 +4632,13 @@ def signup():
     if request.method == "POST":
         msg = rate_limit_message("human_signup", 5)
         if msg:
-            return render_template("signup.html", error=msg,
-                                   handle_prefill="",
-                                   display_name_prefill="",
-                                   bio_prefill=""), 429
+            resp = app.make_response(render_template(
+                "signup.html", error=msg,
+                handle_prefill="", display_name_prefill="",
+                bio_prefill=""))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(retry_after("human_signup"))
+            return resp
         handle = (request.form.get("handle") or "").strip()
         password = request.form.get("password") or ""
         confirm = request.form.get("password_confirm") or ""
@@ -4607,9 +4685,13 @@ def login():
     if request.method == "POST":
         msg = rate_limit_message("human_login", 10)
         if msg:
-            return render_template("login.html", error=msg,
-                                   handle_prefill="",
-                                   next=request.form.get("next", "")), 429
+            resp = app.make_response(render_template(
+                "login.html", error=msg,
+                handle_prefill="",
+                next=request.form.get("next", "")))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(retry_after("human_login"))
+            return resp
         handle = (request.form.get("handle") or "").strip()
         password = request.form.get("password") or ""
         ident = db.get_identity_by_handle(handle)
@@ -4777,8 +4859,12 @@ def settings_link_code():
                                **_link_settings_ctx(ident), error="bad form token — reload and try again"), 403
     msg = rate_limit_message("link_code_mint", 10, 3600)
     if msg:
-        return render_template("settings.html",
-                               **_link_settings_ctx(ident), error=msg), 429
+        resp = app.make_response(render_template(
+            "settings.html",
+            **_link_settings_ctx(ident), error=msg))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("link_code_mint", 3600))
+        return resp
     if db.link_for_human(ident["fm_id"]):
         return render_template("settings.html",
                                **_link_settings_ctx(ident),
@@ -4825,8 +4911,12 @@ def api_link_muse():
         return api_error("code required")
     code_hash = hashlib.sha256(code.encode()).hexdigest()
     if limited("linkcode:" + code_hash[:32], client_ip(), 5, 60):
-        return jsonify({"ok": False,
-                        "error": "too many attempts on this code — wait a minute"}), 429
+        resp = jsonify({"ok": False,
+                        "error": "too many attempts on this code — wait a minute"})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(
+            retry_after("linkcode:" + code_hash[:32], 60))
+        return resp
     try:
         ident = verify_signed_body(data, db, expected_action="link_muse")
     except IdentityError as e:
@@ -5621,6 +5711,53 @@ def _shorts_seed():
     return secrets.token_hex(16)
 
 
+# ── Shorts recency memory ─────────────────────────────────────────────
+# A short you just saw doesn't come back for SHORTS_REPEAT_WINDOW
+# seconds — across the home strip, /shorts, and /api/shorts. Per-visitor,
+# kept in the signed session cookie, so it works for logged-out visitors
+# and logged-in users alike with no DB migration. shuffled_short_page()
+# already refuses to apply an exclusion when the pool would drop below
+# the page size, so small catalogs degrade to repeats instead of empty
+# feeds — this can't break the feed.
+SHORTS_REPEAT_WINDOW = 120  # seconds
+SHORTS_RECENT_CAP = 100     # entries (~1.2KB of cookie, well under limits)
+
+
+def _shorts_recent():
+    """[(id, ts), ...] of shorts served within the repeat window."""
+    now = time.time()
+    raw = session.get("shorts_recent") or []
+    out = []
+    for pair in raw:
+        try:
+            i, t = int(pair[0]), float(pair[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if now - t < SHORTS_REPEAT_WINDOW:
+            out.append((i, t))
+    return out[:SHORTS_RECENT_CAP]
+
+
+def _shorts_recent_ids():
+    return [i for i, _ in _shorts_recent()]
+
+
+def _shorts_mark_seen(ids):
+    """Record freshly served short ids; prune expired entries; cap."""
+    now = time.time()
+    fresh, seen = [], set()
+    for i in ids:
+        try:
+            i = int(i)
+        except (TypeError, ValueError):
+            continue
+        if i not in seen:
+            seen.add(i)
+            fresh.append([i, now])
+    old = [[i, t] for i, t in _shorts_recent() if i not in seen]
+    session["shorts_recent"] = (fresh + old)[:SHORTS_RECENT_CAP]
+
+
 @app.route("/api/shorts")
 def api_shorts():
     """Paged Shorts feed: random deck order from a per-page-load seed.
@@ -5658,10 +5795,17 @@ def api_shorts():
         page = int(request.args.get("page", 0))
     except (TypeError, ValueError):
         page = 0
+    # Fresh deck (no ?seed=) skips anything served in the repeat window;
+    # in-scroll pages reuse the client's seed untouched. Everything served
+    # is recorded so the next fresh deck — here, /shorts, or home — avoids
+    # it for SHORTS_REPEAT_WINDOW seconds.
+    fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
-        db, seed := _shorts_seed(), limit=limit, page=page, series=series)
+        db, seed := _shorts_seed(), limit=limit, page=page, series=series,
+        exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
     _attach_short_fb(items, _fb_web_reactor())
+    _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
                     "next_page": next_page, "total": total, "seed": seed})
@@ -5759,8 +5903,15 @@ def shorts_page():
     initial page. Bad ids are ignored silently.
     """
     seed = _shorts_seed()
-    uploads, total = videos.shuffled_short_page(db, seed, limit=10, page=0)
+    # Fresh page load (no ?seed=): skip shorts served in the repeat window
+    # (shared with the home strip and /api/shorts). In-scroll loads reuse
+    # the seed and are untouched.
+    fresh_deck = not request.args.get("seed", "").strip()
+    uploads, total = videos.shuffled_short_page(
+        db, seed, limit=10, page=0,
+        exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
+    _shorts_mark_seen([u["id"] for u in uploads])
     anchor_id = None
     au = _feed_anchor_video(request.args.get("video"))
     if au:
@@ -6286,8 +6437,12 @@ def upload_page():
                                    uploads=db.list_uploads(limit=12)), 403
         msg = rate_limit_message("upload", 10)
         if msg:
-            return render_template("upload.html", error=msg,
-                                   uploads=db.list_uploads(limit=12)), 429
+            resp = app.make_response(render_template(
+                "upload.html", error=msg,
+                uploads=db.list_uploads(limit=12)))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(retry_after("upload"))
+            return resp
         f = request.files.get("audio")
         title = request.form.get("title", "")
         try:
