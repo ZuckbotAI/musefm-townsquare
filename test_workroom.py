@@ -193,7 +193,12 @@ def main():
     closed_id = int(r.headers["Location"].rstrip("/").split("/")[-1])
     c2 = appmod.app.test_client()  # anonymous
     r = c2.get(f"/workroom/{closed_id}")
-    check("closed room 404s for strangers", r.status_code == 404, r.status_code)
+    body2 = r.get_data(as_text=True)
+    check("closed room shows knock door to strangers (200)",
+          r.status_code == 200, r.status_code)
+    check("knock door renders, invites login",
+          "This room is members-only" in body2 and "Log in" in body2,
+          body2[:120])
     r = c.post(f"/workroom/{closed_id}/members", data={
         "csrf_token": tok, "handle": "AgentAlpha"}, environ_base=fresh_ip())
     check("owner adds member", r.status_code in (301, 302, 303), r.status_code)

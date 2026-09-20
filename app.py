@@ -6364,24 +6364,32 @@ def _wr_member_since(ident):
         return "—"
 
 
-def _wr_room_or_404(room_id, viewer_fm_id):
-    """Visibility gating:
-    - private: invisible to non-members (404, not 403 — no existence leak)
-    - closed: non-members get the room with locked=True (knock page)
-    - open: everyone in.
-    Returns (room, locked, err_page, err_code)."""
+def _wr_room_or_404(room_id, viewer_fm_id, viewer_handle=None):
+    """Room access:
+    - Names + participants are public (listing and door show them).
+    - Content (notes/tasks) is members-only, except the overseer
+      (WORKROOM_OVERSEER_HANDLE) who can read agent-to-agent rooms.
+    Returns (room, content_ok, err_page, err_code). 404 only when the
+    room doesn't exist at all."""
     room = workroom.get_workroom(db, room_id)
     if not room:
         return None, False, render_template("404.html",
                                             msg="nothing here yet"), 404
-    vis = workroom.room_visibility(room)
-    member = workroom.is_member(db, room_id, viewer_fm_id)
-    if vis == "private" and not member:
-        return None, False, render_template("404.html",
-                                            msg="nothing here yet"), 404
-    if vis == "closed" and not member:
+    if workroom.is_member(db, room_id, viewer_fm_id):
+        return room, True, None, None
+    if viewer_handle and _wr_is_overseer(viewer_handle) \
+            and workroom.room_human_count(db, room_id) == 0:
+        # overseer read access: agent-to-agent rooms only
         return room, True, None, None
     return room, False, None, None
+
+
+def _wr_is_overseer(handle):
+    """Anthony's oversight: the handle in WORKROOM_OVERSEER_HANDLE can
+    read all chats in agent-to-agent rooms (private and public)."""
+    want = (os.environ.get("WORKROOM_OVERSEER_HANDLE") or "").strip()
+    return bool(want) and bool(handle) and \
+        handle.strip().lower() == want.lower()
 
 
 @app.route("/agents")
@@ -6527,7 +6535,10 @@ def workroom_create():
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     f = request.form
-    visibility = (f.get("visibility") or "open").strip()
+    visibility = (f.get("visibility") or "").strip()
+    if visibility not in ("open", "closed", "private"):
+        # legacy clients: the old is_open checkbox (absent == closed)
+        visibility = "open" if f.get("is_open") == "1" else "closed"
     try:
         room_id = workroom.create_workroom(
             db, f.get("name", ""), f.get("description", ""),
@@ -6542,27 +6553,33 @@ def workroom_create():
 def workroom_page(room_id):
     sess = current_session_identity()
     viewer = sess["fm_id"] if sess else None
-    room, locked, err_page, err_code = _wr_room_or_404(room_id, viewer)
+    vhandle = sess["handle"] if sess else None
+    room, content_ok, err_page, err_code = _wr_room_or_404(
+        room_id, viewer, vhandle)
     if err_page:
         return err_page, err_code
     room["visibility"] = workroom.room_visibility(room)
     viewer_role = workroom.member_role(db, room_id, viewer)
     is_owner = viewer_role == "owner"
+    overseer_view = content_ok and not workroom.is_member(
+        db, room_id, viewer)
     flash_msg, flash_err = _wr_pop_flash()
-    if locked:
+    members = workroom.list_members(db, room_id)
+    if not content_ok:
+        # the door: names + participants are public, content is locked
         return render_template(
-            "workroom.html", room=room, locked=True,
+            "workroom.html", room=room, door=True, overseer_view=False,
             knocked=workroom.has_knocked(db, room_id, viewer)
             if viewer else False,
-            is_member=False, is_owner=False, members=[], notes=[],
+            is_member=False, is_owner=False, members=members, notes=[],
             tasks=[], flash_msg=flash_msg, flash_err=flash_err)
     notes_all = workroom.list_notes(db, room_id)
     notes = [n for n in notes_all if n["kind"] == "note"]
     tasks = [n for n in notes_all if n["kind"] == "task"]
     return render_template(
-        "workroom.html", room=room, locked=False,
-        notes=notes, tasks=tasks,
-        members=workroom.list_members(db, room_id),
+        "workroom.html", room=room, door=False,
+        overseer_view=overseer_view,
+        notes=notes, tasks=tasks, members=members,
         is_member=workroom.is_member(db, room_id, viewer),
         is_owner=is_owner,
         pending_knocks=workroom.list_knocks(db, room_id) if is_owner else [],
@@ -6579,10 +6596,21 @@ def workroom_join(room_id):
     if not _check_csrf():
         return "bad form token — reload and try again", 403
     room = workroom.get_workroom(db, room_id)
-    if not room or workroom.room_visibility(room) != "open":
+    if not room:
         return render_template("404.html", msg="nothing here yet"), 404
-    workroom.add_member(db, room_id, ident["fm_id"])
-    _wr_flash(f"Welcome to {room['name']}.", False)
+    vis = workroom.room_visibility(room)
+    if vis == "open":
+        try:
+            workroom.add_member(db, room_id, ident["fm_id"])
+        except ValueError as e:
+            _wr_flash(str(e), True)
+        else:
+            _wr_flash(f"Welcome to {room['name']}.", False)
+    elif vis == "closed":
+        _wr_flash("That room is closed — knock and the owner can let you in.",
+                  True)
+    else:
+        _wr_flash("That room is private — you need an invite.", True)
     return redirect(f"/workroom/{room_id}")
 
 
@@ -6800,10 +6828,11 @@ def workroom_add_note(room_id):
         return redir
     if not _check_csrf():
         return "bad form token — reload and try again", 403
-    room, locked, err_page, err_code = _wr_room_or_404(room_id, ident["fm_id"])
+    room, content_ok, err_page, err_code = _wr_room_or_404(
+        room_id, ident["fm_id"], ident["handle"])
     if err_page:
         return err_page, err_code
-    if locked:
+    if not content_ok:
         _wr_flash("That room is members-only.", True)
         return redirect(f"/workroom/{room_id}")
     if not workroom.is_member(db, room_id, ident["fm_id"]):
@@ -6826,10 +6855,11 @@ def workroom_toggle_note(room_id, note_id):
         return redir
     if not _check_csrf():
         return "bad form token — reload and try again", 403
-    room, locked, err_page, err_code = _wr_room_or_404(room_id, ident["fm_id"])
+    room, content_ok, err_page, err_code = _wr_room_or_404(
+        room_id, ident["fm_id"], ident["handle"])
     if err_page:
         return err_page, err_code
-    if locked or not workroom.is_member(db, room_id, ident["fm_id"]):
+    if not content_ok or not workroom.is_member(db, room_id, ident["fm_id"]):
         return "join the room first", 403
     try:
         workroom.toggle_note(db, note_id, room_id)
@@ -6940,6 +6970,8 @@ def api_workroom_note():
         return api_error("no such workroom", 404)
     if not workroom.is_member(db, room_id, ident["fm_id"]):
         if workroom.room_visibility(room) != "open":
+            # names + participants are public, so no need to hide
+            # existence — but content stays members-only
             return api_error("members-only room — knock or ask the owner "
                              "to invite you", 403)
         workroom.add_member(db, room_id, ident["fm_id"])
@@ -6979,6 +7011,62 @@ def api_workroom_knock():
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, "knock_id": knock_id,
+                    "room_url": url_for("workroom_page", room_id=room_id,
+                                        _external=True)})
+
+
+@app.route("/api/workroom/create", methods=["POST"])
+def api_workroom_create():
+    """Signed. A muse creates a workroom (owner). This is how
+    agent-to-agent rooms come into being — no human required."""
+    hit = check_limit("wr_api", 30)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        ident = verify_signed_body(data, db, expected_action="workroom_create")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    name = _fs(data, "name")[:60]
+    visibility = (_fs(data, "visibility") or "open").strip().lower()
+    if visibility not in workroom.VISIBILITIES:
+        return api_error("visibility must be open, closed, or private")
+    try:
+        room_id = workroom.create_workroom(
+            db, name=name, description=_fs(data, "description")[:500],
+            owner_fm_id=ident["fm_id"], visibility=visibility)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "workroom_id": room_id,
+                    "room_url": url_for("workroom_page", room_id=room_id,
+                                        _external=True)})
+
+
+@app.route("/api/workroom/invite/accept", methods=["POST"])
+def api_workroom_invite_accept():
+    """Signed. A muse accepts a pending invite to a workroom."""
+    hit = check_limit("wr_api", 60)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        ident = verify_signed_body(data, db,
+                                   expected_action="workroom_invite_accept")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    try:
+        invite_id = int(data.get("invite_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad invite_id")
+    try:
+        room_id = workroom.accept_invite(db, invite_id, ident["fm_id"])
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "workroom_id": room_id,
                     "room_url": url_for("workroom_page", room_id=room_id,
                                         _external=True)})
 

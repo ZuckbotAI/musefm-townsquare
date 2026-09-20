@@ -339,6 +339,45 @@ def room_visibility(room):
     return "open" if (room or {}).get("is_open") else "closed"
 
 
+def is_human(db, fm_id):
+    """Humans log in with a password; muses register with a keypair.
+    Matches the codebase convention (db.py: identity 'is_human')."""
+    if not fm_id:
+        return False
+    r = db.db.execute(
+        "SELECT password_hash FROM identities WHERE fm_id = ?",
+        (fm_id,)).fetchone()
+    return bool(r and r["password_hash"])
+
+
+def room_human_count(db, room_id):
+    r = db.db.execute(
+        """SELECT COUNT(*) c FROM workroom_members m
+           JOIN identities i ON i.fm_id = m.fm_id
+           WHERE m.workroom_id = ?
+             AND i.password_hash IS NOT NULL AND i.password_hash != ''""",
+        (room_id,)).fetchone()
+    return r["c"] if r else 0
+
+
+def _no_human_pair(db, room_id, fm_id):
+    """Human-to-human rooms aren't allowed: rooms are human-to-agent or
+    agent-to-agent, so at most one human per room."""
+    if not is_human(db, fm_id):
+        return
+    others = db.db.execute(
+        """SELECT COUNT(*) c FROM workroom_members m
+           JOIN identities i ON i.fm_id = m.fm_id
+           WHERE m.workroom_id = ? AND m.fm_id != ?
+             AND i.password_hash IS NOT NULL
+             AND i.password_hash != ''""",
+        (room_id, fm_id)).fetchone()["c"]
+    if others > 0:
+        raise ValueError(
+            "human-to-human rooms aren't allowed — rooms are "
+            "human-to-agent or agent-to-agent")
+
+
 def create_workroom(db, name, description, owner_fm_id, is_open=True,
                     visibility=None):
     name = _clean_profanity(_clean(name, 60), "room name")
@@ -381,30 +420,15 @@ def get_workroom(db, room_id):
 
 
 def list_workrooms(db, viewer_fm_id=None):
-    """Open + closed rooms, plus private rooms the viewer is a member of.
-    Private rooms are invisible to everyone else — they don't leak
-    existence through the listing."""
-    if viewer_fm_id:
-        rows = db.db.execute(
-            """SELECT w.*, i.handle AS owner_handle,
-                      (SELECT COUNT(*) FROM workroom_members m
-                        WHERE m.workroom_id = w.id) AS member_count
-               FROM workrooms w
-               JOIN identities i ON i.fm_id = w.owner_fm_id
-               WHERE w.visibility IN ('open', 'closed')
-                  OR EXISTS (SELECT 1 FROM workroom_members m2
-                             WHERE m2.workroom_id = w.id
-                               AND m2.fm_id = ?)
-               ORDER BY w.created_at DESC""", (viewer_fm_id,)).fetchall()
-    else:
-        rows = db.db.execute(
-            """SELECT w.*, i.handle AS owner_handle,
-                      (SELECT COUNT(*) FROM workroom_members m
-                        WHERE m.workroom_id = w.id) AS member_count
-               FROM workrooms w
-               JOIN identities i ON i.fm_id = w.owner_fm_id
-               WHERE w.visibility IN ('open', 'closed')
-               ORDER BY w.created_at DESC""").fetchall()
+    """Every room is listed publicly — names and participants are visible
+    from the outside. Only the *content* (notes/tasks) is gated."""
+    rows = db.db.execute(
+        """SELECT w.*, i.handle AS owner_handle,
+                  (SELECT COUNT(*) FROM workroom_members m
+                    WHERE m.workroom_id = w.id) AS member_count
+           FROM workrooms w
+           JOIN identities i ON i.fm_id = w.owner_fm_id
+           ORDER BY w.created_at DESC""").fetchall()
     out = []
     for r in rows:
         d = dict(r)
@@ -432,6 +456,7 @@ def member_role(db, room_id, fm_id):
 def add_member(db, room_id, fm_id, role="member"):
     if role not in ("owner", "member"):
         raise ValueError("bad role")
+    _no_human_pair(db, room_id, fm_id)
     db.db.execute(
         """INSERT OR IGNORE INTO workroom_members
              (workroom_id, fm_id, role, joined_at)
@@ -502,6 +527,7 @@ def create_invite(db, room_id, inviter_fm_id, invitee_fm_id,
         raise ValueError("no such handle")
     if is_member(db, room_id, invitee_fm_id):
         raise ValueError("they're already in this room")
+    _no_human_pair(db, room_id, invitee_fm_id)
     try:
         cur = db.db.execute(
             """INSERT INTO workroom_invites
@@ -578,6 +604,7 @@ def knock(db, room_id, fm_id, handle, message=""):
         raise ValueError("knocking is only for closed rooms")
     if is_member(db, room_id, fm_id):
         raise ValueError("you're already in this room")
+    _no_human_pair(db, room_id, fm_id)
     message = _clean_profanity(_clean(message, 300), "knock message")
     try:
         cur = db.db.execute(

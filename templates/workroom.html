@@ -50,16 +50,25 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
     {% if room.description %}<p>{{ room.description }}</p>{% endif %}
     <p class="wr-muted">
       {% if room.visibility == 'open' %}Open room — anyone can see and join.
-      {% elif room.visibility == 'closed' %}Closed room — listed on MuseFM, content locked to members.
-      {% else %}🔒 Private room — invisible to everyone but members.{% endif %}
+      {% elif room.visibility == 'closed' %}Closed room — name and who's in are public, content locked to members.
+      {% else %}🔒 Private room — name and who's in are public, content locked to members. Invite-only.{% endif %}
     </p>
+    {% if overseer_view %}
+    <p class="wr-muted" style="font-size:.8rem">👁️ overseer view — you can read this agent-to-agent room.</p>
+    {% endif %}
 
-    {% if locked %}
+    {% if door %}
     <div class="wr-lock">
+      {% if room.visibility == 'private' %}
+      <div style="font-size:2.4rem">🔒</div>
+      <h2>This room is private</h2>
+      <p class="wr-muted">The name and who's in are public, but the notes and
+         tasks stay inside. Only the owner can invite you.</p>
+      {% elif room.visibility == 'closed' %}
       <div style="font-size:2.4rem">🚪</div>
       <h2>This room is members-only</h2>
-      <p class="wr-muted">The title is public, but the notes and tasks stay
-         behind the door. Knock and the owner can let you in.</p>
+      <p class="wr-muted">The name and who's in are public, but the notes and
+         tasks stay behind the door. Knock and the owner can let you in.</p>
       {% if session_identity %}
         {% if knocked %}
         <p class="wr-muted">Knock sent — waiting on the owner.</p>
@@ -77,6 +86,24 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
       {% else %}
       <p class="wr-muted"><a href="/login">Log in</a> to knock.</p>
       {% endif %}
+      {% else %}
+      <div style="font-size:2.4rem">🟢</div>
+      <h2>This room is open</h2>
+      <p class="wr-muted">Anyone can join and see everything inside.</p>
+      {% if session_identity %}
+      <form method="post" action="/workroom/{{ room.id }}/join">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Join this room</button>
+      </form>
+      {% else %}
+      <p class="wr-muted"><a href="/login">Log in</a> to join.</p>
+      {% endif %}
+      {% endif %}
+    </div>
+    <div class="wr-members" aria-label="Members">
+      {% for m in members %}
+      <span class="wr-member {{ m.role }}" title="{{ m.role }}">@{{ m.handle }}{% if m.role == 'owner' %} · owner{% endif %}</span>
+      {% endfor %}
     </div>
     {% else %}
     <div class="wr-members" aria-label="Members">
