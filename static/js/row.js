@@ -788,6 +788,20 @@
       ctx.fillStyle = '#e8a93d'; ctx.fillRect(dx0 + dw - 10, GROUND_Y - 34, 4, 4);
       if (winOn) { ctx.fillStyle = 'rgba(255,233,163,0.9)'; ctx.fillRect(dx0, GROUND_Y - 60, dw, 5); }
       ctx.fillStyle = '#5b5e70'; ctx.fillRect(dx0 - 8, GROUND_Y, dw + 16, 6);
+      // woven doormat on the cobbles
+      ctx.fillStyle = paint.trim; ctx.fillRect(dx0 - 6, GROUND_Y + 8, dw + 12, 8);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      for (var dm = 0; dm < dw + 12; dm += 6) ctx.fillRect(dx0 - 6 + dm, GROUND_Y + 8, 2, 8);
+      // OPEN sign hanging on the door when the lamps are lit
+      if (winOn) {
+        var osy = GROUND_Y - 46;
+        ctx.fillStyle = '#14100c'; ctx.fillRect(dx0 + dw / 2 - 1, GROUND_Y - 60, 2, 14);
+        ctx.fillStyle = '#2b1d12'; ctx.fillRect(dx0 + dw / 2 - 14, osy, 28, 13);
+        ctx.fillStyle = '#e8a93d'; ctx.fillRect(dx0 + dw / 2 - 14, osy, 28, 2);
+        ctx.fillStyle = '#ffd23f'; ctx.font = '8px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('OPEN', dx0 + dw / 2, osy + 8);
+      }
 
       // crates + barrel beside the workshop / bounty doors
       if (b.slug === 'workshop' || b.slug === 'bounty') {
@@ -1114,18 +1128,34 @@
       for (var i = 0; i < drawn; i++) {
         var occ = occupants[i], spot = occupantSpot(occ, t);
         var size = occ.me ? 52 : 44;
+        var bob = Math.sin(t * 2 + i * 1.7) * 2;   // idle bob
         if (i === hoverIdx) {
+          radialGlow(spot.x, spot.y - size / 2, size, 'rgba(255,233,163,0.28)', 'rgba(255,233,163,0)');
           ctx.strokeStyle = '#ffe9a3'; ctx.lineWidth = 2;
-          ctx.strokeRect(spot.x - size / 2 - 4, spot.y - size - 4, size + 8, size + 8);
+          ctx.strokeRect(spot.x - size / 2 - 4, spot.y - size - 4 + bob, size + 8, size + 8);
         }
-        drawAvatar(ctx, occ.avatar, spot.x - size / 2, spot.y - size, size, performance.now());
-        // little shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(spot.x - 12, spot.y - 2, 24, 4);
-        // "me" gets a marker
-        if (occ.me) {
-          ctx.fillStyle = '#ffe9a3'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
-          ctx.fillText('YOU', spot.x, spot.y - size - 8);
+        drawAvatar(ctx, occ.avatar, spot.x - size / 2, spot.y - size + bob, size, performance.now());
+        // soft stepped shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillRect(spot.x - 12, spot.y - 2, 24, 3);
+        ctx.fillStyle = 'rgba(0,0,0,0.14)';
+        ctx.fillRect(spot.x - 17, spot.y - 1, 34, 2);
+        // nameplate with brass rule; verified passports get a green check
+        var nm = String(occ.handle || '?') + (occ.me ? ' ★' : '');
+        ctx.font = '9px monospace';
+        var nw = ctx.measureText(nm).width + 10;
+        var ny = spot.y - size + bob - 16;
+        ctx.fillStyle = 'rgba(13,20,32,0.80)';
+        ctx.fillRect(spot.x - nw / 2, ny - 7, nw, 14);
+        ctx.fillStyle = occ.me ? '#ffd23f' : '#e8a93d';
+        ctx.fillRect(spot.x - nw / 2, ny - 7, nw, 2);
+        ctx.fillStyle = '#f5e9c8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(nm, spot.x, ny + 1);
+        if (occ.passport && occ.passport.verified) {
+          var cx = spot.x + nw / 2 + 3;
+          ctx.fillStyle = '#2fd67c'; ctx.fillRect(cx, ny - 5, 10, 10);
+          ctx.fillStyle = '#0d1420'; ctx.font = 'bold 8px monospace';
+          ctx.fillText('✓', cx + 5, ny + 1);
         }
         occ._x = spot.x; occ._y = spot.y - size / 2; occ._size = size;
       }
@@ -1183,12 +1213,13 @@
       }
     }
 
-    var lastT = 0;
+    var lastT = 0, fadeT = 1, fadeFrom = '#000000';
     function frame(nowMs) {
       if (!running) return;
       var t = (nowMs - startT) / 1000;
       var dt = Math.min(0.1, (t - lastT) || 0.016); lastT = t;
-      phase = phaseOf(S.phase);
+      var newPhase = phaseOf(S.phase);
+      if (newPhase !== phase) { fadeFrom = PHASES[phase].sky[0]; phase = newPhase; fadeT = 0; }
       drawSky(t);
       drawDistant(t);        // parallax rooftops behind the shops
       for (var i = 0; i < buildings.length; i++) drawShop(i, buildings[i], t);
@@ -1198,6 +1229,13 @@
       drawCottages(t);
       drawOccupants(t);
       drawParticles(t, dt);  // smoke, fireflies, dust
+      if (fadeT < 1) {       // phase-change fade: wash of the OLD sky, dissolving out
+        fadeT = Math.min(1, fadeT + dt / 0.7);
+        var fch = fadeFrom;
+        var fr = parseInt(fch.slice(1, 3), 16), fg = parseInt(fch.slice(3, 5), 16), fb = parseInt(fch.slice(5, 7), 16);
+        ctx.fillStyle = 'rgba(' + fr + ',' + fg + ',' + fb + ',' + (0.85 * (1 - fadeT)).toFixed(3) + ')';
+        ctx.fillRect(0, 0, W, H);
+      }
       rafId = requestAnimationFrame(frame);
     }
 
