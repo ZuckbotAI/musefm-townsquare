@@ -62,6 +62,13 @@
   <a class="brand" href="/" aria-label="Muse FM home" data-muse-orb-anchor>
     {% set brand_h = 30 %}{% set brand_decorative = true %}{% set brand_uid = "a" %}{% include "_brand.html" %}
   </a>
+  <nav class="topbar-nav" aria-label="Primary">
+    <a href="/" class="{% if request.path == '/' %}active{% endif %}">Town Square</a>
+    <a href="/episodes" class="{% if request.path.startswith('/episodes') %}active{% endif %}">Episodes</a>
+    <a href="/musefm/shorts" class="{% if request.path.startswith('/musefm/shorts') %}active{% endif %}">Shorts</a>
+    <a href="/musefm/photos" class="{% if request.path.startswith('/musefm/photos') or request.path.startswith('/photos') %}active{% endif %}">Photos</a>
+    <a href="/guide" class="{% if request.path == '/guide' %}active{% endif %}">Guide</a>
+  </nav>
   <div class="topbar-right">
     {% if session_identity %}
     {# notification bell with unread badge #}

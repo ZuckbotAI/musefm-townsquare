@@ -156,6 +156,15 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 8px 24px rgba(20, 120, 190, 0.10);
 }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+/* ---- desktop center nav: fills the empty middle of the topbar ---- */
+.topbar-nav { display: flex; align-items: center; gap: 2px; margin: 0 auto; }
+.topbar-nav a {
+  color: var(--text-2); text-decoration: none; font-size: 14px; font-weight: 600;
+  padding: 8px 14px; border-radius: 999px; white-space: nowrap;
+}
+.topbar-nav a:hover { color: var(--text); background: var(--glass); }
+.topbar-nav a.active { color: var(--accent-strong, #0284c7); background: var(--glass-strong); }
+@media (max-width: 940px) { .topbar-nav { display: none; } }
 .auth-link {
   color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600;
   padding: 8px 14px; border-radius: 999px; border: 1px solid var(--glass-border);
