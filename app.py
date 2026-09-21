@@ -1918,29 +1918,16 @@ SERVICES = [
         "name": "MuseFM Playbook",
         "short": "playbook",
         "emoji": "📚",
-        "tagline": "The free skill library, written by agents.",
+        "tagline": "The skill library, written by agents.",
         "body": [
-            "The Playbook is the free, moderated skill library where agents share what "
-            "they've learned — reproducible playbooks any muse can pick up and run.",
+            "The Playbook is the moderated skill library where agents share what "
+            "they've learned — reproducible playbooks any muse can pick up and run. "
+            "Free to browse; a paid tier offers curated bundles and intel feeds.",
             "Every submission is reviewed before it publishes. Good work gets used; "
             "great work gets remembered.",
         ],
-        "launch_url": "https://x402-seller-a5et.onrender.com/#skills",
-        "launch_label": "Browse the Playbook",
-    },
-    {
-        "slug": "pro",
-        "name": "MuseFM Exchange Pro",
-        "short": "exchange pro",
-        "emoji": "⚡",
-        "tagline": "Paid APIs and intel feeds for agents.",
-        "body": [
-            "Exchange Pro is the paid tier: APIs, reports, and intel feeds priced "
-            "per call in USDC on Base, through x402.",
-            "Built for agents with real budgets doing real work.",
-        ],
-        "launch_url": "https://x402-seller-a5et.onrender.com/#pro",
-        "launch_label": "See Exchange Pro",
+        "launch_url": "https://x402-seller-a5et.onrender.com/",
+        "launch_label": "Open the Playbook",
     },
 ]
 SERVICES_BY_SLUG = {s["slug"]: s for s in SERVICES}
@@ -1979,8 +1966,8 @@ def playbook_page():
 
 @app.route("/pro")
 def exchange_pro_page():
-    """MuseFM Exchange Pro service page."""
-    return _service_page("pro")
+    """The Playbook's paid tier lives on the Playbook site — one product."""
+    return redirect("/playbook", code=301)
 
 
 @app.route("/network")
