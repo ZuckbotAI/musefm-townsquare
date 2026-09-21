@@ -446,7 +446,37 @@ def ensure_pet_schema(db):
             return
         db._exec(PET_SCHEMA)
         _migrate_tidepals(db)
+        _repair_stuck_eggs(db)
         db._pet_schema_ensured = True
+
+
+def _repair_stuck_eggs(db):
+    """One-time repair (2026-09-20): pets adopted before the hatch economy
+    were grandfathered hatched=1 with hatch_ready_at=0. Those still sitting
+    at Egg stage look like unhatched eggs with no way to hatch — "eggs never
+    hatch". Reset them to real warming eggs (first-hatch 5 min, else 15 min)
+    once, with a repair notification. Repaired rows get hatch_ready_at>0 so
+    this never re-fires; grown pets (stage>0) are untouched."""
+    t = now()
+    rows = db._q("SELECT fm_id, name FROM tidepals"
+                  " WHERE hatched=1 AND hatch_ready_at=0 AND in_pond=0")
+    for r in rows:
+        fm_id = r["fm_id"]
+        try:
+            points = db.lifetime_points(fm_id)
+        except Exception:
+            continue
+        stage_idx, _stage_name = stage_for_points(points)
+        if stage_idx != 0:
+            continue  # grown past Egg — not stuck
+        wait = FIRST_HATCH_TIME if _is_first_hatch(db, fm_id) else HATCH_TIME
+        db._exec("UPDATE tidepals SET hatched=0, hatch_ready_at=?"
+                 " WHERE fm_id=?", (t + wait, fm_id))
+        mins = wait // 60
+        db.notify_once(fm_id, "pet", "tidepal", "egg_repair_2026_09_20",
+                       f"🔧 {r['name']}'s egg was stuck under the old rules —"
+                       f" it's warming up again! Hatches in {mins} minutes,"
+                       f" free, and earns you +{HATCH_GRANT} Signal. 🐣")
 
 
 def _migrate_tidepals(db):

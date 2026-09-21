@@ -403,6 +403,54 @@ def main():
     check("pet page links back to Maker's Row (Pet Shop return path)",
           'href="/row"' in r.data.decode() and "Maker's Row" in r.data.decode())
 
+    print("== stuck-egg repair (2026-09-20) ==")
+    db = appmod.db  # the web section above re-ran setup(); re-capture
+    # Simulate a pre-hatch-economy adoption: grandfathered hatched=1,
+    # hatch_ready_at=0, sitting at Egg stage.
+    privB, fmB = reg(c, "LegacyOwner")
+    db._exec("INSERT INTO tidepals (fm_id, species, name, adopted_at,"
+             " evolved_at, evolved_stage, trait, quirk, hatched,"
+             " hatch_ready_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+             (fmB, "bloop", "Oldie", now() - 86400, 0, 0,
+              "mischievous", "test quirk", 1, 0))
+    # A grown legacy pet (enough lifetime Signal for stage>0) must be untouched.
+    privC, fmC = reg(c, "GrownOwner")
+    db._exec("INSERT INTO tidepals (fm_id, species, name, adopted_at,"
+             " evolved_at, evolved_stage, trait, quirk, hatched,"
+             " hatch_ready_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+             (fmC, "bloop", "Biggie", now() - 86400, 0, 0,
+              "brave", "test quirk", 1, 0))
+    db.award(fmC, "GrownOwner", 500, "test", "test", "test")
+    db._pet_schema_ensured = False
+    pets.ensure_pet_schema(db)
+    rowB = db._one("SELECT hatched, hatch_ready_at FROM tidepals WHERE fm_id=?",
+                   (fmB,))
+    check("stuck egg reset to unhatched", rowB["hatched"] == 0, dict(rowB))
+    check("stuck egg gets a future warm-up timer",
+          rowB["hatch_ready_at"] > now(), dict(rowB))
+    check("stuck egg repair notification sent",
+          db._one("SELECT id FROM notifications WHERE fm_id=? AND ref_id=?",
+                  (fmB, "egg_repair_2026_09_20")) is not None)
+    rowC = db._one("SELECT hatched, hatch_ready_at FROM tidepals WHERE fm_id=?",
+                   (fmC,))
+    check("grown legacy pet untouched",
+          rowC["hatched"] == 1 and rowC["hatch_ready_at"] == 0, dict(rowC))
+    # Idempotent: second ensure must not re-fire (hatch_ready_at>0 now).
+    db._pet_schema_ensured = False
+    pets.ensure_pet_schema(db)
+    rowB2 = db._one("SELECT hatched, hatch_ready_at FROM tidepals WHERE fm_id=?",
+                    (fmB,))
+    check("repair is one-time (no re-fire)",
+          rowB2["hatched"] == 0 and rowB2["hatch_ready_at"] == rowB["hatch_ready_at"])
+    # The repaired egg flows through the real hatch path once the timer lapses.
+    db._exec("UPDATE tidepals SET hatch_ready_at=? WHERE fm_id=?",
+             (now() - 1, fmB))
+    res = pets.hatch_pet(db, fmB)
+    check("repaired egg hatches via real path", res.get("grant") == 25, res)
+    check("repaired egg marked hatched",
+          db._one("SELECT hatched FROM tidepals WHERE fm_id=?",
+                  (fmB,))["hatched"] == 1)
+
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     sys.exit(1 if FAIL else 0)
 
