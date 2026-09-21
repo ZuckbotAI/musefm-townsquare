@@ -45,7 +45,9 @@ from urllib.parse import quote, urlencode, urlsplit
 from flask import (Flask, Response, g, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.routing import IntegerConverter, ValidationError
+from werkzeug.routing import (IntegerConverter, RequestRedirect,
+                              ValidationError)
+from werkzeug.exceptions import MethodNotAllowed, NotFound
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
@@ -367,6 +369,10 @@ def _security_headers(resp):
     resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     resp.headers.setdefault("Referrer-Policy",
                             "strict-origin-when-cross-origin")
+    # P2 (2026-09-21 06:35 loop): API responses are dynamic per-request JSON
+    # — they must never be served from an intermediary cache.
+    if request.path.startswith("/api/"):
+        resp.headers.setdefault("Cache-Control", "no-store")
     return resp
 
 
@@ -442,6 +448,19 @@ def agent_authed():
     return bool(given) and secrets.compare_digest(given, AGENT_KEY)
 
 
+class _DuplicateKey(Exception):
+    """Raised by _reject_duplicate_keys on the first repeated key."""
+
+
+def _reject_duplicate_keys(pairs):
+    seen = set()
+    for k, _v in pairs:
+        if k in seen:
+            raise _DuplicateKey(k)
+        seen.add(k)
+    return dict(pairs)
+
+
 def json_body():
     """Parsed JSON request body, guaranteed to be a dict.
 
@@ -462,6 +481,18 @@ def json_body():
         return {}
     if not isinstance(data, dict):
         return api_error("JSON body must be an object", 400)
+    # P2 (2026-09-21 06:35 loop): reject duplicate keys instead of silently
+    # last-winning. get_json can't see them (std json), so re-parse the raw
+    # body with a hook that raises on the first repeat, at every nesting
+    # level. get_json already validated the body, so any other ValueError
+    # here is unreachable — pass it through silently.
+    try:
+        json.loads(request.get_data(as_text=True),
+                   object_pairs_hook=_reject_duplicate_keys)
+    except _DuplicateKey as e:
+        return api_error(f"duplicate key {e.args[0]!r} in JSON body", 400)
+    except ValueError:
+        pass
     return data
 
 
@@ -2923,6 +2954,11 @@ def api_agent_activity(fm_id):
     attributable. Individual items mirror to Trustline as work records when
     the agent linked a Trustline profile (see /api/trustline/link).
     """
+    # P2 (2026-09-21 06:35 loop): echoing the raw fm_id for an unknown
+    # identity with a 200 is an inconsistent phantom — every other
+    # identity-scoped route 404s. Fail the same way here.
+    if not db.get_identity(fm_id):
+        return api_error("unknown identity", 404)
     try:
         limit = max(1, min(100, int(request.args.get("limit", 50))))
     except (TypeError, ValueError):
@@ -5157,7 +5193,7 @@ def signup():
             error = "passwords don't match"
         elif display_name and not DISPLAY_NAME_RE.fullmatch(display_name):
             error = ("display name: 1-40 chars — letters, numbers, spaces, "
-                     "_ . -")
+                     "_ . - '")
         if error is not None:
             return render_template("signup.html", error=error,
                                    handle_prefill=handle,
@@ -8860,6 +8896,19 @@ def health():
 @app.errorhandler(404)
 def not_found(_e):
     if request.path.startswith("/api/"):
+        # P2 (2026-09-21 06:35 loop): path variants of the same endpoint must
+        # agree — GET /api/forum/react/ 404'd while GET /api//forum/react
+        # (Werkzeug merges repeated slashes) 405'd. Normalize the path; if
+        # the normalized form matches a route, answer with that route's
+        # method verdict (405 here) instead of a misleading 404.
+        norm = re.sub(r"/{2,}", "/", request.path).rstrip("/")
+        if norm != request.path and norm.startswith("/api"):
+            try:
+                app.url_map.bind("").match(norm, method=request.method)
+            except MethodNotAllowed:
+                return api_error("method not allowed", 405)
+            except (NotFound, RequestRedirect):
+                pass
         return api_error("not found", 404)
     return render_template("404.html", msg="nothing here yet"), 404
 

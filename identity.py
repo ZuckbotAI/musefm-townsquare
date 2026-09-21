@@ -177,6 +177,10 @@ def verify_signed_body(data: dict, db, expected_action=None):
     if not ident:
         raise IdentityError("unknown fm_id")
 
+    # P2 (2026-09-21 06:35 loop): a *missing* timestamp said "bad timestamp"
+    # — misleading; distinguish absence from malformed.
+    if timestamp is None:
+        raise IdentityError("missing timestamp")
     try:
         ts = int(str(timestamp))
     except (TypeError, ValueError):

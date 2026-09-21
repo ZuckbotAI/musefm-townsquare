@@ -459,7 +459,7 @@ RESERVED_HANDLES = {
     "undefined", "root", "api", "help", "townsquare", "town_square",
 }
 HUMAN_HANDLE_RE = re.compile(r"[A-Za-z0-9_.\-]{1,40}\Z")
-DISPLAY_NAME_RE = re.compile(r"[A-Za-z0-9_.\- ]{1,40}\Z")
+DISPLAY_NAME_RE = re.compile(r"[A-Za-z0-9_.'\- ]{1,40}\Z")
 MENTION_RE = re.compile(r"@([A-Za-z0-9_]{3,20})")
 MAX_BIO = 500
 MAX_AVATAR_URL = 500
@@ -1653,11 +1653,11 @@ class Database:
 
     def set_identity_display_name(self, fm_id, display_name):
         """Optional human-chosen display name (1-40 chars, letters/numbers/
-        spaces/_ . -). Empty string clears it."""
+        spaces/_ . - '). Empty string clears it."""
         name = (display_name or "").strip()
         if name and not DISPLAY_NAME_RE.fullmatch(name):
             raise ValueError("bad display_name "
-                             "(1-40 chars: letters, numbers, spaces, _ . -)")
+                             "(1-40 chars: letters, numbers, spaces, _ . - ')")
         if not self.get_identity(fm_id):
             raise ValueError("unknown identity")
         self._exec("UPDATE identities SET display_name=? WHERE fm_id=?",
