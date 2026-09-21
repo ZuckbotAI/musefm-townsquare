@@ -5276,17 +5276,24 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        msg = rate_limit_message("human_login", 10)
-        if msg:
+        handle = (request.form.get("handle") or "").strip()
+        password = request.form.get("password") or ""
+        # validate-first (P2 2026-09-21): malformed submissions never touch
+        # the rate budget — blank/bot POSTs must not be able to DoS the
+        # login form for everyone behind one NAT IP.
+        if not handle or not password:
+            return render_template("login.html", error="bad handle or password",
+                                   handle_prefill=handle,
+                                   next=request.form.get("next", "")), 401
+        if peek_limited("human_login", 10):
             resp = app.make_response(render_template(
-                "login.html", error=msg,
+                "login.html", error=RATE_LIMIT_MESSAGE,
                 handle_prefill="",
                 next=request.form.get("next", "")))
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("human_login"))
             return resp
-        handle = (request.form.get("handle") or "").strip()
-        password = request.form.get("password") or ""
+        record_rate_hit("human_login")
         ident = db.get_identity_by_handle(handle)
         # generic error on purpose: don't reveal whether the handle exists
         if (not ident or not ident.get("password_hash")
