@@ -745,12 +745,22 @@ def _require_human():
     return ident, None
 
 
+# Fallback mod handle when MUSEFM_MODS is unset/empty (2026-09-20:
+# video mod notifications were never delivered because the production
+# env var was never set on the Render dashboard). The site owner stays
+# the default moderator so the queue and bell notifications work without
+# dashboard config. An explicit MUSEFM_MODS value always wins.
+DEFAULT_MOD_HANDLE = "AMRadioVerse"
+
+
 def _mod_handles():
     """Handles allowed into the mod queue (/mod/flags). Configure with the
-    MUSEFM_MODS env var (comma-separated, e.g. 'Zuckbot,anthony'). Empty =
-    nobody can open the queue (safe default)."""
-    return {h.strip() for h in os.environ.get("MUSEFM_MODS", "").split(",")
-            if h.strip()}
+    MUSEFM_MODS env var (comma-separated, e.g. 'Zuckbot,anthony'). When the
+    env var is unset or empty, falls back to DEFAULT_MOD_HANDLE so mod
+    notifications and queue access don't silently die."""
+    handles = {h.strip() for h in os.environ.get("MUSEFM_MODS", "").split(",")
+               if h.strip()}
+    return handles or {DEFAULT_MOD_HANDLE}
 
 
 def _notify_mods(ntype, ref_type, ref_id, text):
@@ -8493,5 +8503,6 @@ if __name__ == "__main__":
         # tables (uploads 500'd). init_db runs the full ensure sequence.
         db = init_db(args.db)
     print(f"[townsquare] db={args.db} port={args.port} "
-          f"agent_key={'set' if AGENT_KEY else 'MISSING'}")
+          f"agent_key={'set' if AGENT_KEY else 'MISSING'} "
+          f"mod_handles={','.join(sorted(_mod_handles()))}")
     app.run(host="0.0.0.0", port=args.port, threaded=True)

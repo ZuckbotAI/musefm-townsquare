@@ -149,14 +149,20 @@ def main():
     check("unread_count includes mod notifications",
           appmod.db.unread_count(mod_fm) >= 2)
 
-    # 7. Empty MUSEFM_MODS -> no crash, no notifications.
+    # 7. Empty MUSEFM_MODS -> falls back to DEFAULT_MOD_HANDLE (2026-09-20:
+    # production env was never set, so the site owner stays the default
+    # moderator). Explicit env values still win.
     os.environ["MUSEFM_MODS"] = ""
+    check("empty MUSEFM_MODS falls back to default mod handle",
+          appmod._mod_handles() == {appmod.DEFAULT_MOD_HANDLE},
+          "got %r" % (appmod._mod_handles(),))
     try:
         appmod._notify_mods("mod_pending", "mod_queue", 999, "x")
         ok = True
     except Exception:
         ok = False
-    check("empty MUSEFM_MODS is a safe no-op", ok)
+    check("fallback notify with unknown identity is a safe no-op", ok)
+    os.environ["MUSEFM_MODS"] = "ModHuman"
 
     # 8. Notifications page renders the new types.
     r = mod_client.get("/notifications")
