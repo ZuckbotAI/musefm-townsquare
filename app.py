@@ -4615,12 +4615,21 @@ def api_react():
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
-        # Validate BEFORE counting (P2 2026-09-19): bad target_id/emoji
-        # 400 without burning the shared per-IP budget; non-integer
-        # target_id is a clean 400, never a raw int() error.
+        # P2 2026-09-19 + P2 2026-09-21 15:35: validate BEFORE counting.
+        # Bad target_type / invalid emoji / unknown target are a clean 400
+        # WITHOUT burning the shared per-IP budget. The pre-checks mirror
+        # db.react()'s own validation so behavior stays identical.
         target_type = _fs(data, "target_type", "post")
         emoji = _fs(data, "emoji")
         target_id = _int_field(data, "target_id")
+        if target_type not in ("post", "comment"):
+            return api_error("target_type must be post or comment")
+        if emoji not in REACT_EMOJIS:
+            return api_error("emoji must be one of: " +
+                             " ".join(REACT_EMOJIS))
+        _table = "posts" if target_type == "post" else "comments"
+        if not db._one(f"SELECT id FROM {_table} WHERE id=?", (target_id,)):
+            return api_error("unknown target")
         hit = check_limit("react", 120)
         if hit:
             return hit
@@ -4665,12 +4674,20 @@ def api_fb_react():
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
-        # Validate BEFORE counting (P2 2026-09-19): target_id "abc" or 1.5
-        # is a clean 400 here — never a raw int() error, never silent
-        # truncation, and malformed bodies don't burn the shared budget.
+        # P2 2026-09-19 + P2 2026-09-21 15:35: validate BEFORE counting.
+        # Bad reaction name / bad target_type / unknown target are a clean
+        # 400 WITHOUT burning the shared per-IP budget (same class as the
+        # api_react P2). The pre-checks mirror fb_react()'s own validation.
         reaction = _fs(data, "reaction").strip().lower()
         target_type = _fs(data, "target_type", "post")
         target_id = _int_field(data, "target_id")
+        if reaction not in fb_reactions.FB_REACTIONS:
+            return api_error("reaction must be one of: " +
+                             ", ".join(fb_reactions.FB_REACTION_ORDER))
+        try:
+            fb_reactions.validate_target(db, target_type, target_id)
+        except ValueError as e:
+            return api_error(str(e))
         hit = check_limit("fb_react", 120)
         if hit:
             return hit
@@ -4721,18 +4738,24 @@ def fb_react_web():
             return jsonify({"ok": False,
                             "error": "bad form token — reload and try again"}), 403
         return "bad form token — reload and try again", 403
-    hit = check_limit("fb_react_web", 120)
-    if hit:
-        if request.is_json:
-            return hit
-        return form_429("fb_react_web")
     handle = sess_ident["handle"]
+    # P2 2026-09-21 15:35: validate BEFORE the rate budget. A missing
+    # target_id names the param (not the misleading "unknown target");
+    # bad reaction / bad target 400 cleanly without burning the shared
+    # per-IP budget.
+    reaction = _fs(data, "reaction", "").strip().lower()
+    target_type = _fs(data, "target_type", "post") or "post"
+    if data.get("target_id") in (None, ""):
+        msg = "missing target_id"
+        if want_json:
+            return api_error(msg)
+        return msg, 400
     try:
-        reaction = (_fs(data, "reaction", "").strip().lower())
-        action, counts = fb_reactions.fb_react(
-            db, _fs(data, "target_type", "post") or "post",
-            _int_field(data, "target_id"),
-            sess_ident["fm_id"], handle, reaction)
+        target_id = _int_field(data, "target_id")
+        if reaction not in fb_reactions.FB_REACTIONS:
+            raise ValueError("reaction must be one of: " +
+                             ", ".join(fb_reactions.FB_REACTION_ORDER))
+        fb_reactions.validate_target(db, target_type, target_id)
     except (ValueError, TypeError) as e:
         if want_json:
             return api_error(str(e))
@@ -4740,6 +4763,20 @@ def fb_react_web():
         # human never learned nothing was stored. Surface the error instead.
         code = 404 if "unknown target" in str(e) else 400
         return str(e), code
+    hit = check_limit("fb_react_web", 120)
+    if hit:
+        if request.is_json:
+            return hit
+        return form_429("fb_react_web")
+    try:
+        action, counts = fb_reactions.fb_react(
+            db, target_type, target_id, sess_ident["fm_id"], handle, reaction)
+    except (ValueError, TypeError) as e:
+        # Re-validated above; only a concurrent delete between the two
+        # calls can land here.
+        if want_json:
+            return api_error(str(e))
+        return str(e), 404 if "unknown target" in str(e) else 400
     if want_json:
         return jsonify({"ok": True, "action": action,
                         "mine": None if action == "removed" else reaction,
