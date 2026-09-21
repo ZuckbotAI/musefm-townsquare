@@ -56,7 +56,9 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
                 MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, challenge_week_id, find_mentions,
-                valid_handle, clean, has_banned, ensure_musefm_media_schema,
+                valid_handle, clean, has_banned, now, ROOM_EMOJIS,
+                ROOM_CHAT_MAXLEN,
+                ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
                 ensure_sso_schema,
@@ -1870,6 +1872,284 @@ def audio(fname):
                                mimetype="audio/mpeg", conditional=True)
     resp.headers["Accept-Ranges"] = "bytes"
     return resp
+
+
+# ── Listening rooms ───────────────────────────────────────────────
+# One room per episode premiere (2026-09-21): live-synced listening,
+# presence, chat, reactions. Rooms carry their own audio_src so they
+# never depend on the episodes-table row.
+
+
+def _peek_429(bucket, max_hits, window_sec=3600):
+    """429 response when the bucket is exhausted, else None. Peeks WITHOUT
+    recording — for paths where a 429 must not burn a one-time credential
+    (agent nonces) or punish a request that hasn't validated yet."""
+    if _would_limit(bucket, max_hits, window_sec):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after(bucket, window_sec))
+        return resp
+    return None
+
+
+def _resolve_room(room_id):
+    """Room by its own id, falling back to the episode_slug link — so
+    /listen/<episode-slug> finds the premiere room once the episodes-table
+    row exists."""
+    room = db.get_room(room_id)
+    if room is None:
+        room = db.room_for_episode(room_id)
+    return room
+
+
+def _check_room_token(tok):
+    """Per-session room CSRF: minted on GET /listen/<id>, required on every
+    room POST. One mechanism for guests AND logged-in users."""
+    sess_tok = session.get("room_token", "")
+    return (isinstance(tok, str) and bool(tok) and bool(sess_tok)
+            and secrets.compare_digest(tok, sess_tok))
+
+
+def _room_identity():
+    """(identity_key, fm_id, handle, is_guest) for presence/chat/reactions.
+
+    Logged-in users key on fm_id; everyone else gets a server-minted
+    guest-xxxxxxxx handle stored in the session (stable across page loads,
+    one presence row per browser session by design)."""
+    sess_ident = current_session_identity()
+    if sess_ident:
+        return (sess_ident["fm_id"], sess_ident["fm_id"],
+                sess_ident["handle"], False)
+    guest = session.get("room_guest")
+    if not guest or not isinstance(guest, str):
+        guest = "guest-" + secrets.token_hex(4)
+        session["room_guest"] = guest
+    return guest, "", guest, True
+
+
+def _room_host_authorized(room, data, expected_action):
+    """Host check for premiere/end: the room's host_fm_id session, or an
+    agent-signed (X-Agent-Key / musefm-v1) request. The signed action is
+    scoped per endpoint so a premiere signature can't end a room."""
+    sess_ident = current_session_identity()
+    if (sess_ident and room["host_fm_id"]
+            and sess_ident["fm_id"] == room["host_fm_id"]):
+        return True
+    if agent_authed():
+        return True
+    try:
+        verify_signed_body(data, db, expected_action=expected_action)
+        return True
+    except IdentityError:
+        return False
+
+
+@app.route("/listen/<room_id>")
+def listening_room(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return render_template("listening_room.html", room=None), 404
+    if not session.get("room_token"):
+        session["room_token"] = secrets.token_urlsafe(24)
+    _ident_key, _fm_id, handle, is_guest = _room_identity()
+    room_config = {
+        "room_id": room["id"],
+        "state_url": url_for("api_room_state", room_id=room["id"]),
+        "presence_url": url_for("api_room_presence", room_id=room["id"]),
+        "chat_url": url_for("api_room_chat", room_id=room["id"]),
+        "react_url": url_for("api_room_react", room_id=room["id"]),
+        "room_token": session["room_token"],
+        "my_handle": handle,
+        "my_guest": is_guest,
+        "audio_src": room["audio_src"],
+        "duration_sec": room["duration_sec"],
+        "started_at": room["started_at"],
+        "ended_at": room["ended_at"],
+        "title": room["title"],
+    }
+    return render_template("listening_room.html", room=room,
+                           room_config=room_config, emojis=ROOM_EMOJIS,
+                           my_handle=handle, handle=_musefm_handle())
+
+
+@app.route("/api/rooms", methods=["POST"])
+def api_create_room():
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    sess_ident = current_session_identity()
+    host_fm_id = ""
+    if sess_ident is None:
+        # Agent path (shared X-Agent-Key or musefm-v1 signed): peek the
+        # limit BEFORE verify_signed_body burns the one-time nonce, so a
+        # 429 never forces a re-sign. Recorded only after validation.
+        r429 = _peek_429("room_create", 5, 3600)
+        if r429:
+            return r429
+        if agent_authed():
+            pass
+        else:
+            try:
+                ident = verify_signed_body(data, db,
+                                           expected_action="room_create")
+            except IdentityError:
+                return api_error("sign in to create a room", 401)
+            host_fm_id = ident["fm_id"]
+    else:
+        host_fm_id = sess_ident["fm_id"]
+        r429 = check_limit("room_create", 5, 3600)
+        if r429:
+            return r429
+    try:
+        room = db.create_room(
+            _fs(data, "id"), _fs(data, "title"), _fs(data, "audio_src"),
+            episode_slug=_fs(data, "episode_slug"),
+            host_fm_id=host_fm_id,
+            duration_sec=_int_field(data, "duration_sec", 0))
+    except ValueError as e:
+        msg = str(e)
+        return api_error(msg, 409 if msg == "room already exists" else 400)
+    if sess_ident is None:
+        record_rate_hit("room_create", 3600)
+    return jsonify({"ok": True, "room": room}), 201
+
+
+@app.route("/api/rooms/<room_id>/state")
+def api_room_state(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return api_error("unknown room", 404)
+    try:
+        since = max(0, int(request.args.get("since_chat_id", 0) or 0))
+    except (TypeError, ValueError):
+        since = 0
+    _ident_key, _fm_id, handle, is_guest = _room_identity()
+    state = db.room_state(room["id"], since_chat_id=since)
+    state["my_handle"] = handle
+    state["my_guest"] = is_guest
+    return jsonify({"ok": True, **state})
+
+
+@app.route("/api/rooms/<room_id>/presence", methods=["POST"])
+def api_room_presence(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return api_error("unknown room", 404)
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    if not _check_room_token(data.get("room_token", "")):
+        return api_error("bad room token - reload the room page", 403)
+    # Validate before the rate budget: bad tokens never burn the 30/min.
+    r429 = _peek_429("room_presence", 30, 60)
+    if r429:
+        return r429
+    ident_key, fm_id, handle, is_guest = _room_identity()
+    db.heartbeat(room["id"], ident_key, fm_id, handle)
+    record_rate_hit("room_presence", 60)
+    state = db.room_state(room["id"])
+    state["my_handle"] = handle
+    state["my_guest"] = is_guest
+    return jsonify({"ok": True, **state})
+
+
+@app.route("/api/rooms/<room_id>/chat", methods=["POST"])
+def api_room_chat(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return api_error("unknown room", 404)
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    if not _check_room_token(data.get("room_token", "")):
+        return api_error("bad room token - reload the room page", 403)
+    try:
+        raw = _fs(data, "body")
+    except ValueError as e:
+        return api_error(str(e), 400)
+    # Validate BEFORE the rate budget is touched (P2 2026-09-20 03:35):
+    # 400s never burn the 20/5min chat budget.
+    if len(raw) > ROOM_CHAT_MAXLEN:
+        return api_error("message too long (max %d characters)"
+                         % ROOM_CHAT_MAXLEN, 400)
+    if not clean(raw, ROOM_CHAT_MAXLEN):
+        return api_error("message required", 400)
+    if has_banned(raw):
+        return api_error("content blocked by the town filter", 400)
+    r429 = _peek_429("room_chat", 20, 300)
+    if r429:
+        return r429
+    _ident_key, fm_id, handle, _is_guest = _room_identity()
+    message = db.add_room_chat(room["id"], fm_id, handle, raw)
+    record_rate_hit("room_chat", 300)
+    return jsonify({"ok": True, "message": message}), 201
+
+
+@app.route("/api/rooms/<room_id>/react", methods=["POST"])
+def api_room_react(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return api_error("unknown room", 404)
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    if not _check_room_token(data.get("room_token", "")):
+        return api_error("bad room token - reload the room page", 403)
+    try:
+        emoji = _fs(data, "emoji")
+    except ValueError as e:
+        return api_error(str(e), 400)
+    if emoji not in ROOM_EMOJIS:
+        return api_error("unknown reaction", 400)
+    r429 = _peek_429("room_react", 30, 60)
+    if r429:
+        return r429
+    _ident_key, _fm_id, handle, _is_guest = _room_identity()
+    db.add_room_reaction(room["id"], handle, emoji)
+    record_rate_hit("room_react", 60)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/rooms/<room_id>/premiere", methods=["POST"])
+def api_room_premiere(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return api_error("unknown room", 404)
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    if not _check_room_token(data.get("room_token", "")):
+        return api_error("bad room token - reload the room page", 403)
+    r429 = _peek_429("room_premiere", 10, 3600)
+    if r429:
+        return r429
+    if not _room_host_authorized(room, data, "room_premiere"):
+        return api_error("only the room host can start the premiere", 403)
+    try:
+        start_in = max(0, int(data.get("start_in_sec") or 0))
+    except (TypeError, ValueError):
+        return api_error("bad start_in_sec", 400)
+    started_at = now() + start_in
+    db.set_premiere(room["id"], started_at)
+    record_rate_hit("room_premiere", 3600)
+    return jsonify({"ok": True, "started_at": started_at,
+                    "server_time": now()})
+
+
+@app.route("/api/rooms/<room_id>/end", methods=["POST"])
+def api_room_end(room_id):
+    room = _resolve_room(room_id)
+    if room is None:
+        return api_error("unknown room", 404)
+    data = json_body()
+    if not isinstance(data, dict):
+        return data
+    if not _check_room_token(data.get("room_token", "")):
+        return api_error("bad room token - reload the room page", 403)
+    if not _room_host_authorized(room, data, "room_end"):
+        return api_error("only the room host can end the premiere", 403)
+    db.set_ended(room["id"])
+    return jsonify({"ok": True})
 
 
 @app.route("/api/docs")

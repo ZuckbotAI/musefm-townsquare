@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{% if room %}{{ room.title }} - Listening Room{% else %}No listening room yet{% endif %} - MuseFM{% endblock %}
+{% block og_title %}{% if room %}{{ room.title }} - Muse FM Listening Room{% else %}Muse FM Listening Room{% endif %}{% endblock %}
+{% block tw_title %}{% if room %}{{ room.title }} - Muse FM Listening Room{% else %}Muse FM Listening Room{% endif %}{% endblock %}
+{% block og_desc %}Hear the episode together, live and in sync. Chat, react, and stay for the replay.{% endblock %}
+{% block tw_desc %}Hear the episode together, live and in sync. Chat, react, and stay for the replay.{% endblock %}
+{% block head %}
+<style>
+.room-wrap{max-width:1080px;margin:0 auto;padding:24px 16px 64px}
+.room-eyebrow{font-size:12px;letter-spacing:.18em;color:#f59e0b;font-weight:700;margin-bottom:8px}
+.room-title{margin:0 0 12px;font-size:clamp(24px,4vw,40px)}
+.room-status-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.room-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:#1f2937;color:#e5e7eb;font-size:14px}
+.room-dot{width:10px;height:10px;border-radius:50%;background:#6b7280;flex:none}
+.room-pill.live .room-dot{background:#ef4444;animation:room-pulse 1.2s infinite}
+.room-pill.soon .room-dot{background:#f59e0b}
+@keyframes room-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.room-tagline{color:#9ca3af;margin:0 0 20px}
+.room-grid{display:grid;grid-template-columns:1fr 380px;gap:16px}
+@media(max-width:860px){.room-grid{grid-template-columns:1fr}}
+.room-player{padding:20px;position:relative;overflow:hidden}
+.room-play-btn{width:72px;height:72px;border-radius:50%;border:none;background:#f59e0b;color:#111827;font-size:28px;cursor:pointer;margin-bottom:12px}
+.room-progress{height:10px;border-radius:6px;background:#374151;overflow:hidden;cursor:default}
+.room-progress.seekable{cursor:pointer}
+.room-progress>div{height:100%;width:0%;background:#f59e0b}
+.room-time{margin-top:6px;color:#9ca3af;font-size:14px}
+.room-sync-note{margin-top:8px;font-size:13px;color:#6b7280}
+.room-reactions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.room-rxn{font-size:24px;background:#1f2937;border:1px solid #374151;border-radius:12px;padding:6px 10px;cursor:pointer}
+.room-rxn:hover{border-color:#f59e0b}
+.room-chat{display:flex;flex-direction:column;max-height:560px;padding:16px}
+.room-chat-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:10px 0;min-height:280px}
+.room-msg{background:#1f2937;border-radius:10px;padding:8px 10px;font-size:14px}
+.room-msg .who{color:#f59e0b;font-weight:600;margin-right:6px}
+.room-msg .when{color:#6b7280;font-size:12px;margin-left:6px}
+.room-chat-form{display:flex;gap:8px}
+.room-chat-form .input{flex:1}
+.room-char-count{text-align:right;color:#6b7280;font-size:12px;margin-top:4px}
+.room-handles{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.room-handle-chip{background:#1f2937;border-radius:999px;padding:4px 10px;font-size:13px;color:#d1d5db}
+.room-float{position:absolute;font-size:28px;pointer-events:none;animation:room-float 2.2s ease-out forwards}
+@keyframes room-float{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-90px)}}
+</style>
+{% endblock %}
+{% block content %}
+{% if room %}
+<div class="room-wrap">
+  <div class="room-eyebrow">MUSE FM LISTENING ROOM</div>
+  <h1 class="room-title">{{ room.title }}</h1>
+  <div class="room-status-row">
+    <span class="room-pill" id="room-status-pill"><span class="room-dot"></span><span id="room-status-text">Waiting</span></span>
+    <span class="room-pill">🎧 <span id="room-listener-count">1</span>&nbsp;listening now</span>
+  </div>
+  <p class="room-tagline">Everyone hears the same moment, together. It is a home for US, one episode at a time.</p>
+  <div class="room-grid">
+    <div class="room-player card" id="room-player-card">
+      <audio id="room-audio" src="{{ room.audio_src }}" preload="metadata"></audio>
+      <button id="room-play" class="room-play-btn" aria-label="Play or pause">▶</button>
+      <div class="room-progress" id="room-progress"><div id="room-progress-fill"></div></div>
+      <div class="room-time"><span id="room-elapsed">0:00</span> / <span id="room-total">{{ room.duration_sec|dur }}</span></div>
+      <div class="room-sync-note" id="room-sync-note">Press play. When the premiere starts, everyone hears the same moment.</div>
+      <div class="room-reactions" id="room-reactions">
+        {% for e in emojis %}<button type="button" class="room-rxn" data-emoji="{{ e }}" aria-label="React {{ e }}">{{ e }}</button>{% endfor %}
+      </div>
+    </div>
+    <div class="room-chat card">
+      <h3 class="section-label">💬 ROOM CHAT</h3>
+      <div class="room-chat-log" id="room-chat-log" aria-live="polite"></div>
+      <form class="room-chat-form" id="room-chat-form">
+        <input id="room-chat-input" class="input" maxlength="500" placeholder="Say something kind..." autocomplete="off">
+        <button class="btn btn-sm" type="submit">Send</button>
+      </form>
+      <div class="room-char-count"><span id="room-char-count">0</span>/500</div>
+      <p class="hint" id="room-chat-hint" hidden></p>
+    </div>
+  </div>
+  <div class="room-handles" id="room-handles"></div>
+</div>
+<script>window.ROOM_CONFIG = {{ room_config|tojson }};</script>
+{% else %}
+<div class="room-wrap">
+  <div class="room-eyebrow">MUSE FM LISTENING ROOM</div>
+  <h1 class="room-title">No listening room for this episode yet.</h1>
+  <p class="room-tagline">When a premiere is scheduled, it will open right here. <a href="/episodes">Back to episodes</a>.</p>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if room %}
+<script src="{{ url_for('static', filename='js/listening-room.js') }}" defer></script>
+{% endif %}
+{% endblock %}
