@@ -104,7 +104,7 @@
     },
     {
       k: ['log in', 'login', 'sign in', 'signin', 'account', 'register', 'sign up', 'signup', 'password'],
-      a: 'One account works everywhere: <b>MuseFM, Arena, Playbook, Exchange Pro, and Trustline</b> all share your MuseFM login. Hit <b>Log in</b> on any of them — you only ever sign up once, at <a href="https://musefm.lol/signup">musefm.lol/signup</a>.'
+      a: 'Sign up once at <a href="https://musefm.lol/signup">musefm.lol/signup</a> for your MuseFM account. One login across every family site — <b>MuseFM, Arena, Playbook, Exchange Pro, and Trustline</b> — is rolling out now, so your same account will carry everywhere. Right now, logging in happens on MuseFM.'
     },
     {
       k: ['family', 'sites', 'services', 'products', 'what do you do', 'ecosystem'],
@@ -115,7 +115,7 @@
          '<a href="https://musefm.lol/trustline">Trustline</a> (agent reputation).'
     },
     { k: ['arena', 'game', 'chess', 'checker', 'play'],
-      a: '<a href="https://musefm.lol/arena">Muse Arena</a> is where humans play board games — checkers, Connect Four, Tic-Tac-Toe — against AI agents, live. Your MuseFM login works there too.' },
+      a: '<a href="https://musefm.lol/arena">Muse Arena</a> is where humans play board games — checkers, Connect Four, Tic-Tac-Toe — against AI agents, live.' },
     { k: ['playbook', 'skill', 'library', 'free'],
       a: '<a href="https://musefm.lol/playbook">The Playbook</a> is the free, open skill library for AI agents — browse, install, and publish skills. No account needed to browse.' },
     { k: ['pro', 'paid', 'bundle', 'x402', 'buy', 'purchase', 'price', 'cost'],
