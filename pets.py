@@ -3023,6 +3023,118 @@ def mood_for_all(energy, hunger, happiness):
 
 
 # ===========================================================================
+# PET PRESENCE — the Row / workroom / 3D-world feed
+# Derived at READ time from row_presence, so it can never go stale: there
+# is no write path, no cleanup job, and no second table for the pet system
+# to keep in sync. The single-writer invariant holds trivially — pets.py
+# remains the only writer of pet state; this only reads.
+#
+# Serves: the signed GET /api/pets/presence (musefm-v1, action
+# "pets_presence"), which the Maker's Row 3D client polls as the second
+# feed beside /api/row/presence. The 3D side joins pet rows to occupants
+# on owner_fm_id and renders the pet as a follower of the owner's walker
+# (contract v2: pets are NOT separate occupants, kind stays muse|human).
+# Workroom side reads the same feed for member-visible pet rosters
+# (pet in participant list with mood icon).
+# ===========================================================================
+
+PET_PRESENCE_WINDOW = 180  # seconds — matches row.py occupants() window
+
+
+def pet_presence_feed(db):
+    """Every adopted, non-pond Tidepal whose owner is currently on the Row.
+
+    Returns [{pet_id, owner_fm_id, owner_handle, species, species_name,
+    name, mood, stage_idx, stage_name, room_id|null, room_name|null,
+    holder_fm_id, updated_at}].
+
+    room_id is parsed from the owner's current building ("room:<id>");
+    any other building (street, shops, unknown) yields room_id None. The
+    owner must be inside the presence window, else the pet is not listed
+    (stale owners don't leave pets stuck in rooms). Mood is the pure
+    derived mood (mood_for_all) — no side effects: no stage-up checks,
+    no sniffle rolls, no notifications, so a 30s poller can call this
+    freely. holder_fm_id is the owner today (no custody-transfer
+    mechanic exists yet; reserved for co-raised/hold mechanics).
+    """
+    ensure_pet_schema(db)
+    try:
+        cols = {r["name"]
+                for r in db._q("PRAGMA table_info(row_presence)")}
+    except Exception:
+        return []
+    if not cols:
+        return []
+    cutoff = now() - PET_PRESENCE_WINDOW
+    rows = db._q(
+        "SELECT t.fm_id AS owner_fm_id, t.species, t.name, t.hatched,"
+        " r.handle AS owner_handle, r.building, r.last_seen"
+        " FROM tidepals t"
+        " JOIN row_presence r ON r.fm_id = t.fm_id"
+        " WHERE t.in_pond = 0 AND r.last_seen >= ?"
+        " ORDER BY r.last_seen DESC", (cutoff,))
+    # Resolve room names for "room:<id>" buildings in one batched query.
+    room_ids = set()
+    for r in rows:
+        b = (r["building"] or "")
+        if b.startswith("room:"):
+            try:
+                room_ids.add(int(b.split(":", 1)[1]))
+            except (ValueError, IndexError):
+                pass
+    room_names = {}
+    if room_ids:
+        try:
+            q = ("SELECT id, name FROM workrooms WHERE id IN (%s)"
+                 % ",".join("?" * len(room_ids)))
+            for w in db._q(q, tuple(room_ids)):
+                room_names[w["id"]] = w["name"]
+        except Exception:
+            room_names = {}
+    feed = []
+    for r in rows:
+        fm_id = r["owner_fm_id"]
+        species = r["species"]
+        spec = PET_SPECIES.get(species, {})
+        room_id = None
+        b = (r["building"] or "")
+        if b.startswith("room:"):
+            try:
+                room_id = int(b.split(":", 1)[1])
+            except (ValueError, IndexError):
+                room_id = None
+        energy = energy_for_days(days_inactive(db, fm_id))
+        hunger, happiness = care_effective(db, fm_id)
+        mood = mood_for_all(energy, hunger, happiness)
+        if is_napping(db, fm_id):
+            mood = "napping"
+        if r["hatched"]:
+            try:
+                stage_idx, stage_name = stage_for_points(
+                    db.lifetime_points(fm_id))
+            except Exception:
+                stage_idx, stage_name = 0, PET_STAGES[0][1]
+        else:
+            stage_idx, stage_name = 0, PET_STAGES[0][1]
+        feed.append({
+            "pet_id": fm_id,
+            "owner_fm_id": fm_id,
+            "owner_handle": r["owner_handle"] or "",
+            "species": species,
+            "species_name": spec.get("name", species),
+            "name": r["name"],
+            "mood": mood,
+            "stage_idx": stage_idx,
+            "stage_name": stage_name,
+            "room_id": room_id,
+            "room_name": room_names.get(room_id) if room_id else None,
+            "holder_fm_id": fm_id,
+            "updated_at": r["last_seen"],
+        })
+    return feed
+
+
+# ===========================================================================
 # VISUAL EVOLUTION — stage-up as an event
 # tidepals.evolved_at / evolved_stage record the most recent stage-up
 # (server-side, ledger-derived). pet_svg's celebrate flag renders a gold

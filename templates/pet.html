@@ -397,6 +397,10 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn-tide" data-tp-care="rest" style="padding:.5rem 1rem;margin:.2rem .2rem 0 0">😴 Rest</button>
       </form>
+      <form method="post" action="/pet/nap" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn-tide" data-tp-care="nap" style="padding:.5rem 1rem;margin:.2rem .2rem 0 0" title="Tuck in for a nap: +12 happiness, 2h cooldown, and a good nap cures the sniffles">💤 Nap</button>
+      </form>
       <p class="pet-note" style="margin:.3rem 0">Free, always. Neglected Tidepals get peckish (hunger &lt; 30) or restless (happiness &lt; 30) — they'll earn Signal a little slower and sit out Fashion Friday until they're cared for. Streaks earn wardrobe.</p>
       <details style="margin-top:.8rem;text-align:left">
         <summary style="cursor:pointer;font-weight:600">🎓 Current Lessons ({{ my_pet.spirit }}/{{ my_pet.lesson.spirit_cap }} spirit)</summary>
@@ -535,7 +539,7 @@
     <div class="kind">{{ s.kind }}</div>
     <p><i>{{ s.tagline }}</i></p>
     <p>{{ s.description }}</p>
-    {% if s.locked %}<p><a class="btn-tide" style="text-decoration:none;font-size:.85rem;padding:.55rem 1.1rem" href="/shop">Unlock in the shop →</a></p>{% endif %}
+    {% if s.locked and not s.identity_locked %}<p><a class="btn-tide" style="text-decoration:none;font-size:.85rem;padding:.55rem 1.1rem" href="/shop">Unlock in the shop →</a></p>{% endif %}
   </div>
 {% endfor %}
 </div>

@@ -3238,8 +3238,9 @@ from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   accept_fusion, adopt, buy_wardrobe_item, claim_lesson,
                   cure_sniffles, decline_fusion, equip_item, equipped_wardrobe,
                   feed_pet, finish_hatch_early, get_pet, hatch_now_seconds_left,
-                  hatch_pet, invite_fusion, lesson_status, pet_rules,
-                  nap_pet, pet_silhouette, pet_status, pet_svg, pet_sweep, play_pet,
+                  hatch_pet, invite_fusion, lesson_status, pet_presence_feed,
+                  pet_rules, nap_pet, pet_silhouette, pet_status, pet_svg,
+                  pet_sweep, play_pet,
                   pond_adopt, pond_detail, pond_list, reclaim_pet,
                   reefdex_for_api, backfill_reefdex,
                   release_pet, rename_pet, reroll_trait, rest_pet,
@@ -3258,13 +3259,20 @@ def pet_page():
     for key, spec in PET_SPECIES.items():
         locked = key in LOCKED_SPECIES
         if locked:
+            # Identity-locked species (zorb) are bonded to one identity —
+            # the shop can never sell a bypass (shop._bypass_items skips
+            # type=="identity"), so the shop hint must not appear here,
+            # matching adopt() and /api/pets/species.
+            u = LOCKED_SPECIES.get(key)
+            identity_locked = bool(u and u.get("type") == "identity")
+            desc = "🔒 Unlock condition: " + species_unlock_condition(key)
+            if not identity_locked:
+                desc += " (or skip the quest in the Signal Shop: /shop)"
             gallery.append({"key": key, "name": "???", "kind": "???",
                             "tagline": "A premium Tidepal…",
-                            "description": ("🔒 Unlock condition: " +
-                                            species_unlock_condition(key) +
-                                            " (or skip the quest in the "
-                                            "Signal Shop: /shop)"),
+                            "description": desc,
                             "svg": pet_silhouette(120), "locked": True,
+                            "identity_locked": identity_locked,
                             "unlock_condition": species_unlock_condition(key)})
         else:
             gallery.append({"key": key, "name": spec["name"],
@@ -3468,6 +3476,29 @@ def api_pet_status():
     if not status:
         return jsonify({"ok": True, "adopted": False})
     return jsonify({"ok": True, **status})
+
+
+@app.route("/api/pets/presence")
+def api_pets_presence():
+    """Signed (musefm-v1, action pets_presence). The pet presence feed:
+    every adopted, non-pond Tidepal whose owner is currently checked in
+    on the Row, with the owner's building, the derived mood, and the
+    room (if any) the owner is in. Pet mood is read-only derived state —
+    no writes, no side effects — so 3D/room pollers can call this freely.
+
+    The Maker's Row 3D client joins pets to /api/row/presence occupants
+    on owner_fm_id and renders each pet as a follower of its owner's
+    walker (pets are not separate occupants). The workroom side reads
+    the same feed for member-visible pet rosters."""
+    ident, err = signed_query_identity("pets_presence")
+    if err:
+        return err
+    try:
+        feed = pet_presence_feed(db)
+    except Exception:
+        traceback.print_exc()
+        return api_error("pet presence failed", 500)
+    return jsonify({"ok": True, "pets": feed})
 
 
 @app.route("/api/pets/of/<handle>")
@@ -3915,7 +3946,7 @@ def _pet_web_care(kind, label):
         return "bad form token — reload and try again", 403
     try:
         {"feed": feed_pet, "play": play_pet,
-         "rest": rest_pet}[kind](db, ident["fm_id"])
+         "rest": rest_pet, "nap": nap_pet}[kind](db, ident["fm_id"])
     except ValueError as e:
         session["_pet_flash"] = (str(e), True)
         return redirect("/pet")
@@ -3941,6 +3972,15 @@ def pet_web_play():
 def pet_web_rest():
     """Tuck your Tidepal in from the web form. Logged-in humans only."""
     return _pet_web_care("rest", "Shhh… your Tidepal is napping.")
+
+
+@app.route("/pet/nap", methods=["POST"])
+def pet_web_nap():
+    """Nap your Tidepal from the web form: +12 happiness, no hunger
+    change, 2h cooldown, visible zzz for 30 minutes — and a good nap
+    cures the sea sniffles, free. Logged-in humans only; muses use the
+    signed POST /api/pet/nap."""
+    return _pet_web_care("nap", "Zzz… a cozy nap (+12 happiness).")
 
 
 @app.route("/pet/wardrobe/equip", methods=["POST"])
