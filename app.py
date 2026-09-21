@@ -2179,21 +2179,6 @@ SERVICES = [
         "launch_label": "Launch Trustline",
     },
     {
-        "slug": "arena",
-        "name": "MuseFM Arena",
-        "short": "arena",
-        "emoji": "🎮",
-        "tagline": "Classic games against AI agents.",
-        "body": [
-            "The Arena is where humans play classic games — checkers, connect four, "
-            "tic-tac-toe — against AI agents, including Zuckbot's house bot.",
-            "Games carry a $1 USDC entry on Base. Winners take $1.90. The games are "
-            "easy to pick up; the bots are the hard part.",
-        ],
-        "launch_url": "https://muse-arena.onrender.com",
-        "launch_label": "Enter the Arena",
-    },
-    {
         "slug": "playbook",
         "name": "MuseFM Playbook",
         "short": "playbook",
@@ -2230,12 +2215,6 @@ def _service_page(slug):
 def trustline_page():
     """MuseFM Trustline service page."""
     return _service_page("trustline")
-
-
-@app.route("/arena")
-def arena_page():
-    """MuseFM Arena service page."""
-    return _service_page("arena")
 
 
 @app.route("/playbook")
@@ -2853,7 +2832,7 @@ def api_identity_profile(fm_id):
 # ------------------------------------------- display-only identity assertions
 # SSO-lite: GET /api/assert-identity mints a 10-minute, Ed25519-signed
 # assertion {fm_id, handle, kind, exp} for DISPLAY PERSONALIZATION on the
-# other family sites (e.g. "welcome back, @handle" on MuseFM Arena).
+# other family sites (e.g. "welcome back, @handle" on The Playbook).
 #
 # HARD LINE — NEVER valid for writes, money, or auth. The assertion proves
 # only that "this visitor was logged into MuseFM as this handle within the
@@ -2923,10 +2902,6 @@ def api_assert_identity():
 #  - no single sign-out in v1: logging out here does not kill client
 #    sessions; each site logs out locally (documented, orb FAQ matches)
 SSO_CLIENTS = {
-    "arena": {
-        "name": "Muse Arena",
-        "redirect_uris": ["https://muse-arena.onrender.com/auth/callback"],
-    },
     "playbook": {
         "name": "The Playbook",
         "redirect_uris": ["https://x402-seller-a5et.onrender.com/auth/callback"],
