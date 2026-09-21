@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>orb scenes</title>
+<style>
+  body { margin: 0; background: #0b1220; font-family: -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #0f172a; }
+  header .logo { font-weight: 800; font-size: 20px; color: #fff; text-decoration: none; }
+  main { padding: 40px 20px; color: #475569; font-size: 13px; max-width: 600px; }
+</style>
+</head>
+<body>
+<header><a class="logo" href="/" data-muse-orb-anchor>MuseFM</a></header>
+<main id="info">scene driver</main>
+<script>window.MuseOrbOptions = { proactive: true };</script>
+<script src="/static/js/muse-orb.js" defer></script>
+<script>
+  var scene = (location.search.match(/scene=([a-z]+)/) || [])[1] || 'idle';
+  document.getElementById('info').textContent = 'scene: ' + scene;
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var O = window.MuseOrb;
+      if (scene === 'working') O.setState('working');
+      else if (scene === 'thinking') O.setState('thinking');
+      else if (scene === 'listening') O.setState('listening');
+      else if (scene === 'speaking') O.setState('speaking');
+      else if (scene === 'error') O.setState('error');
+      else if (scene === 'sleep') O.setClock(23);
+      else if (scene === 'fan') {
+        O.registerAgent({ id: 'wisp', name: 'Wisp', hue: 160, eye: 'arc' });
+        O.registerAgent({ id: 'ember', name: 'Ember', hue: 18, eye: 'round' });
+        setTimeout(function () { O.setFan(true); }, 400);
+      }
+      else if (scene === 'nudge') {
+        var ok = O.nudge('Demo nudge — the orb brightened <i>before</i> this appeared.');
+        setTimeout(function () {
+          var b = document.querySelector('.muse-orb-nudge');
+          document.getElementById('info').textContent =
+            'nudge→' + ok + ' | bubble class: ' + (b ? b.className : 'MISSING') +
+            ' | text len: ' + (b ? b.querySelector('.muse-orb-nudge-text').innerHTML.length : -1);
+        }, 3000);
+      }
+      else if (scene === 'panel') O.ask('how do i log in?');
+    }, 700);
+  });
+</script>
+</body>
+</html>

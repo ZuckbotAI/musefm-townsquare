@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orb v2 showcase — living glass · alive · state-reactive · proactive · constellation</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #0b1220; color: #e2e8f0; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #0f172a; border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 50; }
+  header .logo { font-weight: 800; font-size: 20px; color: #fff; text-decoration: none; }
+  header .tag { font-size: 12px; color: #94a3b8; }
+  #gl-badge { margin-left: auto; font-size: 11px; padding: 4px 10px; border-radius: 999px; background: #1e293b; color: #94a3b8; }
+  #gl-badge.on { background: rgba(34,197,94,.15); color: #4ade80; }
+  main { max-width: 760px; margin: 28px auto; padding: 0 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p.lead { color: #94a3b8; font-size: 14px; margin: 0 0 20px; }
+  .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 14px; margin: 0 0 4px; color: #f1f5f9; }
+  .card p.desc { font-size: 12.5px; color: #94a3b8; margin: 0 0 10px; line-height: 1.5; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  button.demo { border: 1px solid #334155; background: #1e293b; color: #e2e8f0; border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button.demo:hover { background: #334155; }
+  button.demo.warm { border-color: #b45309; background: rgba(180,83,9,.25); }
+  #log { font-family: ui-monospace, monospace; font-size: 12px; background: #020617; color: #a5f3fc; border-radius: 10px; padding: 12px 14px; min-height: 120px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; border: 1px solid #1e293b; }
+  footer { text-align: center; color: #475569; font-size: 12px; padding: 24px; }
+  code { background: #1e293b; padding: 1px 6px; border-radius: 6px; font-size: 12.5px; }
+  .stage { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .8px; color: #f59e0b; text-transform: uppercase; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/" data-muse-orb-anchor>MuseFM</a>
+  <span class="tag">orb v2 showcase — the orb anchors right after this logo</span>
+  <span id="gl-badge">checking WebGL…</span>
+</header>
+<main>
+  <h1>Orb v2 — all five stages</h1>
+  <p class="lead">The real <code>/static/js/muse-orb.js</code> v2 — no mocks. Proactive mode is ON for this demo
+  (<code>MuseOrbOptions = {proactive:true}</code>). Try each stage in order.</p>
+
+  <div class="card">
+    <div class="stage">Stage 1 · Living glass</div>
+    <h2>Real-time WebGL orb</h2>
+    <p class="desc">Fresnel rim, refracted environment, drifting caustics, amber core with a living pulse,
+    surface droplets. Just look at it — move your mouse behind it. No buttons needed.</p>
+  </div>
+
+  <div class="card">
+    <div class="stage">Stage 2 · Alive</div>
+    <h2>Micro-behaviors</h2>
+    <p class="desc">Breathing, blinking, gaze follows your cursor, gaze wanders when ignored.
+    After 11pm local it gets sleepy (dimmed, slow breathing, half-mast eyes) and wakes when you come close.</p>
+    <div class="btns">
+      <button class="demo" id="b-night">Simulate night (sleep)</button>
+      <button class="demo" id="b-day">Simulate morning (wake)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">Stage 3 · State-reactive</div>
+    <h2>Honest agent states</h2>
+    <p class="desc">Each state is a real visual signature. In production these are set by the host page from
+    live signals — here you drive them by hand.</p>
+    <div class="btns">
+      <button class="demo" data-state="idle">idle</button>
+      <button class="demo" data-state="listening">listening</button>
+      <button class="demo" data-state="thinking">thinking</button>
+      <button class="demo warm" data-state="working">working</button>
+      <button class="demo" data-state="speaking">speaking</button>
+      <button class="demo" data-state="notify">notify</button>
+      <button class="demo" data-state="error">error</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">Stage 4 · Proactive</div>
+    <h2>Opt-in nudge</h2>
+    <p class="desc">The orb brightens gently <i>before</i> the bubble appears. It never fires while you're
+    typing or when the panel is open. Dismiss with × or wait 9s.</p>
+    <div class="btns">
+      <button class="demo" id="b-nudge">Nudge me</button>
+      <button class="demo" id="b-ask">Ask: how do I log in?</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">Stage 5 · Constellation</div>
+    <h2>Satellite agents</h2>
+    <p class="desc">Register agents and they fan out around the hub. Click a satellite to meet it.
+    Click the hub to open the panel (the crew fans out with it).</p>
+    <div class="btns">
+      <button class="demo" id="b-wisp">Register Wisp</button>
+      <button class="demo" id="b-ember">Register Ember</button>
+      <button class="demo" id="b-fan">Fan out / close</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Hands-on</h2>
+    <p class="desc">Hover near it (it notices you once) · click it (panel) · drag it anywhere ·
+    double-click (flies home).</p>
+    <h2 style="margin-top:12px">Event log</h2>
+    <div id="log">ready
+</div>
+  </div>
+</main>
+<footer>orb-showcase.html · local verification only · not for deploy</footer>
+
+<script>window.MuseOrbOptions = { proactive: true };</script>
+<script src="/static/js/muse-orb.js" defer></script>
+<script>
+  var log = document.getElementById('log');
+  function say(s) { log.textContent += s + '\n'; log.scrollTop = 1e6; }
+  function api() { return window.MuseOrb || {}; }
+
+  document.querySelectorAll('[data-state]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var s = b.getAttribute('data-state');
+      api().setState && api().setState(s, s === 'notify' ? 0 : 6000);
+      say('setState("' + s + '")');
+    });
+  });
+  document.getElementById('b-night').addEventListener('click', function () {
+    api().setClock && api().setClock(23); say('setClock(23) — sleepy mode');
+  });
+  document.getElementById('b-day').addEventListener('click', function () {
+    api().setClock && api().setClock(9); say('setClock(9) — awake');
+  });
+  document.getElementById('b-nudge').addEventListener('click', function () {
+    var ok = api().nudge && api().nudge('Psst — demo nudge. The orb brightened <i>before</i> this bubble. Proactive mode is on for this page.');
+    say('nudge() → ' + ok);
+  });
+  document.getElementById('b-ask').addEventListener('click', function () {
+    api().ask && api().ask('how do i log in?'); say('ask("how do i log in?")');
+  });
+  document.getElementById('b-wisp').addEventListener('click', function () {
+    var ok = api().registerAgent && api().registerAgent({ id: 'wisp', name: 'Wisp', hue: 160, eye: 'arc' });
+    say('registerAgent(Wisp) → ' + ok);
+  });
+  document.getElementById('b-ember').addEventListener('click', function () {
+    var ok = api().registerAgent && api().registerAgent({ id: 'ember', name: 'Ember', hue: 18, eye: 'round' });
+    say('registerAgent(Ember) → ' + ok);
+  });
+  var fan = false;
+  document.getElementById('b-fan').addEventListener('click', function () {
+    fan = !fan;
+    api().setFan && api().setFan(fan); say('setFan(' + fan + ')');
+  });
+
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var badge = document.getElementById('gl-badge');
+      var on = !!(api().hasGL);
+      badge.textContent = on ? '● living glass: ON (WebGL)' : '○ living glass: OFF (2D fallback)';
+      badge.classList.toggle('on', on);
+      say('hasGL=' + on + ' | API: ' + ['ask','setState','nudge','registerAgent','setFan','setClock','sendHome']
+        .map(function (k) { return k + '=' + typeof api()[k]; }).join(' '));
+      var a = document.querySelector('[data-muse-orb-anchor]');
+      var w = document.querySelector('.muse-orb-wrap');
+      say('orb anchored after logo: ' + (a && w && a.nextSibling === w));
+    }, 500);
+  });
+</script>
+</body>
+</html>
