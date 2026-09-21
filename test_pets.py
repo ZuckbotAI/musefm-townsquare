@@ -400,6 +400,8 @@ def main():
           "already" in r.data.decode().lower())
     r = c.get("/pet")
     check("pet page 200 for logged-in adopter", r.status_code == 200)
+    check("pet page links back to Maker's Row (Pet Shop return path)",
+          'href="/row"' in r.data.decode() and "Maker's Row" in r.data.decode())
 
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     sys.exit(1 if FAIL else 0)

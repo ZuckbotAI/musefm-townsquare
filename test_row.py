@@ -93,6 +93,16 @@ def test_buildings_eight_shops(client):
                      "petshop", "bounty", "openmic", "townhall"]
 
 
+def test_petshop_door_opens_onto_live_pet_page(client):
+    # Maker's Row x pet rework: the Pet Shop's door must be the real,
+    # working /pet page — a visitor walks from the Row straight into
+    # pet stuff that works.
+    petshop = next(b for b in rowmod.BUILDINGS if b["slug"] == "petshop")
+    assert petshop["door"] == "/pet"
+    r = client.get(petshop["door"])
+    assert r.status_code == 200
+
+
 # ------------------------------------------------------------- avatars
 def test_avatar_roundtrip(client):
     rowmod.set_avatar(appmod.db, "fm_a1", "ava1", good_cfg())
