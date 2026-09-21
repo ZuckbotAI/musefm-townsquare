@@ -59,7 +59,7 @@
 {# ---- slim top bar: brand, hamburger (mobile), handle, theme ---- #}
 <header class="topbar">
   <button class="hamburger" id="sb-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" onclick="toggleSidebar()">☰</button>
-  <a class="brand" href="/" aria-label="Muse FM home">
+  <a class="brand" href="/" aria-label="Muse FM home" data-muse-orb-anchor>
     {% set brand_h = 30 %}{% set brand_decorative = true %}{% set brand_uid = "a" %}{% include "_brand.html" %}
   </a>
   <div class="topbar-right">
@@ -237,6 +237,7 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+<script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
