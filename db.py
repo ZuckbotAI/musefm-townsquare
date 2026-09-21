@@ -178,6 +178,10 @@ def now():
 
 def clean(s, limit, single_line=False):
     s = (s or "").strip()
+    # Strip NUL and other C0 control chars outright: SQLite tolerates them
+    # but they truncate strings in downstream C consumers and log pipelines.
+    # \t and \n are kept — they're handled deliberately below (P2 2026-09-21).
+    s = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", s)
     if single_line:
         # identifiers, titles, URLs, filenames: one line, no exceptions
         s = re.sub(r"\s+", " ", s)
@@ -1074,7 +1078,14 @@ class Database:
             "  created_at=excluded.created_at",
             (target_type, target_id, flagger_fm_id,
              clean(flagger_handle, 32, single_line=True), reason, now()))
-        return cur.lastrowid
+        # lastrowid is stale on the conflict-update path (SQLite hands back
+        # the rowid of an unrelated earlier insert on the reused connection),
+        # so re-read the real id by the conflict key (P2 2026-09-21).
+        row = self._one(
+            "SELECT id FROM post_flags WHERE target_type=? AND target_id=?"
+            " AND flagger_fm_id=?",
+            (target_type, target_id, flagger_fm_id))
+        return row["id"] if row else cur.lastrowid
 
     def list_flags(self, status="open", limit=100):
         rows = self._q(
