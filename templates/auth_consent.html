@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sign in to {{ site_name }} — MuseFM{% endblock %}
+{% block content %}
+<div class="hero"><h1>Sign in with MuseFM</h1><p>One account for the whole family of sites.</p></div>
+<div class="card" style="max-width:640px">
+  <p style="font-size:1.1em"><b>{{ site_name }}</b> wants to sign you in as
+    <b>@{{ handle }}</b>.</p>
+  <p class="hint">This shares only your handle — nothing else. You can sign out
+    of {{ site_name }} at any time on that site.</p>
+  <form method="post" action="{{ url_for('sso_authorize_post') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="client_id" value="{{ client_id }}">
+    <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+    <input type="hidden" name="code_challenge" value="{{ code_challenge }}">
+    <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}">
+    <input type="hidden" name="state" value="{{ state }}">
+    <button class="btn" type="submit" name="action" value="approve">Continue as @{{ handle }}</button>
+    <button class="btn btn-ghost" type="submit" name="action" value="deny" style="margin-left:8px">Cancel</button>
+  </form>
+</div>
+{% endblock %}

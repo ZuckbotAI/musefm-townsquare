@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Sign-in error — MuseFM{% endblock %}
+{% block content %}
+<div class="hero"><h1>Couldn't start sign-in</h1></div>
+<div class="card" style="max-width:640px">
+  <div class="error">{{ error }}</div>
+  <p class="hint">The site that sent you here made a bad request. If you got
+  here from one of our family sites, <a href="/">head home</a> and try again.</p>
+</div>
+{% endblock %}
