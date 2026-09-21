@@ -10,7 +10,7 @@
 .row-hero { text-align: center; margin: 1.2rem 0 .6rem; }
 .row-hero h1 { margin: 0 0 .25rem; font-size: 1.7rem; }
 .row-hero p { margin: 0; }
-.row-canvas-wrap { position: relative; max-width: 62rem; margin: 0 auto; }
+.row-canvas-wrap { position: relative; max-width: 76rem; margin: 0 auto; }
 .row-canvas-wrap canvas {
   width: 100%; height: auto; display: block; border-radius: 12px;
   border: 3px solid #2b1f12;
@@ -54,7 +54,7 @@
 .rr-member { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; font-size: .85rem; }
 .rr-member canvas { width: 34px; height: 34px; image-rendering: pixelated; background: #0d1420; border-radius: 8px; flex: none; border: 1px solid rgba(232,169,61,.3); }
 .rr-empty { color: #a68d5f; font-size: .85rem; }
-.row-chips { display: flex; flex-wrap: wrap; gap: .45rem; justify-content: center; margin: 1rem auto; max-width: 62rem; }
+.row-chips { display: flex; flex-wrap: wrap; gap: .45rem; justify-content: center; margin: 1rem auto; max-width: 76rem; }
 .row-chip {
   border: 1px solid #8a6d3f; background: #1d150e; color: #f0e2c4;
   border-radius: 10px; padding: .45rem .95rem; font-size: .88rem; cursor: pointer;
@@ -64,7 +64,7 @@
 .row-chip.active { background: #e8a93d; color: #1d150e; border-color: #ffe9a3; font-weight: 700; }
 .row-links { text-align: center; margin: .8rem 0 1.4rem; }
 .row-links a { margin: 0 .7rem; }
-.row-legend { max-width: 62rem; margin: 0 auto 2rem; }
+.row-legend { max-width: 76rem; margin: 0 auto 2rem; }
 .row-legend summary { cursor: pointer; color: var(--accent-deep, #0070c0); }
 </style>
 {% endblock %}
@@ -76,7 +76,7 @@
 </div>
 
 <div class="row-canvas-wrap">
-  <canvas id="row-canvas" width="1280" height="540" aria-label="Maker's Row: a pixel-art street of workshops"></canvas>
+  <canvas id="row-canvas" width="1920" height="800" aria-label="Maker's Row: a pixel-art street of workshops"></canvas>
 </div>
 
 <div class="row-chips" id="row-chips" aria-label="Where are you hanging out?"></div>

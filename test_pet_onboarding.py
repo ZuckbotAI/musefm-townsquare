@@ -80,6 +80,9 @@ def t_anon(client):
     check("anon CTA routes to signup",
           'href="/signup"' in body)
     check("demo egg hook present", 'data-tidepal-demo' in body)
+    check("demo egg is pixel art (engine-style rects, no smooth paths)",
+          'demo-egg-svg' in body and 'shape-rendering="crispEdges"' in body and
+          body.count("<rect") > 20)
     check("caretaker waves hello",
           "Tidepool Caretaker" in body and "wave-arm" in body)
     check("copy: hatching is FREE", "Free to adopt" in body or

@@ -302,6 +302,21 @@ def main():
     check("rulebook lists 19 species",
           len(pets.pet_rules()["species"]) == 19)
 
+    print("== pixel art overhaul (2026-09-20) ==")
+    body = pets._pixel_pet("bloop", 3, "happy")
+    check("pixel body uses crispEdges",
+          'shape-rendering="crispEdges"' in body)
+    check("pixel body is rect-based, no smooth vectors",
+          "<ellipse" not in body and "<path" not in body
+          and "<circle" not in body)
+    check("pixel body has navy avatar-set outline",
+          pets._PX_INK in body)
+    check("pixel egg keeps literal z",
+          "z</text>" in pets._pixel_pet("driplet", 0, "sleepy"))
+    check("all 19 species have chunky pixel bodies",
+          all(pets._pixel_pet(k, 3, "happy").count("<rect") > 20
+              for k in pets.SPECIES_KEYS))
+
     privD, fmD = reg(c, "DogLover")
     pet = pets.adopt(db, fmD, "DogLover", "surfpup", "Waverly")
     check("adopt surfpup", pet["species"] == "surfpup" and
@@ -364,6 +379,12 @@ def main():
     check("silhouette valid + hidden",
           pets.pet_silhouette(64).startswith("<svg") and
           "?" in pets.pet_silhouette(64))
+    check("silhouette is pixel art (no smooth curves)",
+          'shape-rendering="crispEdges"' in pets.pet_silhouette(64) and
+          "<path" not in pets.pet_silhouette(64) and
+          "<ellipse" not in pets.pet_silhouette(64) and
+          "<circle" not in pets.pet_silhouette(64) and
+          "<text" not in pets.pet_silhouette(64))
 
     print("== web adopt/rename (logged-in humans) ==")
     c = setup()

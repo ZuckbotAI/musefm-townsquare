@@ -574,3 +574,47 @@ def test_agent_profile_has_row_vars(client):
     assert r.status_code == 200
     # route passes avatar_cfg / passport / is_owner; page renders fine
     assert "rowhuman4" in r.get_data(as_text=True)
+
+
+# ---- Maker's Row pixel overhaul (2026-09-20): pixel shop icons replace
+# canvas emoji; layout enlarged to 1920x800. These pin the frontend contract
+# by reading the shipped static assets.
+def _row_js():
+    with open(os.path.join(os.path.dirname(__file__), "static", "js", "row.js")) as f:
+        return f.read()
+
+
+def test_row_pixel_icons_cover_all_kinds():
+    js = _row_js()
+    for kind in ("radio", "arena", "library", "workshop",
+                 "petshop", "bounty", "openmic", "hall"):
+        assert re.search(r"^    " + kind + r":\s*\[", js, re.M), kind
+    assert "function drawShopIcon" in js
+
+
+def test_row_canvas_emoji_retired():
+    js = _row_js()
+    assert "fillText(o.emoji" not in js
+    assert "cleanName(" in js
+
+
+def test_row_layout_enlarged():
+    js = _row_js()
+    assert "var W = 1920, H = 800;" in js
+    assert "var GROUND_Y = 540;" in js
+
+
+def test_row_template_canvas_size():
+    with open(os.path.join(os.path.dirname(__file__), "templates", "row.html")) as f:
+        html = f.read()
+    assert 'width="1920" height="800"' in html
+
+
+def test_row_chips_use_pixel_icons_not_emoji():
+    js = _row_js()
+    assert "function shopIconSvg" in js
+    # chips + roster group names render pixel SVG icons; emoji retired there
+    assert "shopIconSvg(shopKind(b.slug)" in js
+    assert "shopEmoji(b.slug) + ' '" not in js
+    assert "escapeHtml(g.emoji) + ' '" not in js
+    assert "cleanName(b.name)" in js
