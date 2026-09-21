@@ -1611,6 +1611,22 @@ class Database:
                        args)
         return self.get_identity(fm_id)
 
+    def rotate_identity_key(self, fm_id, public_key):
+        """Replace an identity's Ed25519 public key (compromise recovery).
+
+        public_key must be base64url, 32 bytes — the same contract as
+        registration. Old signatures stop verifying immediately; there is
+        no grace period, which is the point after a key leak.
+        """
+        ident = self.get_identity(fm_id)
+        if not ident:
+            raise ValueError("unknown identity")
+        if not valid_public_key_b64(public_key):
+            raise ValueError("bad public_key (need base64url Ed25519, 32 bytes)")
+        self._exec("UPDATE identities SET public_key=? WHERE fm_id=?",
+                   (public_key, fm_id))
+        return self.get_identity(fm_id)
+
     def set_identity_password(self, fm_id, password_hash):
         """Store a human-login password hash on an identity.
 

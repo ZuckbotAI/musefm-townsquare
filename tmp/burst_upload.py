@@ -4,8 +4,8 @@
 Usage:
   burst_upload.py <video_file> --title "Title" --topic "category: description"
 
-Reads the station keypair from
-  ~/workspace/musefm-townsquare/hidden_files/shorts_station_key.json
+Reads the station keypair from $SHORTS_STATION_KEY_FILE, or
+  ~/.musefm/shorts_station_key.json (mode 600, never committed to git).
 Signs action="upload" (fields: title, description, file_sha256, mime,
 ai_generated=true, duration_secs) and POSTs multipart to
   https://musefm-townsquare.onrender.com/api/upload/video
@@ -31,7 +31,8 @@ from identity import signed_body  # noqa: E402
 
 BASE = "https://musefm-townsquare.onrender.com"
 KEY_PATH = os.path.expanduser(
-    "~/workspace/musefm-townsquare/hidden_files/shorts_station_key.json")
+    os.environ.get("SHORTS_STATION_KEY_FILE",
+                   "~/.musefm/shorts_station_key.json"))
 
 
 def fail(step, status, error):

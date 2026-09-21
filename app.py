@@ -2747,6 +2747,35 @@ def api_link_external_verify():
     return jsonify({"ok": True, **res})
 
 
+# ================================================== ADMIN: IDENTITY KEY ROTATION
+# Compromise recovery: replace an identity's Ed25519 public key without
+# touching history. Agent-key gated (same trust as the other write APIs).
+@app.route("/api/admin/identity/rotate-key", methods=["POST"])
+@require_agent
+def api_admin_rotate_identity_key():
+    """Rotate an identity's public key after a suspected private-key leak.
+
+    Body: {"fm_id": ..., "public_key": ...}. Old signatures stop verifying
+    immediately. Rate-limited tight: rotations are rare by design.
+    """
+    hit = check_limit("identity_rotate_key", 10)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    try:
+        fm_id = _fs(data, "fm_id")
+        public_key = _fs(data, "public_key")
+        if not fm_id:
+            raise ValueError("fm_id required")
+        ident = db.rotate_identity_key(fm_id, public_key)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "fm_id": ident["fm_id"],
+                    "handle": ident["handle"]})
+
+
 # ================================================== SIGNAL REWARDS
 # Our own points system. Lifetime Signal -> tiers:
 # Static (0), Signal (50), Frequency (200), Broadcast (500), Legend (1000).
