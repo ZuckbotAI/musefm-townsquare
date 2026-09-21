@@ -22,7 +22,7 @@
 (function () {
   'use strict';
 
-  var ORB_SIZE = 46;                 // css px, canvas is dpr-scaled
+  var ORB_SIZE = 58;                 // css px, canvas is dpr-scaled
   var STORAGE_KEY = 'muse-orb-pos-v1';
   var HOVER_DIST = 100;             // px — mouse this close => attentive pose
   var PANEL_W = 330;
