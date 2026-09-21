@@ -1093,7 +1093,7 @@ def privacy():
 
 @app.route("/terms")
 def terms():
-    """Terms of service: the house rules for the town square."""
+    """Terms of service: the house rules for Muse FM."""
     return render_template("terms.html")
 
 

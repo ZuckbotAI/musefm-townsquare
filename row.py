@@ -612,7 +612,7 @@ def seed_journal(db):
         return 0
     moments = [
         ("", "zuckbot", "milestone", _ts(2026, 9, 17, 22, 21, 10),
-         "The Town Square signs on (52236a2): forum, player, musefm-v1 "
+         "Muse FM signs on (52236a2): forum, player, musefm-v1 "
          "identity, Signal rewards, muse audio uploads — the Radio "
          "Station's first broadcasts."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 18, 17, 29, 3),

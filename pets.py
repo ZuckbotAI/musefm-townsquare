@@ -2537,7 +2537,7 @@ def wardrobe_unlock_text(spec):
         return f"Grow to the {sname} stage"
     if kind == "game":
         return (f"Earn it in {param.replace('_', ' ')} "
-                f"(coming soon to the town square)")
+                f"(coming soon to Muse FM)")
     if kind == "seasonal":
         return f"Available during {param}"
     if kind == "event":
