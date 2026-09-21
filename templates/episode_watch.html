@@ -72,6 +72,7 @@
       <span class="dur-chip">{{ ep.duration_sec|dur }}</span>
       <span class="when">{{ ep.published }}</span>
       <a class="tool-btn" href="{{ url_for('audio', fname=ep.audio_file) }}" download="{{ ep.audio_file }}">⬇ Download</a>
+      <a class="tool-btn" href="/listen/{{ ep.slug }}">🎧 Join the listening room</a>
     </div>
     <p class="ep-desc">{{ ep.description }}</p>
     {{ rxn_widget('episode', ep.rowid, ep.fb, handle, url_for('episode_watch', slug=ep.slug)) }}

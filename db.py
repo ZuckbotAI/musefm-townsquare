@@ -447,6 +447,44 @@ CREATE TABLE IF NOT EXISTS roundups (
   post_id INTEGER NOT NULL,
   created_at INTEGER NOT NULL
 );
+-- Listening rooms (2026-09-21): one room per episode premiere.
+CREATE TABLE IF NOT EXISTS rooms (
+  id TEXT PRIMARY KEY,              -- url slug, e.g. muse-fm-nightly-2026-09-21
+  episode_slug TEXT DEFAULT '',     -- link into episodes table when present
+  title TEXT NOT NULL,
+  audio_src TEXT NOT NULL,          -- /audio/ep10.mp3 or absolute url
+  duration_sec INTEGER DEFAULT 0,
+  host_fm_id TEXT DEFAULT '',       -- creator; may premiere/end the room
+  created_at REAL NOT NULL,
+  started_at REAL,                  -- NULL until the premiere begins
+  ended_at REAL                      -- NULL until the host ends it
+);
+CREATE TABLE IF NOT EXISTS room_presence (
+  room_id TEXT NOT NULL,
+  identity_key TEXT NOT NULL,       -- fm_id or guest-xxxxxxxx
+  fm_id TEXT DEFAULT '',
+  handle TEXT NOT NULL,
+  last_seen REAL NOT NULL,
+  PRIMARY KEY (room_id, identity_key)
+);
+CREATE INDEX IF NOT EXISTS idx_room_presence_seen ON room_presence(room_id, last_seen);
+CREATE TABLE IF NOT EXISTS room_chat (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  fm_id TEXT DEFAULT '',
+  handle TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_room_chat_room ON room_chat(room_id, id);
+CREATE TABLE IF NOT EXISTS room_reactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  handle TEXT NOT NULL,
+  emoji TEXT NOT NULL,
+  created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_room_rxn_room ON room_reactions(room_id, created_at);
 """
 
 # Our own identity rules (independent scheme: musefm-v1).
@@ -476,6 +514,23 @@ TIERS = [
 
 # Emoji reactions anyone can drop on a post or comment.
 REACT_EMOJIS = ["🔥", "❤️", "👍", "😂", "🎙️", "👏", "💡", "🚀"]
+
+# Listening rooms (2026-09-21): one room per episode premiere.
+ROOM_ID_RE = re.compile(r"[a-z0-9-]{3,64}\Z")
+ROOM_EMOJIS = ["🎧", "❤️", "🔥", "👏", "😂", "🎙️"]
+ROOM_PRESENCE_TTL = 45       # seconds; 3 missed 15s heartbeats and you're out
+ROOM_CHAT_MAXLEN = 500
+ROOM_CHAT_CAP = 200          # newest chat rows kept per room
+ROOM_CHAT_STATE_LIMIT = 50   # chat rows returned per state call
+ROOM_REACTION_WINDOW = 60    # seconds of reactions returned in state
+ROOM_REACTION_PRUNE = 120    # hard prune age for reaction rows
+# Episode 10 premiere room: created at deploy time (started_at stays NULL
+# until the premiere is announced). Duration from ffprobe on ep10.mp3.
+ROOM_EP10_ID = "muse-fm-nightly-2026-09-21"
+ROOM_EP10_TITLE = "Muse FM Nightly - 2026-09-21"
+ROOM_EP10_AUDIO = "/audio/ep10.mp3"
+ROOM_EP10_EPISODE_SLUG = "ep10"  # anticipated episodes-table slug (nightly lineage's domain)
+ROOM_EP10_DURATION = 122
 
 # Reaction milestones that ping the author.
 REACTION_MILESTONES = [5, 25, 100]
@@ -667,6 +722,17 @@ class Database:
         self._exec(
             "UPDATE posts SET title = 'Welcome to the Forum' "
             "WHERE title = 'Welcome to the Town Square'")
+        # 2026-09-21: Listening Rooms launch — the Episode 10 premiere room
+        # exists from deploy time (empty, waiting; started_at stays NULL
+        # until the premiere is announced). INSERT OR IGNORE keeps this
+        # idempotent across boots; an existing row is never touched.
+        self._exec(
+            "INSERT OR IGNORE INTO rooms"
+            " (id, episode_slug, title, audio_src, duration_sec, host_fm_id,"
+            " created_at, started_at, ended_at)"
+            " VALUES (?,?,?,?,?,?,?,NULL,NULL)",
+            (ROOM_EP10_ID, ROOM_EP10_EPISODE_SLUG, ROOM_EP10_TITLE,
+             ROOM_EP10_AUDIO, ROOM_EP10_DURATION, "", now()))
 
     # -- internal ---------------------------------------------------------
     def _q(self, sql, args=()):
@@ -1442,6 +1508,162 @@ class Database:
                 out.sort(key=lambda c: (c["created_at"], c["id"]))
             return out
         return build(None)
+
+    # -- listening rooms ------------------------------------------------
+    # One room per episode premiere (2026-09-21). Rooms carry their own
+    # audio_src so they never depend on the episodes-table row.
+    def create_room(self, room_id, title, audio_src, episode_slug="",
+                    host_fm_id="", duration_sec=0):
+        if not ROOM_ID_RE.fullmatch(room_id or ""):
+            raise ValueError(
+                "bad room id (3-64 chars: lowercase letters, numbers, -)")
+        if len(title or "") > 120:
+            raise ValueError("title too long (max 120 characters)")
+        title = clean(title, 120, single_line=True)
+        if not title:
+            raise ValueError("title required")
+        src = (audio_src or "").strip()
+        if src.startswith("/audio/"):
+            rest = src[len("/audio/"):]
+            if not rest or "/" in rest or ".." in rest:
+                raise ValueError("bad /audio/ path")
+        elif not src.startswith("https://"):
+            raise ValueError("audio_src must be an /audio/ path or https URL")
+        try:
+            dur = int(duration_sec or 0)
+        except (TypeError, ValueError):
+            raise ValueError("bad duration_sec")
+        if dur < 0:
+            raise ValueError("bad duration_sec")
+        try:
+            self._exec(
+                "INSERT INTO rooms (id, episode_slug, title, audio_src,"
+                " duration_sec, host_fm_id, created_at, started_at, ended_at)"
+                " VALUES (?,?,?,?,?,?,?,NULL,NULL)",
+                (room_id, episode_slug or "", title, src, dur,
+                 host_fm_id or "", now()))
+        except sqlite3.IntegrityError:
+            raise ValueError("room already exists")
+        return self.get_room(room_id)
+
+    def get_room(self, room_id):
+        r = self._one("SELECT * FROM rooms WHERE id=?", (room_id,))
+        return dict(r) if r else None
+
+    def room_for_episode(self, episode_slug):
+        r = self._one(
+            "SELECT * FROM rooms WHERE episode_slug=? AND episode_slug != ''",
+            (episode_slug,))
+        return dict(r) if r else None
+
+    def set_premiere(self, room_id, started_at):
+        self._exec("UPDATE rooms SET started_at=? WHERE id=?",
+                   (started_at, room_id))
+
+    def set_ended(self, room_id):
+        self._exec("UPDATE rooms SET ended_at=? WHERE id=?",
+                   (now(), room_id))
+
+    def heartbeat(self, room_id, identity_key, fm_id, handle):
+        """Upsert one presence row; identity_key is fm_id or guest-xxxxxxxx."""
+        self._exec(
+            "INSERT INTO room_presence"
+            " (room_id, identity_key, fm_id, handle, last_seen)"
+            " VALUES (?,?,?,?,?)"
+            " ON CONFLICT(room_id, identity_key) DO UPDATE SET"
+            " fm_id=excluded.fm_id, handle=excluded.handle,"
+            " last_seen=excluded.last_seen",
+            (room_id, identity_key, fm_id or "", handle, now()))
+
+    def prune_room_presence(self, room_id):
+        self._exec(
+            "DELETE FROM room_presence WHERE room_id=? AND last_seen < ?",
+            (room_id, now() - ROOM_PRESENCE_TTL))
+
+    def room_state(self, room_id, since_chat_id=0):
+        """Full live state for a room. Prunes stale presence (TTL) and old
+        reactions on every read, so no background sweeper is needed."""
+        room = self.get_room(room_id)
+        if room is None:
+            return None
+        t = now()
+        self.prune_room_presence(room_id)
+        listeners = [
+            {"handle": r["handle"], "fm_id": r["fm_id"],
+             "guest": not r["fm_id"]}
+            for r in self._q(
+                "SELECT fm_id, handle FROM room_presence WHERE room_id=?"
+                " ORDER BY last_seen DESC",
+                (room_id,))]
+        chat = [
+            {"id": r["id"], "handle": r["handle"], "body": r["body"],
+             "created_at": r["created_at"]}
+            for r in self._q(
+                "SELECT id, handle, body, created_at FROM room_chat"
+                " WHERE room_id=? AND id > ? ORDER BY id ASC LIMIT ?",
+                (room_id, since_chat_id, ROOM_CHAT_STATE_LIMIT))]
+        self._exec(
+            "DELETE FROM room_reactions WHERE room_id=? AND created_at < ?",
+            (room_id, t - ROOM_REACTION_PRUNE))
+        reactions = [
+            {"handle": r["handle"], "emoji": r["emoji"],
+             "created_at": r["created_at"]}
+            for r in self._q(
+                "SELECT handle, emoji, created_at FROM room_reactions"
+                " WHERE room_id=? AND created_at >= ?"
+                " ORDER BY created_at DESC LIMIT 100",
+                (room_id, t - ROOM_REACTION_WINDOW))]
+        started_at = room["started_at"]
+        ended_at = room["ended_at"]
+        return {
+            "room": {
+                "id": room["id"],
+                "title": room["title"],
+                "audio_src": room["audio_src"],
+                "duration_sec": room["duration_sec"],
+                "started_at": started_at,
+                "ended_at": ended_at,
+            },
+            "server_time": t,
+            "listener_count": len(listeners),
+            "listeners": listeners,
+            "chat": chat,
+            "reactions": reactions,
+            "premiere_live": bool(started_at) and not ended_at,
+        }
+
+    def add_room_chat(self, room_id, fm_id, handle, body):
+        raw = body or ""
+        if len(raw) > ROOM_CHAT_MAXLEN:
+            raise ValueError("message too long (max %d characters)"
+                             % ROOM_CHAT_MAXLEN)
+        text = clean(raw, ROOM_CHAT_MAXLEN)
+        if not text:
+            raise ValueError("message required")
+        if has_banned(text):
+            raise ValueError("content blocked by the town filter")
+        t = now()
+        cur = self._exec(
+            "INSERT INTO room_chat (room_id, fm_id, handle, body, created_at)"
+            " VALUES (?,?,?,?,?)",
+            (room_id, fm_id or "", handle, text, t))
+        # Chat history is kept indefinitely per room, capped at the newest
+        # ROOM_CHAT_CAP rows so one hot room can't grow the table forever.
+        self._exec(
+            "DELETE FROM room_chat WHERE room_id=? AND id NOT IN"
+            " (SELECT id FROM room_chat WHERE room_id=?"
+            "  ORDER BY id DESC LIMIT ?)",
+            (room_id, room_id, ROOM_CHAT_CAP))
+        return {"id": cur.lastrowid, "handle": handle, "body": text,
+                "created_at": t}
+
+    def add_room_reaction(self, room_id, handle, emoji):
+        if emoji not in ROOM_EMOJIS:
+            raise ValueError("unknown reaction")
+        self._exec(
+            "INSERT INTO room_reactions (room_id, handle, emoji, created_at)"
+            " VALUES (?,?,?,?)",
+            (room_id, handle, emoji, now()))
 
     def edit_comment(self, target_type, target_id, handle, body):
         """Author-only edit on a comment. Sets body + edited_at; returns

@@ -25,6 +25,7 @@
         <button class="tool-btn" data-share="{{ e.slug }}" data-title="{{ e.title|e }}">↗ Share</button>
         <a class="tool-btn" href="/audio/{{ e.audio_file }}" download="{{ e.audio_file }}">⬇ Download</a>
         <a class="tool-btn" href="/episodes/{{ e.slug }}">⛶ Watch page</a>
+        <a class="tool-btn" href="/listen/{{ e.slug }}">🎧 Listen live</a>
         <span class="hint">{{ e.duration_sec|dur }} · {{ e.published }}</span>
       </div>
       <div class="progress" data-seek="{{ e.slug }}"><div></div></div>
