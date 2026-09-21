@@ -2567,6 +2567,42 @@ def ensure_linking_schema(db):
     db.db.commit()
 
 
+def ensure_sso_schema(db):
+    """Additive only: global-login SSO authorization codes (2026-09-21).
+
+    sso_codes: one-time PKCE authorization codes. The plaintext code NEVER
+      persists — only its SHA-256 hex. Single-use (atomic consume via
+      UPDATE ... WHERE used=0), 5-minute expiry, bound to
+      (client_id, redirect_uri, code_challenge).
+    sso_audit: code issue/redeem events with ids + timestamps only.
+      No secrets, ever. Safe on fresh and existing DBs; never touches data.
+    """
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS sso_codes ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  code_hash TEXT NOT NULL UNIQUE,"
+        "  fm_id TEXT NOT NULL,"
+        "  handle TEXT NOT NULL DEFAULT '',"
+        "  client_id TEXT NOT NULL,"
+        "  redirect_uri TEXT NOT NULL,"
+        "  code_challenge TEXT NOT NULL,"
+        "  created_at INTEGER NOT NULL,"
+        "  expires_at INTEGER NOT NULL,"
+        "  used INTEGER NOT NULL DEFAULT 0"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_sso_codes_fm"
+        "  ON sso_codes(fm_id);"
+        "CREATE TABLE IF NOT EXISTS sso_audit ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  fm_id TEXT NOT NULL DEFAULT '',"
+        "  client_id TEXT NOT NULL DEFAULT '',"
+        "  event TEXT NOT NULL DEFAULT '',"
+        "  created_at INTEGER NOT NULL"
+        ");"
+    )
+    db.db.commit()
+
+
 def ensure_comment_pro_schema(db):
     """Additive only: professional comment-section columns (2026-09-18
     comment-pro batch). edited_at on all three comment tables, plus

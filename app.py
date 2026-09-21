@@ -41,7 +41,7 @@ from functools import wraps
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from datetime import date, timedelta
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from flask import (Flask, Response, g, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -57,6 +57,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 valid_handle, clean, has_banned, ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
+                ensure_sso_schema,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -260,6 +261,7 @@ def init_db(path):
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
+    ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
     workroom.ensure_workroom_schema(_db)  # agent profiles, endorsements, workrooms
     workroom.ensure_pilot_schema(_db)  # pilot tasks/claims/updates (test scaffolding)
@@ -2604,6 +2606,243 @@ def api_assert_identity():
     sig = b64u_encode(_assertion_keypair().sign(body.encode("ascii")))
     return jsonify({"ok": True, "assertion": body + "." + sig,
                     "expires_in": _ASSERTION_TTL_SEC})
+
+
+# ------------------------------------------------ global login (SSO provider)
+# MuseFM is the identity provider for the family sites. Real redirect-based
+# SSO: /auth/authorize (consent) -> one-time PKCE auth code ->
+# /auth/token -> Ed25519-signed ID token. This REPLACES the display-only
+# /api/assert-identity for login purposes — assertions remain display-only
+# and are never accepted for auth anywhere.
+#
+# Security properties:
+#  - client registry is fixed in code (no dynamic registration);
+#    redirect_uri must EXACTLY match the client's allowlist (no open redirect)
+#  - auth codes are one-time (atomic consume), 5-minute expiry, bound to
+#    (client_id, redirect_uri, code_challenge); only SHA-256 hashes persist
+#  - PKCE S256 is mandatory; ID tokens are Ed25519-signed JWTs, 10-minute
+#    lifetime, aud = the client
+#  - no single sign-out in v1: logging out here does not kill client
+#    sessions; each site logs out locally (documented, orb FAQ matches)
+SSO_CLIENTS = {
+    "arena": {
+        "name": "Muse Arena",
+        "redirect_uris": ["https://muse-arena.onrender.com/auth/callback"],
+    },
+    "playbook": {
+        "name": "The Playbook",
+        "redirect_uris": ["https://x402-seller-a5et.onrender.com/auth/callback"],
+    },
+    "trustline": {
+        "name": "Trustline",
+        "redirect_uris": ["https://trustlineapp.com/auth/callback"],
+    },
+}
+_SSO_CODE_TTL_SEC = 5 * 60
+_SSO_ID_TOKEN_TTL_SEC = 10 * 60
+_SSO_KEY_CTX = b"musefm-sso-idtoken-v1"
+_sso_privkey = None
+
+
+def _sso_keypair():
+    """Ed25519 key for ID tokens. Distinct key context from the display-only
+    assertion key so the two token kinds can never be confused."""
+    global _sso_privkey
+    if _sso_privkey is None:
+        seed = hashlib.sha256(_SSO_KEY_CTX + app.secret_key).digest()
+        _sso_privkey = Ed25519PrivateKey.from_private_bytes(seed)
+    return _sso_privkey
+
+
+def _sso_validate_params(client_id, redirect_uri, code_challenge,
+                         code_challenge_method, state):
+    """Validate an authorize/token request's client binding. Returns
+    (client_name, error_string). error_string is None when valid."""
+    client = SSO_CLIENTS.get(client_id or "")
+    if client is None:
+        return None, "unknown client_id"
+    if redirect_uri not in client["redirect_uris"]:
+        # Fail closed locally — never bounce to an unlisted redirect target.
+        return None, "redirect_uri is not registered for this client"
+    if code_challenge_method != "S256":
+        return None, "code_challenge_method must be S256"
+    ch = code_challenge or ""
+    if not (43 <= len(ch) <= 128) or not re.fullmatch(r"[A-Za-z0-9\-_]+", ch):
+        return None, "bad code_challenge"
+    if not state or not (1 <= len(state) <= 256):
+        return None, "bad state"
+    return client["name"], None
+
+
+def _sso_audit(fm_id, client_id, event):
+    try:
+        db.db.execute(
+            "INSERT INTO sso_audit (fm_id, client_id, event, created_at)"
+            " VALUES (?, ?, ?, ?)",
+            (fm_id or "", client_id or "", event, int(time.time())))
+        db.db.commit()
+    except Exception:
+        pass  # audit must never break the flow
+
+
+def _sso_mint_code(fm_id, handle, client_id, redirect_uri, code_challenge):
+    now = int(time.time())
+    code = secrets.token_urlsafe(32)
+    code_hash = hashlib.sha256(code.encode("ascii")).hexdigest()
+    db.db.execute(
+        "INSERT INTO sso_codes (code_hash, fm_id, handle, client_id,"
+        " redirect_uri, code_challenge, created_at, expires_at, used)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+        (code_hash, fm_id, handle, client_id, redirect_uri,
+         code_challenge, now, now + _SSO_CODE_TTL_SEC))
+    db.db.execute("DELETE FROM sso_codes WHERE expires_at < ?", (now,))
+    db.db.commit()
+    _sso_audit(fm_id, client_id, "code_issued")
+    return code
+
+
+def _sso_consume_code(client_id, code, code_verifier, redirect_uri):
+    """Redeem an auth code. Returns (payload_dict, error_string)."""
+    now = int(time.time())
+    code_hash = hashlib.sha256((code or "").encode("ascii")).hexdigest()
+    row = db.db.execute(
+        "SELECT fm_id, handle, client_id, redirect_uri, code_challenge,"
+        " expires_at, used FROM sso_codes WHERE code_hash = ?",
+        (code_hash,)).fetchone()
+    if row is None:
+        return None, "bad code"
+    if row["used"]:
+        _sso_audit(row["fm_id"], client_id, "code_replay_rejected")
+        return None, "code already used"
+    if row["expires_at"] < now:
+        return None, "code expired"
+    if row["client_id"] != client_id or row["redirect_uri"] != redirect_uri:
+        return None, "code is not bound to this client/redirect"
+    # PKCE: SHA256(verifier) base64url-no-pad must equal the challenge.
+    digest = hashlib.sha256((code_verifier or "").encode("ascii")).digest()
+    if not secrets.compare_digest(b64u_encode(digest), row["code_challenge"]):
+        return None, "bad code_verifier"
+    # Atomic single-use: exactly one concurrent redeemer wins the race.
+    cur = db.db.execute(
+        "UPDATE sso_codes SET used = 1 WHERE code_hash = ? AND used = 0",
+        (code_hash,))
+    db.db.commit()
+    if cur.rowcount != 1:
+        _sso_audit(row["fm_id"], client_id, "code_replay_rejected")
+        return None, "code already used"
+    _sso_audit(row["fm_id"], client_id, "code_redeemed")
+    return {"fm_id": row["fm_id"], "handle": row["handle"],
+            "client_id": row["client_id"]}, None
+
+
+def _sso_mint_id_token(fm_id, handle, client_id):
+    now = int(time.time())
+    header = b64u_encode(json.dumps(
+        {"alg": "EdDSA", "typ": "JWT", "kid": "sso-v1"},
+        separators=(",", ":")).encode("utf-8"))
+    payload = b64u_encode(json.dumps(
+        {"iss": "https://musefm.lol", "aud": client_id, "sub": fm_id,
+         "handle": handle, "iat": now,
+         "exp": now + _SSO_ID_TOKEN_TTL_SEC},
+        separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    sig = b64u_encode(_sso_keypair().sign(
+        (header + "." + payload).encode("ascii")))
+    return header + "." + payload + "." + sig
+
+
+@app.route("/auth/pubkey")
+def sso_pubkey():
+    pub = _sso_keypair().public_key().public_bytes_raw()
+    return jsonify({"ok": True, "scheme": "ed25519",
+                    "kid": "sso-v1",
+                    "public_key": b64u_encode(pub)})
+
+
+@app.route("/auth/authorize")
+def sso_authorize():
+    """Consent screen for a family site's login request."""
+    args = request.args
+    name, err = _sso_validate_params(
+        args.get("client_id"), args.get("redirect_uri"),
+        args.get("code_challenge"), args.get("code_challenge_method"),
+        args.get("state"))
+    if err:
+        return render_template("auth_error.html", error=err), 400
+    ident, redir = _require_human()
+    if redir is not None:
+        # Not logged in: /login?next= resumes here after login.
+        return redir
+    return render_template(
+        "auth_consent.html",
+        site_name=name,
+        handle=ident["handle"],
+        client_id=args.get("client_id"),
+        redirect_uri=args.get("redirect_uri"),
+        code_challenge=args.get("code_challenge"),
+        code_challenge_method=args.get("code_challenge_method"),
+        state=args.get("state"))
+
+
+@app.route("/auth/authorize", methods=["POST"])
+def sso_authorize_post():
+    if not _check_csrf():
+        return render_template("auth_error.html",
+                               error="bad CSRF token"), 403
+    form = request.form
+    name, err = _sso_validate_params(
+        form.get("client_id"), form.get("redirect_uri"),
+        form.get("code_challenge"), form.get("code_challenge_method"),
+        form.get("state"))
+    if err:
+        return render_template("auth_error.html", error=err), 400
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    redirect_uri = form.get("redirect_uri")
+    state = form.get("state")
+    if form.get("action") == "deny":
+        _sso_audit(ident["fm_id"], form.get("client_id"), "consent_denied")
+        target = redirect_uri + ("&" if "?" in redirect_uri else "?") + \
+            urlencode({"error": "access_denied", "state": state})
+        return redirect(target)
+    code = _sso_mint_code(ident["fm_id"], ident["handle"],
+                          form.get("client_id"), redirect_uri,
+                          form.get("code_challenge"))
+    target = redirect_uri + ("&" if "?" in redirect_uri else "?") + \
+        urlencode({"code": code, "state": state})
+    return redirect(target)
+
+
+@app.route("/auth/token", methods=["POST"])
+def sso_token():
+    # Peek at the rate budget BEFORE the one-time code is consumed, so a
+    # 429 never burns the client's single-use code (same rule as the
+    # signed-API reorder fixes).
+    if _would_limit("sso_token", 60):
+        return json_429("sso_token")
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        data = request.form.to_dict()
+    client_id = (data.get("client_id") or "").strip()
+    code = (data.get("code") or "").strip()
+    code_verifier = (data.get("code_verifier") or "").strip()
+    redirect_uri = (data.get("redirect_uri") or "").strip()
+    if not (client_id and code and code_verifier and redirect_uri):
+        return api_error("client_id, code, code_verifier, redirect_uri"
+                         " are all required", 400)
+    payload, err = _sso_consume_code(client_id, code, code_verifier,
+                                     redirect_uri)
+    hit = check_limit("sso_token", 60)
+    if hit:
+        return hit
+    if err:
+        return api_error(err, 400)
+    id_token = _sso_mint_id_token(payload["fm_id"], payload["handle"],
+                                  client_id)
+    return jsonify({"ok": True, "id_token": id_token,
+                    "fm_id": payload["fm_id"],
+                    "handle": payload["handle"],
+                    "expires_in": _SSO_ID_TOKEN_TTL_SEC})
 
 
 @app.route("/api/identity/update", methods=["POST"])
