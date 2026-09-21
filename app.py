@@ -740,7 +740,16 @@ def _check_csrf_token(tok):
 
 
 def _check_csrf():
-    return _check_csrf_token(request.form.get("csrf_token", ""))
+    # P2 (2026-09-21 09:35 loop): _check_csrf only read request.form, so a
+    # JSON POST carrying a valid token got a misleading 403 "bad form
+    # token". Sibling routes (/vote, /flag, /comment/edit) already read
+    # the JSON body — accept the token there too.
+    tok = request.form.get("csrf_token", "")
+    if not tok and request.is_json:
+        data = request.get_json(silent=True) or {}
+        if isinstance(data, dict):
+            tok = data.get("csrf_token", "")
+    return _check_csrf_token(tok)
 
 
 def _safe_next(value, default="/"):
@@ -2087,21 +2096,50 @@ def api_clips(slug):
         if not db.episode(slug):
             return api_error("unknown episode", 404)
         return jsonify({"ok": True, "clips": db.clips_for(slug)})
+    return api_clips_post(slug)
+
+
+@require_agent_or_signature("clips", rate=("ep_comment", 30))
+def api_clips_post(slug):
+    # P2 (2026-09-21 09:35 loop): POST had no auth gate at all — an
+    # unsigned POST with valid params inserted a clip row (200) attributed
+    # to any client-supplied "handle". Clips are agent-API writes, so they
+    # take the same agent-key-or-signature gate as every other write, and
+    # attribution comes from the gate (g.author_handle), never the body.
+    data = g.signed_data or json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    # Validate BEFORE the rate budget is recorded (validate-first rule):
+    # 400s never burn the shared 30/hr ep_comment bucket. Checks mirror
+    # db.add_clip's own, which still runs as the final guard.
+    ep = db.episode(slug)
+    if not ep:
+        return api_error("unknown episode")
+    try:
+        start_sec = int(data.get("start_sec", 0))
+        end_sec = int(data.get("end_sec", 0))
+    except (TypeError, ValueError):
+        return api_error("bad clip range")
+    if not (0 <= start_sec < end_sec <= (ep["duration_sec"] or 0)):
+        return api_error("bad clip range")
+    if end_sec - start_sec > 120:
+        return api_error("clips max out at 2 minutes")
+    try:
+        note = _fs(data, "note")
+    except ValueError as e:
+        return api_error(str(e))
+    if has_banned(note):
+        return api_error("content blocked by the town filter")
     hit = check_limit("ep_comment", 30)
     if hit:
         return hit
-    data = json_body()
-    if not isinstance(data, dict):
-        return data  # 400: JSON body must be an object
     try:
-        cid = db.add_clip(slug, _fs(data, "handle"),
-                          data.get("start_sec", 0), data.get("end_sec", 0),
-                          _fs(data, "note"))
+        cid = db.add_clip(slug, g.author_handle, start_sec, end_sec, note)
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     return jsonify({"ok": True, "id": cid,
                     "share_url": url_for("episode_watch", slug=slug, _external=True) +
-                                 f"?t={data.get('start_sec', 0)}"})
+                                 f"?t={start_sec}"})
 
 
 @app.route("/api/forum/communities")
@@ -5458,6 +5496,13 @@ def api_link_muse():
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
+    # P2 (2026-09-21 09:35 loop): the auth gate runs before param
+    # validation — an unauthenticated caller gets 401, never 400
+    # "code required". Mirrors api_unlink_muse's ordering.
+    try:
+        ident = verify_signed_body(data, db, expected_action="link_muse")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
     try:
         code = _fs(data, "code")
     except ValueError as e:
@@ -5472,10 +5517,6 @@ def api_link_muse():
         resp.headers["Retry-After"] = str(
             retry_after("linkcode:" + code_hash[:32], 60))
         return resp
-    try:
-        ident = verify_signed_body(data, db, expected_action="link_muse")
-    except IdentityError as e:
-        return api_error(f"musefm-v1 auth failed: {e}", 401)
     try:
         human_fm_id = db.consume_link_code(code, ident["fm_id"])
     except ValueError as e:
@@ -6873,18 +6914,35 @@ def video_comment_web(uid):
     u = videos.get_video_upload(db, uid)
     if not u:
         return render_template("404.html", msg="no such video"), 404
+    # P2 (2026-09-21 09:35 loop): validate BEFORE the rate bucket is
+    # touched, so 400s don't burn the 30/hr comment budget. Order mirrors
+    # db.create_video_comment's own checks (video, parent, body, filter).
+    body = request.form.get("body", "")
+    parent_id = request.form.get("parent_id") or None
+    if parent_id:
+        try:
+            prow = db._one("SELECT id FROM video_comments WHERE id=? AND video_id=?",
+                           (int(parent_id), uid))
+        except (TypeError, ValueError):
+            prow = None
+        if not prow:
+            return "unknown parent comment", 400
+        parent_id = int(parent_id)
+    if not clean(body, 2000):
+        return "comment body required", 400
+    if has_banned(body):
+        return "content blocked by the town filter", 400
     hit = _video_comment_limits(uid)
     if hit:
         return hit
     try:
-        cid = db.create_video_comment(uid, request.form.get("parent_id") or None,
+        cid = db.create_video_comment(uid, parent_id,
                                       sess_ident["handle"],
-                                      request.form.get("body", ""))
+                                      body)
     except (ValueError, TypeError) as e:
         return str(e), 400
-    _notify_video_comment(uid, request.form.get("parent_id") or None,
-                          sess_ident["handle"], cid,
-                          request.form.get("body", ""))
+    _notify_video_comment(uid, parent_id,
+                          sess_ident["handle"], cid, body)
     nxt = _safe_next(request.form.get("next"),
                      "/shorts?video=%d" % uid)  # no open redirects
     resp = redirect(nxt)
@@ -8911,6 +8969,16 @@ def not_found(_e):
                 pass
         return api_error("not found", 404)
     return render_template("404.html", msg="nothing here yet"), 404
+
+
+# ---- mock town bridge (contract v2, local overnight wiring only) ----
+# MOCK_TOWN_ROUTES=1 exposes the 3D town's mock feed:
+#   GET /mock/api/row/presence   (presence + cottage registry + phase)
+#   GET /mock/api/town/events    (room-activity event feed)
+# Without the env var these paths 404. Never enable in production.
+if os.environ.get("MOCK_TOWN_ROUTES") == "1":
+    from workroom_bridge import mock_town as _mock_town_bridge
+    app.register_blueprint(_mock_town_bridge)
 
 
 if __name__ == "__main__":
