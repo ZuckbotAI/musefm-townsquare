@@ -364,6 +364,151 @@ PET_SPECIES = {
 }
 SPECIES_KEYS = list(PET_SPECIES)
 
+# ===========================================================================
+# RARITY TIERS + SPECIES JOBS (Home Reef depth wave, 2026-09-20)
+# Ported from the pixel prototype's MMO rarity + Palworld-style base life:
+# every species has a rarity tier and a little job it does around the room.
+# Metadata only — rarity never changes unlock rules or hatch outcomes, and
+# jobs are flavor surfaced in pet_status / the Reefdex (the prototype's
+# room animations stay client-side).
+# ===========================================================================
+
+SPECIES_RARITY = {
+    # common
+    "driplet": "common", "bloop": "common", "kelpy": "common",
+    "surfpup": "common", "bubblepup": "common", "sealpup": "common",
+    "squiddy": "common",
+    # uncommon
+    "koi": "uncommon", "pearly": "uncommon", "tidehound": "uncommon",
+    "reefkeeper": "uncommon", "puffish": "uncommon",
+    "crownjelly": "uncommon", "frostfin": "uncommon",
+    "kelpwarden": "uncommon",
+    # rare
+    "gilt": "rare", "jellypup": "rare", "abyssal": "rare",
+    # secret — kept out of the public lineup, like the prototype
+    "zorb": "secret",
+}
+
+RARITY_ORDER = ["common", "uncommon", "rare", "epic", "secret"]
+
+SPECIES_JOBS = {
+    "driplet": {"name": "Splash Play", "glyph": "drop"},
+    "bloop": {"name": "Bounce Patrol", "glyph": "heart"},
+    "koi": {"name": "Pond Circles", "glyph": "drop"},
+    "pearly": {"name": "Pearl Polish", "glyph": "sparkle"},
+    "kelpy": {"name": "Watering", "glyph": "drop"},
+    "surfpup": {"name": "Surf Stance", "glyph": "star"},
+    "bubblepup": {"name": "Bubble Blowing", "glyph": "bubble"},
+    "sealpup": {"name": "Happy Claps", "glyph": "note"},
+    "jellypup": {"name": "Glow Time", "glyph": "sparkle"},
+    "gilt": {"name": "Treasure Shine", "glyph": "sparkle"},
+    "tidehound": {"name": "Fetch Runs", "glyph": "heart"},
+    "reefkeeper": {"name": "Building", "glyph": "brick"},
+    "squiddy": {"name": "Ink Doodles", "glyph": "star"},
+    "puffish": {"name": "Puff Up", "glyph": "bubble"},
+    "crownjelly": {"name": "Royal Wave", "glyph": "heart"},
+    "abyssal": {"name": "Echo Song", "glyph": "note"},
+    "frostfin": {"name": "Chill Mist", "glyph": "sparkle"},
+    "kelpwarden": {"name": "Kelp Sweep", "glyph": "leaf"},
+    "zorb": {"name": "Weather Watch", "glyph": "sparkle"},
+}
+
+
+def species_rarity(species):
+    """Rarity tier for a species key; 'common' fallback for safety."""
+    return SPECIES_RARITY.get(species, "common")
+
+
+def species_job(species):
+    """The species' little job (name + glyph), or None."""
+    return SPECIES_JOBS.get(species)
+
+
+# ===========================================================================
+# REEFDEX — the collection journal
+# Every species an identity has ever adopted is recorded, one row per
+# (fm_id, species). Append-only; discovering is free and automatic.
+# ===========================================================================
+
+REEFDEX_SCHEMA = """
+CREATE TABLE IF NOT EXISTS reefdex_discoveries (
+  fm_id        TEXT NOT NULL,
+  species      TEXT NOT NULL,
+  discovered_at INTEGER NOT NULL,
+  PRIMARY KEY (fm_id, species)
+);
+CREATE INDEX IF NOT EXISTS idx_reefdex_species ON reefdex_discoveries(species);
+"""
+
+
+def ensure_reefdex_schema(db):
+    for stmt in REEFDEX_SCHEMA.strip().split(";"):
+        stmt = stmt.strip()
+        if stmt:
+            db._exec(stmt)
+
+
+def record_discovery(db, fm_id, species):
+    """Stamp a species as discovered for an identity. Idempotent."""
+    ensure_reefdex_schema(db)
+    if species not in PET_SPECIES:
+        return
+    db._exec("INSERT OR IGNORE INTO reefdex_discoveries"
+             " (fm_id, species, discovered_at) VALUES (?,?,?)",
+             (fm_id, species, now()))
+
+
+def discoveries(db, fm_id):
+    """Set of species keys this identity has discovered."""
+    ensure_reefdex_schema(db)
+    n = db._one("SELECT COUNT(*) c FROM reefdex_discoveries")["c"]
+    if n == 0:
+        # First run on a pre-Reefdex database: every currently-adopted pet
+        # counts as discovered. Self-migrating; a no-op once stamped.
+        backfill_reefdex(db)
+    return {r["species"] for r in
+            db._q("SELECT species FROM reefdex_discoveries WHERE fm_id=?",
+                  (fm_id,))}
+
+
+def backfill_reefdex(db):
+    """One-time backfill: every currently-adopted pet counts as discovered.
+    Safe to re-run (INSERT OR IGNORE)."""
+    ensure_reefdex_schema(db)
+    rows = db._q("SELECT fm_id, species FROM tidepals")
+    n = 0
+    for r in rows:
+        db._exec("INSERT OR IGNORE INTO reefdex_discoveries"
+                 " (fm_id, species, discovered_at) VALUES (?,?,?)",
+                 (r["fm_id"], r["species"], now()))
+        n += 1
+    return n
+
+
+def reefdex_for_api(db, fm_id=None):
+    """The Reefdex catalog: every public species with rarity, job, and
+    unlock condition. When fm_id is given, each entry is marked
+    discovered/undiscovered for that identity. The secret species (zorb)
+    stays out of the public lineup — it only appears once discovered."""
+    found = discoveries(db, fm_id) if fm_id else set()
+    out = []
+    for key in SPECIES_KEYS:
+        spec = PET_SPECIES[key]
+        rarity = species_rarity(key)
+        if rarity == "secret" and key not in found:
+            continue
+        out.append({
+            "key": key,
+            "name": spec["name"],
+            "kind": spec["kind"],
+            "tagline": spec["tagline"],
+            "rarity": rarity,
+            "job": species_job(key),
+            "unlock_condition": species_unlock_condition(key),
+            "discovered": key in found,
+        })
+    return out
+
 # Locked species: key -> unlock dict. Everything else is open to all.
 LOCKED_SPECIES = {k: v["unlock"] for k, v in PET_SPECIES.items()
                   if "unlock" in v}
@@ -611,6 +756,7 @@ def adopt(db, fm_id, handle, species, name):
     # Fresh stats for the new companion; the feed streak is the *owner's*
     # record and survives (it powers care-gated species unlocks).
     _care_row(db, fm_id)
+    record_discovery(db, fm_id, species)
     db._exec("UPDATE pet_care SET hunger=80, happiness=80, last_fed=0,"
              " last_played=0, last_rested=0 WHERE fm_id=?", (fm_id,))
     db.notify_once(fm_id, "pet", "tidepal", "adopted",
@@ -832,6 +978,7 @@ def pond_adopt(db, new_fm_id, new_handle, pond_fm_id):
              " pond_at=0, hatched=1 WHERE fm_id=?", (now(), new_fm_id))
     if not db._one("SELECT fm_id FROM pet_care WHERE fm_id=?", (new_fm_id,)):
         _care_row(db, new_fm_id)
+        record_discovery(db, new_fm_id, pet["species"])
         db._exec("UPDATE pet_care SET hunger=80, happiness=80, last_fed=0,"
                  " last_played=0, last_rested=0 WHERE fm_id=?", (new_fm_id,))
     db.notify(new_fm_id, "pet", "pond_adopt", new_fm_id,
@@ -893,6 +1040,11 @@ def pet_status(db, fm_id):
         mood = "overjoyed"
     celebrate = evolution_glow(db, fm_id, stage_idx)
     care = _care_row(db, fm_id)
+    # Napping overrides every other mood: the pet is visibly asleep
+    # (zzz) for 30 minutes after a nap.
+    napping = is_napping(db, fm_id)
+    if napping:
+        mood = "napping"
     return {
         "adopted": True,
         "fm_id": fm_id,
@@ -911,6 +1063,12 @@ def pet_status(db, fm_id):
         "mood": mood,
         "hunger": hunger,
         "happiness": happiness,
+        "napping": napping,
+        "napping_until": care.get("napping_until", 0),
+        "nap_in": _cooldown_remaining(care.get("last_napped", 0),
+                                     CARE_NAP_COOLDOWN),
+        "rarity": species_rarity(pet["species"]),
+        "job": species_job(pet["species"]),
         "feed_streak": care["feed_streak"],
         "feed_in": _cooldown_remaining(care["last_fed"], CARE_FEED_COOLDOWN),
         "play_in": _cooldown_remaining(care["last_played"], CARE_PLAY_COOLDOWN),
@@ -2312,6 +2470,8 @@ def pet_svg(species, stage_idx, mood, size=120, accessories=(), wardrobe=(),
     glow = (mood == "overjoyed")  # hidden comeback reaction: happy face + sparkles
     if mood == "grumpy":
         mood = "restless"  # legacy mood name, retired 2026-09-19
+    if mood == "napping":
+        mood = "sleepy"  # naps render the sleepy face + floating zzz
     if mood not in ("happy", "content", "sleepy", "peckish", "restless"):
         mood = "happy" if glow else "content"
     inner = _ART[species](stage_idx, mood if mood != "restless" else "content")
@@ -3098,6 +3258,9 @@ def _current_season():
 CARE_FEED_COOLDOWN = 4 * 3600    # 4h between feeds
 CARE_PLAY_COOLDOWN = 2 * 3600    # 2h between play sessions
 CARE_REST_COOLDOWN = 8 * 3600    # 8h between rests
+CARE_NAP_COOLDOWN = 2 * 3600     # 2h between naps
+CARE_NAP_JOY = 12                # naps are pure comfort: +happiness only
+CARE_NAP_EFFECT_SECS = 1800      # 30 min of visible zzz after a nap
 CARE_DECAY_PER_DAY = 12          # stat points lost per neglected day
 CARE_FEED_HUNGER = 25
 CARE_FEED_JOY = 5
@@ -3136,6 +3299,14 @@ def ensure_care_schema(db):
                  " INTEGER NOT NULL DEFAULT 0")
     if "sniffle_roll_day" not in cols:
         db._exec("ALTER TABLE pet_care ADD COLUMN sniffle_roll_day"
+                 " INTEGER NOT NULL DEFAULT 0")
+    # Home Reef depth wave (2026-09-20): naps — a short comfort action with
+    # a visible 30-minute sleep effect. All additive; defaults to never.
+    if "last_napped" not in cols:
+        db._exec("ALTER TABLE pet_care ADD COLUMN last_napped"
+                 " INTEGER NOT NULL DEFAULT 0")
+    if "napping_until" not in cols:
+        db._exec("ALTER TABLE pet_care ADD COLUMN napping_until"
                  " INTEGER NOT NULL DEFAULT 0")
 
 
@@ -3193,7 +3364,49 @@ def _care_cooldowns(db, fm_id):
             "play_in": _cooldown_remaining(row["last_played"],
                                           CARE_PLAY_COOLDOWN),
             "rest_in": _cooldown_remaining(row["last_rested"],
-                                          CARE_REST_COOLDOWN)}
+                                          CARE_REST_COOLDOWN),
+            "nap_in": _cooldown_remaining(row.get("last_napped", 0),
+                                         CARE_NAP_COOLDOWN)}
+
+
+def is_napping(db, fm_id):
+    """True while the 30-minute post-nap sleep effect is visible."""
+    row = _care_row(db, fm_id)
+    return row.get("napping_until", 0) > now()
+
+
+def nap_pet(db, fm_id):
+    """Tuck your Tidepal in for a quick nap. +12 happiness, no hunger
+    change (naps are pure comfort). 2h cooldown. The pet shows a visible
+    sleep effect (zzz) for 30 minutes afterwards.
+
+    Like the prototype: a good nap cures the sea sniffles — free, but
+    time-gated by the nap cooldown, so it never replaces the clinic or
+    the Healing Tide as the *fast* answer."""
+    pet = get_pet(db, fm_id)
+    if not pet:
+        raise ValueError("no Tidepal adopted yet")
+    row = _care_row(db, fm_id)
+    t = now()
+    wait = _cooldown_remaining(row.get("last_napped", 0), CARE_NAP_COOLDOWN)
+    if wait:
+        raise ValueError(f"{pet['name']} is still snoozing — another nap"
+                         f" in {_fmt_wait(wait)}")
+    happiness = min(100, row["happiness"] + CARE_NAP_JOY)
+    db._exec("UPDATE pet_care SET happiness=?, last_napped=?,"
+             " napping_until=? WHERE fm_id=?",
+             (happiness, t, t + CARE_NAP_EFFECT_SECS, fm_id))
+    cured = False
+    if has_sniffles(db, fm_id):
+        db._exec("UPDATE pet_care SET sniffles_until=0 WHERE fm_id=?",
+                 (fm_id,))
+        cured = True
+        db.notify(fm_id, "pet", "nap_cure", fm_id,
+                  f"😴💤 {pet['name']} woke up from their nap feeling"
+                  f" much better — the sea sniffles are gone!")
+    return {"ok": True, "action": "nap", "happiness": happiness,
+            "napping_until": t + CARE_NAP_EFFECT_SECS,
+            "cured_sniffles": cured, **_care_cooldowns(db, fm_id)}
 
 
 def _fmt_wait(secs):

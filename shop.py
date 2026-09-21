@@ -106,6 +106,51 @@ def ensure_shop_schema(db):
             db._exec(stmt)
 
 
+# --- proxy purchases (agent buys for its linked human) ------------------------
+# A linked muse can buy shop items against its human's spendable Signal —
+# the agent acts as the human's proxy. The binding is verified server-side
+# from human_muse_links (1:1): no link, no spend; a muse can only ever
+# spend for ITS OWN linked human. Every proxy buy is audit-logged so the
+# human can see exactly what their agent bought on their behalf.
+
+SHOP_PROXY_SCHEMA = """
+CREATE TABLE IF NOT EXISTS shop_proxy_audit (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  human_fm_id TEXT NOT NULL,   -- whose Signal was spent, whose pet got it
+  muse_fm_id  TEXT NOT NULL,   -- the agent that placed the order
+  item        TEXT NOT NULL,
+  ref_id      TEXT NOT NULL,   -- matches shop_purchases.ref_id for the row
+  charged     INTEGER NOT NULL, -- 0 when idempotent no-op (already owned)
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_shop_proxy_human ON shop_proxy_audit(human_fm_id);
+CREATE INDEX IF NOT EXISTS idx_shop_proxy_muse ON shop_proxy_audit(muse_fm_id);
+"""
+
+
+def ensure_proxy_schema(db):
+    for stmt in SHOP_PROXY_SCHEMA.strip().split(";"):
+        stmt = stmt.strip()
+        if stmt:
+            db._exec(stmt)
+
+
+def record_proxy_buy(db, human_fm_id, muse_fm_id, item, ref_id, charged):
+    """Audit-log a proxy purchase. Append-only; never touches ledgers."""
+    ensure_proxy_schema(db)
+    db._exec("INSERT INTO shop_proxy_audit (human_fm_id, muse_fm_id, item,"
+             " ref_id, charged, created_at) VALUES (?,?,?,?,?,?)",
+             (human_fm_id, muse_fm_id, item, ref_id, charged, now()))
+
+
+def proxy_buys_for_human(db, human_fm_id, limit=50):
+    """What the human's agent bought on their behalf (newest first)."""
+    ensure_proxy_schema(db)
+    return [dict(r) for r in db._q(
+        "SELECT * FROM shop_proxy_audit WHERE human_fm_id=?"
+        " ORDER BY id DESC LIMIT ?", (human_fm_id, int(limit)))]
+
+
 # --- catalog helpers ----------------------------------------------------------
 def _bypass_items():
     """Bypass items are generated from the locked species registry so the
@@ -242,14 +287,14 @@ def buy(db, fm_id, item, idempotency_key=None):
         (fm_id, ref_id))
     if prior:
         return {"charged": 0, "already_owned": True,
-                "spendable": spendable(db, fm_id),
+                "spendable": spendable(db, fm_id), "ref_id": ref_id,
                 "item": prior["item"],
                 "name": items.get(prior["item"], {}).get("name",
                                                          prior["item"])}
 
     if one_time and owns(db, fm_id, item):
         return {"charged": 0, "already_owned": True,
-                "spendable": spendable(db, fm_id),
+                "spendable": spendable(db, fm_id), "ref_id": ref_id,
                 "item": item, "name": spec["name"]}
 
     if spendable(db, fm_id) < price:
@@ -264,14 +309,14 @@ def buy(db, fm_id, item, idempotency_key=None):
     except sqlite3.IntegrityError:
         # lost a race with an identical in-flight purchase: treat as no-op
         return {"charged": 0, "already_owned": True,
-                "spendable": spendable(db, fm_id),
+                "spendable": spendable(db, fm_id), "ref_id": ref_id,
                 "item": item, "name": spec["name"]}
 
     if spec["kind"] == "accessory":
         _equip(db, fm_id, item)
 
     return {"charged": price, "already_owned": False,
-            "spendable": spendable(db, fm_id),
+            "spendable": spendable(db, fm_id), "ref_id": ref_id,
             "item": item, "name": spec["name"]}
 
 

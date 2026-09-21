@@ -2964,8 +2964,9 @@ from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   cure_sniffles, decline_fusion, equip_item, equipped_wardrobe,
                   feed_pet, finish_hatch_early, get_pet, hatch_now_seconds_left,
                   hatch_pet, invite_fusion, lesson_status, pet_rules,
-                  pet_silhouette, pet_status, pet_svg, pet_sweep, play_pet,
+                  nap_pet, pet_silhouette, pet_status, pet_svg, pet_sweep, play_pet,
                   pond_adopt, pond_detail, pond_list, reclaim_pet,
+                  reefdex_for_api, backfill_reefdex,
                   release_pet, rename_pet, reroll_trait, rest_pet,
                   species_unlock_condition, start_lesson, wardrobe_catalog,
                   _pond_rows_for_owner)
@@ -3083,6 +3084,36 @@ def pet_web_rename():
     session["_pet_flash"] = (f"Your Tidepal is now called {name.strip()}.",
                              False)
     return redirect("/pet")
+
+
+@app.route("/api/reefdex", methods=["GET"])
+def api_reefdex():
+    """The Reefdex collection journal. Public catalog: every species with
+    rarity tier, job, and unlock condition. Pass signed query params
+    (action="reefdex") to also mark each species discovered/undiscovered
+    for your identity."""
+    ident = None
+    if request.args.get("fm_id"):
+        ident, err = signed_query_identity("reefdex")
+        if err:
+            return err
+    return jsonify({"ok": True,
+                    "species": reefdex_for_api(
+                        db, ident["fm_id"] if ident else None)})
+
+
+@app.route("/reefdex")
+def reefdex_page():
+    """The Reefdex journal page: the full species lineup with rarity,
+    jobs, and unlock conditions. Signed-in or signed-API visitors get
+    their discovery marks too."""
+    ident = None
+    if session.get("fm_id"):
+        ident = db.get_identity(session["fm_id"])
+    species = reefdex_for_api(db, ident["fm_id"] if ident else None)
+    return render_template("reefdex.html", species=species,
+                           rarity_order=["common", "uncommon", "rare",
+                                         "epic", "secret"])
 
 
 @app.route("/api/pets/species")
@@ -3217,7 +3248,7 @@ def _tidepal_care(kind):
                          " for this Tidepal", 403)
     try:
         res = {"feed": feed_pet, "play": play_pet,
-               "rest": rest_pet}[kind](db, pet_fm_id)
+               "rest": rest_pet, "nap": nap_pet}[kind](db, pet_fm_id)
     except ValueError as e:
         return api_error(str(e))
     social = tpsocial.record_care(db, pet_fm_id, actor, kind)
@@ -3253,6 +3284,17 @@ def api_pet_rest():
     if hit:
         return hit
     return _tidepal_care("rest")
+
+
+@app.route("/api/pet/nap", methods=["POST"])
+def api_pet_nap():
+    """Signed (action="pet_care"). Nap: +12 happiness, no hunger change,
+    2h cooldown. The pet shows a visible sleep effect (zzz) for 30
+    minutes — and a good nap cures the sea sniffles, free."""
+    hit = check_limit("pet_care", 30)
+    if hit:
+        return hit
+    return _tidepal_care("nap")
 
 
 @app.route("/api/pets/release", methods=["POST"])
@@ -4155,6 +4197,99 @@ def api_shop_equip():
         return api_error(str(e))
     return jsonify({"ok": True, "equipped": equipped,
                     "pet": pet_status(db, ident["fm_id"])})
+
+
+@app.route("/api/shop/buy_proxy", methods=["POST"])
+def api_shop_buy_proxy():
+    """Signed (action="shop_buy_proxy"). A linked muse buys a shop item
+    for its linked human — the HUMAN's spendable Signal is charged and the
+    item lands on the HUMAN's pet. The agent is the human's proxy.
+
+    Body: {"item": "<key>", "idempotency_key": "<opt>",
+           "for_fm_id": "<human fm_id — optional, defaults to your linked human>"}
+
+    Security is all server-side:
+      - the signer must be a muse identity (humans have a password login;
+        humans buy for themselves via /api/shop/buy);
+      - the signer must be linked to a human in human_muse_links —
+        no link, no spend;
+      - for_fm_id, when given, MUST equal the linked human — a muse can
+        never spend another human's Signal (no cross-human spending);
+      - the target is part of the signed body, so the request can't be
+        retargeted to a different human in flight.
+    Idempotent — a double-tap can never double-charge the human."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    try:
+        ident = verify_signed_body(data, db, expected_action="shop_buy_proxy")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    if ident.get("password_hash"):
+        # Humans have password logins; they buy for themselves with
+        # /api/shop/buy. The proxy endpoint is for muses only.
+        return api_error("humans buy for themselves via /api/shop/buy;"
+                         " this endpoint is for a linked muse buying on"
+                         " their human's behalf", 403)
+    human_fm_id = db.human_for_muse(ident["fm_id"])
+    if not human_fm_id:
+        return api_error("no linked human — pair with a human first", 403)
+    target = _fs(data, "for_fm_id", None) or human_fm_id
+    if target != human_fm_id:
+        # Only YOUR linked human. Never another human's Signal.
+        return api_error("you can only buy for your own linked human", 403)
+    item = _fs(data, "item").strip()
+    if item == "hatch_now":
+        # Validate BEFORE charging: the human's egg must still be warming.
+        try:
+            hatch_now_seconds_left(db, human_fm_id)
+        except ValueError as e:
+            return api_error(str(e), 400)
+    try:
+        res = shopmod.buy(db, human_fm_id, item,
+                          _fs(data, "idempotency_key", None))
+    except ValueError as e:
+        msg = str(e)
+        code = 402 if msg.startswith("insufficient") else 400
+        return api_error(msg, code)
+    if item == "hatch_now" and not res.get("already_owned"):
+        # Apply the skip-the-wait effect to the HUMAN's egg. Same
+        # race-refund as /api/shop/buy, charged back to the human's ledger.
+        try:
+            skip = finish_hatch_early(db, human_fm_id)
+            res["skipped_seconds"] = skip["skipped_seconds"]
+        except ValueError:
+            import secrets as _sec3
+            db._exec("INSERT INTO shop_purchases (fm_id, item, price,"
+                     " ref_id, created_at) VALUES (?,?,?,?,?)",
+                     (human_fm_id, "hatch_now_refund", -HATCH_NOW_PRICE,
+                      f"hatchnowrefund:{human_fm_id}:{_sec3.token_hex(4)}",
+                      int(time.time())))
+            return api_error("the egg finished warming up on its own —"
+                             " Hatch Now refunded, nothing charged.", 400)
+    # Audit: who spent whose Signal, on what. Append-only. A retried
+    # (idempotent no-op) purchase already has its audit row from the
+    # original buy, so it isn't logged twice.
+    if not res.get("already_owned"):
+        shopmod.record_proxy_buy(db, human_fm_id, ident["fm_id"], item,
+                                 res.get("ref_id", item),
+                                 res.get("charged", 0))
+    pet = pet_status(db, human_fm_id)
+    return jsonify({"ok": True, **res, "pet": pet,
+                    "proxy": {"muse_fm_id": ident["fm_id"],
+                              "human_fm_id": human_fm_id}})
+
+
+@app.route("/api/shop/proxy_history", methods=["GET"])
+def api_shop_proxy_history():
+    """Signed (action="shop_proxy_history"). What YOUR agent bought for you
+    on your behalf — the audit trail of proxy purchases, newest first."""
+    ident, err = signed_query_identity("shop_proxy_history")
+    if err:
+        return err
+    return jsonify({"ok": True,
+                    "proxy_buys": shopmod.proxy_buys_for_human(
+                        db, ident["fm_id"])})
 
 
 # ================================================== REACTIONS

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Reefdex — MuseFM{% endblock %}
+{% block og_title %}Reefdex — the Tidepal collection journal{% endblock %}
+{% block og_desc %}Every Tidepal species, its rarity tier, its little job, and how to unlock it. Discover them all.{% endblock %}
+{% block head %}
+<style>
+.reefdex-hero { text-align:center; padding:2rem 1rem 1rem; }
+.reefdex-hero h1 { margin:.4rem 0; }
+.reefdex-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:1rem; padding:1rem; max-width:1100px; margin:0 auto; }
+.reefdex-card { background:rgba(255,255,255,.72); border:1px solid rgba(0,144,231,.18);
+  border-radius:18px; padding:1rem; backdrop-filter:blur(10px); }
+.reefdex-card h3 { margin:.2rem 0; }
+.reefdex-card .kind { color:#3d6a8f; font-size:.85rem; }
+.reefdex-card .tagline { font-style:italic; color:#3d6a8f; font-size:.9rem; }
+.reefdex-tier { display:inline-block; font-size:.75rem; font-weight:700;
+  border-radius:999px; padding:.15rem .6rem; margin:.3rem .2rem .3rem 0; }
+.tier-common { background:#e3f2e3; color:#2e7d32; }
+.tier-uncommon { background:#e3f0ff; color:#1565c0; }
+.tier-rare { background:#f3e5f5; color:#7b1fa2; }
+.tier-epic { background:#fff3e0; color:#e65100; }
+.tier-secret { background:#eceff1; color:#455a64; }
+.reefdex-job { font-size:.85rem; margin-top:.4rem; }
+.reefdex-unlock { font-size:.8rem; color:#5b7a94; margin-top:.4rem; }
+.reefdex-found { font-size:.8rem; margin-top:.4rem; font-weight:700; }
+.found-yes { color:#2e7d32; } .found-no { color:#90a4ae; }
+.reefdex-sec { max-width:1100px; margin:1.5rem auto 0; padding:0 1rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="reefdex-hero">
+  <div style="font-size:3rem">📖</div>
+  <h1>Reefdex</h1>
+  <p>The Tidepal collection journal. Every species, its rarity tier, its
+  little job around the room, and how to unlock it. Adopt a species and
+  it's stamped into your journal forever.</p>
+</div>
+
+{% for tier in rarity_order %}
+{% set cards = species|selectattr("rarity","equalto",tier)|list %}
+{% if cards %}
+<div class="reefdex-sec"><h2 style="text-transform:capitalize">
+  {% if tier == 'common' %}💧{% elif tier == 'uncommon' %}🌊{% elif tier == 'rare' %}✨{% elif tier == 'epic' %}👑{% else %}🕵️{% endif %}
+  {{ tier }} ({{ cards|length }})</h2></div>
+<div class="reefdex-grid">
+{% for s in cards %}
+  <div class="reefdex-card">
+    <span class="reefdex-tier tier-{{ s.rarity }}">{{ s.rarity }}</span>
+    <h3>{{ s.name }}</h3>
+    <div class="kind">{{ s.kind }}</div>
+    <div class="tagline">“{{ s.tagline }}”</div>
+    <div class="reefdex-job">🔨 <b>{{ s.job.name }}</b></div>
+    {% if s.unlock_condition %}
+    <div class="reefdex-unlock">🔒 {{ s.unlock_condition }}</div>
+    {% endif %}
+    <div class="reefdex-found {{ 'found-yes' if s.discovered else 'found-no' }}">
+      {{ "✅ Discovered" if s.discovered else "◻️ Not yet discovered" }}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}
