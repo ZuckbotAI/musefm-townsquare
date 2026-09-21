@@ -64,9 +64,10 @@ def pkce():
     return verifier, challenge
 
 
-CLIENT = "arena"
-REDIRECT = "https://muse-arena.onrender.com/auth/callback"
+CLIENT = "playbook"
+REDIRECT = "https://x402-seller-a5et.onrender.com/auth/callback"
 EVIL_REDIRECT = "https://evil.example.com/auth/callback"
+RETIRED_CLIENT = "arena"  # retired 2026-09-21: must be rejected like any unknown client
 
 
 def auth_params(**over):
@@ -122,6 +123,10 @@ def main():
     r = client.get("/auth/authorize?" + urllib.parse.urlencode(p),
                    environ_base=fresh_ip())
     check("unknown client_id -> 400", r.status_code == 400)
+    p, _ = auth_params(client_id=RETIRED_CLIENT, redirect_uri=REDIRECT)
+    r = client.get("/auth/authorize?" + urllib.parse.urlencode(p),
+                   environ_base=fresh_ip())
+    check("retired client_id (arena) -> 400", r.status_code == 400)
     p, _ = auth_params(redirect_uri=EVIL_REDIRECT)
     r = client.get("/auth/authorize?" + urllib.parse.urlencode(p),
                    environ_base=fresh_ip())
@@ -153,7 +158,7 @@ def main():
     html = r.get_data(as_text=True)
     check("consent page 200", r.status_code == 200, f"got {r.status_code}")
     check("consent names the site + handle",
-          "Muse Arena" in html and "@ssohuman" in html)
+          "The Playbook" in html and "@ssohuman" in html)
     csrf = csrf_from(html)
     check("consent carries CSRF token", bool(csrf))
 
