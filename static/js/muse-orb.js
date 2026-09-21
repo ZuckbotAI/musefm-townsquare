@@ -24,7 +24,7 @@
 
   var ORB_SIZE = 96;                 // css px, canvas is dpr-scaled (wow-factor size, 2026-09-21)
   var STORAGE_KEY = 'muse-orb-pos-v1';
-  var HOVER_DIST = 100;             // px — mouse this close => attentive pose
+  var HOVER_DIST = 130;            // px — mouse this close => attentive pose (tuned for bigger orb)
   var PANEL_W = 330;
 
   /* ------------------------------------------------------------------ CSS */
@@ -328,7 +328,7 @@
         ctx.lineWidth = 2.6;
         ctx.lineCap = 'round';
         ctx.shadowColor = 'rgba(255,180,80,.8)';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 6 * DK;
         ctx.beginPath();
         ctx.arc(ex + ox * 0.4, ey + 1.5, 4.8, Math.PI * 1.12, Math.PI * 1.88);
         ctx.stroke();
@@ -361,6 +361,8 @@
       var now = nowMs;
       var p = currentPose(now);
       var S = ORB_SIZE;
+      var DS = 58;                    // design size the orb artwork was authored at
+      var DK = S / DS;                // artwork scale — orb body grows with ORB_SIZE
       ctx.clearRect(0, 0, S, S);
 
       var r = wrap.getBoundingClientRect();
@@ -370,8 +372,8 @@
       var look = { x: mdx / md, y: mdy / md };
       if (md > 400) { look.x = 0; look.y = 0; }
 
-      var cx = S / 2, cy = S / 2 + 2;
-      var R = 22;
+      var cx = DS / 2, cy = DS / 2 + 2;
+      var R = 22;                     // design units — scaled to canvas by DK below
       // bouncier idle: layered sines for a jelly float
       var bob = reduced ? 0 : (Math.sin(t * 2.3) * 2.4 + Math.sin(t * 3.9 + 1.3) * 0.9);
       if (p === 'playful') bob = reduced ? 0 : (Math.sin(t * 9) * 2.6 + Math.sin(t * 13.7) * 1.1);
@@ -395,6 +397,7 @@
       var sy = sBase * (1 + stretch);
 
       ctx.save();
+      ctx.scale(DK, DK);             // design space -> canvas space (all art below in design px)
       ctx.translate(cx, cy);
       ctx.scale(sx, sy);
       var tilt = reduced ? 0 : look.x * 0.10;
@@ -407,14 +410,15 @@
 
       // glass body — deeper 3D shading, glow reacts to hover/pose
       ctx.shadowColor = 'rgba(80,165,225,.55)';
-      ctx.shadowBlur = 14 + hoverS * 10 + (p === 'happy' ? 5 : 0) + (p === 'playful' ? 4 : 0);
+      ctx.shadowBlur = (14 + hoverS * 10 + (p === 'happy' ? 5 : 0) + (p === 'playful' ? 4 : 0)) * DK;
       var gx = cx - 8 + look.x * 2.5, gy = cy - 10 + look.y * 2;
       var body = ctx.createRadialGradient(gx, gy, 2, cx, cy, R + 2);
       body.addColorStop(0, '#ffffff');
       body.addColorStop(0.35, '#d8efff');
       body.addColorStop(0.65, '#8fcdf3');
       body.addColorStop(0.88, '#4aa3e0');
-      body.addColorStop(1, '#2f7fc4');
+      body.addColorStop(0.96, '#2f7fc4');
+      body.addColorStop(1, 'rgba(47,127,196,0)');   // feathered edge — no visible rim
       ctx.fillStyle = body;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -423,7 +427,8 @@
       // inner depth: subtle bottom shade for roundness
       var inner = ctx.createRadialGradient(cx, cy + 8, 4, cx, cy + 8, R);
       inner.addColorStop(0, 'rgba(20,60,110,0)');
-      inner.addColorStop(1, 'rgba(20,60,110,.22)');
+      inner.addColorStop(0.9, 'rgba(20,60,110,.22)');
+      inner.addColorStop(1, 'rgba(20,60,110,0)');
       ctx.fillStyle = inner;
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
