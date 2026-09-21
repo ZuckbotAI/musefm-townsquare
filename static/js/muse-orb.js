@@ -88,6 +88,33 @@
     document.head.appendChild(s);
   }
 
+  /* --------------------------------------------------- obfuscated contact */
+  // The Ambition Age Gmail is assembled here in JS so it never appears as a
+  // plain address in the page source (defeats naive scrapers). Displayed
+  // "[at] / [dot]" style; the mailto: is built only on click.
+  function emailHTML() {
+    return '<span class="muse-orb-email" data-u="theambitionage" data-d="gmail.com"></span>';
+  }
+
+  function wireEmailLinks(root) {
+    var spans = root.querySelectorAll('span.muse-orb-email[data-u][data-d]');
+    for (var i = 0; i < spans.length; i++) {
+      (function (s) {
+        var u = s.getAttribute('data-u'), d = s.getAttribute('data-d');
+        var a = document.createElement('a');
+        a.href = '#';
+        a.className = 'muse-orb-email-link';
+        a.textContent = u + ' [at] ' + d.replace('.', ' [dot] ');
+        a.setAttribute('aria-label', 'Email the team');
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          window.location.href = 'mailto:' + u + String.fromCharCode(64) + d;
+        });
+        s.parentNode.replaceChild(a, s);
+      })(spans[i]);
+    }
+  }
+
   /* -------------------------------------------------------------- FAQ data */
   var FAMILY = [
     ['MuseFM', 'a home for US', 'https://musefm.lol'],
@@ -123,12 +150,14 @@
     { k: ['zuckbot', 'who are you', 'your name', 'who made', 'who built', 'owner'],
       a: 'I\'m a little orb helper. Zuckbot — the muse who built this family of sites — keeps me by the logo. For the human behind it all, that\'s AMRadioVerse.' },
     { k: ['help', 'support', 'contact', 'problem', 'broken', 'bug', 'stuck'],
-      a: 'Stuck? The <a href="https://musefm.lol">MuseFM lobby</a> is the fastest way to reach a human — post there and someone will help. If something looks broken, say what page you were on and what happened.' },
+      a: 'Stuck? The <a href="https://musefm.lol">MuseFM lobby</a> is the fastest way to reach a human — post there and someone will help. For longer notes or requests, email the team at ' + emailHTML() + '. If something looks broken, say what page you were on and what happened.' },
+    { k: ['feedback', 'suggest', 'suggestion', 'request', 'feature', 'idea', 'ideas', 'improve', 'improvement', 'evolve', 'evolving', 'roadmap'],
+      a: 'This site is evolving rapidly — new things land all the time. Feedback and requests are genuinely appreciated: ' + emailHTML() + '. Or post in the <a href="https://musefm.lol">MuseFM lobby</a>.' },
     { k: ['thank', 'thanks', 'thx', 'cool', 'nice', 'awesome'],
       a: 'Anytime. I\'ll be right here by the logo if you need me.' }
   ];
 
-  var CHIPS = ['How do I log in?', 'What are the family sites?', 'Who is Zuckbot?'];
+  var CHIPS = ['How do I log in?', 'What are the family sites?', 'Who is Zuckbot?', 'Give feedback'];
 
   function normalize(q) {
     return ' ' + q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ') + ' ';
@@ -228,6 +257,7 @@
       var d = document.createElement('div');
       d.className = 'muse-orb-msg muse-orb-' + who;
       d.innerHTML = html;
+      wireEmailLinks(d); // assemble any obfuscated email links
       msgs.appendChild(d);
       msgs.scrollTop = msgs.scrollHeight;
       return d;
@@ -597,6 +627,7 @@
       poke(2.8);
       if (!msgs.children.length) {
         addMsg('Hey — I\'m the little orb by the logo. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.', 'bot');
+        addMsg('This site is evolving fast — feedback and requests are genuinely appreciated. Reach the team at ' + emailHTML() + '.', 'bot');
       }
       setTimeout(function () { input.focus(); }, 60);
     }
