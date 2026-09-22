@@ -455,8 +455,8 @@
     var sparkles = [], particles = [];
     var nextSparkle = 0;
     var droplets = [
-      { a: 0.5, d: 30, r: 2.2 }, { a: 1.9, d: 31, r: 1.7 },
-      { a: 3.4, d: 29, r: 2.5 }, { a: 4.8, d: 31, r: 1.5 }, { a: 5.9, d: 30, r: 2.0 }
+      { a: 0.5, d: 16, r: 1.9 }, { a: 1.9, d: 15, r: 1.5 },
+      { a: 3.4, d: 18, r: 2.1 }, { a: 4.8, d: 16, r: 1.3 }, { a: 5.9, d: 17, r: 1.7 }
     ];
 
     function currentHour() {
@@ -611,8 +611,14 @@
     }
     function positionSatellites() {
       var n = agents.length;
+      // fan toward open space: the hub usually lives in a top header, so arc
+      // downward when the hub is in the top half of the viewport (otherwise
+      // the top satellites render off-screen), upward when it's low.
+      var wr = wrap.getBoundingClientRect();
+      var base = (wr.top + wr.height / 2) < window.innerHeight * 0.5
+        ? Math.PI / 2 : -Math.PI / 2;
       for (var i = 0; i < n; i++) {
-        var ang = -Math.PI / 2 + (n === 1 ? 0 : (i / (n - 1) - 0.5) * Math.PI * 0.9);
+        var ang = base + (n === 1 ? 0 : (i / (n - 1) - 0.5) * Math.PI * 0.9);
         var rad = ORB_SIZE * 0.95;
         agents[i].fx = Math.cos(ang) * rad;
         agents[i].fy = Math.sin(ang) * rad;
@@ -695,8 +701,8 @@
 
     /* ------------------------------------------------------- render: FX 2D
      * Character + effects layer over the living glass: visor, amber eyes
-     * (gaze, blink, sleep), tiny water arms, droplets, sparkles, and the
-     * state signatures — listening ring, thinking orbits, working streams. */
+     * (gaze, blink, sleep), droplets, sparkles, and the state signatures —
+     * listening ring, thinking orbits, working streams. */
     function drawEye(ex, ey, look, p, t, st) {
       var ox = look.x * 3.4, oy = look.y * 2.6;
       if (p === 'happy' || p === 'playful') {
@@ -743,22 +749,6 @@
       fx.scale(bs, 1 / Math.sqrt(bs)); // breathing volume, subtle
       fx.translate(-cx, -cy);
 
-      // tiny water arms — canonical silhouette, gently waving
-      if (!reduced) {
-        var wave = Math.sin(t * 2.1) * 1.4;
-        fx.fillStyle = 'rgba(150,205,245,.5)';
-        fx.save();
-        fx.translate(cx - 20, cy + 13 + wave);
-        fx.rotate(-0.45 + Math.sin(t * 2.1) * 0.08);
-        fx.beginPath(); fx.ellipse(0, 0, 6.2, 3.8, 0, 0, Math.PI * 2); fx.fill();
-        fx.restore();
-        fx.save();
-        fx.translate(cx + 20, cy + 13 - wave);
-        fx.rotate(0.45 - Math.sin(t * 2.1) * 0.08);
-        fx.beginPath(); fx.ellipse(0, 0, 6.2, 3.8, 0, 0, Math.PI * 2); fx.fill();
-        fx.restore();
-      }
-
       // visor
       var vg = fx.createLinearGradient(0, cy - 11, 0, cy + 12);
       vg.addColorStop(0, '#182034');
@@ -802,13 +792,13 @@
         fx.stroke();
       }
 
-      // thinking: gentle orbiting particles
+      // thinking: gentle orbiting particles, skimming the glass surface
       if ((p === 'thinking' || st === 'thinking') && !reduced) {
         for (var i = 0; i < 5; i++) {
           var oa = t * 4 + i * Math.PI * 2 / 5;
-          fx.fillStyle = 'rgba(150,170,255,.9)';
+          fx.fillStyle = 'rgba(150,170,255,.75)';
           fx.beginPath();
-          fx.arc(cx + Math.cos(oa) * 30, cy + Math.sin(oa) * 30, 1.8, 0, Math.PI * 2);
+          fx.arc(cx + Math.cos(oa) * 24.5, cy + Math.sin(oa) * 24.5, 1.5, 0, Math.PI * 2);
           fx.fill();
         }
       }
@@ -1033,6 +1023,7 @@
         } catch (err) { /* private mode */ }
         setPose('happy', 1200);
         poke(3.2);
+        if (fanOpen) positionSatellites(); // hub moved — re-aim the fan
       } else {
         poke(3.5);
         togglePanel();
