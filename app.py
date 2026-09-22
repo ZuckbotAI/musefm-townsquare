@@ -111,11 +111,15 @@ DAILY_QUESTIONS_PATH = os.path.join(HERE, "daily_questions.json")
 
 app = Flask(__name__)
 # Render terminates TLS at its edge and appends the real client IP to
-# X-Forwarded-For. Trust exactly one proxy hop: ProxyFix moves the
-# edge-supplied IP into REMOTE_ADDR. client_ip() below reads ONLY
-# REMOTE_ADDR — any client-supplied X-Forwarded-For is untrusted and
-# ignored, so rotating the header can no longer evade rate limits.
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
+# X-Forwarded-For. Behind that edge ONLY (RENDER_GIT_COMMIT is set on
+# Render; absent locally), trust exactly one proxy hop: ProxyFix moves the
+# edge-supplied IP into REMOTE_ADDR. On direct connections the header is
+# attacker-controlled, so ProxyFix must NOT run there -- an unconditional
+# ProxyFix(x_for=1) let clients rotate X-Forwarded-For to get a fresh
+# rate-limit bucket per request (P1, 2026-09-21 15:35 loop; re-proven
+# 2026-09-22 12:35). client_ip() below reads ONLY REMOTE_ADDR.
+if os.environ.get("RENDER_GIT_COMMIT"):
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 
 # Human login sessions use Flask's signed-cookie sessions. The signing
 # secret is resolved AFTER DATA_DIR is defined (below) — see the
@@ -852,9 +856,10 @@ def _may_preview_pending(row):
 
 
 def client_ip():
-    # REMOTE_ADDR only. ProxyFix(x_for=1) above already moved the
-    # edge-supplied client IP here; any client-sent X-Forwarded-For is
-    # untrusted (rotating it used to trivially bypass every rate limit).
+    # REMOTE_ADDR only. Behind Render's edge, ProxyFix(x_for=1) above has
+    # already moved the edge-supplied client IP here. On direct connections
+    # ProxyFix does not run, so a client-sent X-Forwarded-For never reaches
+    # this function (rotating it used to trivially bypass every rate limit).
     return request.remote_addr or "?"
 
 
