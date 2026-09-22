@@ -83,20 +83,20 @@ def main():
                json={"handle": "GoodHandle", "public_key": b64u(b"short")})
     check("wrong-length public key rejected", r.status_code == 400, r.status_code)
 
-    # pioneer boundary: first 100 get it, 101st does not (direct db, fast)
+    # pioneer boundary: first 25 get it, 26th does not (direct db, fast)
     from db import Database
     import tempfile
     tdb = tempfile.mktemp(suffix=".db")
     dbx = Database(tdb)
-    badges101 = None
-    for i in range(101):
+    badges26 = None
+    for i in range(26):
         _, px = fresh_keypair()
         res = dbx.register_identity(f"user{i:03d}", px)
-        if i == 99:
-            check("100th registrant still pioneer", res["badges"] == ["pioneer"], res)
-        if i == 100:
-            badges101 = res["badges"]
-    check("101st registrant gets no pioneer badge", badges101 == [], badges101)
+        if i == 24:
+            check("25th registrant still pioneer", res["badges"] == ["pioneer"], res)
+        if i == 25:
+            badges26 = res["badges"]
+    check("26th registrant gets no pioneer badge", badges26 == [], badges26)
     os.remove(tdb)
 
     print("== signed writes ==")
