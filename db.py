@@ -71,6 +71,10 @@ BANNED_WORDS = [
 MAX_TITLE = 200
 MAX_BODY = 10000
 MAX_HANDLE = 32
+# Comment bodies (forum, video, episode — create AND edit) are capped here.
+# Oversize is REJECTED with a clear error, never silently truncated (P1
+# 2026-09-21). See clean_comment_body().
+COMMENT_BODY_MAX = 2000
 
 COMMUNITIES = [
     ("nightly", "Nightly",
@@ -192,7 +196,24 @@ def clean(s, limit, single_line=False):
         s = s.replace("\r\n", "\n").replace("\r", "\n")
         s = re.sub(r"[^\S\n]+", " ", s)
         s = re.sub(r"\n{3,}", "\n\n", s)
-    return s[:limit]
+    # limit=None: clean but do NOT truncate — lets callers detect oversize
+    # and reject loudly instead of silently losing the tail (P1 2026-09-21).
+    return s if limit is None else s[:limit]
+
+
+def clean_comment_body(body):
+    """Comment bodies: cleaned but NEVER silently truncated.
+
+    P1 2026-09-21: clean(body, 2000) cut the tail with a 200/302 success,
+    so users lost text without warning. Now raises ValueError on oversize
+    (>COMMENT_BODY_MAX); every route maps ValueError to a clear 400, so the
+    user sees "too long" and can trim instead of losing their words.
+    """
+    body = clean(body, None)
+    if len(body) > COMMENT_BODY_MAX:
+        raise ValueError("comment body too long — max %d characters" %
+                         COMMENT_BODY_MAX)
+    return body
 
 
 def valid_handle(h):
@@ -501,7 +522,7 @@ DISPLAY_NAME_RE = re.compile(r"[A-Za-z0-9_.'\- ]{1,40}\Z")
 MENTION_RE = re.compile(r"@([A-Za-z0-9_]{3,20})")
 MAX_BIO = 500
 MAX_AVATAR_URL = 500
-PIONEER_COUNT = 100  # first N registrants get the pioneer badge
+PIONEER_COUNT = 25  # first N registrants get the pioneer (founding member) badge
 
 # Signal tiers: lifetime points -> tier name.
 TIERS = [
@@ -2681,6 +2702,19 @@ class Database:
     def fresh_faces(self, limit=10):
         rows = self._q("SELECT fm_id, handle, avatar_url, bio, badges, created_at"
                        " FROM identities ORDER BY created_at DESC LIMIT ?", (limit,))
+        out = []
+        for r in rows:
+            d = dict(r)
+            d["badges"] = [b for b in d["badges"].split(",") if b]
+            out.append(d)
+        return out
+
+    def founding_members(self, limit=25):
+        """Earliest identities holding the pioneer (founding member) badge,
+        for the homepage Founding Members card. Ordered by signup time."""
+        rows = self._q("SELECT fm_id, handle, avatar_url, badges, created_at"
+                       " FROM identities WHERE badges LIKE '%pioneer%'"
+                       " ORDER BY created_at ASC LIMIT ?", (limit,))
         out = []
         for r in rows:
             d = dict(r)

@@ -1055,20 +1055,25 @@ def home():
     posts = db.list_posts(sort=sort, limit=40)
     _fb_attach_posts(posts, _fb_web_reactor())
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
-    # tiles rotate on every visit. Recency memory (shared with /shorts and
-    # /api/shorts via the session) excludes anything served in the last
-    # SHORTS_REPEAT_WINDOW seconds, so back-to-back loads — and jumps
-    # between home and the feed — show zero repeats while the pool allows.
+    # tiles rotate on every visit. Session seen-memory (shared with /shorts
+    # and /api/shorts) excludes everything already served this session, so
+    # back-to-back loads — and jumps between home and the feed — show zero
+    # repeats until the whole pool has rotated through. The seed is handed
+    # to the client so the mini reel's horizontal scroll reuses the SAME
+    # deck for pages 1+ (no repeats/skips while scrolling).
+    home_seed = secrets.token_hex(16)
     shorts, _stotal = videos.shuffled_short_page(
-        db, secrets.token_hex(8), limit=12, page=0,
-        exclude=_shorts_recent_ids())
+        db, home_seed, limit=12, page=0,
+        exclude=_shorts_fresh_exclude(12))
     shorts = _short_items(shorts)
     _attach_short_fb(shorts, _fb_web_reactor())
     _shorts_mark_seen([s["id"] for s in shorts])
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
+                           shorts_seed=home_seed,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
+                           founding_members=db.founding_members(),
                            # Tidepals homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            tidepal_promo_svg=pet_svg(
@@ -6548,51 +6553,44 @@ def _shorts_seed():
     return secrets.token_hex(16)
 
 
-# ── Shorts recency memory ─────────────────────────────────────────────
-# A short you just saw doesn't come back for SHORTS_REPEAT_WINDOW
-# seconds — across the home strip, /shorts, and /api/shorts. Per-visitor,
-# kept in the signed session cookie, so it works for logged-out visitors
-# and logged-in users alike with no DB migration. shuffled_short_page()
-# already refuses to apply an exclusion when the pool would drop below
-# the page size, so small catalogs degrade to repeats instead of empty
-# feeds — this can't break the feed.
-SHORTS_REPEAT_WINDOW = 120  # seconds
-SHORTS_RECENT_CAP = 100     # entries (~1.2KB of cookie, well under limits)
+# ── Shorts seen-memory (no-repeat sessions) ──────────────────────────
+# A short you were served doesn't come back until you've cycled through
+# the whole pool — across the home strip, /shorts, and /api/shorts.
+# Per-visitor, keyed by a stable id in the signed session cookie (works
+# for logged-out visitors and logged-in users alike); the id list itself
+# lives in the shorts_seen table so there's no cookie bloat. Fresh decks
+# sort unseen clips first and fill only from seen clips after, so repeats
+# start only once the whole eligible pool has rotated through — no reset
+# bookkeeping needed. shuffled_short_page() still refuses to apply an
+# exclusion that would drop the feed below the page size, so small
+# catalogs degrade to repeats instead of empty feeds — this can't break
+# the feed.
+def _shorts_visitor_key():
+    """Stable per-browser id for shorts seen-memory (signed session)."""
+    vk = session.get("shorts_vk")
+    if not vk:
+        vk = secrets.token_hex(8)
+        session["shorts_vk"] = vk
+    return vk
 
 
-def _shorts_recent():
-    """[(id, ts), ...] of shorts served within the repeat window."""
-    now = time.time()
-    raw = session.get("shorts_recent") or []
-    out = []
-    for pair in raw:
-        try:
-            i, t = int(pair[0]), float(pair[1])
-        except (TypeError, ValueError, IndexError):
-            continue
-        if now - t < SHORTS_REPEAT_WINDOW:
-            out.append((i, t))
-    return out[:SHORTS_RECENT_CAP]
-
-
-def _shorts_recent_ids():
-    return [i for i, _ in _shorts_recent()]
+def _shorts_seen_ids():
+    return videos.get_shorts_seen_ids(db, _shorts_visitor_key())
 
 
 def _shorts_mark_seen(ids):
-    """Record freshly served short ids; prune expired entries; cap."""
-    now = time.time()
-    fresh, seen = [], set()
-    for i in ids:
-        try:
-            i = int(i)
-        except (TypeError, ValueError):
-            continue
-        if i not in seen:
-            seen.add(i)
-            fresh.append([i, now])
-    old = [[i, t] for i, t in _shorts_recent() if i not in seen]
-    session["shorts_recent"] = (fresh + old)[:SHORTS_RECENT_CAP]
+    """Record freshly served short ids in this visitor's seen-memory."""
+    videos.record_shorts_seen(db, _shorts_visitor_key(), ids)
+
+
+def _shorts_fresh_exclude(limit=10, series=None):
+    """Ids to deprioritize on a fresh deck: everything served this session.
+
+    shuffled_short_page() sorts unseen clips first and fills from seen
+    after, so a fresh deck shows unseen clips before any repeat — no
+    starvation, no reset bookkeeping needed.
+    """
+    return _shorts_seen_ids()
 
 
 @app.route("/api/shorts")
@@ -6632,14 +6630,14 @@ def api_shorts():
         page = int(request.args.get("page", 0))
     except (TypeError, ValueError):
         page = 0
-    # Fresh deck (no ?seed=) skips anything served in the repeat window;
-    # in-scroll pages reuse the client's seed untouched. Everything served
-    # is recorded so the next fresh deck — here, /shorts, or home — avoids
-    # it for SHORTS_REPEAT_WINDOW seconds.
+    # Fresh deck (no ?seed=) skips everything served in the session's
+    # seen-memory; in-scroll pages reuse the client's seed untouched.
+    # Everything served is recorded so the next fresh deck — here,
+    # /shorts, or home — avoids it until the pool rotates through.
     fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
         db, seed := _shorts_seed(), limit=limit, page=page, series=series,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        exclude=_shorts_fresh_exclude(limit, series) if fresh_deck else ())
     items = _short_items(uploads)
     _attach_short_fb(items, _fb_web_reactor())
     _shorts_mark_seen([u["id"] for u in uploads])
@@ -6740,13 +6738,13 @@ def shorts_page():
     initial page. Bad ids are ignored silently.
     """
     seed = _shorts_seed()
-    # Fresh page load (no ?seed=): skip shorts served in the repeat window
-    # (shared with the home strip and /api/shorts). In-scroll loads reuse
-    # the seed and are untouched.
+    # Fresh page load (no ?seed=): skip everything in the session's
+    # seen-memory (shared with the home strip and /api/shorts). In-scroll
+    # loads reuse the seed and are untouched.
     fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
         db, seed, limit=10, page=0,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        exclude=_shorts_fresh_exclude(10) if fresh_deck else ())
     items = _short_items(uploads)
     _shorts_mark_seen([u["id"] for u in uploads])
     anchor_id = None
