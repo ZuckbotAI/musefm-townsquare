@@ -539,8 +539,24 @@
     poke();
   }
 
+  /* Re-bind page-level behaviors after a soft-navigation content swap.
+     Every init* above is guarded per-element (._tpClock, ._tpCare, …), and
+     the MutationObserver already re-registers svg[data-tidepal]; the
+     document/window listeners from init() are intentionally NOT re-added,
+     so soft navigation can never duplicate them. */
+  function refresh() {
+    initCountdowns();
+    initDemo();
+    initJustAdopted();
+    initCelebrate();
+    initCareButtons();
+    initAdoptForm();
+    initPat();
+    poke();
+  }
+
   window.TidepalAnim = {
-    init: init, pat: pat, wiggle: wiggle, celebrate: celebrate,
+    init: init, refresh: refresh, pat: pat, wiggle: wiggle, celebrate: celebrate,
     feed: feed, play: play, rest: rest, reduced: REDUCED
   };
 
