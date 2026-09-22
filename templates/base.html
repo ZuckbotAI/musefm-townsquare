@@ -30,6 +30,7 @@
 }catch(e){}})();
 </script>
 {% block head %}{% endblock %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flat.css') }}">
 </head>
 <body{% block body_class %}{% endblock %}>
 {% if request.path == '/' and not session_identity %}
@@ -238,6 +239,7 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+<script src="{{ url_for('static', filename='js/softnav.js') }}"></script>
 <script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
 {% block scripts %}{% endblock %}
 </body>

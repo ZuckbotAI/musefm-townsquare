@@ -1,0 +1,193 @@
+/* ==========================================================================
+   MuseFM — flat redesign (2026-09-22)
+   Loaded AFTER style.css and any page-specific CSS (pond.css, shop.css).
+   Turns the glassy, modular, floating aesthetic into composed, stable,
+   flat surfaces.
+
+   What changes:
+   - small rectangular radii everywhere (no more pills / floating cards)
+   - solid surfaces instead of translucent glass + blur on app chrome
+   - no shadows, no hover lift/scale, no ambient drift or shimmer
+   - app-chrome keyframes stilled via no-op redefinitions
+
+   What is preserved:
+   - brand, copy, layout, light/dark themes, accessibility
+   - the pond world (pond.css) keeps all of its own motion — none of its
+     keyframes are touched
+   - minimal functional feedback (color changes on hover/press, the
+     mini-player show/hide slide)
+   ========================================================================== */
+
+/* ---------- 1. tokens: small radii, solid surfaces, no shadows ---------- */
+:root{
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-pill: 8px;          /* was 999px — rectangular controls now */
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-btn: none;
+  --shadow-btn-press: none;
+  --glass: #ffffff;            /* solid, not translucent */
+  --glass-strong: #ffffff;
+  --glass-deep: #edf3f8;
+  --glass-border: #d9e3ec;
+  --glass-edge: rgba(10,60,100,.06);
+  --chrome-bg: #ffffff;        /* topbar / sidebar / sheets / player */
+}
+[data-theme="dark"]{
+  --glass: #0a2233;
+  --glass-strong: #0d2a42;
+  --glass-deep: #071a2b;
+  --glass-border: #1d3f5c;
+  --glass-edge: rgba(0,0,0,.25);
+  --chrome-bg: #0a2233;
+}
+
+/* ---------- 2. flat page: no gradient sky, no drifting light ---------- */
+body{
+  background: var(--bg-base) !important;
+}
+body::before{
+  display: none !important;
+}
+
+/* ---------- 3. chrome: solid, hairline borders, no blur, no shadow ---------- */
+.topbar,
+.sidebar,
+footer,
+#miniplayer,
+.share-card,
+.toast,
+.topstrip{
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+.topbar{
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--glass-border);
+}
+.sidebar{
+  background: var(--chrome-bg);
+  border-right: 1px solid var(--glass-border);
+}
+footer{
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--glass-border);
+}
+.sidebar-scrim{
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ---------- 4. still the app-chrome motion ----------
+   Later @keyframes with the same name win over style.css. Each is a no-op,
+   so elements rest at their natural state. Pond-world keyframes
+   (cloud-drift, pad-bob, twinkle, …) are untouched. */
+@keyframes drift{ to{ opacity: 1; } }
+@keyframes fadein{ to{ opacity: 1; } }
+@keyframes pop{ to{ opacity: 1; } }
+@keyframes shimmer{ to{ opacity: 1; } }
+@keyframes slideup{ to{ opacity: 1; } }
+@keyframes rxn-pop{ to{ opacity: 1; } }
+@keyframes sc-rise{ to{ opacity: 1; } }
+@keyframes skshimmer{ to{ opacity: 1; } }
+@keyframes highlight{ to{ opacity: 1; } }
+
+/* ---------- 5. no hover lift / scale / press squash (color feedback stays) -- */
+.sb-link:hover,
+.sb-link:hover .sb-icon,
+.brand:hover .wordmark,
+.theme-btn:hover,
+.theme-btn:active,
+a.card-link:hover,
+.vote-btn:hover,
+.vote-btn:active,
+.btn:hover,
+.btn:active,
+.tabs a:hover,
+.mp-btn:hover,
+.mp-btn:active{
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 6. de-pill: rectangular controls ---------- */
+button,
+.btn,
+.tool-btn,
+.pill,
+.badge,
+.chip,
+.tag,
+.auth-cta,
+.topstrip-cta,
+.sb-ext,
+#handle-chip,
+.share-opt,
+input[type="submit"],
+input[type="button"],
+[class*="pill"],
+[class*="badge"],
+[class*="chip"]{
+  border-radius: 8px !important;
+}
+
+/* ---------- 7. mini-player: docked bottom bar, not a floating card ---------- */
+#miniplayer{
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  transform: translateY(140%) !important;
+  border: none !important;
+  border-top: 1px solid var(--glass-border) !important;
+  border-radius: 0 !important;
+  background: var(--chrome-bg) !important;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  transition: transform .3s ease !important;
+}
+#miniplayer.show{
+  transform: translateY(0) !important;
+}
+#miniplayer .mp-art{
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 8. share sheet card: flat bottom sheet ---------- */
+.share-card{
+  border-radius: 0 !important;
+  background: var(--chrome-bg) !important;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* ---------- 9. toast: flat, bordered ---------- */
+.toast{
+  background: var(--chrome-bg) !important;
+  border: 1px solid var(--glass-border);
+}
+
+/* ---------- 10. screen-reader-only (soft-nav live region) ---------- */
+.sr-only{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- 11. reduced motion: still everything ---------- */
+@media (prefers-reduced-motion: reduce){
+  *,
+  *::before,
+  *::after{
+    animation: none !important;
+    transition: none !important;
+  }
+}
