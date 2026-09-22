@@ -48,19 +48,22 @@ def setup():
 
 
 SIDEBAR_LINKS = [
-    "/", "/shorts", "/musefm", "/episodes", "/musefm/shorts",
+    "/", "/shorts", "/musefm", "/episodes",
     "/musefm/photos", "/submit", "/upload", "/pet", "/shop",
     "/signal", "/links", "/api/docs",
     "/arena", "/playbook", "/pro", "/trustline",
 ]
+# /musefm/shorts route still exists (fullscreen player, linked from the /musefm
+# hub) but the duplicate sidebar link was deliberately dropped in 7caa312.
+ROUTES_WITH_SIDEBAR = ["/", "/musefm", "/episodes", "/shorts", "/musefm/shorts",
+                       "/signal", "/links", "/api/docs", "/pet", "/shop"]
 
 
 def main():
     client = setup()
 
     print("== sidebar renders everywhere ==")
-    for path in ("/", "/musefm", "/episodes", "/shorts", "/musefm/shorts",
-                 "/signal", "/links", "/api/docs", "/pet", "/shop"):
+    for path in ROUTES_WITH_SIDEBAR:
         html = client.get(path).get_data(as_text=True)
         check(f"sidebar on {path}", 'id="sidebar"' in html and 'class="sb-link' in html)
         missing = [h for h in SIDEBAR_LINKS if f'href="{h}"' not in html]
@@ -83,8 +86,10 @@ def main():
     check("episodes highlights Episodes",
           'class="sb-link active" href="/episodes"' in html)
     html = client.get("/musefm/shorts").get_data(as_text=True)
-    check("fm shorts highlights FM Shorts",
-          'class="sb-link active" href="/musefm/shorts"' in html)
+    # 7caa312: duplicate FM Shorts sidebar link deliberately dropped; the route
+    # itself still works as the fullscreen player and must NOT show the link.
+    check("fm shorts route renders", 'id="sidebar"' in html)
+    check("fm shorts sidebar link dropped", 'href="/musefm/shorts"' not in html)
 
     print("== fullscreen shorts chrome hidden via CSS ==")
     for path in ("/shorts", "/musefm/shorts"):
