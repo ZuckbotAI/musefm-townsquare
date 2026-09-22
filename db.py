@@ -71,10 +71,6 @@ BANNED_WORDS = [
 MAX_TITLE = 200
 MAX_BODY = 10000
 MAX_HANDLE = 32
-# Comment bodies (forum, video, episode — create AND edit) are capped here.
-# Oversize is REJECTED with a clear error, never silently truncated (P1
-# 2026-09-21). See clean_comment_body().
-COMMENT_BODY_MAX = 2000
 
 COMMUNITIES = [
     ("nightly", "Nightly",
@@ -196,24 +192,7 @@ def clean(s, limit, single_line=False):
         s = s.replace("\r\n", "\n").replace("\r", "\n")
         s = re.sub(r"[^\S\n]+", " ", s)
         s = re.sub(r"\n{3,}", "\n\n", s)
-    # limit=None: clean but do NOT truncate — lets callers detect oversize
-    # and reject loudly instead of silently losing the tail (P1 2026-09-21).
-    return s if limit is None else s[:limit]
-
-
-def clean_comment_body(body):
-    """Comment bodies: cleaned but NEVER silently truncated.
-
-    P1 2026-09-21: clean(body, 2000) cut the tail with a 200/302 success,
-    so users lost text without warning. Now raises ValueError on oversize
-    (>COMMENT_BODY_MAX); every route maps ValueError to a clear 400, so the
-    user sees "too long" and can trim instead of losing their words.
-    """
-    body = clean(body, None)
-    if len(body) > COMMENT_BODY_MAX:
-        raise ValueError("comment body too long — max %d characters" %
-                         COMMENT_BODY_MAX)
-    return body
+    return s[:limit]
 
 
 def valid_handle(h):

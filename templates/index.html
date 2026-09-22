@@ -238,19 +238,15 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
-<script src="{{ url_for('static', filename='js/short-cards.js') }}"></script>
 <script>
 /* Homepage mini shorts reel: the real reel UI shrunk into the spotlight
    frame. Autoplays the visible card (muted), tap for sound, inline
    comments with sort + top-level post + votes (reply/edit live in the
-   full feed, one tap away). Horizontal scroll loads more pages of the
-   SAME shuffled deck this page load minted (no repeats/skips). */
+   full feed, one tap away). */
 (function () {
   var feed = document.getElementById('miniReel');
   if (!feed) return;
   var LOGGED_IN = {{ 'true' if handle != 'anon' else 'false' }};
-  var miniSeed = {{ shorts_seed|tojson }};
-  var miniPage = 1, miniLoading = false, miniExhausted = false;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -432,47 +428,6 @@
     wireCard(card);
     wireComments(card);
     io.observe(card);
-  });
-
-  /* ---- horizontal load-more: same deck, next pages, no repeats ---- */
-  function loadMoreMini() {
-    if (miniLoading || miniExhausted) return;
-    miniLoading = true;
-    fetch('/api/shorts?limit=12&page=' + miniPage +
-      '&seed=' + encodeURIComponent(miniSeed))
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var items = (d.ok && d.items) || [];
-        items.forEach(function (it) {
-          var t = document.createElement('template');
-          t.innerHTML = ShortCards.cardHTML(it, {
-            loggedIn: LOGGED_IN,
-            loginNext: '/login?next=' + encodeURIComponent('/'),
-            rxnNext: '/'
-          }).trim();
-          var el = t.content.firstChild;
-          feed.appendChild(el);
-          wireCard(el);
-          wireComments(el);
-          io.observe(el);
-          if (window.wireRxnWidget) {
-            el.querySelectorAll('.rxn').forEach(window.wireRxnWidget);
-          }
-        });
-        if (items.length && d.next_page != null) {
-          miniPage = d.next_page;
-        } else {
-          miniExhausted = true;
-        }
-        miniLoading = false;
-      })
-      .catch(function () { miniLoading = false; });
-  }
-  feed.addEventListener('scroll', function () {
-    if (miniLoading || miniExhausted) return;
-    if (feed.scrollLeft + feed.clientWidth >= feed.scrollWidth - 400) {
-      loadMoreMini();
-    }
   });
 })();
 </script>
