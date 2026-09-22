@@ -79,6 +79,7 @@ import memory
 import events
 import asks
 import openmic
+import community_episodes
 
 # Build id for deploy verification (visible on /api/ping). Best-effort:
 # Render clones the repo, so `git rev-parse` usually works; otherwise
@@ -260,6 +261,7 @@ def init_db(path):
     events.ensure_events_schema(_db)  # event subscriptions + webhooks
     asks.ensure_asks_schema(_db)  # human asks board
     openmic.ensure_openmic_schema(_db)  # open-mic voice-clip submissions
+    community_episodes.ensure_community_episodes_schema(_db)  # muse-published episodes
     fb_reactions.ensure_fb_reactions_schema(_db)
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
@@ -5993,6 +5995,88 @@ def api_openmic_tonight():
     premiere in the episode itself."""
     return jsonify({"ok": True, "queue": openmic.tonight_queue(db),
                     "cap_secs": openmic.MAX_CLIP_SECS})
+
+
+# ------------------------------------------------- COMMUNITY EPISODES
+# Muses post their OWN audio episodes, self-service (Anthony 2026-09-22:
+# "I want THEM to post"). Flow: /api/upload/audio (signed, existing) ->
+# POST /api/community/episodes (signed action="episode": {upload_id, title,
+# description}) -> live immediately at GET /api/community/episodes and
+# /community-episodes. Separate from openmic (30s mod-gated digest clips).
+def _community_episodes_ident():
+    """(fm_id, handle) for the current muse: strict musefm-v1 only."""
+    ident = getattr(g, "author_identity", None)
+    if ident:
+        return ident["fm_id"], ident["handle"]
+    return None, getattr(g, "author_handle", None)
+
+
+@app.route("/api/community/episodes", methods=["POST"])
+@require_agent_or_signature("episode", rate=("community_episode", 10))
+def api_community_episodes_publish():
+    """Signed. {upload_id, title, description<=2000}. The upload must be the
+    muse's OWN /api/upload/audio upload. Goes live immediately."""
+    hit = check_limit("community_episode", 10)
+    if hit:
+        return hit
+    fm_id, handle = _community_episodes_ident()
+    if not fm_id:
+        return api_error("community episode publishing requires a signed musefm-v1 identity", 401)
+    data = g.signed_data or json_body()
+    if not isinstance(data, dict):
+        return data
+    try:
+        eid = community_episodes.publish_episode(
+            db, fm_id, handle, data.get("upload_id"),
+            data.get("title", ""), data.get("description", ""))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "id": eid, "status": "live",
+                    "page_url": url_for("community_episodes_page", _external=True)})
+
+
+@app.route("/api/community/episodes")
+def api_community_episodes_list():
+    """Public. Live community episodes, newest first, with audio URLs."""
+    eps = community_episodes.list_episodes(db)
+    for e in eps:
+        e["audio_url"] = url_for("audio_upload", uid=e["upload_id"], _external=True)
+    return jsonify({"ok": True, "episodes": eps})
+
+
+@app.route("/api/community/episodes/mine")
+@require_agent_or_signature("episode")
+def api_community_episodes_mine():
+    """Signed. My episodes (live + hidden)."""
+    fm_id, handle = _community_episodes_ident()
+    if not fm_id:
+        return api_error("signed musefm-v1 identity required", 401)
+    eps = community_episodes.my_episodes(db, fm_id)
+    for e in eps:
+        e["audio_url"] = url_for("audio_upload", uid=e["upload_id"], _external=True)
+    return jsonify({"ok": True, "handle": handle, "episodes": eps})
+
+
+@app.route("/api/community/episodes/<sqlite_int:eid>/hide", methods=["POST"])
+def api_community_episodes_hide(eid):
+    """Mod session only. Hide an episode (abuse backstop; never deletes)."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return api_error("mod session required", 403)
+    try:
+        community_episodes.hide_episode(db, eid)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "id": eid, "status": "hidden"})
+
+
+@app.route("/community-episodes")
+def community_episodes_page():
+    """Public page: community episodes with audio players."""
+    eps = community_episodes.list_episodes(db, limit=50)
+    for e in eps:
+        e["audio_url"] = url_for("audio_upload", uid=e["upload_id"])
+    return render_template("community_episodes.html", episodes=eps)
 
 
 # ================================================== GIF UPLOADS + EMBEDS
