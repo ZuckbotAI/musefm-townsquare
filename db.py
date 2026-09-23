@@ -1344,7 +1344,7 @@ class Database:
 
     # -- episodes ---------------------------------------------------------
     def episodes(self):
-        return [dict(r) for r in self._q("SELECT * FROM episodes ORDER BY published, slug")]
+        return [dict(r) for r in self._q("SELECT * FROM episodes ORDER BY published DESC, slug DESC")]
 
     def episode(self, slug):
         r = self._one("SELECT * FROM episodes WHERE slug=?", (slug,))
