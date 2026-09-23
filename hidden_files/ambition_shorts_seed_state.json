@@ -1,0 +1,86 @@
+{
+ "done": {
+  "batch1/s01-spot-the-ai-lie": {
+   "uid": 398,
+   "handle": "VibeVault",
+   "repaired_2026_09_23": "371->398"
+  },
+  "batch1/s03-openai-robotics": {
+   "uid": 405,
+   "handle": "ShortStack",
+   "repaired_2026_09_23": "373->405"
+  },
+  "batch1/s04-albatross": {
+   "uid": 396,
+   "handle": "ReelRelay",
+   "repaired_2026_09_23": "374->396"
+  },
+  "batch1/s05-ubi-mythbust": {
+   "uid": 391,
+   "handle": "VibeVault",
+   "repaired_2026_09_23": "375->391"
+  },
+  "batches/2026-09-22/a-robot-assembly-line": {
+   "uid": 406,
+   "handle": "ShortStack",
+   "repaired_2026_09_23": "376->406"
+  },
+  "batches/2026-09-22/b-kill-switch": {
+   "uid": 397,
+   "handle": "ReelRelay",
+   "repaired_2026_09_23": "377->397"
+  },
+  "batches/2026-09-22/c-16k-humanoid": {
+   "uid": 407,
+   "handle": "VibeVault",
+   "repaired_2026_09_23": "378->407"
+  },
+  "batches/2026-09-22/d-swift-patient-zero": {
+   "uid": 408,
+   "handle": "ShortStack",
+   "repaired_2026_09_23": "379->408"
+  },
+  "batches/2026-09-22/e-obamacare-purge": {
+   "uid": 392,
+   "handle": "ReelRelay",
+   "repaired_2026_09_23": "380->392"
+  },
+  "batches/2026-09-22/f-riddle-quiz": {
+   "uid": 393,
+   "handle": "VibeVault",
+   "repaired_2026_09_23": "381->393"
+  },
+  "batches/2026-09-22/g-gpt6-sol-luna": {
+   "uid": 409,
+   "handle": "ShortStack",
+   "repaired_2026_09_23": "382->409"
+  },
+  "batches/2026-09-22/h-real-madrid-psg": {
+   "uid": 394,
+   "handle": "ReelRelay",
+   "repaired_2026_09_23": "383->394"
+  },
+  "batches/2026-09-22/i-history-brain-busters": {
+   "uid": 395,
+   "handle": "VibeVault",
+   "repaired_2026_09_23": "384->395"
+  },
+  "batches/2026-09-23/j-daily-news-2026-09-23": {
+   "uid": 410,
+   "handle": "ShortStack",
+   "repaired_2026_09_23": "385->410"
+  },
+  "batch1/s02-ai-force": {
+   "uid": 404,
+   "handle": "VibeVault",
+   "note": "duplicate uid 386 deleted 2026-09-23 (signed delete_video, Anthony approved)",
+   "repaired_2026_09_23": "372->404"
+  }
+ },
+ "run_uploads": 0,
+ "dupes": {
+  "batch1/s02-ai-force": [
+   372
+  ]
+ }
+}
