@@ -117,8 +117,6 @@
     function run(action) {
       var boxes = checkedBoxes();
       if (!boxes.length) { say("Select something first."); return; }
-      if (action === "reject" &&
-          !window.confirm("Reject " + boxes.length + " selected upload(s)?")) return;
       var byKind = {};
       boxes.forEach(function (cb) {
         var k = cb.getAttribute("data-kind") || "video";
