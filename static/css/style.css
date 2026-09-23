@@ -1855,3 +1855,83 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .notif-text { margin: 0 0 4px; }
 .notif-meta { margin: 0; font-size: 12px; color: var(--text-3); }
 .notif-dot { flex: 0 0 auto; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--accent); }
+
+/* ================= waveform logo (real spoken-word envelope) ================= */
+:root { --wave-hi: #5fd4ff; --wave-lo: #0070c0; }
+[data-theme="dark"] { --wave-hi: #a5ecff; --wave-lo: #38d6ff; }
+.waveform-logo { display: inline-block; vertical-align: middle; }
+.fm-mark .waveform-logo { filter: drop-shadow(0 2px 10px rgba(0,144,231,.25)); }
+
+/* ================= orb dock — the orb's deliberate home ================= */
+.orb-dock {
+  position: fixed; top: 68px; right: 14px; width: 104px; height: 104px;
+  z-index: 2147482990; pointer-events: none; border-radius: 50%;
+}
+.orb-dock::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 68%);
+}
+.orb-dock .orb-dock-tag {
+  position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%);
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-3); white-space: nowrap;
+}
+/* the orb keeps its own pointer events inside the pointer-transparent dock */
+.orb-dock .muse-orb-wrap { pointer-events: auto; }
+.muse-orb-wrap.muse-orb-dockmanaged {
+  position: fixed !important; left: 0 !important; top: 0 !important; right: auto !important;
+  margin: 0 !important;
+  transition: transform .55s cubic-bezier(.2,.85,.3,1.18);
+  will-change: transform;
+}
+@media (max-width: 640px) {
+  .orb-dock { width: 76px; height: 76px; top: 64px; right: 10px; }
+  .orb-dock .orb-dock-tag { display: none; }
+}
+
+/* ================= homepage: Zuckbot Says section ================= */
+.zb-says { display: flex; gap: 18px; align-items: center; }
+.zb-says-stage { flex: 0 0 auto; }
+.zb-orb-stage {
+  width: 168px; height: 168px; border-radius: 50%; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.zb-orb-stage::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 40%, transparent);
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  transition: border-color .4s, box-shadow .4s;
+}
+.zb-orb-stage.orb-here::before {
+  border-style: solid; border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  box-shadow: 0 0 42px var(--accent-soft), inset 0 0 30px var(--accent-soft);
+}
+.zb-says-copy { flex: 1 1 auto; min-width: 0; }
+.zb-says-copy h2 { margin: 8px 0 6px; font-size: 22px; }
+.zb-quote { margin: 0 0 10px; }
+.zb-quote p {
+  margin: 0; font-size: 19px; line-height: 1.45; font-weight: 600; color: var(--text);
+  transition: opacity .3s ease;
+}
+.zb-quote p.zb-fade { opacity: 0; }
+.zb-quote-dots { display: flex; gap: 6px; margin: 0 0 12px; }
+.zb-quote-dots button {
+  width: 8px; height: 8px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  background: color-mix(in srgb, var(--text-3) 45%, transparent);
+}
+.zb-quote-dots button[aria-current="true"] { background: var(--accent); }
+@media (max-width: 640px) {
+  .zb-says { flex-direction: column; text-align: center; }
+  .zb-quote p { font-size: 17px; }
+  .zb-quote-dots { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .muse-orb-wrap.muse-orb-dockmanaged { transition: none; }
+  .zb-quote p { transition: none; }
+}
+/* dock ring dims while the orb is out visiting a page stage */
+.orb-dock.orb-away::before { opacity: .45; }
+/* hero waveform: wrap + shrink on narrow screens so the wordmark stays visible */
+.fm-brand { flex-wrap: wrap; }
+.fm-brand .waveform-logo { max-width: 100%; height: auto; }

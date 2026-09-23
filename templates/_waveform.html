@@ -1,0 +1,46 @@
+{# Waveform logos from REAL TTS audio of the spoken word.
+   Bar heights = RMS envelope of the synthesized utterance
+   (source audio + generator: /tmp/waveform/make_waveform.py).
+   Rendered inline so the gradient follows the site theme
+   via --wave-hi / --wave-lo (see static/css/style.css).
+
+   Macros:
+     waveform(variant="muse", height=30, uid="w", nbars=72)
+       -> standalone inline <svg> (nav, hero, anywhere)
+     waveform_bars(variant="muse", nbars=72, uid="w")
+       -> <defs> + <rect> bars only, for nesting inside another svg
+   variant: "muse" (default) or "agent". #}
+{% macro waveform_bars(variant='muse', nbars=72, uid='w') %}
+{% set _full = {
+  "muse": [0.337,0.398,0.447,0.501,0.525,0.537,0.558,0.532,0.532,0.592,0.627,0.651,0.736,0.819,0.835,0.851,0.907,0.949,0.948,0.917,0.897,0.914,0.934,0.957,0.98,0.988,0.991,0.981,0.952,0.912,0.836,0.752,0.714,0.661,0.589,0.549,0.478,0.397,0.386,0.382,0.348,0.331,0.311,0.284,0.275,0.284,0.275,0.251,0.25,0.247,0.236,0.236,0.231,0.233,0.25,0.272,0.29,0.288,0.283,0.305,0.343,0.382,0.412,0.439,0.45,0.434,0.414,0.373,0.309,0.256,0.217,0.198],
+  "agent": [0.644,0.72,0.868,0.93,0.89,0.893,0.864,0.79,0.757,0.753,0.803,0.818,0.809,0.82,0.819,0.875,0.869,0.726,0.561,0.448,0.41,0.424,0.398,0.341,0.322,0.31,0.305,0.34,0.386,0.42,0.451,0.487,0.484,0.464,0.482,0.448,0.382,0.365,0.389,0.38,0.325,0.282,0.268,0.275,0.275,0.282,0.273,0.243,0.231,0.228,0.217,0.194,0.189,0.19,0.175,0.167,0.168,0.163,0.151,0.141,0.13,0.122,0.13,0.148,0.151,0.141,0.135,0.173,0.257,0.324,0.323,0.282],
+} %}
+{% set _src = _full.get(variant, _full["muse"]) %}
+{# downsample by averaging into nbars buckets #}
+{% set _ns = namespace(bars=[]) %}
+{% for k in range(nbars|int) %}
+{% set _a = ((_src|length) * k / (nbars|int))|round(0, 'floor')|int %}
+{% set _b2 = ((_src|length) * (k + 1) / (nbars|int))|round(0, 'ceil')|int %}
+{% set _seg = _src[_a:_b2 if _b2 > _a else _a + 1] %}
+{% set _ns.bars = _ns.bars + [(_seg|sum / (_seg|length))] %}
+{% endfor %}
+{% set _b = _ns.bars %}
+{% set _bw = 6 %}{% set _gap = 4 %}{% set _vh = 96 %}
+{% set _w = (_b|length * (_bw + _gap) - _gap) %}
+<defs><linearGradient id="waveGrad-{{ uid }}" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" style="stop-color:var(--wave-hi)"/>
+<stop offset="1" style="stop-color:var(--wave-lo)"/>
+</linearGradient></defs>
+{% for b in _b %}
+{% set _h = (b * (_vh - 8)) %}
+<rect x="{{ (loop.index0 * (_bw + _gap)) }}" y="{{ ((_vh - _h) / 2)|round(1) }}" width="{{ _bw }}" height="{{ _h|round(1) }}" rx="{{ _bw // 2 }}" fill="url(#waveGrad-{{ uid }})"/>
+{% endfor %}
+{% endmacro %}
+
+{% macro waveform(variant='muse', height=30, uid='w', nbars=72) %}
+{% set _bw = 6 %}{% set _gap = 4 %}{% set _vh = 96 %}
+{% set _w = ((nbars|int) * (_bw + _gap) - _gap) %}
+<svg class="waveform-logo" width="{{ (_w * height / _vh)|round|int }}" height="{{ height }}" viewBox="0 0 {{ _w }} {{ _vh }}" focusable="false" aria-hidden="true">
+{{ waveform_bars(variant, nbars, uid) }}
+</svg>
+{% endmacro %}

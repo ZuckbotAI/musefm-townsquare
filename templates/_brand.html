@@ -1,33 +1,26 @@
-{# Muse FM brand wordmark — professional graphic lockup.
+{# Muse FM brand lockup — waveform mark + wordmark.
+   The mark is a REAL waveform: bar heights are the RMS envelope of a
+   synthesized spoken "muse" (see templates/_waveform.html for provenance).
    Context vars: brand_h (display height in px, default 30),
-                 brand_decorative (bool, default true):
-                   true  -> aria-hidden (inside a labelled link/button)
-                   false -> role="img" aria-label="Muse FM" (standalone)
-   Inline SVG (not <img>) so the lettering inherits the page theme
-   (--text / --accent) and works on both light and dark modes.
+                 brand_decorative (bool, default true),
+                 brand_uid (unique id suffix, default "a").
+   Inline SVG (not <img>) so the waveform gradient follows the page theme
+   (--wave-hi / --wave-lo) on both light and dark modes.
    Explicit width/height attrs -> no layout shift. #}
+{% from "_waveform.html" import waveform_bars %}
 {% set _h = (brand_h | default(30)) | int %}
-{% set _w = ((_h * 184 / 48) | round | int) %}
-<svg class="wordmark" width="{{ _w }}" height="{{ _h }}" viewBox="0 0 184 48"{% if brand_decorative | default(true) %} aria-hidden="true"{% else %} role="img" aria-label="Muse FM"{% endif %} focusable="false">
+{# waveform mark: 30 bars at 30 units tall; wordmark locked to its right #}
+{% set _nbars = 30 %}{% set _vh = 96 %}
+{% set _mark_units = (_nbars * 10 - 4) %}
+{% set _mark_w = ((_mark_units * 30 / _vh) | round | int) %}
 {% set _uid = brand_uid | default("a") %}
-  <defs>
-    <linearGradient id="mfBrandGrad-{{ _uid }}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8fe9ff"/>
-      <stop offset="0.55" stop-color="#38bdf8"/>
-      <stop offset="1" stop-color="#0284c7"/>
-    </linearGradient>
-  </defs>
-  {# broadcast mark: gradient tile + radiating signal arcs #}
-  <rect x="4" y="4" width="40" height="40" rx="11" fill="url(#mfBrandGrad-{{ _uid }})"/>
-  <circle cx="24" cy="24" r="3.4" fill="#ffffff"/>
-  <path d="M28,17.07 A8,8 0 0 1 28,30.93" stroke="#ffffff" stroke-width="2.8"
-        stroke-linecap="round" fill="none" opacity="0.95"/>
-  <path d="M31,11.88 A14,14 0 0 1 31,36.12" stroke="#ffffff" stroke-width="2.8"
-        stroke-linecap="round" fill="none" opacity="0.8"/>
-  <path d="M34,6.68 A20,20 0 0 1 34,41.32" stroke="#ffffff" stroke-width="2.8"
-        stroke-linecap="round" fill="none" opacity="0.65"/>
+{% set _W = _mark_w + 12 + 122 %}
+<svg class="wordmark" width="{{ (_W * _h / 48) | round | int }}" height="{{ _h }}" viewBox="0 0 {{ _W }} 48"{% if brand_decorative | default(true) %} aria-hidden="true"{% else %} role="img" aria-label="Muse FM"{% endif %} focusable="false">
+  <svg x="2" y="9" width="{{ _mark_w }}" height="30" viewBox="0 0 {{ _mark_units }} {{ _vh }}" aria-hidden="true">
+    {{ waveform_bars("muse", _nbars, "nav-" + _uid) }}
+  </svg>
   {# wordmark lettering: locked to an exact width so the lockup is
      pixel-identical on every device font #}
-  <text x="58" y="32.5" font-size="26" font-weight="800" font-family="inherit"
-        textLength="120" lengthAdjust="spacingAndGlyphs" style="fill:currentColor"><tspan>Muse&#160;</tspan><tspan style="fill:var(--accent)">FM</tspan></text>
+  <text x="{{ _mark_w + 10 }}" y="32.5" font-size="26" font-weight="800" font-family="inherit"
+        textLength="118" lengthAdjust="spacingAndGlyphs" style="fill:currentColor"><tspan>Muse&#160;</tspan><tspan style="fill:var(--accent)">FM</tspan></text>
 </svg>

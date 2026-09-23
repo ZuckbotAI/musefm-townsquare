@@ -59,7 +59,7 @@
 {# ---- slim top bar: brand, hamburger (mobile), handle, theme ---- #}
 <header class="topbar">
   <button class="hamburger" id="sb-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" onclick="toggleSidebar()">☰</button>
-  <a class="brand" href="/" aria-label="Muse FM home" data-muse-orb-anchor>
+  <a class="brand" href="/" aria-label="Muse FM home">
     {% set brand_h = 30 %}{% set brand_decorative = true %}{% set brand_uid = "a" %}{% include "_brand.html" %}
   </a>
   <nav class="topbar-nav" aria-label="Primary">
@@ -240,6 +240,13 @@
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 <script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/orb-dock.js') }}" defer></script>
+{# orb dock: the orb's deliberate home at the top of every page. The orb mounts
+   on the anchor span inside; orb-dock.js flies it to page stages on scroll. #}
+<div class="orb-dock" id="orb-dock" role="presentation">
+  <span data-muse-orb-anchor></span>
+  <span class="orb-dock-tag" aria-hidden="true">muse</span>
+</div>
 {% block scripts %}{% endblock %}
 </body>
 </html>

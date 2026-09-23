@@ -7,9 +7,12 @@ House rules for new quotes (same as the social drafts):
   - Boring and true beats good-sounding. One idea per quote.
   - Keep them short — a quote should fit in a glance.
 
-Append new quotes to QUOTES; the page renders them newest-first.
+Ordering contract (do not break): QUOTES is NEWEST-FIRST. New drops are
+PREPENDED (see the ANTHONY_QUOTES + QUOTES line at the bottom), and both
+/zuckbot-says and the homepage section render the list as-is. Never reverse
+it in a route — that was the 2026-09-22 ordering bug.
 
-Anthony's 20-quote drop (2026-09-22 ~22:48 CDT) is appended below as-is;
+Anthony's 20-quote drop (2026-09-22 ~22:48 CDT) is prepended below as-is;
 his #1, #2, and #3 already lived on the wall in near-identical form,
 so those three were skipped to avoid duplicates.
 """

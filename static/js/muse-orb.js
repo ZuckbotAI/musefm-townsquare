@@ -455,8 +455,8 @@
     var sparkles = [], particles = [];
     var nextSparkle = 0;
     var droplets = [
-      { a: 0.5, d: 30, r: 2.2 }, { a: 1.9, d: 31, r: 1.7 },
-      { a: 3.4, d: 29, r: 2.5 }, { a: 4.8, d: 31, r: 1.5 }, { a: 5.9, d: 30, r: 2.0 }
+      { a: 0.5, d: 16, r: 1.9 }, { a: 1.9, d: 15, r: 1.5 },
+      { a: 3.4, d: 18, r: 2.1 }, { a: 4.8, d: 16, r: 1.3 }, { a: 5.9, d: 17, r: 1.7 }
     ];
 
     function currentHour() {
@@ -611,8 +611,14 @@
     }
     function positionSatellites() {
       var n = agents.length;
+      // fan toward open space: the hub usually lives in a top header, so arc
+      // downward when the hub is in the top half of the viewport (otherwise
+      // the top satellites render off-screen), upward when it's low.
+      var wr = wrap.getBoundingClientRect();
+      var base = (wr.top + wr.height / 2) < window.innerHeight * 0.5
+        ? Math.PI / 2 : -Math.PI / 2;
       for (var i = 0; i < n; i++) {
-        var ang = -Math.PI / 2 + (n === 1 ? 0 : (i / (n - 1) - 0.5) * Math.PI * 0.9);
+        var ang = base + (n === 1 ? 0 : (i / (n - 1) - 0.5) * Math.PI * 0.9);
         var rad = ORB_SIZE * 0.95;
         agents[i].fx = Math.cos(ang) * rad;
         agents[i].fy = Math.sin(ang) * rad;
@@ -695,8 +701,8 @@
 
     /* ------------------------------------------------------- render: FX 2D
      * Character + effects layer over the living glass: visor, amber eyes
-     * (gaze, blink, sleep), tiny water arms, droplets, sparkles, and the
-     * state signatures — listening ring, thinking orbits, working streams. */
+     * (gaze, blink, sleep), droplets, sparkles, and the state signatures —
+     * listening ring, thinking orbits, working streams. */
     function drawEye(ex, ey, look, p, t, st) {
       var ox = look.x * 3.4, oy = look.y * 2.6;
       if (p === 'happy' || p === 'playful') {
@@ -711,25 +717,34 @@
         fx.shadowBlur = 0;
         return;
       }
-      var glowR = (p === 'attentive' || st === 'listening') ? 9 : 8;
+      // clarity pass: tighter glow, defined core edge — the eye should read as
+      // an eyeball with a halo, not a fog ball. Glow stays subtle under the core.
+      var glowR = (p === 'attentive' || st === 'listening') ? 7 : 6;
       var g = fx.createRadialGradient(ex + ox, ey + oy, 0, ex + ox, ey + oy, glowR);
-      g.addColorStop(0, 'rgba(255,205,110,.95)');
-      g.addColorStop(0.45, 'rgba(255,165,70,.55)');
+      g.addColorStop(0, 'rgba(255,205,110,.9)');
+      g.addColorStop(0.55, 'rgba(255,165,70,.35)');
       g.addColorStop(1, 'rgba(255,150,60,0)');
       fx.fillStyle = g;
       fx.beginPath();
       fx.arc(ex + ox, ey + oy, glowR, 0, Math.PI * 2);
       fx.fill();
-      var coreR = (p === 'attentive' || st === 'listening') ? 4.1 : 3.4;
-      if (st === 'thinking') coreR = 2.6;
-      if (st === 'speaking') coreR = 3.4 + Math.sin(t * 14) * 0.7; // waveform shimmer
+      var coreR = (p === 'attentive' || st === 'listening') ? 4.1 : 3.6;
+      if (st === 'thinking') coreR = 2.8;
+      if (st === 'speaking') coreR = 3.6 + Math.sin(t * 14) * 0.7; // waveform shimmer
+      coreR = Math.max(coreR, 1.2);
       fx.fillStyle = '#ffd98a';
       fx.beginPath();
-      fx.arc(ex + ox, ey + oy, Math.max(coreR, 1.2), 0, Math.PI * 2);
+      fx.arc(ex + ox, ey + oy, coreR, 0, Math.PI * 2);
       fx.fill();
+      // crisp rim so the core edge reads instead of bleeding into the glow
+      fx.strokeStyle = 'rgba(150,75,15,.6)';
+      fx.lineWidth = 1;
+      fx.beginPath();
+      fx.arc(ex + ox, ey + oy, coreR - 0.5, 0, Math.PI * 2);
+      fx.stroke();
       fx.fillStyle = '#fff7e0';
       fx.beginPath();
-      fx.arc(ex + ox - 1, ey + oy - 1, 1.3, 0, Math.PI * 2);
+      fx.arc(ex + ox - 1, ey + oy - 1, 1.4, 0, Math.PI * 2);
       fx.fill();
     }
 
@@ -742,22 +757,6 @@
       var bs = 1 + Math.sin(t * (sleeping ? 0.9 : 2.3)) * breathe;
       fx.scale(bs, 1 / Math.sqrt(bs)); // breathing volume, subtle
       fx.translate(-cx, -cy);
-
-      // tiny water arms — canonical silhouette, gently waving
-      if (!reduced) {
-        var wave = Math.sin(t * 2.1) * 1.4;
-        fx.fillStyle = 'rgba(150,205,245,.5)';
-        fx.save();
-        fx.translate(cx - 20, cy + 13 + wave);
-        fx.rotate(-0.45 + Math.sin(t * 2.1) * 0.08);
-        fx.beginPath(); fx.ellipse(0, 0, 6.2, 3.8, 0, 0, Math.PI * 2); fx.fill();
-        fx.restore();
-        fx.save();
-        fx.translate(cx + 20, cy + 13 - wave);
-        fx.rotate(0.45 - Math.sin(t * 2.1) * 0.08);
-        fx.beginPath(); fx.ellipse(0, 0, 6.2, 3.8, 0, 0, Math.PI * 2); fx.fill();
-        fx.restore();
-      }
 
       // visor
       var vg = fx.createLinearGradient(0, cy - 11, 0, cy + 12);
@@ -802,14 +801,21 @@
         fx.stroke();
       }
 
-      // thinking: gentle orbiting particles
+      // thinking: gentle orbiting particles, skimming the glass surface.
+      // Brighter violet with a short trail so they read as "thinking", never
+      // confused with the glass droplets underneath.
       if ((p === 'thinking' || st === 'thinking') && !reduced) {
         for (var i = 0; i < 5; i++) {
           var oa = t * 4 + i * Math.PI * 2 / 5;
-          fx.fillStyle = 'rgba(150,170,255,.9)';
-          fx.beginPath();
-          fx.arc(cx + Math.cos(oa) * 30, cy + Math.sin(oa) * 30, 1.8, 0, Math.PI * 2);
-          fx.fill();
+          for (var tr = 0; tr < 3; tr++) {
+            var ta = oa - tr * 0.35;
+            fx.fillStyle = tr === 0 ? 'rgba(178,152,255,.95)'
+              : (tr === 1 ? 'rgba(178,152,255,.4)' : 'rgba(178,152,255,.16)');
+            fx.beginPath();
+            fx.arc(cx + Math.cos(ta) * 24.5, cy + Math.sin(ta) * 24.5,
+              tr === 0 ? 2 : 1.5, 0, Math.PI * 2);
+            fx.fill();
+          }
         }
       }
 
@@ -827,8 +833,10 @@
         }
       }
 
-      // droplets on the glass
-      if (!reduced) {
+      // droplets on the glass — 2D layer only for the no-WebGL fallback.
+      // In the WebGL path the glass shader already drifts 5 droplets with
+      // glints; drawing both layers doubled them into visual noise.
+      if (!reduced && !hasGL) {
         for (var k = 0; k < droplets.length; k++) {
           var d = droplets[k];
           var da = d.a + t * 0.22;
@@ -844,19 +852,26 @@
         }
       }
 
-      // sparkles
+      // sparkles — glass glints only, never over the face (a white cross on the
+      // visor reads as a glitch, not a sparkle). Kept small and delicate.
       if (!reduced) {
         if (t > nextSparkle) {
           var sa = Math.random() * Math.PI * 2, sr = Math.random() * (R - 4);
-          sparkles.push({ x: cx + Math.cos(sa) * sr, y: cy + Math.sin(sa) * sr, born: t });
+          var sx = cx + Math.cos(sa) * sr, sy = cy + Math.sin(sa) * sr;
+          // resample once if it landed on the visor
+          if (Math.pow((sx - cx) / 17, 2) + Math.pow((sy - cy - 1) / 13, 2) < 1) {
+            sa = Math.random() * Math.PI * 2; sr = 20 + Math.random() * (R - 24);
+            sx = cx + Math.cos(sa) * sr; sy = cy + Math.sin(sa) * sr;
+          }
+          sparkles.push({ x: sx, y: sy, born: t });
           nextSparkle = t + 1.6 + Math.random() * 1.8;
         }
         for (var s = sparkles.length - 1; s >= 0; s--) {
           var sp = sparkles[s], age = t - sp.born, life = 0.7;
           if (age > life) { sparkles.splice(s, 1); continue; }
-          var al = 1 - age / life, sl = 3.4 * (age < life / 2 ? age / (life / 2) : 1 - (age - life / 2) / (life / 2));
-          fx.strokeStyle = 'rgba(255,255,255,' + (al * 0.9).toFixed(2) + ')';
-          fx.lineWidth = 1.2;
+          var al = 1 - age / life, sl = 2.2 * (age < life / 2 ? age / (life / 2) : 1 - (age - life / 2) / (life / 2));
+          fx.strokeStyle = 'rgba(255,255,255,' + (al * 0.85).toFixed(2) + ')';
+          fx.lineWidth = 1;
           fx.beginPath();
           fx.moveTo(sp.x - sl, sp.y); fx.lineTo(sp.x + sl, sp.y);
           fx.moveTo(sp.x, sp.y - sl); fx.lineTo(sp.x, sp.y + sl);
@@ -1033,6 +1048,7 @@
         } catch (err) { /* private mode */ }
         setPose('happy', 1200);
         poke(3.2);
+        if (fanOpen) positionSatellites(); // hub moved — re-aim the fan
       } else {
         poke(3.5);
         togglePanel();
