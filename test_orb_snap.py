@@ -10,7 +10,9 @@ The orb lives in orb-dock.js with three states:
 Hard constraints verified here:
   - no placeholder outlines anywhere (no dashed dock ring, no dashed stage ring)
   - no standalone /zuckbot-says page (301 -> /), sayings only via orb clicks
-  - drag-to-place retired (tap-only orb)
+  - drag-to-place re-enabled (2026-09-23, Anthony): drag becomes a user
+    offset on the dock's current target; offset drops on dock state change
+    or double-click re-sync
   - no emotional anthropomorphism of the orb in templates/static copy
 
 Run:  python3 test_orb_snap.py
@@ -50,11 +52,20 @@ def main():
           brand_pos != -1 and home_pos != -1 and 0 < home_pos - brand_pos < 800)
     check("old fixed dock div is gone", 'class="orb-dock"' not in base and 'id="orb-dock"' not in base)
 
-    # --- drag retired, tap-only ---
-    check("draggable:false option set", "MuseOrbOptions" in base and "draggable" in base)
+    # --- drag re-enabled (2026-09-23, Anthony), dock-aware ---
+    check("draggable:true option set", "MuseOrbOptions.draggable = true" in base)
     check("orb core honors draggable option", "options.draggable !== false" in orb_js)
-    check("tap-only never engages drag", "if (!draggable) return;" in orb_js)
-    check("stale drag positions cleared", "removeItem(STORAGE_KEY)" in orb_js)
+    check("drag moves via transform when dock-managed", "dockBase()" in orb_js)
+    check("drag kills fly transition while dragging",
+          "wrap.style.transition = 'none'" in orb_js)
+    check("drop hands the offset to the dock", "dock.setOffset(dropDx, dropDy)" in orb_js)
+    check("no stale-position restore fighting the dock",
+          "localStorage.getItem(STORAGE_KEY)" not in orb_js)
+    check("dock exposes the drag handoff", "window.MuseOrbDock" in dock_js)
+    check("dock skips placement mid-drag", "muse-orb-dragging" in dock_js)
+    check("dock drops the offset on state change", "lastWhere" in dock_js)
+    check("double-click clears the drag offset",
+          "off.dx = 0; off.dy = 0;" in dock_js)
     check("no 'drag me' copy", "Drag me" not in orb_js)
 
     # --- three states in orb-dock.js ---

@@ -243,10 +243,12 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
-{# orb: click/tap opens the sayings dialogue. Drag-to-place is retired
-   (2026-09-23, Anthony's spec): the orb is managed by orb-dock.js —
-   home by the logo button, floating on scroll, into the hero for sayings. #}
-<script>window.MuseOrbOptions = window.MuseOrbOptions || {}; window.MuseOrbOptions.draggable = false;</script>
+{# orb: click/tap opens the sayings dialogue; drag-to-place is back
+   (2026-09-23, Anthony): the orb is managed by orb-dock.js — home by the
+   logo button, floating on scroll, into the hero for sayings — and the
+   user can drag it anywhere; the offset holds until the dock changes
+   state or the orb is double-clicked home. #}
+<script>window.MuseOrbOptions = window.MuseOrbOptions || {}; window.MuseOrbOptions.draggable = true;</script>
 <script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/orb-dock.js') }}" defer></script>
 {% block scripts %}{% endblock %}

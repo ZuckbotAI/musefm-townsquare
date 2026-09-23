@@ -10,8 +10,10 @@
  *    "Muse FM" logo button in the top bar.
  *
  * No placeholder outlines anywhere: the home anchor and the hero stage are
- * invisible layout boxes only. Drag-to-place is retired (the orb is
- * tap-only); double-click re-syncs the orb to the state machine.
+ * invisible layout boxes only. Drag-to-place is back (2026-09-23, Anthony):
+ * the user can drag the orb anywhere; the offset persists while the dock
+ * stays in the same state (hero/float/home) and is dropped when the state
+ * changes or on double-click re-sync.
  * prefers-reduced-motion: instant placement, no flying.
  * The wrap is a direct child of <body> and moves via transform only, so it
  * never disturbs page layout.
@@ -32,6 +34,9 @@
 
   var wrap = null;
   var lastKey = null; // last placed target, to avoid redundant transforms
+  var lastWhere = null; // last dock state; a state change drops the drag offset
+  var base = null; // last un-offset dock target {x, y, s} — drag math reads this
+  var off = { dx: 0, dy: 0 }; // user drag offset, px (viewport)
 
   function stage() { return $('#hero-orb-stage'); }
   function home() { return $('#orb-home'); }
@@ -75,9 +80,19 @@
 
   function place(instant) {
     if (!wrap) return;
+    // hands off while the user is mid-drag — muse-orb.js drives the transform
+    if (wrap.classList.contains('muse-orb-dragging')) return;
     var t = target();
-    var x = Math.round(t.cx - (ORB * t.s) / 2);
-    var y = Math.round(t.cy - (ORB * t.s) / 2);
+    if (t.where !== lastWhere) {
+      // new dock state: drop any user drag offset, snap to the fresh target
+      off.dx = 0; off.dy = 0;
+      lastWhere = t.where;
+    }
+    var bx = Math.round(t.cx - (ORB * t.s) / 2);
+    var by = Math.round(t.cy - (ORB * t.s) / 2);
+    base = { x: bx, y: by, s: t.s };
+    var x = bx + off.dx;
+    var y = by + off.dy;
     var key = t.where + ':' + x + ',' + y + ',' + t.s;
     if (key === lastKey && !instant) return;
     lastKey = key;
@@ -110,14 +125,32 @@
     if (reduced) wrap.style.transition = 'none'; // no flying, instant snaps
     // double-click = the orb's own "send home" -> re-sync to the state machine
     // (the core re-inserts the wrap beside its anchor on send-home, so pull
-    // it back out to <body> here too).
+    // it back out to <body> here too). A re-sync also drops the drag offset.
     wrap.addEventListener('dblclick', function () {
       ensureOnBody();
+      off.dx = 0; off.dy = 0;
       lastKey = null;
       setTimeout(function () { place(true); }, 60);
     });
     place(true);
     wrap.style.visibility = 'visible';
+
+    // drag handoff for muse-orb.js: the core moves the wrap via transform
+    // while dragging (transition killed), then hands the final offset here.
+    window.MuseOrbDock = {
+      getBase: function () { return base; },
+      setOffset: function (dx, dy) {
+        off.dx = Math.round(dx) || 0;
+        off.dy = Math.round(dy) || 0;
+        lastKey = null;
+        place(true);
+      },
+      clearOffset: function () {
+        off.dx = 0; off.dy = 0;
+        lastKey = null;
+        place(true);
+      }
+    };
   }
 
   function boot() {

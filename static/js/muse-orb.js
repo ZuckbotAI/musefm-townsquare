@@ -243,8 +243,11 @@
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var proactive = !!options.proactive;   // stage 4: off unless the host opts in
     var timeOverride = (typeof options.timeOverride === 'number') ? options.timeOverride : null;
-    // draggable:false = tap-only mode (2026-09-23): drag-to-place is retired;
-    // presses still open the sayings dialogue, but the orb never moves itself.
+    // draggable (2026-09-23, Anthony): drag-to-place is back. When the dock
+    // (orb-dock.js) manages the orb, a drag becomes a user offset on the
+    // dock's current target; the offset persists until the dock changes
+    // state or the user double-clicks to re-sync. Without the dock, the
+    // orb drags freely via left/top like the original easter egg.
     var draggable = options.draggable !== false;
 
     // --- anchor: find the logo ---
@@ -1069,17 +1072,29 @@
       requestAnimationFrame(frame);
     }
 
-    /* -------------------------------------------------- drag (retired 2026-09-23:
-     * drag-to-place is off site-wide — the orb is managed by orb-dock.js.
-     * In tap-only mode presses still open the sayings dialogue (endDrag
-     * treats every press as a tap); the drag branch below never engages. */
+    /* -------------------------------------------------- drag (2026-09-23:
+     * drag-to-place is back — the orb is dock-managed by orb-dock.js, so a
+     * drag moves the wrap via transform as a user offset on the dock's
+     * current target (see window.MuseOrbDock). A plain press still opens
+     * the sayings dialogue via endDrag's tap path. */
     var drag = null;
+    // dock-managed moves: read the dock's current un-offset target so the
+    // drag delta applies cleanly on top of it. Null when the dock isn't
+    // managing this wrap (legacy free-drag mode).
+    function dockBase() {
+      var d = window.MuseOrbDock;
+      if (d && wrap.classList.contains('muse-orb-dockmanaged')) {
+        var b = d.getBase();
+        if (b && typeof b.x === 'number') return b;
+      }
+      return null;
+    }
     fxCanvas.addEventListener('pointerdown', function (e) {
       hideSays();
       poke(-2.5);
       if (sleeping) { sleeping = false; setPose('happy', 800); }
-      drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0 };
-      if (!draggable) return; // tap-only: track the press, never engage drag
+      drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0, ddx: 0, ddy: 0 };
+      if (!draggable) return; // tap-only host: track the press, never drag
       e.preventDefault();
       var rc = wrap.getBoundingClientRect();
       drag.ox = e.clientX - rc.left;
@@ -1091,23 +1106,46 @@
       if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
         drag.moved = true;
         wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
+        // kill the dock's fly transition while dragging — the orb must
+        // track the pointer 1:1 (restored on drop)
+        wrap.style.transition = 'none';
         setPose('playful');
       }
       if (drag.moved) {
-        wrap.style.left = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, e.clientX - drag.ox)) + 'px';
-        wrap.style.top = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, e.clientY - drag.oy)) + 'px';
-        wrap.style.right = 'auto';
+        var b = dockBase();
+        if (b) {
+          var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+          drag.ddx = dx; drag.ddy = dy;
+          wrap.style.transform =
+            'translate(' + Math.round(b.x + dx) + 'px,' + Math.round(b.y + dy) +
+            'px) scale(' + b.s + ')';
+        } else {
+          wrap.style.left = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, e.clientX - drag.ox)) + 'px';
+          wrap.style.top = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, e.clientY - drag.oy)) + 'px';
+          wrap.style.right = 'auto';
+        }
       }
     });
     function endDrag(e) {
       if (!drag) return;
       var wasDrag = drag.moved;
+      var dropDx = drag.ddx, dropDy = drag.ddy;
       drag = null;
       wrap.classList.remove('muse-orb-dragging');
       if (wasDrag) {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: wrap.style.left, y: wrap.style.top }));
-        } catch (err) { /* private mode */ }
+        wrap.style.transition = ''; // dock fly transition back on
+        var dock = window.MuseOrbDock;
+        if (dock && wrap.classList.contains('muse-orb-dockmanaged')) {
+          // dock-managed: the drop point becomes a user offset on the
+          // dock's target (persists until state change / double-click)
+          wrap.classList.remove('muse-orb-fixed'); // dock owns positioning
+          dock.setOffset(dropDx, dropDy);
+        } else {
+          // legacy free mode: persist the dropped spot
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: wrap.style.left, y: wrap.style.top }));
+          } catch (err) { /* private mode */ }
+        }
         setPose('happy', 1200);
         poke(3.2);
         if (fanOpen) positionSatellites(); // hub moved — re-aim the fan
@@ -1136,28 +1174,11 @@
       if (panelOpen) positionPanel();
     }
 
-    // retired drag spots: a stale saved position must never strand the orb
-    // once drag-to-place is off (2026-09-23) — clear it once and ignore.
-    if (!draggable) {
-      try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
-    }
-    if (draggable) try {
-      var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (saved && typeof saved.x === 'string') {
-        var sx = parseFloat(saved.x), sy = parseFloat(saved.y);
-        if (isFinite(sx) && isFinite(sy)) {
-          // clamp: a position saved on a bigger screen must never strand
-          // the orb off-viewport (2026-09-22: invisible orb + empty dock
-          // ring overlapping content on mobile)
-          sx = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, sx));
-          sy = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, sy));
-          wrap.classList.add('muse-orb-fixed');
-          document.body.appendChild(wrap);
-          wrap.style.left = sx + 'px';
-          wrap.style.top = sy + 'px';
-        }
-      }
-    } catch (err) {}
+    // no saved-position restore: the dock (orb-dock.js) owns placement on
+    // this site and a stale left/top would compose with its transform and
+    // strand the orb. Drag offsets are session-only by design; double-click
+    // re-syncs. (Legacy free mode without the dock keeps its own
+    // localStorage save in endDrag.)
 
     /* ------------------------------------------------------------- panel */
     var panelOpen = false;
