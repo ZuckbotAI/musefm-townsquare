@@ -564,10 +564,17 @@ def require_agent_or_signature(action, rate=None):
             # 400s (parse failure) instead of 401ing as "musefm-v1 auth
             # failed" — a broken body is a client error, not an auth
             # failure.
+            # P2 2026-09-23 12:35 loop: the old `if request.data` check
+            # missed non-JSON bodies entirely — with a form content type,
+            # Werkzeug routes the body into request.form, leaving
+            # request.data empty, so garbage 401'd as "auth failed".
+            # Check the raw body bytes instead (before request.form is
+            # ever parsed); any present body must parse as JSON.
             data = None
-            if request.data:
+            raw = request.get_data(cache=True)
+            if raw:
                 try:
-                    data = request.get_json(force=True)
+                    data = json.loads(raw)
                 except Exception:
                     return api_error("Malformed JSON body", 400)
             data = data or {}
@@ -1070,11 +1077,16 @@ def home():
     shorts = _short_items(shorts)
     _attach_short_sig(shorts, _sig_web_reactor())
     _shorts_mark_seen([s["id"] for s in shorts])
+    # Hero dialogue bubble: a server-rendered Zuckbot saying next to the orb.
+    # Clicking the orb swaps in a fresh one via /api/zuckbot-says/random.
+    from zuckbot_quotes import QUOTES as _HERO_QUOTES
+    hero_saying = secrets.choice(_HERO_QUOTES)["text"] if _HERO_QUOTES else ""
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
+                           hero_saying=hero_saying,
                            # Tidepals homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            tidepal_promo_svg=pet_svg(
@@ -6540,15 +6552,6 @@ def serve_video(uid):
         return "nope", 404
     resp = send_file(full, mimetype=u["mime"] or "video/mp4", conditional=True,
                      download_name=u["filename"] or f"vid-{uid}")
-    resp.headers["X-Worker-Pid"] = str(os.getpid())  # TEMP diagnostic
-    try:
-        import threading as _th
-        resp.headers["X-Thread-Id"] = str(_th.get_ident())  # TEMP diagnostic
-        _direct = db._one("SELECT id, title FROM video_uploads WHERE id=?", (int(uid),))
-        resp.headers["X-Direct-Repr"] = repr(dict(_direct) if _direct else None)[:120]
-        resp.headers["X-GetUpload-Repr"] = repr({k: (v[:40] if isinstance(v, str) else v) for k, v in u.items() if k in ("id", "title", "status")})[:120]
-    except Exception as _e:
-        resp.headers["X-Direct-Repr"] = "ERR:" + str(_e)[:80]
     return resp
 
 
