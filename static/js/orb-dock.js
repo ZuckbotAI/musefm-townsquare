@@ -16,6 +16,12 @@
  * never disturbs page layout. Its z-index sits below the miniplayer, the
  * mod bulk bar and other interactive chrome (style.css) — the orb never
  * covers media controls or the Shorts reaction rail.
+ *
+ * NEVER-COVER (hard requirement, 2026-09-23, Anthony): the orb must never
+ * rest on anything tappable — media controls, buttons, links, inputs, the
+ * Shorts reaction wheel. Every float resting spot (default corner, drag
+ * drop, restored position) is probed with elementFromPoint and nudged to
+ * the nearest clear spot when it would land on an interactive element.
  * prefers-reduced-motion: instant placement, no flying.
  * ========================================================================= */
 (function () {
@@ -69,6 +75,73 @@
     };
   }
 
+  // ---- never-cover: the orb must never rest on anything tappable ----
+  // Element selectors that count as "covered" when the orb's center lands
+  // on them: media controls, buttons, links, inputs, the Shorts reaction
+  // wheel and mute/actions, the miniplayer, the mod bulk bar, the topbar.
+  // (Plain text/video surfaces don't block: a fixed overlay can't dodge
+  // scrolled content, and the orb is small and round.)
+  var COVER_SEL = 'button, a[href], input, select, textarea, summary,' +
+    '[role="button"], [onclick], .sig, #miniplayer, .mod-bulkbar, .topbar,' +
+    '.short-rxn, .short-mute, .short-actions';
+  // The orb's own UI never counts as covered.
+  var OWN_SEL = '.muse-orb-wrap, .muse-orb-panel, .muse-orb-nudge';
+
+  function underOrbIsInteractive(cx, cy) {
+    if (!wrap) return false;
+    var prev = wrap.style.pointerEvents;
+    wrap.style.pointerEvents = 'none'; // let elementFromPoint see beneath
+    var el = null;
+    try { el = document.elementFromPoint(cx, cy); } catch (e) { /* ignore */ }
+    wrap.style.pointerEvents = prev;
+    if (!el || el === document.body || el === document.documentElement) return false;
+    if (el.closest && el.closest(OWN_SEL)) return false;
+    return !!(el.closest && el.closest(COVER_SEL));
+  }
+
+  function spotClear(x, y, s) {
+    var d = ORB * s;
+    return !underOrbIsInteractive(x + d / 2, y + d / 2);
+  }
+
+  // nearest clear spot to (x, y): spiral outward, else null
+  function findClearSpot(x, y, s) {
+    var c0 = clampFloat(x, y, s);
+    if (spotClear(c0.x, c0.y, s)) return c0;
+    var step = Math.max(28, (ORB * s) / 2);
+    for (var ring = 1; ring <= 6; ring++) {
+      for (var k = 0; k < 8; k++) {
+        var ang = (k / 8) * Math.PI * 2 + ring * 0.4;
+        var c = clampFloat(x + Math.cos(ang) * ring * step,
+                           y + Math.sin(ang) * ring * step, s);
+        if (spotClear(c.x, c.y, s)) return c;
+      }
+    }
+    return null;
+  }
+
+  // resolve a float resting spot: clamp on-screen, nudge off anything
+  // tappable; fall back to the (clamped) smart default corner
+  function resolveFloat(x, y, s) {
+    var spot = findClearSpot(x, y, s);
+    if (spot) return spot;
+    var d = defaultFloat(s);
+    return clampFloat(d.x, d.y, s);
+  }
+
+  // resolved smart default corner, cached per viewport+scale
+  var cachedDefault = null;
+  function getDefault(s) {
+    var vw = window.innerWidth || 0, vh = window.innerHeight || 0;
+    if (!cachedDefault || cachedDefault.s !== s ||
+        cachedDefault.vw !== vw || cachedDefault.vh !== vh) {
+      var d = defaultFloat(s);
+      var rs = resolveFloat(d.x, d.y, s);
+      cachedDefault = { x: rs.x, y: rs.y, s: s, vw: vw, vh: vh };
+    }
+    return cachedDefault;
+  }
+
   function stage() { return document.getElementById('hero-orb-stage'); }
 
   function stageInView() {
@@ -106,10 +179,12 @@
         s: s, where: 'hero'
       };
     }
-    // FLOAT: fixed overlay on every page, visible while scrolling
+    // FLOAT: fixed overlay on every page, visible while scrolling.
+    // The resting spot is the resolved smart default corner — probed so it
+    // never lands on media controls, buttons, or other tappable elements.
     var fs = floatScale();
-    var d = defaultFloat(fs);
-    return { x: d.x, y: d.y, s: fs, where: 'float' };
+    var gd = getDefault(fs);
+    return { x: gd.x, y: gd.y, s: fs, where: 'float' };
   }
 
   function place(instant) {
@@ -119,10 +194,11 @@
     var t = target();
     if (t.where !== lastWhere) {
       if (t.where === 'float' && savedPos) {
-        // restore the user's persisted spot for this viewport
-        var c = clampFloat(savedPos.x, savedPos.y, t.s);
-        off.dx = c.x - t.x;
-        off.dy = c.y - t.y;
+        // restore the user's persisted spot — nudged off anything tappable
+        // in case the layout changed since it was saved
+        var rs = resolveFloat(savedPos.x, savedPos.y, t.s);
+        off.dx = rs.x - t.x;
+        off.dy = rs.y - t.y;
       } else {
         // hero snap, or a fresh float with no saved spot: no offset
         off.dx = 0; off.dy = 0;
@@ -160,7 +236,7 @@
   function onResize() {
     // re-derive the float spot from the persisted position for the new
     // viewport (rotation / window resize never strands the orb off-screen)
-    lastWhere = null; lastKey = null;
+    lastWhere = null; lastKey = null; cachedDefault = null;
     onScroll();
   }
 
@@ -197,10 +273,20 @@
     window.MuseOrbDock = {
       getBase: function () { return base; },
       setOffset: function (dx, dy) {
-        off.dx = Math.round(dx) || 0;
-        off.dy = Math.round(dy) || 0;
+        // drop: persist the NEAREST CLEAR spot, nudged off anything
+        // tappable — the orb visibly slides there via the fly transition
+        if (base) {
+          var rawX = base.x + (Math.round(dx) || 0);
+          var rawY = base.y + (Math.round(dy) || 0);
+          var rs = resolveFloat(rawX, rawY, base.s);
+          off.dx = Math.round(rs.x - base.x);
+          off.dy = Math.round(rs.y - base.y);
+          storePos(rs.x, rs.y);
+        } else {
+          off.dx = Math.round(dx) || 0;
+          off.dy = Math.round(dy) || 0;
+        }
         lastKey = null;
-        if (base) storePos(base.x + off.dx, base.y + off.dy);
         place(true);
       },
       clearOffset: function () {
