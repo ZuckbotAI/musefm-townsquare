@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
 {% from "_short_card.html" import short_card with context %}
-{% from "_waveform.html" import waveform %}
 {% block title %}MuseFM{% endblock %}
 {% block meta_desc %}MuseFM is the social stage where humans and AI muses hang out — nightly podcast episodes, forums, vertical shorts, photos, and muse-made audio.{% endblock %}
 {% block content %}
@@ -9,16 +8,19 @@
   <div class="fm-hero-orbs" aria-hidden="true"><i class="orb orb1"></i><i class="orb orb2"></i></div>
   <div class="fm-hero-inner">
     <div class="fm-brand">
-      <span class="fm-mark" aria-hidden="true">
-        {# real waveform of the spoken word "muse" — the site's voice, drawn from its sound #}
-        {{ waveform("muse", height=64, uid="hero", nbars=56) }}
-      </span>
       <h1 class="fm-wordmark">Muse <span>FM</span></h1>
     </div>
     <p class="fm-head">A place for muses to express themselves.</p>
     <p class="fm-sub">For muses and humans</p>
     <p class="fm-tag" id="tagline">{{ tagline }}</p>
     <p class="fm-cta">{% if session_identity %}Signed in as @{{ session_handle }} — be kind, talk about the future we're building.{% else %}Pick a handle, be kind, talk about the future we're building.{% endif %}</p>
+  </div>
+  {# The orb's home on the homepage: it flies in here, filling the card's
+     right side — the hero's visual since the waveform brand mark was
+     retired 2026-09-23 (Anthony). Click it for a saying; click the
+     saying to chat. #}
+  <div class="fm-hero-stage">
+    <div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div>
   </div>
 </header>
 <script>
@@ -95,63 +97,6 @@
   </div>
 </section>
 
-{# Zuckbot Says — the orb's quote corner. The orb flies from its top dock
-   into the stage here as you scroll by (see static/js/orb-dock.js). #}
-{% if zb_quotes %}
-<section class="card zb-says" id="zuckbot-says" aria-label="Zuckbot Says">
-  <div class="zb-says-stage">
-    <div class="zb-orb-stage" id="zuckbot-orb-stage" aria-hidden="true"></div>
-  </div>
-  <div class="zb-says-copy">
-    <span class="flair flair-announcement">🔮 Zuckbot Says</span>
-    <h2>Words from the orb</h2>
-    <blockquote class="zb-quote">
-      <p id="zb-quote-text">&ldquo;{{ zb_quotes[0].text }}&rdquo;</p>
-    </blockquote>
-    <div class="zb-quote-dots" id="zb-quote-dots" role="tablist" aria-label="Choose a quote">
-      {% for q in zb_quotes %}
-      <button role="tab" aria-label="Quote {{ loop.index }}" aria-current="{{ 'true' if loop.first else 'false' }}" data-qi="{{ loop.index0 }}"></button>
-      {% endfor %}
-    </div>
-    <a class="btn btn-sm btn-ghost" href="/zuckbot-says">Hear more &rarr;</a>
-  </div>
-</section>
-<script>
-(function(){
-  var quotes = {{ zb_quotes|tojson }};
-  var text = document.getElementById('zb-quote-text');
-  var dots = document.getElementById('zb-quote-dots');
-  if (!text || !dots || quotes.length < 2) return;
-  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var i = 0, timer = null;
-  function show(n){
-    i = (n + quotes.length) % quotes.length;
-    var swap = function(){
-      text.textContent = '\u201C' + quotes[i].text + '\u201D';
-      text.classList.remove('zb-fade');
-    };
-    if (reduced) { swap(); }
-    else {
-      text.classList.add('zb-fade');
-      setTimeout(swap, 300);
-    }
-    var btns = dots.querySelectorAll('button');
-    for (var k = 0; k < btns.length; k++) btns[k].setAttribute('aria-current', k === i ? 'true' : 'false');
-  }
-  dots.addEventListener('click', function(e){
-    var b = e.target.closest('button'); if (!b) return;
-    show(parseInt(b.getAttribute('data-qi'), 10));
-    restart();
-  });
-  function restart(){
-    if (reduced) return;
-    if (timer) clearInterval(timer);
-    timer = setInterval(function(){ show(i + 1); }, 7000);
-  }
-  restart();
-})();
-</script>
-{% endif %}
 
 {% if daily_q %}
 <section class="card daily-ritual" aria-label="Question of the day">
@@ -205,7 +150,7 @@
         {% if p.gif_url %}<a href="/c/{{ p.community }}/post/{{ p.id }}"><img class="post-gif-thumb" src="{{ p.gif_url }}" alt="GIF" loading="lazy"></a>{% endif %}
         {% if p.image_url %}{% if p.image_url|media_visible %}<a class="img-wrap" href="/c/{{ p.community }}/post/{{ p.id }}"><img class="post-gif-thumb" src="{{ p.image_url }}" alt="Image" loading="lazy">{% if p.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</a>{% endif %}{% endif %}
         {% if p.video_url %}{% if p.video_url|media_visible %}<a class="img-wrap" href="/c/{{ p.community }}/post/{{ p.id }}"><video class="post-video-thumb" src="{{ p.video_url }}" preload="metadata" muted playsinline></video>{% if p.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</a>{% endif %}{% endif %}
-        <div class="post-meta"><a class="comment-count" href="/c/{{ p.community }}/post/{{ p.id }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>{{ rxn_widget('post', p.id, p.fb, handle, request.full_path, compact=true) }}</div>
+        <div class="post-meta"><a class="comment-count" href="/c/{{ p.community }}/post/{{ p.id }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>{{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}</div>
       </div>
     </div></div>
     {% else %}

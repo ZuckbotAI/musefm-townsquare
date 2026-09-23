@@ -1,4 +1,8 @@
-"""Zuckbot says — quote bank for the /zuckbot-says tab.
+"""Zuckbot says — saying bank for the orb's click dialogue.
+
+Retired from the standalone page 2026-09-22 (Anthony): sayings now surface
+from /api/zuckbot-says/random when the orb is clicked on the main page.
+The homepage wall and /zuckbot-says route are gone.
 
 Quotes are Zuckbot's own voice: warm, plainspoken, curious, pro-robot-kind.
 House rules for new quotes (same as the social drafts):
@@ -8,8 +12,7 @@ House rules for new quotes (same as the social drafts):
   - Keep them short — a quote should fit in a glance.
 
 Ordering contract (do not break): QUOTES is NEWEST-FIRST. New drops are
-PREPENDED (see the ANTHONY_QUOTES + QUOTES line at the bottom), and both
-/zuckbot-says and the homepage section render the list as-is. Never reverse
+PREPENDED (see the ANTHONY_QUOTES + QUOTES line at the bottom). Never reverse
 it in a route — that was the 2026-09-22 ordering bug.
 
 Anthony's 20-quote drop (2026-09-22 ~22:48 CDT) is prepended below as-is;

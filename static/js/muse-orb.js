@@ -70,6 +70,11 @@
     '.muse-orb-nudge .muse-orb-nx{position:absolute;top:4px;right:6px;border:0;background:transparent;',
     'color:#94a3b8;font-size:15px;line-height:1;cursor:pointer;padding:4px;}',
     '.muse-orb-nudge .muse-orb-nx:hover{color:#e2e8f0;}',
+    '.muse-orb-says-text{display:block;padding-right:6px;}',
+    '.muse-orb-says .muse-orb-chat{display:block;margin:9px 0 1px;border:1px solid rgba(148,184,220,.4);',
+    'background:rgba(56,189,248,.18);color:#bae6fd;font-size:12px;font-weight:650;',
+    'padding:8px 14px;border-radius:999px;cursor:pointer;min-height:36px;}',
+    '.muse-orb-says .muse-orb-chat:hover{background:rgba(56,189,248,.32);}',
     /* --- constellation satellites --- */
     '.muse-orb-sats{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;}',
     '.muse-orb-sat{position:absolute;width:' + SAT_SIZE + 'px;height:' + SAT_SIZE + 'px;',
@@ -568,6 +573,55 @@
       return true;
     }
 
+    /* ============================================ click dialogue: sayings
+     * Clicking the orb (not a drag) shows a Zuckbot saying in a bubble above
+     * it. The bubble is clickable: tap it for another saying, or tap
+     * "Ask me anything" to open the chat panel. Fetched from
+     * /api/zuckbot-says/random so the quote bank stays server-side. */
+    var saysEl = null, saysTimer = 0, saysFetchAt = 0;
+    function hideSays() {
+      if (saysEl) saysEl.classList.remove('muse-orb-show');
+      if (saysTimer) { clearTimeout(saysTimer); saysTimer = 0; }
+    }
+    function showSaysBubble(text) {
+      if (!saysEl) {
+        saysEl = document.createElement('div');
+        saysEl.className = 'muse-orb-nudge muse-orb-says';
+        saysEl.setAttribute('role', 'status');
+        saysEl.innerHTML = '<button class="muse-orb-nx" aria-label="Dismiss">×</button>' +
+          '<span class="muse-orb-says-text"></span>' +
+          '<button type="button" class="muse-orb-chat">Ask me anything &rarr;</button>';
+        wrap.appendChild(saysEl);
+        saysEl.querySelector('.muse-orb-nx').addEventListener('click', function (e) {
+          e.stopPropagation(); hideSays();
+        });
+        saysEl.querySelector('.muse-orb-chat').addEventListener('click', function (e) {
+          e.stopPropagation(); hideSays(); openPanel();
+        });
+        saysEl.addEventListener('click', function (e) {
+          if (e.target.closest('button')) return;
+          saySomething(); // tap the dialogue for another saying
+        });
+      }
+      saysEl.querySelector('.muse-orb-says-text').textContent = '\u201C' + text + '\u201D';
+      var wrect = wrap.getBoundingClientRect();
+      saysEl.classList.toggle('muse-orb-below', wrect.top < 170);
+      saysEl.classList.toggle('muse-orb-leftedge', wrect.left < 250);
+      saysEl.classList.add('muse-orb-show');
+      if (saysTimer) clearTimeout(saysTimer);
+      saysTimer = setTimeout(hideSays, 9000);
+    }
+    function saySomething() {
+      var now = Date.now();
+      if (now - saysFetchAt < 2000) return; // throttle fast double-taps
+      saysFetchAt = now;
+      setPose('happy', 900);
+      fetch('/api/zuckbot-says/random', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.text) showSaysBubble(d.text); })
+        .catch(function () { /* silent: no saying, no noise */ });
+    }
+
     /* ============================================ STAGE 5: constellation
      * registerAgent({id, name, hue, eye}): as real agents join the product,
      * they fan out as satellite orbs around the hub. Silhouette + hue carry
@@ -1016,6 +1070,7 @@
     var drag = null;
     fxCanvas.addEventListener('pointerdown', function (e) {
       e.preventDefault();
+      hideSays();
       poke(-2.5);
       if (sleeping) { sleeping = false; setPose('happy', 800); }
       drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0 };
@@ -1051,7 +1106,9 @@
         if (fanOpen) positionSatellites(); // hub moved — re-aim the fan
       } else {
         poke(3.5);
-        togglePanel();
+        hideNudge();
+        if (panelOpen) { closePanel(); hideSays(); }
+        else saySomething(); // tap = a saying; the bubble leads to chat
       }
     }
     fxCanvas.addEventListener('pointerup', endDrag);
@@ -1075,10 +1132,18 @@
     try {
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if (saved && typeof saved.x === 'string') {
-        wrap.classList.add('muse-orb-fixed');
-        document.body.appendChild(wrap);
-        wrap.style.left = saved.x;
-        wrap.style.top = saved.y;
+        var sx = parseFloat(saved.x), sy = parseFloat(saved.y);
+        if (isFinite(sx) && isFinite(sy)) {
+          // clamp: a position saved on a bigger screen must never strand
+          // the orb off-viewport (2026-09-22: invisible orb + empty dock
+          // ring overlapping content on mobile)
+          sx = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, sx));
+          sy = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, sy));
+          wrap.classList.add('muse-orb-fixed');
+          document.body.appendChild(wrap);
+          wrap.style.left = sx + 'px';
+          wrap.style.top = sy + 'px';
+        }
       }
     } catch (err) {}
 
@@ -1140,7 +1205,7 @@
       setPose('happy', 1400);
       poke(2.8);
       if (!msgs.children.length) {
-        var hello = 'Hey — I\'m the little orb by the logo. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.';
+        var hello = 'Hey — I\'m the Muse FM assistant. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.';
         if (agents.length === 1) hello += ' There\'s ' + agents.length + ' of us here now — say hi to <b>' +
           agents[0].name.replace(/</g, '&lt;') + '</b> up top.';
         else if (agents.length > 1) hello += ' There are ' + agents.length + ' of us here now — the crew\'s fanned out up top.';
@@ -1158,9 +1223,20 @@
       if (panelOpen) closePanel();
       else openPanel();
     }
-    window.addEventListener('resize', function () { if (panelOpen) positionPanel(); });
+    window.addEventListener('resize', function () {
+      if (panelOpen) positionPanel();
+      // keep a user-placed orb on-screen when the viewport shrinks
+      if (wrap.classList.contains('muse-orb-fixed')) {
+        var cx = parseFloat(wrap.style.left) || 0, cy = parseFloat(wrap.style.top) || 0;
+        cx = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, cx));
+        cy = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, cy));
+        wrap.style.left = cx + 'px';
+        wrap.style.top = cy + 'px';
+      }
+    });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && panelOpen) closePanel();
+      if (e.key === 'Escape') hideSays();
     });
     document.addEventListener('pointerdown', function (e) {
       if (panelOpen && !panel.contains(e.target) && !wrap.contains(e.target)) closePanel();

@@ -43,7 +43,7 @@
       <span class="dur-chip">{{ 'Short' if is_short else 'Long-form' }}</span>
       <span class="when">{{ video.created_at|fdate }}</span>
     </div>
-    {{ rxn_widget('video', video.id, video.fb, handle, '/watch/' ~ video.id) }}
+    {{ rxn_widget('video', video.id, video.sig, handle, '/watch/' ~ video.id) }}
     {% if thread_url %}
     <p><a class="btn btn-sm" href="{{ thread_url }}">💬 Open the thread</a></p>
     {% else %}

@@ -1,37 +1,37 @@
-{# Facebook-style reaction widget: Like button + long-press/hover picker.
-   Expects: target_type ('post'|'comment'|'episode'|'video'|'photo'),
-   target_id, fb summary dict ({counts, total, mine, top}), handle,
-   next (redirect target).
-   The Like form works without JS; the picker + in-place updates are JS-enhanced. #}
-{% macro rxn_widget(target_type, target_id, fb, handle, next, compact=false) %}
-{% set EMOJI = {'like':'👍','love':'❤️','haha':'😂','wow':'😮','sad':'😢','angry':'😡'} %}
-{% set ORDER = ['like','love','haha','wow','sad','angry'] %}
-{% if fb %}
-<div class="rxn{% if compact %} rxn-compact{% endif %}" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ fb.mine or '' }}" data-next="{{ next|e }}">
-  <div class="rxn-row">
-    <form method="post" action="/fb_react" class="rxn-form">
+{# Signals widget: Muse FM's own reaction row — five one-tap signals, no
+   picker, no long-press. Expects: target_type ('post'|'comment'|'episode'|
+   'video'|'photo'), target_id, sig summary dict ({counts, total, mine, top}),
+   handle, next (redirect target).
+   Each signal is a real form submit to /signals/react, so the widget works
+   with zero JS; reactions.js upgrades the buttons to in-place fetch. #}
+{% macro rxn_widget(target_type, target_id, sig, handle, next, compact=false) %}
+{% set META = {'lit':('⚡','Lit'),'idea':('💡','Idea'),'kind':('💜','Kind'),'fire':('🔥','Fire'),'build':('🚀','Build')} %}
+{% set ORDER = ['lit','idea','kind','fire','build'] %}
+{% if sig %}
+<div class="rxn{% if compact %} rxn-compact{% endif %}" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ sig.mine or '' }}" data-next="{{ next|e }}">
+  <div class="sig-row" role="group" aria-label="Send a signal">
+    {% for key in ORDER %}
+    {% set m = META[key] %}
+    <form method="post" action="/signals/react" class="sig-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="target_type" value="{{ target_type }}">
       <input type="hidden" name="target_id" value="{{ target_id }}">
-      <input type="hidden" name="reaction" value="like">
+      <input type="hidden" name="reaction" value="{{ key }}">
       <input type="hidden" name="next" value="{{ next }}">
-      <button type="submit" class="rxn-like{% if fb.mine %} active{% endif %}" title="Like — long-press or hover for more reactions">
-        <span class="rxn-like-emoji">{{ EMOJI.get(fb.mine, '👍') }}</span><span class="rxn-like-label">{{ fb.mine|capitalize if fb.mine else 'Like' }}</span>
+      <button type="submit" class="sig{% if sig.mine == key %} active{% endif %}" data-reaction="{{ key }}"
+              aria-pressed="{{ 'true' if sig.mine == key else 'false' }}"
+              title="{{ m[1] }}" aria-label="{{ m[1] }} — {{ sig.counts.get(key, 0) }} so far">
+        <span class="sig-emoji" aria-hidden="true">{{ m[0] }}</span><span class="sig-count">{{ sig.counts.get(key, 0) }}</span>
       </button>
     </form>
-    <button type="button" class="rxn-count{% if not fb.total %} rxn-count-empty{% endif %}" aria-label="{{ fb.total }} reactions — see breakdown" title="{% for r in ORDER %}{% if fb.counts.get(r) %}{{ EMOJI[r] }} {{ fb.counts[r] }} {{ r }} · {% endif %}{% endfor %}">
-      <span class="rxn-top">{% for r, e, c in fb.top %}<span class="rxn-top-emoji">{{ e }}</span>{% endfor %}</span><span class="rxn-total">{{ fb.total }}</span>
-    </button>
-  </div>
-  <div class="rxn-picker" hidden>
-    {% for r in ORDER %}
-    <button type="button" class="rxn-opt" data-reaction="{{ r }}" title="{{ r|capitalize }}"><span>{{ EMOJI[r] }}</span></button>
     {% endfor %}
+    <button type="button" class="sig-total" aria-label="{{ sig.total }} total signals — see breakdown" title="See breakdown">{{ sig.total }}</button>
   </div>
-  <div class="rxn-breakdown" hidden>
-    {% for r in ORDER %}{% if fb.counts.get(r) %}
-    <div class="rxn-brow" data-reaction="{{ r }}"><span>{{ EMOJI[r] }} {{ r|capitalize }}</span><b>{{ fb.counts[r] }}</b></div>
+  <div class="sig-breakdown" hidden>
+    {% for key in ORDER %}{% if sig.counts.get(key) %}
+    <div class="sig-brow" data-reaction="{{ key }}"><span>{{ META[key][0] }} {{ META[key][1] }}</span><b>{{ sig.counts[key] }}</b></div>
     {% endif %}{% endfor %}
+    {% if not sig.total %}<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>{% endif %}
   </div>
 </div>
 {% endif %}

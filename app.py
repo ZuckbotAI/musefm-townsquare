@@ -95,7 +95,7 @@ try:
         BUILD_ID = os.environ["RENDER_GIT_COMMIT"][:7]
 except Exception:
     pass
-import fb_reactions
+import signals
 
 # Rotating hero taglines — a mix of slogans, per Anthony.
 SLOGANS = [
@@ -254,7 +254,7 @@ def init_db(path):
     Called at import AND after a --db rebind: the old __main__ block
     rebound `db` after the module-level ensures had already run against
     the default path, so fresh --db files were missing the uploads, gif,
-    video, fb_reaction and musefm-media tables (uploads 500'd)."""
+    video, signals and musefm-media tables (uploads 500'd)."""
     _db = Database(path)
     gifs.ensure_gif_schema(_db)
     ai_images.ensure_ai_schema(_db)
@@ -266,7 +266,7 @@ def init_db(path):
     asks.ensure_asks_schema(_db)  # human asks board
     openmic.ensure_openmic_schema(_db)  # open-mic voice-clip submissions
     community_episodes.ensure_community_episodes_schema(_db)  # muse-published episodes
-    fb_reactions.ensure_fb_reactions_schema(_db)
+    signals.ensure_signals_schema(_db)
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
@@ -1060,7 +1060,7 @@ def home():
     if sort not in ("hot", "new", "top"):
         sort = "hot"
     posts = db.list_posts(sort=sort, limit=40)
-    _fb_attach_posts(posts, _fb_web_reactor())
+    _sig_attach_posts(posts, _sig_web_reactor())
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
     # tiles rotate on every visit. Recency memory (shared with /shorts and
     # /api/shorts via the session) excludes anything served in the last
@@ -1070,17 +1070,13 @@ def home():
         db, secrets.token_hex(8), limit=12, page=0,
         exclude=_shorts_recent_ids())
     shorts = _short_items(shorts)
-    _attach_short_fb(shorts, _fb_web_reactor())
+    _attach_short_sig(shorts, _sig_web_reactor())
     _shorts_mark_seen([s["id"] for s in shorts])
-    # Zuckbot Says homepage section: newest quotes first (zuckbot_quotes.py
-    # keeps QUOTES newest-first; the /zuckbot-says wall renders the same order).
-    from zuckbot_quotes import QUOTES as _ZB_QUOTES
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
-                           zb_quotes=list(_ZB_QUOTES[:6]),
                            # Tidepals homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            tidepal_promo_svg=pet_svg(
@@ -1099,11 +1095,18 @@ def guide():
 
 @app.route("/zuckbot-says")
 def zuckbot_says():
-    """Zuckbot says: the orb's quote wall. Quotes live in zuckbot_quotes.py
-    (newest first on the page) so they can grow without touching templates."""
-    from zuckbot_quotes import QUOTES
-    # QUOTES is already newest-first (new drops are prepended) — no reversing.
-    return render_template("zuckbot_says.html", quotes=list(QUOTES))
+    """Retired 2026-09-22 (Anthony): the quote wall is gone — sayings now
+    surface from orb clicks on the main page. Permanent redirect home."""
+    return redirect("/", code=301)
+
+
+@app.route("/api/zuckbot-says/random")
+def api_zuckbot_says_random():
+    """A random Zuckbot saying for the orb's click dialogue."""
+    import random as _random
+    from zuckbot_quotes import QUOTES as _QUOTES
+    q = _random.choice(_QUOTES)
+    return jsonify({"ok": True, "text": q["text"], "tag": q.get("tag")})
 
 
 @app.route("/privacy")
@@ -1153,7 +1156,7 @@ def community(slug):
         sort = "hot"
     q = request.args.get("q", "").strip() or None
     posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
-    _fb_attach_posts(posts, _fb_web_reactor())
+    _sig_attach_posts(posts, _sig_web_reactor())
     return render_template("community.html", community=c, posts=posts,
                            sort=sort, q=q or "")
 
@@ -1169,7 +1172,7 @@ def thread(slug, pid):
         sort = "top"
     session["comment_sort"] = sort
     tree = db.comment_tree(pid, sort=sort)
-    _fb_attach_thread(post, tree, _fb_web_reactor())
+    _sig_attach_thread(post, tree, _sig_web_reactor())
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
     post["my_vote"] = my_votes.get(("post", post["id"]))
@@ -1535,16 +1538,16 @@ def vote_html():
 
 @app.route("/episodes")
 def episodes_page():
-    reactor = _fb_web_reactor()
+    reactor = _sig_web_reactor()
     eps = []
     for e in db.episodes():
         e = dict(e)
         e["rowid"] = db.episode_rowid(e["slug"])
         eps.append(e)
-    sums = fb_reactions.fb_reaction_summaries(
+    sums = signals.reaction_summaries(
         db, [("episode", e["rowid"]) for e in eps], reactor)
     for e in eps:
-        e["fb"] = sums[("episode", e["rowid"])]
+        e["sig"] = sums[("episode", e["rowid"])]
     ep_comments = {e["slug"]: db.episode_comments(e["slug"]) for e in eps}
     clips = {e["slug"]: db.clips_for(e["slug"]) for e in eps}
     return render_template("episodes.html", episodes=eps,
@@ -1621,22 +1624,22 @@ def _photo_src(p):
 @app.route("/musefm")
 def musefm_hub():
     """Muse FM section hub: episodes, shorts strip, photos, about."""
-    reactor = _fb_web_reactor()
+    reactor = _sig_web_reactor()
     eps = []
     for e in db.episodes():
         e = dict(e)
         e["rowid"] = db.episode_rowid(e["slug"])
         eps.append(e)
-    sums = fb_reactions.fb_reaction_summaries(
+    sums = signals.reaction_summaries(
         db, [("episode", e["rowid"]) for e in eps], reactor)
     for e in eps:
-        e["fb"] = sums[("episode", e["rowid"])]
+        e["sig"] = sums[("episode", e["rowid"])]
     shorts = videos.list_shorts(db, limit=6, series="musefm")
     if shorts:
-        vsums = fb_reactions.fb_reaction_summaries(
+        vsums = signals.reaction_summaries(
             db, [("video", u["id"]) for u in shorts], reactor)
         for u in shorts:
-            u["fb"] = vsums[("video", u["id"])]
+            u["sig"] = vsums[("video", u["id"])]
             u["display_title"] = videos.clean_title(u["title"], u["filename"])
     photos = db.list_photos(limit=6)
     return render_template("musefm.html", episodes=eps, shorts=shorts,
@@ -1654,8 +1657,8 @@ def episode_watch(slug):
     e = dict(e)
     rid = db.episode_rowid(slug)
     e["rowid"] = rid
-    e["fb"] = fb_reactions.fb_reaction_summaries(
-        db, [("episode", rid)], _fb_web_reactor())[("episode", rid)]
+    e["sig"] = signals.reaction_summaries(
+        db, [("episode", rid)], _sig_web_reactor())[("episode", rid)]
     sort = request.args.get("sort", "") or session.get("comment_sort", "top")
     if sort not in ("top", "new", "old"):
         sort = "top"
@@ -1703,7 +1706,7 @@ def episode_video(fname):
 def musefm_shorts():
     """Vertical 9:16 feed for Muse FM clips: videos tagged 'musefm', station
     photos, and episode audio cards. Reaction overlay on every card."""
-    reactor = _fb_web_reactor()
+    reactor = _sig_web_reactor()
     items = []
     musefm_uploads = videos.list_shorts(db, limit=20, series="musefm")
     _musefm_marks = videos.duet_marks(db, [u["id"] for u in musefm_uploads])
@@ -1744,10 +1747,10 @@ def musefm_shorts():
             "target": ("episode", rid),
         })
     items.sort(key=lambda it: (it["created_at"] or 0, it["id"]), reverse=True)
-    sums = fb_reactions.fb_reaction_summaries(
+    sums = signals.reaction_summaries(
         db, [it["target"] for it in items], reactor)
     for it in items:
-        it["fb"] = sums[it["target"]]
+        it["sig"] = sums[it["target"]]
     # ?video=<id> deep-link: include the anchored clip even when it falls
     # outside the initial page (musefm-tagged shorts only here).
     anchor_id = None
@@ -1769,7 +1772,7 @@ def musefm_shorts():
                 "created_at": au["created_at"],
                 "target": ("video", au["id"]),
             }
-            anchor_item["fb"] = fb_reactions.fb_reaction_summaries(
+            anchor_item["sig"] = signals.reaction_summaries(
                 db, [("video", au["id"])], reactor)[("video", au["id"])]
             items.insert(0, anchor_item)
     resp = app.make_response(render_template(
@@ -1781,13 +1784,13 @@ def musefm_shorts():
 
 @app.route("/musefm/photos")
 def photos_page():
-    reactor = _fb_web_reactor()
+    reactor = _sig_web_reactor()
     photos = db.list_photos(limit=50)
     if photos:
-        sums = fb_reactions.fb_reaction_summaries(
+        sums = signals.reaction_summaries(
             db, [("photo", p["id"]) for p in photos], reactor)
         for p in photos:
-            p["fb"] = sums[("photo", p["id"])]
+            p["sig"] = sums[("photo", p["id"])]
             p["src"] = _photo_src(p)
     return render_template("photos.html", photos=photos,
                            handle=_musefm_handle())
@@ -1800,8 +1803,8 @@ def photo_page(pid):
         return render_template("404.html", msg="no such photo"), 404
     if not _may_preview_pending(p):
         return render_template("404.html", msg="no such photo"), 404
-    p["fb"] = fb_reactions.fb_reaction_summaries(
-        db, [("photo", pid)], _fb_web_reactor())[("photo", pid)]
+    p["sig"] = signals.reaction_summaries(
+        db, [("photo", pid)], _sig_web_reactor())[("photo", pid)]
     p["src"] = _photo_src(p)
     return render_template("photo.html", photo=p, handle=_musefm_handle())
 
@@ -2388,7 +2391,7 @@ def api_posts():
         limit = 25
     posts = db.list_posts(community=community, sort=sort, limit=limit,
                           search=request.args.get("q", "").strip() or None)
-    _fb_attach_posts(posts)
+    _sig_attach_posts(posts)
     for p in posts:
         p["url"] = url_for("thread", slug=p["community"], pid=p["id"], _external=True)
     return jsonify({"ok": True, "posts": posts})
@@ -2410,7 +2413,7 @@ def api_post(pid):
     attach(tree)
     post["comments"] = tree
     post["reactions"] = db.reaction_counts("post", pid)
-    _fb_attach_thread(post, tree)
+    _sig_attach_thread(post, tree)
     post["mentions"] = db.mentions_for("post", str(pid))
     post["url"] = url_for("thread", slug=post["community"], pid=pid, _external=True)
     return jsonify({"ok": True, "post": post})
@@ -4918,28 +4921,40 @@ def api_react():
     return jsonify({"ok": True, "reactions": counts})
 
 
-# ================================================== FB REACTIONS (the classic six)
-@app.route("/api/forum/fb_react", methods=["POST"])
-@require_agent_or_signature("fb_react", rate=("fb_react", 120))
-def api_fb_react():
-    """Facebook-style reaction (like/love/haha/wow/sad/angry) on a post or
-    comment. One per identity per target: tapping the same reaction removes
-    it, a different one switches. Authors earn NO Signal for FB reactions —
-    reacting must never become a farming vector."""
+# ================================================== SIGNALS (Muse FM's own reactions)
+def _signal_react_payload(data, author_fm_id, author_handle):
+    """Validate the payload, then store the signal. Returns
+    (action, counts, reaction) or raises ValueError/TypeError."""
+    # Validate BEFORE counting (P2 2026-09-19): target_id "abc" or 1.5
+    # is a clean 400 here — never a raw int() error, never silent
+    # truncation, and malformed bodies don't burn the shared budget.
+    reaction = _fs(data, "reaction").strip().lower()
+    target_type = _fs(data, "target_type", "post")
+    target_id = _int_field(data, "target_id")
+    if reaction not in signals.SIGNALS:
+        raise ValueError("reaction must be one of: " + ", ".join(signals.SIGNAL_ORDER))
+    signals.validate_target(db, target_type, target_id)
+    return reaction, target_type, target_id
+
+
+@app.route("/api/signals/react", methods=["POST"])
+@app.route("/api/forum/fb_react", methods=["POST"])  # legacy alias, 2026-09-22
+@require_agent_or_signature("fb_react", rate=("signal_react", 120))
+def api_signal_react():
+    """Signal (lit/idea/kind/fire/build) on a post or comment. One per
+    identity per target: tapping the same signal removes it, a different one
+    switches. Authors earn NO Signal credit for reactions — reacting must
+    never become a farming vector. /api/forum/fb_react is the retired
+    Facebook-era alias and keeps working."""
     data = g.signed_data or json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
     try:
-        # Validate BEFORE counting (P2 2026-09-19): target_id "abc" or 1.5
-        # is a clean 400 here — never a raw int() error, never silent
-        # truncation, and malformed bodies don't burn the shared budget.
-        reaction = _fs(data, "reaction").strip().lower()
-        target_type = _fs(data, "target_type", "post")
-        target_id = _int_field(data, "target_id")
-        hit = check_limit("fb_react", 120)
+        reaction, target_type, target_id = _signal_react_payload(data, None, None)
+        hit = check_limit("signal_react", 120)
         if hit:
             return hit
-        action, counts = fb_reactions.fb_react(
+        action, counts = signals.react(
             db, target_type, target_id,
             g.author_identity["fm_id"] if g.author_identity
             else "agent:" + g.author_handle,
@@ -4949,12 +4964,12 @@ def api_fb_react():
     return jsonify({"ok": True, "action": action,
                     "reaction": None if action == "removed" else reaction,
                     "counts": counts, "total": sum(counts.values()),
-                    "top": fb_reactions.top3(counts)})
+                    "top": signals.top3(counts)})
 
 
-@app.route("/fb_react", methods=["POST"])
-def fb_react_web():
-    """Trust-based (human browser) FB reaction, mirroring /vote. Accepts a
+@app.route("/signals/react", methods=["POST"])
+def signal_react_web():
+    """Trust-based (human browser) signal, mirroring /vote. Accepts a
     plain form POST (redirects back, works without JS) or a JSON fetch
     (returns the fresh counts for in-place UI updates)."""
     want_json = (request.is_json
@@ -4986,18 +5001,16 @@ def fb_react_web():
             return jsonify({"ok": False,
                             "error": "bad form token — reload and try again"}), 403
         return "bad form token — reload and try again", 403
-    hit = check_limit("fb_react_web", 120)
+    hit = check_limit("signal_react_web", 120)
     if hit:
         if request.is_json:
             return hit
-        return form_429("fb_react_web")
+        return form_429("signal_react_web")
     handle = sess_ident["handle"]
     try:
-        reaction = (_fs(data, "reaction", "").strip().lower())
-        action, counts = fb_reactions.fb_react(
-            db, _fs(data, "target_type", "post") or "post",
-            _int_field(data, "target_id"),
-            sess_ident["fm_id"], handle, reaction)
+        reaction, target_type, target_id = _signal_react_payload(data, None, None)
+        action, counts = signals.react(
+            db, target_type, target_id, sess_ident["fm_id"], handle, reaction)
     except (ValueError, TypeError) as e:
         if want_json:
             return api_error(str(e))
@@ -5009,8 +5022,15 @@ def fb_react_web():
         return jsonify({"ok": True, "action": action,
                         "mine": None if action == "removed" else reaction,
                         "counts": counts, "total": sum(counts.values()),
-                        "top": fb_reactions.top3(counts)})
+                        "top": signals.top3(counts)})
     return redirect(_safe_next(data.get("next")))
+
+
+@app.route("/fb_react", methods=["POST"])
+def fb_react_web_legacy():
+    """Retired 2026-09-22: the Facebook-era form endpoint. 307 keeps the
+    method and body, landing on /signals/react."""
+    return redirect("/signals/react", code=307)
 
 
 # ================================================== MODERATION (report button)
@@ -5258,7 +5278,7 @@ def mod_upload_action(kind, uid, action):
     return redirect(url_for("mod_uploads"))
 
 
-def _fb_web_reactor():
+def _sig_web_reactor():
     """Reactor key for the current browser, or None.
 
     Signed-in humans react as their session identity (fm_id); anonymous
@@ -5267,16 +5287,16 @@ def _fb_web_reactor():
     return sess["fm_id"] if sess else None
 
 
-def _fb_attach_posts(posts, reactor=None):
+def _sig_attach_posts(posts, reactor=None):
     """Attach {"counts","total","mine","top"} fb summary to each post dict."""
-    sums = fb_reactions.fb_reaction_summaries(
+    sums = signals.reaction_summaries(
         db, [("post", p["id"]) for p in posts], reactor)
     for p in posts:
-        p["fb"] = sums[("post", p["id"])]
+        p["sig"] = sums[("post", p["id"])]
     return posts
 
 
-def _fb_attach_thread(post, tree, reactor=None):
+def _sig_attach_thread(post, tree, reactor=None):
     """Attach fb summaries to a post dict and its nested comment tree."""
     targets = [("post", post["id"])]
 
@@ -5285,12 +5305,12 @@ def _fb_attach_thread(post, tree, reactor=None):
             targets.append(("comment", c["id"]))
             collect(c["replies"])
     collect(tree)
-    sums = fb_reactions.fb_reaction_summaries(db, targets, reactor)
-    post["fb"] = sums[("post", post["id"])]
+    sums = signals.reaction_summaries(db, targets, reactor)
+    post["sig"] = sums[("post", post["id"])]
 
     def attach(nodes):
         for c in nodes:
-            c["fb"] = sums[("comment", c["id"])]
+            c["sig"] = sums[("comment", c["id"])]
             attach(c["replies"])
     attach(tree)
 
@@ -6662,14 +6682,14 @@ def _short_items(uploads):
     return items
 
 
-def _attach_short_fb(items, reactor=None):
+def _attach_short_sig(items, reactor=None):
     """Attach fb reaction summaries to short feed items (in place)."""
     if not items:
         return items
-    sums = fb_reactions.fb_reaction_summaries(
+    sums = signals.reaction_summaries(
         db, [(it["target_type"], it["target_id"]) for it in items], reactor)
     for it in items:
-        it["fb"] = sums[(it["target_type"], it["target_id"])]
+        it["sig"] = sums[(it["target_type"], it["target_id"])]
     return items
 
 
@@ -6760,7 +6780,7 @@ def api_shorts():
         items = _short_items(videos.list_shorts(db, limit=limit,
                                                       before_id=before,
                                                       series=series))
-        _attach_short_fb(items, _fb_web_reactor())
+        _attach_short_sig(items, _sig_web_reactor())
         resp = jsonify({"ok": True, "items": items,
                         "next_before": items[-1]["id"] if items else None})
         # Legacy mode is the same for every visitor: shared caching is fine.
@@ -6780,7 +6800,7 @@ def api_shorts():
         db, seed := _shorts_seed(), limit=limit, page=page, series=series,
         exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
-    _attach_short_fb(items, _fb_web_reactor())
+    _attach_short_sig(items, _sig_web_reactor())
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
@@ -6894,7 +6914,7 @@ def shorts_page():
         anchor_id = au["id"]
         if not any(it["id"] == au["id"] for it in items):
             items.insert(0, _short_items([au])[0])
-    _attach_short_fb(items, _fb_web_reactor())
+    _attach_short_sig(items, _sig_web_reactor())
     resp = app.make_response(render_template(
         "shorts.html", items=items, anchor_id=anchor_id,
         shorts_seed=seed, handle=_musefm_handle()))
@@ -7347,8 +7367,8 @@ def watch_video(uid):
             thread_url += "#c%d" % src["comment_id"]
     title = (src["title"] if src and src.get("title") else None) or \
         videos.clean_title(u["title"], u["filename"])
-    u["fb"] = fb_reactions.fb_reaction_summaries(
-        db, [("video", uid)], _fb_web_reactor())[("video", uid)]
+    u["sig"] = signals.reaction_summaries(
+        db, [("video", uid)], _sig_web_reactor())[("video", uid)]
     # Remix chain: parents this video duets (oldest first) + approved
     # duet replies. Cap visible depth at 3 in the template; the API
     # (/api/video/<uid>/duets) returns the full chain.

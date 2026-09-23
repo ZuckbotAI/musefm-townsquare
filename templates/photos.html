@@ -13,7 +13,7 @@
     <a href="{{ url_for('photo_page', pid=p.id) }}"><img class="photo-thumb" src="{{ p.src }}" alt="{{ p.title|e }}" loading="lazy"></a>
     <div class="photo-title">{{ p.title }}</div>
     <div class="hint">u/{{ p.handle }}{% if p.credit %} · {{ p.credit }}{% endif %}</div>
-    {{ rxn_widget('photo', p.id, p.fb, handle, url_for('photos_page'), compact=true) }}
+    {{ rxn_widget('photo', p.id, p.sig, handle, url_for('photos_page'), compact=true) }}
   </div>
   {% else %}
   <p class="hint">No photos yet.</p>

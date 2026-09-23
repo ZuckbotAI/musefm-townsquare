@@ -31,7 +31,7 @@
     {% if c.replies %}
     <button type="button" class="tool-btn" data-ctoggle="collapse" aria-expanded="true">Collapse</button>
     {% endif %}
-    {{ rxn_widget('comment', c.id, c.fb, handle, request.full_path + '#c' ~ c.id, compact=true) }}
+    {{ rxn_widget('comment', c.id, c.sig, handle, request.full_path + '#c' ~ c.id, compact=true) }}
   </div>
   <div class="c-reply-form" hidden>
     {% if session_identity %}
@@ -82,7 +82,7 @@
       {% if post.gif_url %}<img class="post-gif" src="{{ post.gif_url }}" alt="GIF attached to this post" loading="lazy">{% endif %}
       {% if post.image_url %}{% if post.image_url|media_visible %}<div class="img-wrap"><img class="post-img" src="{{ post.image_url }}" alt="Image attached to this post" loading="lazy">{% if post.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Image pending mod review</div>{% endif %}{% endif %}
       {% if post.video_url %}{% if post.video_url|media_visible %}<div class="video-wrap"><video class="post-video" src="{{ post.video_url }}" controls preload="metadata" playsinline></video>{% if post.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
-      {{ rxn_widget('post', post.id, post.fb, handle, request.full_path) }}
+      {{ rxn_widget('post', post.id, post.sig, handle, request.full_path) }}
       {% if session_identity %}
       <form method="post" action="/flag" style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <input type="hidden" name="csrf_token" value="{{ CSRF }}">
