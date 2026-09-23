@@ -5623,14 +5623,23 @@ def api_upload_audio():
     (action="upload", signed fields: title, description, file_sha256, mime)
     plus the file under the "audio" field. The server checks the signature,
     then verifies the bytes hash to the signed file_sha256."""
-    hit = check_limit("upload", 10)
-    if hit:
-        return hit
     data = request.form.to_dict()
+    # Rate-limit peek BEFORE verify_signed_body burns the one-time nonce
+    # (P1 2026-09-22): a 429 never forces a re-sign, and the record half
+    # runs only after the signature checks out — unauthenticated junk
+    # 401s here without consuming the 10/hr per-IP upload budget.
+    if _would_limit("upload", 10):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("upload"))
+        return resp
     try:
         ident = verify_signed_body(data, db, expected_action="upload")
     except IdentityError as e:
         return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("upload", 10)
+    if hit:
+        return hit
     f = request.files.get("audio")
     if not f or not f.filename:
         return api_error("no file — send the audio under the 'audio' field")
@@ -5816,14 +5825,23 @@ def api_upload_gif():
     """Signed multipart upload. Form fields carry the musefm-v1 signed body
     (action="upload", signed fields: file_sha256) plus the file under the
     "gif" field. Returns a gif_url ready to pass to post creation."""
-    hit = check_limit("gif_upload", 10)
-    if hit:
-        return hit
     data = request.form.to_dict()
+    # Rate-limit peek BEFORE verify_signed_body burns the one-time nonce
+    # (P1 2026-09-22): a 429 never forces a re-sign, and the record half
+    # runs only after the signature checks out — unauthenticated junk
+    # 401s here without consuming the 10/hr per-IP upload budget.
+    if _would_limit("gif_upload", 10):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("gif_upload"))
+        return resp
     try:
         ident = verify_signed_body(data, db, expected_action="upload")
     except IdentityError as e:
         return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("gif_upload", 10)
+    if hit:
+        return hit
     f = request.files.get("gif")
     if not f or not f.filename:
         return api_error("no file — send the gif under the 'gif' field")
@@ -5856,14 +5874,23 @@ def api_upload_image():
     transit — the uploader's signature IS the provenance attestation.
     Returns an image_url ready to pass to post/comment creation.
     """
-    hit = check_limit("image_upload", 10)
-    if hit:
-        return hit
     data = request.form.to_dict()
+    # Rate-limit peek BEFORE verify_signed_body burns the one-time nonce
+    # (P1 2026-09-22): a 429 never forces a re-sign, and the record half
+    # runs only after the signature checks out — unauthenticated junk
+    # 401s here without consuming the 10/hr per-IP upload budget.
+    if _would_limit("image_upload", 10):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("image_upload"))
+        return resp
     try:
         ident = verify_signed_body(data, db, expected_action="upload")
     except IdentityError as e:
         return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("image_upload", 10)
+    if hit:
+        return hit
     per_id = identity_image_limited(ident["fm_id"])
     if per_id:
         return per_id
@@ -5933,14 +5960,23 @@ def api_upload_video():
     being remixed. The duet itself must be short-form (<= 90s); the parent
     must exist (deleted parents are rejected). Duets earn no Signal.
     """
-    hit = check_limit("video_upload", 10)
-    if hit:
-        return hit
     data = request.form.to_dict()
+    # Rate-limit peek BEFORE verify_signed_body burns the one-time nonce
+    # (P1 2026-09-22): a 429 never forces a re-sign, and the record half
+    # runs only after the signature checks out — unauthenticated junk
+    # 401s here without consuming the 10/hr per-IP upload budget.
+    if _would_limit("video_upload", 10):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("video_upload"))
+        return resp
     try:
         ident = verify_signed_body(data, db, expected_action="upload")
     except IdentityError as e:
         return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("video_upload", 10)
+    if hit:
+        return hit
     per_id = identity_video_limited(ident["fm_id"])
     if per_id:
         return per_id
