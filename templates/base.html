@@ -62,10 +62,10 @@
   <a class="brand" href="/" aria-label="Muse FM home">
     {% set brand_h = 30 %}{% set brand_decorative = true %}{% set brand_uid = "a" %}{% include "_brand.html" %}
   </a>
-  {# orb home: the orb parks right next to the home "Muse FM" logo button.
-     orb-dock.js positions it here (via transform) when no hero stage is in
-     view; the span itself is an invisible, outline-free placeholder that
-     keeps the topbar layout stable. #}
+  {# orb home anchor (2026-09-23): the floating dock no longer parks the orb
+     here — it floats on every page and only the core's double-click
+     send-home path references this anchor. The span stays as an invisible,
+     outline-free placeholder so the topbar layout never shifts. #}
   <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
   <nav class="topbar-nav" aria-label="Primary">
     <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
@@ -244,10 +244,10 @@
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back
-   (2026-09-23, Anthony): the orb is managed by orb-dock.js — home by the
-   logo button, floating on scroll, into the hero for sayings — and the
-   user can drag it anywhere; the offset holds until the dock changes
-   state or the orb is double-clicked home. #}
+   (2026-09-23, Anthony): the orb is managed by orb-dock.js — a floating
+   dock on every page while scrolling, snapping into the hero for sayings —
+   and the user can drag it anywhere; the spot persists across reloads and
+   double-click resets it to the default corner. #}
 <script>window.MuseOrbOptions = window.MuseOrbOptions || {}; window.MuseOrbOptions.draggable = true;</script>
 <script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/orb-dock.js') }}" defer></script>
