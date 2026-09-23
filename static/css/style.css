@@ -1453,25 +1453,15 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   border: 1px solid rgba(255, 255, 255, .65);
   box-shadow: inset -10px -14px 34px rgba(80, 170, 255, .28);
 }
-.fm-hero-orbs .orb1 { width: 200px; height: 200px; right: 7%; top: -52px; }
 .fm-hero-orbs .orb2 { width: 132px; height: 132px; right: -14px; bottom: -56px; }
 .fm-hero-inner { position: relative; max-width: 64ch; flex: 1 1 auto; min-width: 0; }
 /* the orb's home on the homepage — fills the card's right side so the hero
-   isn't a wall of empty space; the orb flies in here on load (orb-dock.js) */
+   isn't a wall of empty space; the orb snaps in here on load (orb-dock.js).
+   The stage is an invisible layout box: no placeholder outlines (2026-09-23). */
 .fm-hero-stage { position: relative; flex: 0 0 auto; }
 .hero-orb-stage {
   width: 168px; height: 168px; border-radius: 50%; position: relative;
   display: flex; align-items: center; justify-content: center;
-}
-.hero-orb-stage::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px dashed rgba(31, 157, 255, .45);
-  background: radial-gradient(circle, rgba(31, 157, 255, .14) 0%, transparent 70%);
-  transition: border-color .4s, box-shadow .4s;
-}
-.hero-orb-stage.orb-here::before {
-  border-style: solid; border-color: rgba(31, 157, 255, .65);
-  box-shadow: 0 0 42px rgba(31, 157, 255, .18), inset 0 0 30px rgba(31, 157, 255, .12);
 }
 @media (max-width: 640px) {
   .fm-hero { flex-wrap: wrap; gap: 12px; }
@@ -1490,7 +1480,6 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .fm-cta { font-size: 13.5px; color: #5a7391; margin: 6px 0 0; }
 @media (max-width: 640px) {
   .fm-hero { padding: 18px; }
-  .fm-hero-orbs .orb1 { width: 128px; height: 128px; right: 2%; }
   .fm-wordmark { font-size: 28px; }
   .fm-head { font-size: 20px; }
 }
@@ -1853,27 +1842,16 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 [data-theme="dark"] { --wave-hi: #a5ecff; --wave-lo: #38d6ff; }
 .waveform-logo { display: inline-block; vertical-align: middle; }
 
-/* ================= orb dock — the orb's deliberate home ================= */
-.orb-dock {
-  position: fixed; top: 68px; right: 14px; width: 104px; height: 104px;
-  z-index: 2147482990; pointer-events: none; border-radius: 50%;
-  opacity: 0; transition: opacity .35s ease;
+/* ================= orb home — parks by the topbar logo button =================
+   The orb's home on pages with no hero stage: an invisible, outline-free
+   placeholder next to the home "Muse FM" logo button. The orb itself is a
+   fixed-position wrap moved by orb-dock.js (transform only); this span just
+   reserves layout space so the topbar never shifts (2026-09-23). */
+#orb-home {
+  display: inline-block; width: 48px; height: 48px; flex: 0 0 auto;
+  visibility: hidden; pointer-events: none;
 }
-/* the ring only shows when the orb is actually parked in it — never an
-   empty dashed circle overlapping page content (fixed 2026-09-22) */
-.orb-dock.orb-home, .orb-dock.orb-drop { opacity: 1; }
-.orb-dock::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent);
-  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 68%);
-}
-.orb-dock .orb-dock-tag {
-  position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%);
-  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--text-3); white-space: nowrap;
-}
-/* the orb keeps its own pointer events inside the pointer-transparent dock */
-.orb-dock .muse-orb-wrap { pointer-events: auto; }
+/* the orb keeps its own pointer events; management moves it via transform */
 .muse-orb-wrap.muse-orb-dockmanaged {
   position: fixed !important; left: 0 !important; top: 0 !important; right: auto !important;
   margin: 0 !important;
@@ -1881,8 +1859,5 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   will-change: transform;
 }
 @media (max-width: 640px) {
-  .orb-dock { width: 76px; height: 76px; top: 64px; right: 10px; }
-  .orb-dock .orb-dock-tag { display: none; }
+  #orb-home { width: 40px; height: 40px; }
 }
-
-.orb-dock.orb-away::before { opacity: .45; }

@@ -243,6 +243,9 @@
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var proactive = !!options.proactive;   // stage 4: off unless the host opts in
     var timeOverride = (typeof options.timeOverride === 'number') ? options.timeOverride : null;
+    // draggable:false = tap-only mode (2026-09-23): drag-to-place is retired;
+    // presses still open the sayings dialogue, but the orb never moves itself.
+    var draggable = options.draggable !== false;
 
     // --- anchor: find the logo ---
     function findAnchor() {
@@ -264,7 +267,7 @@
     // --- DOM: wrap > webgl canvas (glass) + 2d canvas (character/fx) ---
     var wrap = document.createElement('span');
     wrap.className = 'muse-orb-wrap';
-    wrap.title = 'Drag me — double-click sends me home';
+    wrap.title = 'MuseFM assistant orb — click for a saying';
     wrap.style.width = ORB_SIZE + 'px';
     wrap.style.height = ORB_SIZE + 'px';
 
@@ -1066,21 +1069,25 @@
       requestAnimationFrame(frame);
     }
 
-    /* -------------------------------------------------- drag (the easter egg) */
+    /* -------------------------------------------------- drag (retired 2026-09-23:
+     * drag-to-place is off site-wide — the orb is managed by orb-dock.js.
+     * In tap-only mode presses still open the sayings dialogue (endDrag
+     * treats every press as a tap); the drag branch below never engages. */
     var drag = null;
     fxCanvas.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
       hideSays();
       poke(-2.5);
       if (sleeping) { sleeping = false; setPose('happy', 800); }
       drag = { sx: e.clientX, sy: e.clientY, moved: false, ox: 0, oy: 0 };
+      if (!draggable) return; // tap-only: track the press, never engage drag
+      e.preventDefault();
       var rc = wrap.getBoundingClientRect();
       drag.ox = e.clientX - rc.left;
       drag.oy = e.clientY - rc.top;
       try { fxCanvas.setPointerCapture(e.pointerId); } catch (err) {}
     });
     fxCanvas.addEventListener('pointermove', function (e) {
-      if (!drag) return;
+      if (!drag || !draggable) return;
       if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 7) {
         drag.moved = true;
         wrap.classList.add('muse-orb-fixed', 'muse-orb-dragging');
@@ -1129,7 +1136,12 @@
       if (panelOpen) positionPanel();
     }
 
-    try {
+    // retired drag spots: a stale saved position must never strand the orb
+    // once drag-to-place is off (2026-09-23) — clear it once and ignore.
+    if (!draggable) {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
+    }
+    if (draggable) try {
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if (saved && typeof saved.x === 'string') {
         var sx = parseFloat(saved.x), sy = parseFloat(saved.y);

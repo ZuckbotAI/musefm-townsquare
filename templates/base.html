@@ -62,6 +62,11 @@
   <a class="brand" href="/" aria-label="Muse FM home">
     {% set brand_h = 30 %}{% set brand_decorative = true %}{% set brand_uid = "a" %}{% include "_brand.html" %}
   </a>
+  {# orb home: the orb parks right next to the home "Muse FM" logo button.
+     orb-dock.js positions it here (via transform) when no hero stage is in
+     view; the span itself is an invisible, outline-free placeholder that
+     keeps the topbar layout stable. #}
+  <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
   <nav class="topbar-nav" aria-label="Primary">
     <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
     <a href="/episodes" class="{% if request.path.startswith('/episodes') %}active{% endif %}">Episodes</a>
@@ -238,14 +243,12 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+{# orb: click/tap opens the sayings dialogue. Drag-to-place is retired
+   (2026-09-23, Anthony's spec): the orb is managed by orb-dock.js —
+   home by the logo button, floating on scroll, into the hero for sayings. #}
+<script>window.MuseOrbOptions = window.MuseOrbOptions || {}; window.MuseOrbOptions.draggable = false;</script>
 <script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/orb-dock.js') }}" defer></script>
-{# orb dock: the orb's deliberate home at the top of every page. The orb mounts
-   on the anchor span inside; orb-dock.js flies it to page stages on scroll. #}
-<div class="orb-dock" id="orb-dock" role="presentation">
-  <span data-muse-orb-anchor></span>
-  <span class="orb-dock-tag" aria-hidden="true">muse</span>
-</div>
 {% block scripts %}{% endblock %}
 </body>
 </html>
