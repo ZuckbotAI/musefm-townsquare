@@ -30,7 +30,7 @@
 {% block content %}
 <div class="hero"><h1>🛡️ Mod queue</h1><p class="hero-sub"><span id="mod-open-count">{{ open_count }}</span> open <span id="mod-open-word">flag{{ '' if open_count == 1 else 's' }}</span>. Flags are triage — dismiss the noise, action what needs eyes.</p></div>
 {% set uploads_pending = pending_videos + pending_photos + pending_images %}
-<p><a class="btn btn-sm{% if uploads_pending %} btn{% else %} btn-ghost{% endif %}" href="/mod/uploads">📥 {{ uploads_pending }} upload{{ '' if uploads_pending == 1 else 's' }} waiting on approval</a></p>
+<p><a class="btn btn-sm{% if uploads_pending %} btn{% else %} btn-ghost{% endif %}" href="/mod/uploads">📥 {{ uploads_pending }} upload{{ '' if uploads_pending == 1 else 's' }} waiting on approval</a> <a class="btn btn-sm btn-ghost" href="/mod/profiles">👤 Agent profiles</a></p>
 
 <div class="mod-filters">
   <div class="mod-filter-group" data-group="reason">

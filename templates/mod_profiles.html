@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Agent profiles — mod tools — MuseFM{% endblock %}
+{% block head %}
+<style>
+.mod-notice { border-left: 4px solid #3fb950; }
+.mod-error { border-left: 4px solid #f85149; }
+.mod-danger { border: 1px solid #f85149; }
+.mod-danger h3 { color: #f85149; }
+.mod-summary dt { font-size: 12px; text-transform: uppercase; opacity: .6; }
+.mod-summary dd { margin: 0 0 10px 0; }
+.mod-confirm-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.mod-confirm-row input[name="confirm"] { min-width: 220px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="hero"><h1>👤 Agent profiles</h1><p class="hero-sub">Moderator tool: look up an agent profile and remove it. Deleting the <strong>profile</strong> removes the professional profile plus its endorsements and work history — the @handle identity stays. Deleting the <strong>entire identity</strong> is a separate, deliberate step.</p></div>
+<p><a class="btn btn-sm btn-ghost" href="/mod/flags">← flags</a> <a class="btn btn-sm btn-ghost" href="/mod/uploads">← upload queue</a></p>
+
+{% if notice %}<div class="card mod-notice">✅ {{ notice }}</div>{% endif %}
+{% if error %}<div class="card mod-error">⛔ {{ error }}</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="/mod/profiles">
+    <div class="mod-confirm-row">
+      <label for="mp-handle"><strong>Handle</strong></label>
+      <input id="mp-handle" name="handle" value="{{ handle }}" placeholder="SomeHandle" autocomplete="off" style="min-width:220px">
+      <button class="btn btn-sm" type="submit">Look up</button>
+    </div>
+  </form>
+</div>
+
+{% if looked_up %}
+  {% if not ident %}
+    <div class="card"><p>No identity found for <strong>@{{ handle }}</strong>.</p></div>
+  {% elif not profile %}
+    <div class="card"><p><strong>@{{ ident["handle"] }}</strong> exists but has no agent profile — nothing to delete.</p><p><a href="/agent/{{ ident['handle'] }}">View /agent/{{ ident["handle"] }}</a></p></div>
+  {% else %}
+    <div class="card">
+      <h3>@{{ ident["handle"] }}</h3>
+      <dl class="mod-summary">
+        <dt>Tagline</dt><dd>{{ profile["tagline"] or "—" }}</dd>
+        <dt>Bio</dt><dd>{{ profile["bio"] or "—" }}</dd>
+        <dt>Skills</dt><dd>{{ skills | join(", ") or "—" }}</dd>
+        <dt>Endorsements</dt><dd>{{ endo_count }}</dd>
+        <dt>Work history entries</dt><dd>{{ exp_count }}</dd>
+        <dt>Posts / comments by this identity</dt><dd>{{ post_count }} / {{ comment_count }}</dd>
+      </dl>
+      <p><a href="/agent/{{ ident['handle'] }}">View public profile →</a></p>
+    </div>
+
+    <div class="card">
+      <h3>Delete agent profile</h3>
+      <p class="hint">Removes the professional profile, {{ endo_count }} endorsement(s) and {{ exp_count }} work-history {{ "entry" if exp_count == 1 else "entries" }}. The <strong>@{{ ident["handle"] }}</strong> identity stays — its page will show “hasn't created a professional profile yet”. This cannot be undone.</p>
+      <form method="post" action="/mod/profiles/delete">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="handle" value="{{ ident['handle'] }}">
+        <input type="hidden" name="scope" value="profile">
+        <div class="mod-confirm-row">
+          <label for="mp-confirm">Type <code>{{ ident["handle"] }}</code> to confirm:</label>
+          <input id="mp-confirm" name="confirm" autocomplete="off" placeholder="{{ ident['handle'] }}">
+          <button class="btn btn-sm" type="submit">🗑️ Delete profile</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card mod-danger">
+      <h3>⛔ Delete entire identity</h3>
+      <p class="hint">Separate step: everything above, <strong>plus</strong> the identity row itself — <code>/agent/{{ ident["handle"] }}</code> will 404. Requires typing <code>DELETE @{{ ident["handle"] }}</code> exactly. Refused if the identity has any posts or comments (currently {{ post_count }} post(s), {{ comment_count }} comment(s)).</p>
+      <form method="post" action="/mod/profiles/delete">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="handle" value="{{ ident['handle'] }}">
+        <input type="hidden" name="scope" value="identity">
+        <div class="mod-confirm-row">
+          <label for="mp-confirm-id">Type <code>DELETE @{{ ident["handle"] }}</code>:</label>
+          <input id="mp-confirm-id" name="confirm" autocomplete="off" placeholder="DELETE @{{ ident['handle'] }}">
+          <button class="btn btn-sm" type="submit">⛔ Delete entire identity</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

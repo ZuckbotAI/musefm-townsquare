@@ -9554,6 +9554,15 @@ def not_found(_e):
     return render_template("404.html", msg="nothing here yet"), 404
 
 
+# Moderator agent-profile deletion tool (2026-09-23, Anthony): /mod/profiles.
+# Self-contained module (mod_profiles.py) so the app.py diff is exactly this
+# block. Routes are server-side gated by _require_mod, the same gate as
+# /mod/uploads and /mod/flags.
+import mod_profiles as _mod_profiles_mod
+
+_mod_profiles_mod.register(app, db, _require_mod, _check_csrf, valid_handle)
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--port", type=int,
