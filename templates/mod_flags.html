@@ -1,32 +1,89 @@
 {% extends "base.html" %}
 {% block title %}Mod queue — MuseFM{% endblock %}
+{% block head %}
+<style>
+.mod-bulkbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; margin-bottom: 14px; border-radius: 10px;
+  background: var(--glass-strong, rgba(20,24,32,.92));
+  border: 1px solid var(--glass-border, #2a2f3a);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.mod-bulkbar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+.mod-sel-count { font-size: 13px; opacity: .75; min-width: 90px; }
+.mod-card { transition: opacity .25s ease, transform .25s ease; }
+.mod-card.mod-leaving { opacity: 0; transform: translateX(24px); }
+.mod-card-top { display: flex; gap: 10px; align-items: flex-start; }
+.mod-check-label { display: inline-flex; align-items: center; cursor: pointer; padding-top: 2px; }
+.mod-check { width: 18px; height: 18px; cursor: pointer; accent-color: #4da3ff; }
+.mod-filters { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.mod-filter-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip {
+  border: 1px solid var(--glass-border, #2a2f3a); border-radius: 999px;
+  padding: 4px 12px; font-size: 13px; cursor: pointer;
+  background: transparent; color: inherit;
+}
+.chip.is-active { background: #4da3ff; border-color: #4da3ff; color: #0b0e14; font-weight: 600; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="hero"><h1>🛡️ Mod queue</h1><p class="hero-sub">{{ open_count }} open flag{{ '' if open_count == 1 else 's' }}. Flags are triage — dismiss the noise, action what needs eyes.</p></div>
+<div class="hero"><h1>🛡️ Mod queue</h1><p class="hero-sub"><span id="mod-open-count">{{ open_count }}</span> open <span id="mod-open-word">flag{{ '' if open_count == 1 else 's' }}</span>. Flags are triage — dismiss the noise, action what needs eyes.</p></div>
 {% set uploads_pending = pending_videos + pending_photos + pending_images %}
 <p><a class="btn btn-sm{% if uploads_pending %} btn{% else %} btn-ghost{% endif %}" href="/mod/uploads">📥 {{ uploads_pending }} upload{{ '' if uploads_pending == 1 else 's' }} waiting on approval</a></p>
+
+<div class="mod-filters">
+  <div class="mod-filter-group" data-group="reason">
+    <span class="hint">Reason:</span>
+    <button type="button" class="chip is-active" data-filter="reason" data-value="all">All</button>
+    {% for r in flag_reasons %}<button type="button" class="chip" data-filter="reason" data-value="{{ r }}">{{ r }}</button>{% endfor %}
+  </div>
+  <div class="mod-filter-group" data-group="target">
+    <span class="hint">Type:</span>
+    <button type="button" class="chip is-active" data-filter="target" data-value="all">All</button>
+    {% for t in flag_target_types %}<button type="button" class="chip" data-filter="target" data-value="{{ t }}">{{ t }}</button>{% endfor %}
+  </div>
+</div>
+
+<div class="mod-bulkbar" id="mod-bulkbar">
+  <label><input type="checkbox" class="mod-check" id="mod-select-all"> Select all visible</label>
+  <span class="mod-sel-count" id="mod-sel-count">0 selected</span>
+  <button class="btn btn-sm" id="mod-bulk-dismiss" type="button">Dismiss selected</button>
+  <button class="btn btn-sm btn-ghost" id="mod-bulk-action" type="button">Mark actioned selected</button>
+</div>
 
 {% if not flags %}
 <div class="card"><p class="hint">Queue's clear. The town is behaving. 🎉</p></div>
 {% endif %}
 
+<p class="hint" id="mod-no-match" hidden>No flags match these filters.</p>
+
 {% for f in flags %}
-<div class="card">
-  <div class="post-meta">
-    <span class="meta-group"><span class="flair flair-meta">{{ f.target_type }} #{{ f.target_id }}</span><span class="flair flair-{{ 'announcement' if f.reason == 'spam' else 'discussion' }}">{{ f.reason }}</span></span>
-    <span class="meta-group"><span class="author">flagged by u/{{ f.flagger_handle }}</span><span class="when">{{ f.created_at|fdate }}</span></span>
-  </div>
-  <p style="margin:8px 0">{{ f.excerpt }}</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    {% if f.url %}<a class="btn btn-sm btn-ghost" href="{{ f.url }}">View {{ f.target_type }} →</a>{% endif %}
-    <form method="post" action="/mod/flags/{{ f.id }}/resolve" style="margin:0">
-      <input type="hidden" name="action" value="dismissed">
-      <button class="btn btn-sm" type="submit">Dismiss</button>
-    </form>
-    <form method="post" action="/mod/flags/{{ f.id }}/resolve" style="margin:0">
-      <input type="hidden" name="action" value="actioned">
-      <button class="btn btn-sm" type="submit">Mark actioned</button>
-    </form>
+<div class="card mod-card mod-flag" data-id="{{ f.id }}" data-reason="{{ f.reason }}" data-target-type="{{ f.target_type }}">
+  <div class="mod-card-top">
+    <label class="mod-check-label"><input type="checkbox" class="mod-check mod-item-check" data-id="{{ f.id }}" aria-label="Select flag {{ f.id }}"></label>
+    <div style="flex:1;min-width:0">
+      <div class="post-meta">
+        <span class="meta-group"><span class="flair flair-meta">{{ f.target_type }} #{{ f.target_id }}</span><span class="flair flair-{{ 'announcement' if f.reason == 'spam' else 'discussion' }}">{{ f.reason }}</span></span>
+        <span class="meta-group"><span class="author">flagged by u/{{ f.flagger_handle }}</span><span class="when">{{ f.created_at|fdate }}</span></span>
+      </div>
+      <p style="margin:8px 0">{{ f.excerpt }}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        {% if f.url %}<a class="btn btn-sm btn-ghost" href="{{ f.url }}">View {{ f.target_type }} →</a>{% endif %}
+        <form method="post" action="/mod/flags/{{ f.id }}/resolve" class="mod-single-form" style="margin:0">
+          <input type="hidden" name="action" value="dismissed">
+          <button class="btn btn-sm" type="submit">Dismiss</button>
+        </form>
+        <form method="post" action="/mod/flags/{{ f.id }}/resolve" class="mod-single-form" style="margin:0">
+          <input type="hidden" name="action" value="actioned">
+          <button class="btn btn-sm" type="submit">Mark actioned</button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 {% endfor %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/modqueue.js') }}"></script>
 {% endblock %}

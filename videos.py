@@ -733,13 +733,14 @@ def set_video_status(db, uid, status):
     return True
 
 
-def list_pending_videos(db, limit=50):
+def list_pending_videos(db, limit=50, offset=0):
     """Uploads waiting on mod approval, oldest first."""
     ensure_video_schema(db)
     return [dict(r) for r in db.db.execute(
         "SELECT * FROM video_uploads WHERE status='pending'"
-        " ORDER BY created_at ASC, id ASC LIMIT ?",
-        (max(1, min(int(limit or 50), 200)),)).fetchall()]
+        " ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?",
+        (max(1, min(int(limit or 50), 200)),
+         max(0, int(offset or 0)),)).fetchall()]
 
 
 def count_pending_videos(db):

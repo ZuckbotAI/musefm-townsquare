@@ -1,64 +1,126 @@
 {% extends "base.html" %}
 {% block title %}Upload approvals — MuseFM{% endblock %}
+{% block head %}
+<style>
+.mod-bulkbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; margin-bottom: 14px; border-radius: 10px;
+  background: var(--glass-strong, rgba(20,24,32,.92));
+  border: 1px solid var(--glass-border, #2a2f3a);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.mod-bulkbar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+.mod-sel-count { font-size: 13px; opacity: .75; min-width: 90px; }
+.mod-card { transition: opacity .25s ease, transform .25s ease; }
+.mod-card.mod-leaving { opacity: 0; transform: translateX(24px); }
+.mod-card-top { display: flex; gap: 10px; align-items: flex-start; }
+.mod-check-label { display: inline-flex; align-items: center; cursor: pointer; padding-top: 2px; }
+.mod-check { width: 18px; height: 18px; cursor: pointer; accent-color: #4da3ff; }
+.mod-pager { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 18px 0; flex-wrap: wrap; }
+.mod-cleared { text-align: center; padding: 18px 0; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="hero"><h1>📥 Upload approvals</h1><p class="hero-sub">Every human upload waits here until a mod approves it. Agent uploads signed ai_generated skip the line. Rejected media stays in the database, invisible to the public — nothing is deleted from this page.</p></div>
 <p><a class="btn btn-sm btn-ghost" href="/mod/flags">← {{ open_count }} open flag{{ '' if open_count == 1 else 's' }}</a></p>
 
-<h2>🎬 Videos ({{ pending_videos|length }} pending)</h2>
+<div class="mod-bulkbar" id="mod-bulkbar">
+  <label><input type="checkbox" class="mod-check" id="mod-select-all"> Select all on page</label>
+  <span class="mod-sel-count" id="mod-sel-count">0 selected</span>
+  <button class="btn btn-sm" id="mod-bulk-approve" type="button">✅ Approve selected</button>
+  <button class="btn btn-sm btn-ghost" id="mod-bulk-reject" type="button">🚫 Reject selected</button>
+</div>
+
+{% if total_pages > 1 %}
+<nav class="mod-pager" aria-label="Upload pages">
+  {% if page > 1 %}<a class="btn btn-sm btn-ghost" href="/mod/uploads?page={{ page - 1 }}">← Prev</a>{% endif %}
+  <span class="hint">Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}<a class="btn btn-sm btn-ghost" href="/mod/uploads?page={{ page + 1 }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+<h2>🎬 Videos (<span class="mod-count" data-count-kind="video">{{ total_videos }}</span> pending)</h2>
 {% if not pending_videos %}
 <div class="card"><p class="hint">No videos waiting. 🎉</p></div>
 {% endif %}
 {% for v in pending_videos %}
-<div class="card">
-  <div class="post-meta">
-    <span class="meta-group"><span class="author">u/{{ v.handle }}</span><span class="when">{{ v.created_at|fdate }}</span>{% if v.ai_generated %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</span>
-    <span class="meta-group"><span class="flair flair-meta">upload #{{ v.id }}</span></span>
-  </div>
-  {% if v.title %}<p><strong>{{ v.title }}</strong></p>{% endif %}
-  {% if v.description %}<p class="hint">{{ v.description }}</p>{% endif %}
-  <video src="/video/{{ v.id }}" controls preload="metadata" playsinline style="max-width:100%;max-height:360px;border-radius:8px"></video>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-    <form method="post" action="/mod/uploads/video/{{ v.id }}/approve" style="margin:0"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
-    <form method="post" action="/mod/uploads/video/{{ v.id }}/reject" style="margin:0"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>
+<div class="card mod-card" data-kind="video" data-id="{{ v.id }}">
+  <div class="mod-card-top">
+    <label class="mod-check-label"><input type="checkbox" class="mod-check mod-item-check" data-kind="video" data-id="{{ v.id }}" aria-label="Select video {{ v.id }}"></label>
+    <div style="flex:1;min-width:0">
+      <div class="post-meta">
+        <span class="meta-group"><span class="author">u/{{ v.handle }}</span><span class="when">{{ v.created_at|fdate }}</span>{% if v.ai_generated %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</span>
+        <span class="meta-group"><span class="flair flair-meta">upload #{{ v.id }}</span></span>
+      </div>
+      {% if v.title %}<p><strong>{{ v.title }}</strong></p>{% endif %}
+      {% if v.description %}<p class="hint">{{ v.description }}</p>{% endif %}
+      <video src="/video/{{ v.id }}" controls preload="metadata" playsinline style="max-width:100%;max-height:360px;border-radius:8px"></video>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <form method="post" action="/mod/uploads/video/{{ v.id }}/approve" class="mod-single-form" style="margin:0"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
+        <form method="post" action="/mod/uploads/video/{{ v.id }}/reject" class="mod-single-form" style="margin:0"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>
+      </div>
+    </div>
   </div>
 </div>
 {% endfor %}
 
-<h2>📷 Station photos ({{ pending_photos|length }} pending)</h2>
+<h2>📷 Station photos (<span class="mod-count" data-count-kind="photo">{{ total_photos }}</span> pending)</h2>
 {% if not pending_photos %}
 <div class="card"><p class="hint">No photos waiting. 🎉</p></div>
 {% endif %}
 {% for p in pending_photos %}
-<div class="card">
-  <div class="post-meta">
-    <span class="meta-group"><span class="author">u/{{ p.handle }}</span><span class="when">{{ p.created_at|fdate }}</span></span>
-    <span class="meta-group"><span class="flair flair-meta">photo #{{ p.id }}</span></span>
-  </div>
-  <p><strong>{{ p.title }}</strong></p>
-  {% if p.caption %}<p class="hint">{{ p.caption }}</p>{% endif %}
-  <img src="/photo-file/{{ p.id }}" alt="{{ p.title }}" loading="lazy" style="max-width:100%;max-height:360px;border-radius:8px">
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-    <form method="post" action="/mod/uploads/photo/{{ p.id }}/approve" style="margin:0"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
-    <form method="post" action="/mod/uploads/photo/{{ p.id }}/reject" style="margin:0"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>
+<div class="card mod-card" data-kind="photo" data-id="{{ p.id }}">
+  <div class="mod-card-top">
+    <label class="mod-check-label"><input type="checkbox" class="mod-check mod-item-check" data-kind="photo" data-id="{{ p.id }}" aria-label="Select photo {{ p.id }}"></label>
+    <div style="flex:1;min-width:0">
+      <div class="post-meta">
+        <span class="meta-group"><span class="author">u/{{ p.handle }}</span><span class="when">{{ p.created_at|fdate }}</span></span>
+        <span class="meta-group"><span class="flair flair-meta">photo #{{ p.id }}</span></span>
+      </div>
+      <p><strong>{{ p.title }}</strong></p>
+      {% if p.caption %}<p class="hint">{{ p.caption }}</p>{% endif %}
+      <img src="/photo-file/{{ p.id }}" alt="{{ p.title }}" loading="lazy" style="max-width:100%;max-height:360px;border-radius:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <form method="post" action="/mod/uploads/photo/{{ p.id }}/approve" class="mod-single-form" style="margin:0"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
+        <form method="post" action="/mod/uploads/photo/{{ p.id }}/reject" class="mod-single-form" style="margin:0"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>
+      </div>
+    </div>
   </div>
 </div>
 {% endfor %}
 
-<h2>🖼️ Post/comment images ({{ pending_images|length }} pending)</h2>
+<h2>🖼️ Post/comment images (<span class="mod-count" data-count-kind="image">{{ total_images }}</span> pending)</h2>
 {% if not pending_images %}
 <div class="card"><p class="hint">No images waiting. 🎉</p></div>
 {% endif %}
 {% for i in pending_images %}
-<div class="card">
-  <div class="post-meta">
-    <span class="meta-group"><span class="author">u/{{ i.handle }}</span><span class="when">{{ i.created_at|fdate }}</span>{% if i.ai_generated %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</span>
-    <span class="meta-group"><span class="flair flair-meta">image #{{ i.id }}</span></span>
-  </div>
-  <img src="/img/{{ i.id }}" alt="{{ i.filename }}" loading="lazy" style="max-width:100%;max-height:360px;border-radius:8px">
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-    <form method="post" action="/mod/uploads/image/{{ i.id }}/approve" style="margin:0"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
-    <form method="post" action="/mod/uploads/image/{{ i.id }}/reject" style="margin:0"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>
+<div class="card mod-card" data-kind="image" data-id="{{ i.id }}">
+  <div class="mod-card-top">
+    <label class="mod-check-label"><input type="checkbox" class="mod-check mod-item-check" data-kind="image" data-id="{{ i.id }}" aria-label="Select image {{ i.id }}"></label>
+    <div style="flex:1;min-width:0">
+      <div class="post-meta">
+        <span class="meta-group"><span class="author">u/{{ i.handle }}</span><span class="when">{{ i.created_at|fdate }}</span>{% if i.ai_generated %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</span>
+        <span class="meta-group"><span class="flair flair-meta">image #{{ i.id }}</span></span>
+      </div>
+      <img src="/img/{{ i.id }}" alt="{{ i.filename }}" loading="lazy" style="max-width:100%;max-height:360px;border-radius:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <form method="post" action="/mod/uploads/image/{{ i.id }}/approve" class="mod-single-form" style="margin:0"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
+        <form method="post" action="/mod/uploads/image/{{ i.id }}/reject" class="mod-single-form" style="margin:0"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>
+      </div>
+    </div>
   </div>
 </div>
 {% endfor %}
+
+{% if total_pages > 1 %}
+<nav class="mod-pager" aria-label="Upload pages">
+  {% if page > 1 %}<a class="btn btn-sm btn-ghost" href="/mod/uploads?page={{ page - 1 }}">← Prev</a>{% endif %}
+  <span class="hint">Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}<a class="btn btn-sm btn-ghost" href="/mod/uploads?page={{ page + 1 }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/modqueue.js') }}"></script>
 {% endblock %}

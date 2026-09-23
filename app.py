@@ -5234,7 +5234,10 @@ def mod_flags():
         open_count=db.count_open_flags(),
         pending_videos=videos.count_pending_videos(db),
         pending_photos=db.count_pending_photos(),
-        pending_images=ai_images.count_pending_images(db))
+        pending_images=ai_images.count_pending_images(db),
+        flag_reasons=db.FLAG_REASONS,
+        flag_target_types=("post", "comment", "video_comment",
+                           "episode_comment"))
 
 
 @app.route("/mod/flags/<sqlite_int:flag_id>/resolve", methods=["POST"])
@@ -5251,7 +5254,34 @@ def mod_flag_resolve(flag_id):
         db.set_flag_status(flag_id, action)
     except (ValueError, TypeError):
         pass
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "id": flag_id, "status": action})
     return redirect(url_for("mod_flags"))
+
+
+@app.route("/mod/flags/bulk-resolve", methods=["POST"])
+def mod_flags_bulk_resolve():
+    """Dismiss or action many flags at once (mod-only).
+
+    Form fields: ids (comma-separated), action (dismissed/actioned).
+    Returns JSON {ok, processed:[ids]}."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return redir
+    action = request.form.get("action", "")
+    if action not in ("dismissed", "actioned"):
+        return jsonify({"ok": False, "error": "bad action"}), 400
+    processed = []
+    for piece in request.form.get("ids", "").split(","):
+        piece = piece.strip()
+        if not piece.isdigit():
+            continue
+        try:
+            db.set_flag_status(int(piece), action)
+            processed.append(int(piece))
+        except (ValueError, TypeError):
+            continue
+    return jsonify({"ok": True, "status": action, "processed": processed})
 
 
 @app.route("/mod/uploads")
@@ -5265,12 +5295,30 @@ def mod_uploads():
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    per_page = 25
+    try:
+        page = int(request.args.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, page)
+    total_videos = videos.count_pending_videos(db)
+    total_photos = db.count_pending_photos()
+    total_images = ai_images.count_pending_images(db)
+    biggest = max(total_videos, total_photos, total_images)
+    total_pages = max(1, (biggest + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    offset = (page - 1) * per_page
     return render_template(
         "mod_uploads.html",
-        pending_videos=videos.list_pending_videos(db),
-        pending_photos=db.list_pending_photos(),
-        pending_images=ai_images.list_pending_images(db),
-        open_count=db.count_open_flags())
+        pending_videos=videos.list_pending_videos(db, limit=per_page,
+                                                  offset=offset),
+        pending_photos=db.list_pending_photos(limit=per_page, offset=offset),
+        pending_images=ai_images.list_pending_images(db, limit=per_page,
+                                                     offset=offset),
+        open_count=db.count_open_flags(),
+        page=page, per_page=per_page, total_pages=total_pages,
+        total_videos=total_videos, total_photos=total_photos,
+        total_images=total_images)
 
 
 @app.route("/mod/uploads/<kind>/<sqlite_int:uid>/<action>", methods=["POST"])
@@ -5293,7 +5341,45 @@ def mod_upload_action(kind, uid, action):
             return render_template("404.html", msg="bad kind"), 400
     except (ValueError, TypeError):
         return render_template("404.html", msg="no such upload"), 404
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "id": uid, "kind": kind,
+                        "status": status})
     return redirect(url_for("mod_uploads"))
+
+
+@app.route("/mod/uploads/bulk", methods=["POST"])
+def mod_uploads_bulk():
+    """Approve or reject many queued uploads at once (mod-only).
+
+    Form fields: kind (video/photo/image), ids (comma-separated),
+    action (approve/reject). Returns JSON {ok, processed:[ids]}."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return redir
+    kind = request.form.get("kind", "")
+    action = request.form.get("action", "")
+    if kind not in ("video", "photo", "image") or \
+            action not in ("approve", "reject"):
+        return jsonify({"ok": False, "error": "bad kind or action"}), 400
+    status = "approved" if action == "approve" else "rejected"
+    processed = []
+    for piece in request.form.get("ids", "").split(","):
+        piece = piece.strip()
+        if not piece.isdigit():
+            continue
+        uid = int(piece)
+        try:
+            if kind == "video":
+                videos.set_video_status(db, uid, status)
+            elif kind == "photo":
+                db.set_photo_status(uid, status)
+            else:
+                ai_images.set_image_status(db, uid, status)
+            processed.append(uid)
+        except (ValueError, TypeError):
+            continue
+    return jsonify({"ok": True, "kind": kind, "status": status,
+                    "processed": processed})
 
 
 def _sig_web_reactor():

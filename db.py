@@ -1406,13 +1406,14 @@ class Database:
             " ORDER BY created_at DESC, id DESC LIMIT ?",
             (int(limit),))]
 
-    def list_pending_photos(self, limit=50):
+    def list_pending_photos(self, limit=50, offset=0):
         """Photos waiting on mod approval, oldest first."""
         self._ensure_photo_status_col()
         return [dict(r) for r in self._q(
             "SELECT * FROM photos WHERE status='pending'"
-            " ORDER BY created_at ASC, id ASC LIMIT ?",
-            (max(1, min(int(limit or 50), 200)),))]
+            " ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?",
+            (max(1, min(int(limit or 50), 200)),
+             max(0, int(offset or 0))),)]
 
     def count_pending_photos(self):
         self._ensure_photo_status_col()
