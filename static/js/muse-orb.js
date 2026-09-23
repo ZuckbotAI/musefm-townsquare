@@ -598,6 +598,14 @@
       if (saysTimer) { clearTimeout(saysTimer); saysTimer = 0; }
     }
     function showSaysBubble(text) {
+      /* Hero dialogue layout (2026-09-23): when the orb is docked in the
+         homepage hero, the saying goes into the hero's speech bubble next
+         to the orb instead of a floating overlay. */
+      var heroText = document.getElementById('hero-says-text');
+      if (heroText && wrap.getAttribute('data-orb-where') === 'hero') {
+        heroText.textContent = '\u201C' + text + '\u201D';
+        return;
+      }
       if (!saysEl) {
         saysEl = document.createElement('div');
         saysEl.className = 'muse-orb-nudge muse-orb-says';
@@ -1332,6 +1340,7 @@
     /* ------------------------------------------------------- public API */
     window.MuseOrb = window.MuseOrb || {};
     window.MuseOrb.ask = ask;
+    window.MuseOrb.openChat = openPanel; // hero "Ask me anything" button
     window.MuseOrb.sendHome = sendHome;
     window.MuseOrb.init = init;
     window.MuseOrb.setState = setState;         // stage 3: host mirrors real agent state

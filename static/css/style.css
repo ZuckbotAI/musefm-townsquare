@@ -1473,17 +1473,57 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 }
 .fm-hero-orbs .orb2 { width: 132px; height: 132px; right: -14px; bottom: -56px; }
 .fm-hero-inner { position: relative; max-width: 64ch; flex: 1 1 auto; min-width: 0; }
-/* the orb's home on the homepage — fills the card's right side so the hero
-   isn't a wall of empty space; the orb snaps in here on load (orb-dock.js).
-   The stage is an invisible layout box: no placeholder outlines (2026-09-23). */
-.fm-hero-stage { position: relative; flex: 0 0 auto; }
-.hero-orb-stage {
-  width: 168px; height: 168px; border-radius: 50%; position: relative;
+/* the orb's home on the homepage — the bubble it sits in, plus the
+   dialogue speech bubble beside it (dialogue layout, 2026-09-23, Anthony).
+   The stage itself stays an invisible layout box: no placeholder outlines. */
+.fm-hero-stage { position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: 14px; }
+.hero-orb-bubble {
+  width: 168px; height: 168px; border-radius: 50%; flex: 0 0 auto;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(125,211,252,.32), rgba(125,211,252,0) 48%),
+    radial-gradient(circle at 50% 58%, #26476f 0%, #13294d 54%, #0a1730 100%);
+  border: 1px solid rgba(125,211,252,.5);
+  box-shadow: 0 12px 32px rgba(2,32,71,.42), inset 0 2px 12px rgba(125,211,252,.30),
+    inset 0 -12px 26px rgba(2,8,23,.6), 0 0 0 5px rgba(125,211,252,.08),
+    0 0 34px rgba(56,189,248,.30);
   display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
 }
+.hero-orb-stage { width: 140px; height: 140px; position: relative; }
+/* hero dialogue: the orb's saying as a speech bubble with a tail pointing
+   at the orb bubble — fills the hero's middle instead of floating over it. */
+.hero-says {
+  position: relative; background: #0f172a; color: #f1f5f9;
+  border-radius: 16px; padding: 12px 14px; max-width: 250px; flex: 1 1 auto;
+  box-shadow: 0 12px 32px rgba(2,6,23,.28);
+  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+.hero-says:after {
+  content: ""; position: absolute; left: -8px; top: 50%; margin-top: -8px;
+  border: 8px solid transparent; border-left: 0; border-right-color: #0f172a;
+}
+.hero-says-text { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; }
+.hero-says-chat {
+  display: inline-block; border: 1px solid rgba(148,184,220,.4);
+  background: rgba(56,189,248,.18); color: #bae6fd;
+  font-size: 12.5px; font-weight: 650; padding: 8px 16px; border-radius: 999px;
+  cursor: pointer; min-height: 36px;
+}
+.hero-says-chat:hover { background: rgba(56,189,248,.32); }
+/* compact for-agents card: shrunken promo pinned to the top of the page
+   (2026-09-23, Anthony). */
+.tidepal-promo.compact { padding: 10px 16px; gap: 14px; margin: 0 0 12px; }
+.tidepal-promo.compact .tidepal-promo-art svg { width: 56px; height: 56px; }
+.tidepal-promo.compact .tidepal-promo-copy h2 { font-size: 17px; margin: 2px 0 4px; }
+.tidepal-promo.compact .tidepal-promo-copy .hint { font-size: 12.5px; margin: 0 0 8px; }
 @media (max-width: 640px) {
   .fm-hero { flex-wrap: wrap; gap: 12px; }
-  .hero-orb-stage { width: 120px; height: 120px; }
+  .fm-hero-inner { flex: 1 1 100%; }
+  .fm-hero-stage { flex: 1 1 100%; gap: 12px; }
+  .hero-orb-bubble { width: 120px; height: 120px; }
+  .hero-orb-stage { width: 100px; height: 100px; }
+  .hero-says { max-width: none; }
+  .hero-says-text { font-size: 14.5px; }
 }
 .fm-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .fm-wordmark { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 0; color: #0a1f44; line-height: 1; }

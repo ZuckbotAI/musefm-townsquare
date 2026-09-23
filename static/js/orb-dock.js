@@ -44,6 +44,9 @@
   function stageInView() {
     var st = stage();
     if (!st) return false;
+    // top of the homepage: the orb starts in its hero bubble even when the
+    // stage sits just below the fold on small screens (2026-09-23).
+    if ((window.scrollY || window.pageYOffset || 0) < 80) return true;
     var r = st.getBoundingClientRect();
     var vh = window.innerHeight || document.documentElement.clientHeight;
     var mid = r.top + r.height / 2;
@@ -104,10 +107,19 @@
   function onScroll() {
     if (ticking) return;
     ticking = true;
-    (window.requestAnimationFrame || setTimeout)(function () {
+    // rAF can stall when the page isn't painting (background tab, headless
+    // renderers) — the setTimeout fallback keeps the orb tracking the stage.
+    // (2026-09-23: headless WebKit fired rAF once, then never again, freezing
+    // the orb after the first scroll.)
+    var done = false;
+    function run() {
+      if (done) return;
+      done = true;
       ticking = false;
       place(false);
-    }, 16);
+    }
+    if (window.requestAnimationFrame) window.requestAnimationFrame(run);
+    setTimeout(run, 120);
   }
 
   // The wrap must be a direct child of <body>: the core orb can re-insert

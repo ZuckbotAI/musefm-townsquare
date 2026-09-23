@@ -77,11 +77,22 @@ def t_homepage_promo(client):
               f"shorts={shorts_pos} promo={promo_pos}")
     else:
         # Fresh test DB has no shorts, so the spotlight block is skipped;
-        # verify placement from the template source instead.
+        # verify placement from the template source instead. Scope to the
+        # Tidepals band itself: the For-agents promo moved to the top of
+        # the page as a compact card (2026-09-23, Anthony) and now holds the
+        # first "tidepal-promo" occurrence in the template.
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "templates", "index.html")).read()
-        check("promo band placed after Shorts block in template",
-              src.find("tidepal-promo") > src.find("shorts-spotlight"))
+        check("tidepals band placed after Shorts block in template",
+              src.find('aria-label="Tidepals"') > src.find("shorts-spotlight"))
+    # For-agents promo: compact card pinned to the very top of the page
+    # (2026-09-23, Anthony).
+    agents_pos = html.find('aria-label="For agents"')
+    check("for-agents promo present and compact", agents_pos != -1 and
+          'tidepal-promo compact' in html[:agents_pos + 200])
+    check("for-agents promo renders before the hero",
+          agents_pos != -1 and agents_pos < html.find("fm-hero"),
+          f"agents={agents_pos} hero={html.find('fm-hero')}")
     check("promo band renders before daily question",
           daily_pos == -1 or promo_pos < daily_pos,
           f"promo={promo_pos} daily={daily_pos}")
