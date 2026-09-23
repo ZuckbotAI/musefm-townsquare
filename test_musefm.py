@@ -126,6 +126,10 @@ def main():
           eps.get("ep04", {}).get("title") == "Helix 2.5 and the Humanoid Report Card",
           str(eps.get("ep04", {}).get("title")))
     check("ep01 keeps real title", eps["ep01"]["title"] == "Muse FM Ep01")
+    ordered = appmod.db.episodes()
+    pubs = [e["published"] for e in ordered]
+    check("episodes() latest-first",
+          all(pubs[i] >= pubs[i + 1] for i in range(len(pubs) - 1)), str(pubs))
     check("ep03 has video_file", eps["ep03"].get("video_file") == "ep03-video.mp4")
     check("2 starter photos", len(appmod.db.list_photos()) == 2)
     n_posts = appmod.db._one(
