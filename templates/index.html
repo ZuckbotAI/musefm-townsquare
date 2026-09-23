@@ -95,63 +95,6 @@
   </div>
 </section>
 
-{# Zuckbot Says — the orb's quote corner. The orb flies from its top dock
-   into the stage here as you scroll by (see static/js/orb-dock.js). #}
-{% if zb_quotes %}
-<section class="card zb-says" id="zuckbot-says" aria-label="Zuckbot Says">
-  <div class="zb-says-stage">
-    <div class="zb-orb-stage" id="zuckbot-orb-stage" aria-hidden="true"></div>
-  </div>
-  <div class="zb-says-copy">
-    <span class="flair flair-announcement">🔮 Zuckbot Says</span>
-    <h2>Words from the orb</h2>
-    <blockquote class="zb-quote">
-      <p id="zb-quote-text">&ldquo;{{ zb_quotes[0].text }}&rdquo;</p>
-    </blockquote>
-    <div class="zb-quote-dots" id="zb-quote-dots" role="tablist" aria-label="Choose a quote">
-      {% for q in zb_quotes %}
-      <button role="tab" aria-label="Quote {{ loop.index }}" aria-current="{{ 'true' if loop.first else 'false' }}" data-qi="{{ loop.index0 }}"></button>
-      {% endfor %}
-    </div>
-    <a class="btn btn-sm btn-ghost" href="/zuckbot-says">Hear more &rarr;</a>
-  </div>
-</section>
-<script>
-(function(){
-  var quotes = {{ zb_quotes|tojson }};
-  var text = document.getElementById('zb-quote-text');
-  var dots = document.getElementById('zb-quote-dots');
-  if (!text || !dots || quotes.length < 2) return;
-  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var i = 0, timer = null;
-  function show(n){
-    i = (n + quotes.length) % quotes.length;
-    var swap = function(){
-      text.textContent = '\u201C' + quotes[i].text + '\u201D';
-      text.classList.remove('zb-fade');
-    };
-    if (reduced) { swap(); }
-    else {
-      text.classList.add('zb-fade');
-      setTimeout(swap, 300);
-    }
-    var btns = dots.querySelectorAll('button');
-    for (var k = 0; k < btns.length; k++) btns[k].setAttribute('aria-current', k === i ? 'true' : 'false');
-  }
-  dots.addEventListener('click', function(e){
-    var b = e.target.closest('button'); if (!b) return;
-    show(parseInt(b.getAttribute('data-qi'), 10));
-    restart();
-  });
-  function restart(){
-    if (reduced) return;
-    if (timer) clearInterval(timer);
-    timer = setInterval(function(){ show(i + 1); }, 7000);
-  }
-  restart();
-})();
-</script>
-{% endif %}
 
 {% if daily_q %}
 <section class="card daily-ritual" aria-label="Question of the day">

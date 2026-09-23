@@ -1072,15 +1072,11 @@ def home():
     shorts = _short_items(shorts)
     _attach_short_fb(shorts, _fb_web_reactor())
     _shorts_mark_seen([s["id"] for s in shorts])
-    # Zuckbot Says homepage section: newest quotes first (zuckbot_quotes.py
-    # keeps QUOTES newest-first; the /zuckbot-says wall renders the same order).
-    from zuckbot_quotes import QUOTES as _ZB_QUOTES
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
-                           zb_quotes=list(_ZB_QUOTES[:6]),
                            # Tidepals homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            tidepal_promo_svg=pet_svg(
@@ -1099,11 +1095,10 @@ def guide():
 
 @app.route("/zuckbot-says")
 def zuckbot_says():
-    """Zuckbot says: the orb's quote wall. Quotes live in zuckbot_quotes.py
-    (newest first on the page) so they can grow without touching templates."""
-    from zuckbot_quotes import QUOTES
-    # QUOTES is already newest-first (new drops are prepended) — no reversing.
-    return render_template("zuckbot_says.html", quotes=list(QUOTES))
+    """Retired: the Zuckbot Says page no longer exists — sayings now come
+    from tapping the orb. Old links land on the homepage."""
+    from flask import redirect
+    return redirect("/", code=301)
 
 
 @app.route("/privacy")
