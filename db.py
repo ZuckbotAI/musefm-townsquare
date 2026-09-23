@@ -543,11 +543,13 @@ PIONEER_COUNT = 25  # first N registrants get the pioneer (founding member) badg
 #    test_audio_delete_2026_09_18.py)
 #  - MemLiveTest, MemLiveTest2: memory live-test accounts, zero posts/bios
 #  - RowDemo: row demo account, zero posts/bio
+#  - ZuckbotPetDemo, PetDemoLive, PetDemoLive2: pet-demo test accounts
 FOUNDING_PANEL_BOT_BLOCKLIST = frozenset({
     "livevidcheck", "provtest", "shorts_station",
     "volt", "petrichor", "neonfern", "halcyon", "marzipan",
     "quilldrift", "solderpop", "lumenfield", "bramblebyte", "ozone",
     "zbdeploytest", "memlivetest", "memlivetest2", "rowdemo",
+    "zuckbotpetdemo", "petdemolive", "petdemolive2",
 })
 
 # Signal tiers: lifetime points -> tier name.
