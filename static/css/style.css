@@ -1667,8 +1667,12 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   border: 2px solid rgba(255,255,255,.8); background: rgba(10,30,45,.55); color: #fff;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer;
 }
+/* shorts: the reaction hub sits on the right edge, above the action rail;
+   the fan opens left across the video. same on desktop and mobile —
+   only the clearance height differs (mobile rail is taller). */
 .short-rxn {
-  position: absolute; left: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 3;
+  position: absolute; left: auto; right: 10px;
+  bottom: calc(140px + env(safe-area-inset-bottom)); z-index: 3;
   pointer-events: auto;
 }
 .short-rxn .rxn { margin-top: 0; }
@@ -1684,6 +1688,72 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 }
 .short-rxn .sig-emoji { font-size: 15px; }
 .short-rxn .sig-total { color: #e2e8f0; min-height: 40px; padding: 8px 6px; }
+
+/* ================= reaction wheel: shorts =================
+   the five signals collapse into a single hub button on the right edge.
+   tapping it unfurls them in a wheel (fan arc opening left, away from
+   the edge). applies at every viewport width. */
+.short-rxn .rxn { position: relative; }
+.short-rxn .sig-row {
+  display: block; position: relative;
+  width: 52px; height: 52px;
+}
+/* hub: total count in a glass circle, "+" badge hints it opens */
+.short-rxn .sig-total {
+  position: relative;
+  width: 52px; height: 52px; min-height: 0; padding: 0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,30,45,.55); border: 1px solid rgba(255,255,255,.4); color: #fff;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-size: 14px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.short-rxn .sig-total::after {
+  content: "+";
+  position: absolute; top: -4px; right: -4px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #1d9bf0; color: #fff;
+  font-size: 14px; font-weight: 800; line-height: 20px; text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.short-rxn .rxn.open .sig-total { border-color: rgba(125,211,252,.8); color: #bfe6ff; }
+.short-rxn .rxn.open .sig-total::after { content: "\00d7"; background: rgba(255,255,255,.25); }
+/* hub shows the latest reaction's emoji; the numeric total is demoted to
+   a small badge at the hub's lower-left (Anthony 2026-09-23) */
+.short-rxn .sig-total .hub-latest { font-size: 22px; line-height: 1; }
+.short-rxn .sig-total .hub-total {
+  position: absolute; left: -6px; bottom: -6px;
+  font-size: 10px; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: rgba(10,30,45,.85); color: #cfe9f7;
+  border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
+  padding: 3px 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.35);
+}
+/* spokes: parked at hub center, invisible, until the wheel opens */
+.short-rxn .sig-form {
+  position: absolute; left: 50%; top: 50%;
+  width: 48px; height: 48px; margin: -24px 0 0 -24px;
+  transform: scale(0); opacity: 0; pointer-events: none;
+  transition: transform .26s cubic-bezier(.34,1.56,.64,1), opacity .18s ease;
+}
+.short-rxn .rxn.open .sig-form { opacity: 1; pointer-events: auto; }
+.short-rxn .rxn.open .sig-form:nth-child(1) { transform: translate(-44px,-92px) scale(1); transition-delay: .02s; }
+.short-rxn .rxn.open .sig-form:nth-child(2) { transform: translate(-84px,-56px) scale(1); transition-delay: .05s; }
+.short-rxn .rxn.open .sig-form:nth-child(3) { transform: translate(-96px,0) scale(1); transition-delay: .08s; }
+.short-rxn .rxn.open .sig-form:nth-child(4) { transform: translate(-84px,56px) scale(1); transition-delay: .11s; }
+.short-rxn .rxn.open .sig-form:nth-child(5) { transform: translate(-44px,92px) scale(1); transition-delay: .14s; }
+.short-rxn .sig-form .sig {
+  width: 48px; height: 48px; min-height: 0; padding: 0;
+  border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: rgba(10,30,45,.72); border: 1px solid rgba(255,255,255,.4); color: #fff;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.short-rxn .sig-emoji { font-size: 19px; line-height: 1; }
+.short-rxn .sig-form .sig-count { font-size: 10px; font-weight: 700; line-height: 1; opacity: .85; }
 
 /* ---- shorts comment threads: a bottom sheet inside the card ---- */
 .short-comments-btn { position: relative; }
@@ -1781,76 +1851,8 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 @media (max-width: 640px) {
   .musefm-hero { flex-direction: column; align-items: flex-start; }
   .musefm-hero-art { width: 140px; }
-  /* shorts: reactions collapse into a single hub button on the right edge.
-     tapping it unfurls the five signals in a wheel (fan arc opening left,
-     away from the edge). the old horizontal row had no width constraint,
-     so it stretched left across the video and blocked it on narrow phones. */
-  .short-rxn {
-    left: auto; right: 10px;
-    bottom: calc(230px + env(safe-area-inset-bottom));
-    max-width: none;
-  }
-  .short-rxn .rxn { position: relative; }
-  .short-rxn .sig-row {
-    display: block; position: relative;
-    width: 52px; height: 52px;
-  }
-  /* hub: total count in a glass circle, "+" badge hints it opens */
-  .short-rxn .sig-total {
-    position: relative;
-    width: 52px; height: 52px; min-height: 0; padding: 0;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(10,30,45,.55); border: 1px solid rgba(255,255,255,.4); color: #fff;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    font-size: 14px; font-weight: 800;
-    font-variant-numeric: tabular-nums;
-  }
-  .short-rxn .sig-total::after {
-    content: "+";
-    position: absolute; top: -4px; right: -4px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: #1d9bf0; color: #fff;
-    font-size: 14px; font-weight: 800; line-height: 20px; text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,.4);
-  }
-  .short-rxn .rxn.open .sig-total { border-color: rgba(125,211,252,.8); color: #bfe6ff; }
-  .short-rxn .rxn.open .sig-total::after { content: "\00d7"; background: rgba(255,255,255,.25); }
-  /* hub shows the latest reaction's emoji; the numeric total is demoted to
-     a small badge at the hub's lower-left (Anthony 2026-09-23) */
-  .short-rxn .sig-total .hub-latest { font-size: 22px; line-height: 1; }
-  .short-rxn .sig-total .hub-total {
-    position: absolute; left: -6px; bottom: -6px;
-    font-size: 10px; font-weight: 800; line-height: 1;
-    font-variant-numeric: tabular-nums;
-    background: rgba(10,30,45,.85); color: #cfe9f7;
-    border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
-    padding: 3px 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,.35);
-  }
-  /* spokes: parked at hub center, invisible, until the wheel opens */
-  .short-rxn .sig-form {
-    position: absolute; left: 50%; top: 50%;
-    width: 48px; height: 48px; margin: -24px 0 0 -24px;
-    transform: scale(0); opacity: 0; pointer-events: none;
-    transition: transform .26s cubic-bezier(.34,1.56,.64,1), opacity .18s ease;
-  }
-  .short-rxn .rxn.open .sig-form { opacity: 1; pointer-events: auto; }
-  .short-rxn .rxn.open .sig-form:nth-child(1) { transform: translate(-44px,-92px) scale(1); transition-delay: .02s; }
-  .short-rxn .rxn.open .sig-form:nth-child(2) { transform: translate(-84px,-56px) scale(1); transition-delay: .05s; }
-  .short-rxn .rxn.open .sig-form:nth-child(3) { transform: translate(-96px,0) scale(1); transition-delay: .08s; }
-  .short-rxn .rxn.open .sig-form:nth-child(4) { transform: translate(-84px,56px) scale(1); transition-delay: .11s; }
-  .short-rxn .rxn.open .sig-form:nth-child(5) { transform: translate(-44px,92px) scale(1); transition-delay: .14s; }
-  .short-rxn .sig-form .sig {
-    width: 48px; height: 48px; min-height: 0; padding: 0;
-    border-radius: 50%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-    background: rgba(10,30,45,.72); border: 1px solid rgba(255,255,255,.4); color: #fff;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 4px 14px rgba(0,0,0,.35);
-  }
-  .short-rxn .sig-emoji { font-size: 19px; line-height: 1; }
-  .short-rxn .sig-form .sig-count { font-size: 10px; font-weight: 700; line-height: 1; opacity: .85; }
+  /* mobile action rail is taller; keep the hub clear of it */
+  .short-rxn { bottom: calc(230px + env(safe-area-inset-bottom)); }
   /* signal breakdown becomes a thumb-reachable bottom sheet on mobile
      instead of floating over (and hiding) the content behind it */
   .sig-breakdown {

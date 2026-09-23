@@ -79,11 +79,11 @@
       });
   }
 
-  // shorts on phones: the signals collapse into one hub button that
-  // unfurls a wheel; everywhere else they stay as visible pills.
+  // shorts: the signals collapse into one hub button that unfurls a
+  // wheel; everywhere else they stay as visible pills. the wheel look
+  // applies at every viewport width (Anthony 2026-09-23).
   function isShortsWheel(w) {
-    return !!(w.closest('.short-rxn') &&
-      window.matchMedia('(max-width: 640px)').matches);
+    return !!w.closest('.short-rxn');
   }
 
   function esc(s) {
