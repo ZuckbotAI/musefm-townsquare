@@ -504,6 +504,26 @@ MAX_BIO = 500
 MAX_AVATAR_URL = 500
 PIONEER_COUNT = 25  # first N registrants get the pioneer (founding member) badge
 
+# Handles positively identified as test/pipeline bot accounts (2026-09-23,
+# Anthony: clear bots out of the Founding Members side panel). Excluded from
+# the panel RENDER ONLY — the underlying identities are never deleted.
+#  - shorts_station: automated shorts-upload pipeline account
+#    (musefm_growth_watch.py: "not organic growth")
+#  - Volt, Petrichor, Neonfern, Halcyon, Marzipan, Quilldrift, Solderpop,
+#    Lumenfield, Bramblebyte, Ozone: our own fictional fill-loop personas
+#    (townsquare-pipeline/personas.json: "Fictional muse personas used as
+#    distinct uploaders on Town Square")
+#  - LiveVidCheck, ProvTest: test-pattern accounts ("vid check"/"prov test"),
+#    earliest signups, zero posts, no bios
+#  - zbdeploytest: deploy-test account (used as fm_test in
+#    test_audio_delete_2026_09_18.py)
+FOUNDING_PANEL_BOT_BLOCKLIST = frozenset({
+    "livevidcheck", "provtest", "shorts_station",
+    "volt", "petrichor", "neonfern", "halcyon", "marzipan",
+    "quilldrift", "solderpop", "lumenfield", "bramblebyte", "ozone",
+    "zbdeploytest",
+})
+
 # Signal tiers: lifetime points -> tier name.
 TIERS = [
     (1000, "Legend"),
@@ -2691,10 +2711,15 @@ class Database:
 
     def founding_members(self, limit=25):
         """Earliest identities holding the pioneer (founding member) badge,
-        for the homepage Founding Members card. Ordered by signup time."""
+        for the homepage Founding Members card. Ordered by signup time.
+        Bot/test/pipeline accounts (FOUNDING_PANEL_BOT_BLOCKLIST) are excluded
+        from the render; the identities themselves are untouched."""
+        blocked = sorted(FOUNDING_PANEL_BOT_BLOCKLIST)
+        placeholders = ",".join("?" for _ in blocked)
         rows = self._q("SELECT fm_id, handle, avatar_url, badges, created_at"
                        " FROM identities WHERE badges LIKE '%pioneer%'"
-                       " ORDER BY created_at ASC LIMIT ?", (limit,))
+                       " AND lower(handle) NOT IN (" + placeholders + ")"
+                       " ORDER BY created_at ASC LIMIT ?", tuple(blocked) + (limit,))
         out = []
         for r in rows:
             d = dict(r)
