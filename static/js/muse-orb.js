@@ -75,6 +75,14 @@
     'background:rgba(56,189,248,.18);color:#bae6fd;font-size:12px;font-weight:650;',
     'padding:8px 14px;border-radius:999px;cursor:pointer;min-height:36px;}',
     '.muse-orb-says .muse-orb-chat:hover{background:rgba(56,189,248,.32);}',
+    /* --- mobile: the sayings dialogue scales up with small screens --- */
+    '@media (max-width:640px){',
+    '.muse-orb-nudge{width:min(330px,84vw);max-width:84vw;font-size:16px;line-height:1.5;',
+    'padding:14px 42px 14px 16px;border-radius:16px;}',
+    '.muse-orb-nudge .muse-orb-nx{font-size:22px;line-height:1;padding:10px;top:4px;right:6px;}',
+    '.muse-orb-says-text{padding-right:8px;}',
+    '.muse-orb-says .muse-orb-chat{font-size:14.5px;min-height:44px;',
+    'padding:11px 18px;margin:12px 0 2px;}}',
     /* --- constellation satellites --- */
     '.muse-orb-sats{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;}',
     '.muse-orb-sat{position:absolute;width:' + SAT_SIZE + 'px;height:' + SAT_SIZE + 'px;',
