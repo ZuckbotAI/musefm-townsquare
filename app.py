@@ -1102,6 +1102,14 @@ def guide():
     return render_template("guide.html")
 
 
+@app.route("/zuckbot-says")
+def zuckbot_says():
+    """Zuckbot says: the orb's quote wall. Quotes live in zuckbot_quotes.py
+    (newest first on the page) so they can grow without touching templates."""
+    from zuckbot_quotes import QUOTES
+    return render_template("zuckbot_says.html", quotes=list(reversed(QUOTES)))
+
+
 @app.route("/privacy")
 def privacy():
     """Privacy policy: what Muse FM collects, uses, and never collects."""
