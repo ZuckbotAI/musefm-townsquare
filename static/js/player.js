@@ -38,13 +38,18 @@ window.TSPlayer = (function () {
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
 
-  function show() { mp.classList.add('show'); mp.setAttribute('aria-hidden', 'false'); }
+  function show() {
+    // Miniplayer markup is optional: if a page ever renders without it,
+    // the audio still plays — only the sticky UI is skipped.
+    if (!mp) return;
+    mp.classList.add('show'); mp.setAttribute('aria-hidden', 'false');
+  }
 
   function load(item, autoplay, startAt) {
     state.current = Object.assign({ el: audio }, item);
     var seq = ++loadSeq;
     audio.src = item.src;
-    mpTitle.textContent = item.title;
+    if (mpTitle) mpTitle.textContent = item.title;
     show();
     renderQueue();
     seekSafe(startAt || 0, seq);
@@ -80,6 +85,7 @@ window.TSPlayer = (function () {
   }
 
   function updatePlayBtn() {
+    if (!mpPlay) return;
     mpPlay.textContent = audio.paused ? '▶' : '⏸';
   }
 
@@ -89,8 +95,8 @@ window.TSPlayer = (function () {
   audio.addEventListener('timeupdate', function () {
     var d = audio.duration || (state.current && state.current.dur) || 0;
     var c = audio.currentTime || 0;
-    mpTime.textContent = fmt(c) + ' / ' + fmt(d);
-    if (d) mpProg.style.width = (100 * c / d) + '%';
+    if (mpTime) mpTime.textContent = fmt(c) + ' / ' + fmt(d);
+    if (d && mpProg) mpProg.style.width = (100 * c / d) + '%';
     // per-card progress
     if (state.current) {
       var bar = document.querySelector('[data-seek="' + state.current.slug + '"] > div');
@@ -101,34 +107,63 @@ window.TSPlayer = (function () {
   });
   audio.addEventListener('loadedmetadata', function () {
     var d = audio.duration;
-    if (state.current && d) mpTime.textContent = '0:00 / ' + fmt(d);
+    if (state.current && d && mpTime) mpTime.textContent = '0:00 / ' + fmt(d);
   });
 
-  // controls
-  mpPlay.onclick = toggle;
-  document.getElementById('mp-rew').onclick = function () { audio.currentTime = Math.max(0, audio.currentTime - 15); };
-  document.getElementById('mp-fwd').onclick = function () { audio.currentTime += 30; };
-  document.getElementById('mp-close').onclick = function () {
-    audio.pause(); mp.classList.remove('show'); state.current = null;
-  };
-  document.getElementById('mp-queue').onclick = function () {
-    document.getElementById('queue-panel').classList.toggle('open');
-  };
-  document.getElementById('mp-progress').onclick = function (e) {
+  // Episode-card click delegation is wired FIRST, before any miniplayer
+  // control wiring: a missing miniplayer element must never silently kill
+  // episode playback (previously `mpPlay.onclick = toggle` threw on a null
+  // lookup and the delegation below never registered — tapping Play did
+  // nothing anywhere on the page).
+  document.addEventListener('click', function (e) {
+    var p = e.target.closest('[data-play]');
+    if (p) {
+      var it = itemFrom(p);
+      var start = parseInt(p.getAttribute('data-start') || '0', 10);
+      playItem(it, start);
+      return;
+    }
+    var q = e.target.closest('[data-queue]');
+    if (q) enqueue(itemFrom(q));
+    var s = e.target.closest('[data-seek]');
+    if (s && state.current && s.getAttribute('data-seek') === state.current.slug) {
+      var bar = s.getBoundingClientRect();
+      var d = audio.duration || state.current.dur;
+      audio.currentTime = d * ((e.clientX - bar.left) / bar.width);
+    }
+  });
+
+  // controls — each lookup guarded so a page without the miniplayer
+  // markup can't throw here either.
+  function on(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (el) el[ev] = fn;
+  }
+  on('mp-play', 'onclick', toggle);
+  on('mp-rew', 'onclick', function () { audio.currentTime = Math.max(0, audio.currentTime - 15); });
+  on('mp-fwd', 'onclick', function () { audio.currentTime += 30; });
+  on('mp-close', 'onclick', function () {
+    audio.pause(); if (mp) mp.classList.remove('show'); state.current = null;
+  });
+  on('mp-queue', 'onclick', function () {
+    var qp = document.getElementById('queue-panel');
+    if (qp) qp.classList.toggle('open');
+  });
+  on('mp-progress', 'onclick', function (e) {
     var r = this.getBoundingClientRect();
     var d = audio.duration; if (!d) return;
     audio.currentTime = d * ((e.clientX - r.left) / r.width);
-  };
-  document.getElementById('mp-speed').onchange = function () { audio.playbackRate = parseFloat(this.value); };
-  document.getElementById('mp-sleep').onchange = function () {
+  });
+  on('mp-speed', 'onchange', function () { audio.playbackRate = parseFloat(this.value); });
+  on('mp-sleep', 'onchange', function () {
     if (state.sleepTimer) { clearTimeout(state.sleepTimer); state.sleepTimer = null; }
     var m = parseInt(this.value, 10);
     if (m > 0) {
       state.sleepTimer = setTimeout(function () { audio.pause(); toast('Sleep timer — goodnight 🌙'); }, m * 60000);
       toast('Sleep in ' + m + ' min');
     }
-  };
-  document.getElementById('mp-clip').onclick = function () {
+  });
+  on('mp-clip', 'onclick', function () {
     if (!state.current) return;
     var t = Math.floor(audio.currentTime);
     var start = Math.max(0, t - 15), end = Math.min(Math.floor(audio.duration || 0), t + 15);
@@ -143,10 +178,11 @@ window.TSPlayer = (function () {
       if (j.ok) { toast('Clip saved ✂'); if (j.share_url) copyText(j.share_url); }
       else toast('Clip failed: ' + (j.error || '?'));
     }).catch(function () { toast('Clip failed — network'); });
-  };
+  });
 
   function renderQueue() {
     var q = document.getElementById('queue-panel');
+    if (!q) return;
     var html = '<div class="hint" style="margin:4px 0">UP NEXT</div>';
     if (!state.queue.length) html += '<div class="hint">Queue is empty.</div>';
     state.queue.forEach(function (it, i) {
@@ -174,23 +210,7 @@ window.TSPlayer = (function () {
       dur: parseInt(el.getAttribute('data-dur') || '0', 10),
     };
   }
-  document.addEventListener('click', function (e) {
-    var p = e.target.closest('[data-play]');
-    if (p) {
-      var it = itemFrom(p);
-      var start = parseInt(p.getAttribute('data-start') || '0', 10);
-      playItem(it, start);
-      return;
-    }
-    var q = e.target.closest('[data-queue]');
-    if (q) enqueue(itemFrom(q));
-    var s = e.target.closest('[data-seek]');
-    if (s && state.current && s.getAttribute('data-seek') === state.current.slug) {
-      var bar = s.getBoundingClientRect();
-      var d = audio.duration || state.current.dur;
-      audio.currentTime = d * ((e.clientX - bar.left) / bar.width);
-    }
-  });
+  // (click delegation lives above, wired before the miniplayer controls)
 
   // #t= deep links: /episodes#slug?t=90
   function deepLink() {
