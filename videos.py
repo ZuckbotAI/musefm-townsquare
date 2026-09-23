@@ -20,7 +20,9 @@ Safety model mirrors ai_images.py:
 import hashlib
 import os
 import re
+import shutil
 import time
+import uuid
 
 # 32 MB: tight enough to protect the 1 GB Render disk (worst case ~31
 # max-size videos fill it; the 20/hour per-identity cap plus moderation keep
@@ -350,6 +352,37 @@ def valid_video_url(url):
     raise ValueError("bad video url -- attach via /api/upload/video")
 
 
+def _write_temp_upload(upload_dir, raw, prefix, ext):
+    """Durably stage an upload file. Returns the temp path.
+
+    Raises ValueError (not OSError) when the bytes cannot be stored, so
+    API layers surface a clean error instead of a 500. The caller renames
+    the temp file to its final name after the DB row exists, and removes
+    the temp file if anything fails afterward.
+    """
+    os.makedirs(upload_dir, exist_ok=True)
+    try:
+        free = shutil.disk_usage(upload_dir).free
+    except OSError:
+        free = None
+    if free is not None and free < len(raw) + (64 << 20):
+        raise ValueError("server storage is full -- upload rejected")
+    tmp_full = os.path.join(upload_dir, "%s-tmp-%s.%s" %
+                            (prefix, uuid.uuid4().hex, ext))
+    try:
+        with open(tmp_full, "wb") as fh:
+            fh.write(raw)
+            fh.flush()
+            os.fsync(fh.fileno())
+    except OSError as e:
+        try:
+            os.remove(tmp_full)
+        except OSError:
+            pass
+        raise ValueError("could not store upload file (%s)" % e)
+    return tmp_full
+
+
 def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
                         ai_generated=False, duration_secs=None,
                         title=None, description=None, status="pending",
@@ -404,22 +437,37 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
                              SHORTS_MAX_SECS)
     safe_name = (os.path.basename(filename or ("upload." + ext)) or
                  ("upload." + ext))[:120]
-    cur = db._exec(
-        "INSERT INTO video_uploads (fm_id, handle, filename, stored_path, bytes,"
-        " mime, ai_generated, duration_secs, created_at, title, description,"
-        " status, duet_of)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (fm_id, handle, safe_name, "", len(raw), mime,
-         1 if ai_generated else 0, dur, int(time.time()),
-         (title or "")[:120] or None, (description or "")[:500] or None,
-         status, parent_id))
-    uid = cur.lastrowid
-    stored = "uploads/vid-%d.%s" % (uid, ext)
-    os.makedirs(upload_dir, exist_ok=True)
-    full = os.path.join(upload_dir, "vid-%d.%s" % (uid, ext))
-    with open(full, "wb") as fh:
-        fh.write(raw)
-    db._exec("UPDATE video_uploads SET stored_path=? WHERE id=?", (stored, uid))
+    # P0 2026-09-23: the file MUST be durably on disk before the DB row
+    # exists. The old order (INSERT, then write) orphaned 15 feed rows with
+    # no file behind them when the disk filled (Errno 28) -- every one 404'd.
+    tmp_full = _write_temp_upload(upload_dir, raw, "vid", ext)
+    uid = None
+    try:
+        cur = db._exec(
+            "INSERT INTO video_uploads (fm_id, handle, filename, stored_path, bytes,"
+            " mime, ai_generated, duration_secs, created_at, title, description,"
+            " status, duet_of)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (fm_id, handle, safe_name, "", len(raw), mime,
+             1 if ai_generated else 0, dur, int(time.time()),
+             (title or "")[:120] or None, (description or "")[:500] or None,
+             status, parent_id))
+        uid = cur.lastrowid
+        stored = "uploads/vid-%d.%s" % (uid, ext)
+        os.rename(tmp_full, os.path.join(upload_dir, "vid-%d.%s" % (uid, ext)))
+        db._exec("UPDATE video_uploads SET stored_path=? WHERE id=?", (stored, uid))
+    except Exception:
+        # Never leave an orphan row or temp file behind.
+        if uid is not None:
+            try:
+                db._exec("DELETE FROM video_uploads WHERE id=?", (uid,))
+            except Exception:
+                pass
+        try:
+            os.remove(tmp_full)
+        except OSError:
+            pass
+        raise
     return uid, stored
 
 

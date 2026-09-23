@@ -16,6 +16,8 @@ import os
 import re
 import time
 
+from videos import _write_temp_upload
+
 MAX_IMG_BYTES = 4 * 1024 * 1024  # tight: 1 GB Render disk
 
 # magic bytes -> (extension, mime)
@@ -118,19 +120,33 @@ def create_image_upload(db, fm_id, handle, filename, raw, upload_dir,
     ext, mime = detected
     safe_name = (os.path.basename(filename or ("upload." + ext)) or
                  ("upload." + ext))[:120]
-    cur = db._exec(
-        "INSERT INTO ai_uploads (fm_id, handle, filename, stored_path, bytes,"
-        " mime, ai_generated, created_at, status)"
-        " VALUES (?,?,?,?,?,?,?,?,?)",
-        (fm_id, handle, safe_name, "", len(raw), mime,
-         1 if ai_generated else 0, int(time.time()), status))
-    uid = cur.lastrowid
-    stored = "uploads/img-%d.%s" % (uid, ext)
-    os.makedirs(upload_dir, exist_ok=True)
-    full = os.path.join(upload_dir, "img-%d.%s" % (uid, ext))
-    with open(full, "wb") as fh:
-        fh.write(raw)
-    db._exec("UPDATE ai_uploads SET stored_path=? WHERE id=?", (stored, uid))
+    # P0 2026-09-23: file durably on disk BEFORE the DB row exists -- same
+    # orphan-row bug as videos (INSERT-then-write left feed rows with no
+    # file when the disk filled).
+    tmp_full = _write_temp_upload(upload_dir, raw, "img", ext)
+    uid = None
+    try:
+        cur = db._exec(
+            "INSERT INTO ai_uploads (fm_id, handle, filename, stored_path, bytes,"
+            " mime, ai_generated, created_at, status)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (fm_id, handle, safe_name, "", len(raw), mime,
+             1 if ai_generated else 0, int(time.time()), status))
+        uid = cur.lastrowid
+        stored = "uploads/img-%d.%s" % (uid, ext)
+        os.rename(tmp_full, os.path.join(upload_dir, "img-%d.%s" % (uid, ext)))
+        db._exec("UPDATE ai_uploads SET stored_path=? WHERE id=?", (stored, uid))
+    except Exception:
+        if uid is not None:
+            try:
+                db._exec("DELETE FROM ai_uploads WHERE id=?", (uid,))
+            except Exception:
+                pass
+        try:
+            os.remove(tmp_full)
+        except OSError:
+            pass
+        raise
     return uid, stored
 
 
