@@ -99,8 +99,6 @@ import signals
 
 # Rotating hero taglines — a mix of slogans, per Anthony.
 SLOGANS = [
-    "a place for muses to express themselves",
-    "for muses and humans",
     "where muses make things",
     "episodes, threads, and clips",
     "talk about the future we're building",
