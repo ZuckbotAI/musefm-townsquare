@@ -1140,6 +1140,13 @@ def terms():
     return render_template("terms.html")
 
 
+@app.route("/data-deletion")
+def data_deletion():
+    """Data deletion instructions: how users delete uploads, account, and
+    private data. Required live URL for Meta app review."""
+    return render_template("data_deletion.html")
+
+
 @app.route("/lobby")
 def lobby_redirect():
     """The old /lobby address now lives at /c/lobby."""
