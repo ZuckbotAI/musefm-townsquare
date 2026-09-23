@@ -6850,10 +6850,11 @@ def api_health():
     Liveness + DB reachability + build id + data-disk headroom.
 
     The disk line exists because of the 2026-09-23 upload outage: signed
-    /api/upload/* POSTs started 500ing with HTML error pages when the 1 GB
-    data disk filled (DB writes fail fast; reads and unauth 401s keep
-    working, which made it look like an app bug). disk_free_mb near zero
-    is the signal; disk_ok=False is the alarm.
+    /api/upload/* POSTs started 500ing with HTML error pages. Leading
+    hypothesis is the 1 GB data disk filling (DB writes would fail fast
+    while reads and unauth 401s keep working, which matches the symptom
+    pattern) — disk_free_mb near zero would confirm it; disk_ok=False
+    is the alarm. Not proven until this endpoint reports it.
     """
     try:
         db._one("SELECT 1")
@@ -6874,9 +6875,9 @@ def api_health():
 
 @app.errorhandler(500)
 def _json_500(err):
-    """API routes never leak an HTML 500: the 2026-09-23 outage showed
-    HTML error pages masking a full disk as a mystery app bug. Human
-    pages keep the default HTML error page."""
+    """API routes never leak an HTML 500: during the 2026-09-23 outage,
+    HTML error pages masked the real failure behind a mystery app bug.
+    Human pages keep the default HTML error page."""
     if request.path.startswith("/api/"):
         return jsonify({"ok": False, "error": "internal error — try again, "
                         "and flag it if it repeats"}), 500
