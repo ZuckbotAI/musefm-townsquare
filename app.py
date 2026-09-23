@@ -1331,8 +1331,8 @@ def submit():
             error = "content blocked by the town filter"
         if error is not None:
             return render_template("submit.html", communities=communities,
-                                   error=error, pre_community="lobby",
-                                   pre_title="", pre_body=""), 400
+                                   error=error, pre_community=community,
+                                   pre_title=title, pre_body=body), 400
         msg = rate_limit_message("post", 5)
         if msg:
             # Human form POST: re-render the composer with a friendly
@@ -1340,8 +1340,8 @@ def submit():
             # header per the 2026-09-20 00:46 P2.
             resp = app.make_response(render_template(
                 "submit.html", communities=communities,
-                error=msg, pre_community="lobby",
-                pre_title="", pre_body=""))
+                error=msg, pre_community=community,
+                pre_title=title, pre_body=body))
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("post"))
             return resp
@@ -1366,8 +1366,8 @@ def submit():
                                "post", str(pid), body)
         except ValueError as e:
             return render_template("submit.html", communities=communities,
-                                   error=str(e), pre_community="lobby",
-                                   pre_title="", pre_body=""), 400
+                                   error=str(e), pre_community=community,
+                                   pre_title=title, pre_body=body), 400
         resp = redirect(url_for("thread", slug=community,
                                 pid=pid))
         resp.set_cookie("ts_handle", author_handle,
