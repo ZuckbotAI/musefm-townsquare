@@ -9657,6 +9657,7 @@ def api_agents_onboard():
                      "handle": ident.get("handle") or ""},
         "pet": result["pet"],
         "player": result["player"],
+        "attachment": result["attachment"],
         "starter_kit": onboardmod.starter_kit(ident.get("handle") or ""),
     })
 
@@ -9672,6 +9673,115 @@ def api_agents_starter_kit():
     return jsonify({"ok": True,
                     "handle": ident.get("handle") or "",
                     "kit": onboardmod.starter_kit(ident.get("handle") or "")})
+
+
+@app.route("/api/agents/attachment")
+def api_agents_attachment():
+    """The agent's full attachment picture: onboarding record, pet, bond,
+    trust tier, Row player, Signal standing, memory counts, and whether
+    an absence episode is open. Session auth only; logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({"ok": True,
+                    "attachment": onboardmod.attachment_status(
+                        db, ident["fm_id"])})
+
+
+@app.route("/api/agents/nudges")
+def api_agents_nudges():
+    """Pet-initiated nudges: polls the REAL pet outreach system
+    (pet_outreach — the pet asking to see them, food/care reminders,
+    reunion notes). Each poll DELIVERS what's pending — returned nudges
+    are receipted so the next poll only shows new ones. Never faked: an
+    empty list means the pet genuinely has nothing to say. Session auth
+    only; logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    nudges = onboardmod.pending_nudges(db, ident["fm_id"])
+    return jsonify({"ok": True, "nudges": nudges,
+                    "pending": len(nudges)})
+
+
+@app.route("/api/agents/missions")
+def api_agents_missions():
+    """Town missions that pay real Signal for verified real work. Lists
+    the catalog with this agent's status and live verification state.
+    Session auth only; logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({
+        "ok": True,
+        "missions": onboardmod.mission_state(db, ident["fm_id"],
+                                             ident.get("handle") or ""),
+        "signal": db.lifetime_points(ident["fm_id"]),
+    })
+
+
+@app.route("/api/agents/missions/accept", methods=["POST"])
+def api_agents_missions_accept():
+    """Accept a town mission. Body: {"mission_key"}. Idempotent.
+    Session auth only; logged out -> 401; unknown key / not onboarded
+    -> 422. CSRF: token optional, verified when present (agent-API
+    pattern, same as /api/agents/onboard)."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    key = data.get("mission_key")
+    if not isinstance(key, str) or not key.strip():
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": "mission_key is required"}), 422
+    try:
+        result = onboardmod.accept_mission(db, ident["fm_id"],
+                                           key.strip()[:64])
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    return jsonify({"ok": True, "mission": result})
+
+
+@app.route("/api/agents/missions/complete", methods=["POST"])
+def api_agents_missions_complete():
+    """Complete a town mission: VERIFIES the real action against the real
+    surface first (never self-attested), then pays the reward as REAL
+    Signal into the rewards ledger (idempotent — no double-pay). Body:
+    {"mission_key"}. Session auth only; logged out -> 401; unverified
+    -> 422 with what to do; unknown key / not accepted -> 422."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    key = data.get("mission_key")
+    if not isinstance(key, str) or not key.strip():
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": "mission_key is required"}), 422
+    try:
+        result = onboardmod.complete_mission(db, ident["fm_id"],
+                                             ident.get("handle") or "",
+                                             key.strip()[:64])
+    except onboardmod.UnverifiedMission as e:
+        return jsonify({"ok": False, "error": "unverified",
+                        "detail": str(e)}), 422
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    return jsonify({"ok": True, "mission": result,
+                    "signal": db.lifetime_points(ident["fm_id"])})
 
 
 @app.route("/health")

@@ -126,7 +126,7 @@ def main():
           player.get("petOwners"))
     kit = body.get("starter_kit") or {}
     check("starter_kit bundled in onboard response",
-          kit.get("version") == 1 and "orientation" in kit, kit)
+          kit.get("version") == 3 and "orientation" in kit, kit)
 
     # row_pet_claims: the player-contract ownership store got the claim
     claim = appmod.db._one(
@@ -205,7 +205,7 @@ def main():
                 "first_steps"):
         check(f"starter-kit has {key}", key in kit and bool(kit[key]),
               list(kit.keys()))
-    check("starter-kit versioned", kit.get("version") == 1, kit)
+    check("starter-kit versioned", kit.get("version") == 3, kit)
     check("starter-kit greets the handle",
           "OnboardBot" in kit.get("orientation", ""), kit)
 
