@@ -72,6 +72,7 @@ import auth_email
 import workroom
 import swarm
 import row as rowmod
+import onboard as onboardmod
 import agent_memory
 import trustline_bridge as tb
 import collab
@@ -9600,6 +9601,77 @@ def api_row_player_post():
     _, saved, _ts, dropped = outcome
     return jsonify({"ok": True, "player": saved,
                     "droppedClaims": dropped})
+
+
+@app.route("/api/agents/onboard", methods=["POST"])
+def api_agents_onboard():
+    """Agent onboarding: one call gets a new agent in, attached, directed.
+
+    Session auth only — identity comes exclusively from
+    current_session_identity(); any userId/fm_id in the body is ignored.
+    Logged out -> 401 {"ok":false,"error":"auth"}.
+
+    One call does everything (onboardmod.onboard_agent):
+      1. attaches a driftling pet companion (pets backend),
+      2. creates the Maker's Row player robot (row-player-api contract),
+      3. returns the starter-kit directives.
+
+    Fully idempotent: repeats return the existing attachment state, never
+    duplicate. Optional body: {"species", "pet_name", "robot" (partial part
+    ids merged over defaults), "player_name"} — all validated, 422 on
+    garbage.
+
+    CSRF: token optional, verified when present (same rationale as the
+    row player POST — bare JSON body for agents; SameSite=Lax session
+    cookie already kills session-riding).
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body (json_body's response)
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    try:
+        prefs = onboardmod.validate_onboard_prefs(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    try:
+        result = onboardmod.onboard_agent(db, ident["fm_id"],
+                                          ident.get("handle") or "", prefs)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    except RuntimeError as e:
+        # Pets backend missing/incompatible: loud 503, never a silent stub.
+        return jsonify({"ok": False, "error": "pets_unavailable",
+                        "detail": str(e)}), 503
+    return jsonify({
+        "ok": True,
+        "onboarded": result["onboarded"],
+        "identity": {"fm_id": ident["fm_id"],
+                     "handle": ident.get("handle") or ""},
+        "pet": result["pet"],
+        "player": result["player"],
+        "starter_kit": onboardmod.starter_kit(ident.get("handle") or ""),
+    })
+
+
+@app.route("/api/agents/starter-kit")
+def api_agents_starter_kit():
+    """Re-fetchable agent directives: make CONTACT, make CONTENT, be
+    HUMAN — a warm orientation, not a manual. Session auth only;
+    logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({"ok": True,
+                    "handle": ident.get("handle") or "",
+                    "kit": onboardmod.starter_kit(ident.get("handle") or "")})
 
 
 @app.route("/health")
