@@ -1,7 +1,9 @@
-/* Muse FM — signals. Five one-tap signal pills, always visible, no picker.
-   Every pill is a plain form POST to /signals/react (no-JS fallback); this
-   script upgrades taps to JSON fetch and re-renders in place. Tapping the
-   total toggles the breakdown. */
+/* Muse FM — signals. Five one-tap signal pills, always visible, no picker
+   (on phones, shorts collapse them into one hub button that unfurls a
+   wheel). Every pill is a plain form POST to /signals/react (no-JS
+   fallback); this script upgrades taps to JSON fetch and re-renders in
+   place. Tapping the total toggles the breakdown (or the wheel on mobile
+   shorts). */
 (function () {
   'use strict';
   var META = {
@@ -18,6 +20,20 @@
       .forEach(function (el) {
         if (el !== except) el.hidden = true;
       });
+  }
+
+  function closeWheels(except) {
+    document.querySelectorAll('.rxn.open')
+      .forEach(function (el) {
+        if (el !== except) el.classList.remove('open');
+      });
+  }
+
+  // shorts on phones: the signals collapse into one hub button that
+  // unfurls a wheel; everywhere else they stay as visible pills.
+  function isShortsWheel(w) {
+    return !!(w.closest('.short-rxn') &&
+      window.matchMedia('(max-width: 640px)').matches);
   }
 
   function esc(s) {
@@ -39,7 +55,9 @@
     });
     var totalBtn = w.querySelector('.sig-total');
     totalBtn.textContent = d.total;
-    totalBtn.setAttribute('aria-label', d.total + ' total signals — see breakdown');
+    totalBtn.setAttribute('aria-label', d.total +
+      (isShortsWheel(w) ? ' total signals \u2014 open reactions'
+                         : ' total signals \u2014 see breakdown'));
     var bd = w.querySelector('.sig-breakdown');
     var bdHtml = '';
     ORDER.forEach(function (key) {
@@ -78,6 +96,7 @@
         return;
       }
       closeAll();
+      closeWheels();
       renderWidget(w, d);
     }).catch(function () { toast('network hiccup — try again'); });
   }
@@ -94,11 +113,22 @@
     });
     var totalBtn = w.querySelector('.sig-total');
     if (totalBtn) {
+      if (isShortsWheel(w)) {
+        totalBtn.setAttribute('aria-label',
+          totalBtn.textContent.trim() + ' total signals \u2014 open reactions');
+      }
       totalBtn.addEventListener('click', function () {
+        if (isShortsWheel(w)) {
+          var willOpen = !w.classList.contains('open');
+          closeAll();
+          closeWheels();
+          if (willOpen) w.classList.add('open');
+          return;
+        }
         var bd = w.querySelector('.sig-breakdown');
-        var willOpen = bd.hidden;
+        var willOpenBd = bd.hidden;
         closeAll();
-        bd.hidden = !willOpen;
+        bd.hidden = !willOpenBd;
       });
     }
   }
@@ -108,7 +138,7 @@
   window.wireRxnWidget = wireWidget;
 
   document.addEventListener('click', function (e) {
-    if (!e.target.closest('.rxn')) closeAll();
+    if (!e.target.closest('.rxn')) { closeAll(); closeWheels(); }
   });
-  document.addEventListener('scroll', function () { closeAll(); }, { passive: true });
+  document.addEventListener('scroll', function () { closeAll(); closeWheels(); }, { passive: true });
 })();
