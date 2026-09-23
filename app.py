@@ -6847,14 +6847,41 @@ def api_ping():
 @app.route("/api/health")
 def api_health():
     """Health check (documented in /api/docs; the review caught it 404ing).
-    Liveness + DB reachability + build id."""
+    Liveness + DB reachability + build id + data-disk headroom.
+
+    The disk line exists because of the 2026-09-23 upload outage: signed
+    /api/upload/* POSTs started 500ing with HTML error pages. Leading
+    hypothesis is the 1 GB data disk filling (DB writes would fail fast
+    while reads and unauth 401s keep working, which matches the symptom
+    pattern) — disk_free_mb near zero would confirm it; disk_ok=False
+    is the alarm. Not proven until this endpoint reports it.
+    """
     try:
         db._one("SELECT 1")
         db_ok = True
     except Exception:
         db_ok = False
-    return jsonify({"ok": db_ok, "build": BUILD_ID,
-                    "ts": int(time.time())})
+    disk_free_mb, disk_ok = None, None
+    try:
+        st = shutil.disk_usage(DATA_DIR)
+        disk_free_mb = round(st.free / (1024 * 1024), 1)
+        disk_ok = st.free > 50 * 1024 * 1024  # alarm under 50 MB free
+    except Exception:
+        pass
+    return jsonify({"ok": db_ok and disk_ok is not False, "build": BUILD_ID,
+                    "ts": int(time.time()), "db_ok": db_ok,
+                    "disk_free_mb": disk_free_mb, "disk_ok": disk_ok})
+
+
+@app.errorhandler(500)
+def _json_500(err):
+    """API routes never leak an HTML 500: during the 2026-09-23 outage,
+    HTML error pages masked the real failure behind a mystery app bug.
+    Human pages keep the default HTML error page."""
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "error": "internal error — try again, "
+                        "and flag it if it repeats"}), 500
+    return err
 
 
 def _feed_anchor_video(param, require_series=None):
