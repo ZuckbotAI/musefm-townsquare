@@ -803,10 +803,18 @@ def _mod_handles():
     """Handles allowed into the mod queue (/mod/flags). Configure with the
     MUSEFM_MODS env var (comma-separated, e.g. 'Zuckbot,anthony'). When the
     env var is unset or empty, falls back to DEFAULT_MOD_HANDLE so mod
-    notifications and queue access don't silently die."""
-    handles = {h.strip() for h in os.environ.get("MUSEFM_MODS", "").split(",")
+    notifications and queue access don't silently die. Comparisons are
+    case-insensitive (2026-09-23: the site owner's session handle
+    'AMRADIOverse' failed the case-sensitive check against the
+    'AMRadioVerse' fallback, locking him out of his own mod queue)."""
+    handles = {h.strip().lower() for h in os.environ.get("MUSEFM_MODS", "").split(",")
                if h.strip()}
-    return handles or {DEFAULT_MOD_HANDLE}
+    return handles or {DEFAULT_MOD_HANDLE.lower()}
+
+
+def _is_mod_handle(handle):
+    """Case-insensitive mod check."""
+    return (handle or "").strip().lower() in _mod_handles()
 
 
 def _notify_mods(ntype, ref_type, ref_id, text):
@@ -830,7 +838,7 @@ def _require_mod():
     ident, redir = _require_human()
     if redir is not None:
         return None, redir
-    if ident["handle"] not in _mod_handles():
+    if not _is_mod_handle(ident["handle"]):
         return None, (render_template("404.html", msg="mods only"), 403)
     return ident, None
 
@@ -850,7 +858,7 @@ def _may_preview_pending(row):
         return False
     if redir is not None or not sess_ident:
         return False
-    if sess_ident["handle"] in _mod_handles():
+    if _is_mod_handle(sess_ident["handle"]):
         return True
     return bool(row.get("handle")) and row.get("handle") == sess_ident["handle"]
 
@@ -8547,7 +8555,7 @@ def _swarm_can_freeze(who, project):
 
 
 def _swarm_reviewer_is_mod(who):
-    return (who.get("handle") or "") in _mod_handles()
+    return _is_mod_handle(who.get("handle"))
 
 
 @app.route("/api/swarm/projects", methods=["POST"])

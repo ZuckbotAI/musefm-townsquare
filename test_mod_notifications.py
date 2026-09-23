@@ -154,8 +154,12 @@ def main():
     # moderator). Explicit env values still win.
     os.environ["MUSEFM_MODS"] = ""
     check("empty MUSEFM_MODS falls back to default mod handle",
-          appmod._mod_handles() == {appmod.DEFAULT_MOD_HANDLE},
+          appmod._mod_handles() == {appmod.DEFAULT_MOD_HANDLE.lower()},
           "got %r" % (appmod._mod_handles(),))
+    check("mod handle matching is case-insensitive",
+          appmod._is_mod_handle("AMRADIOverse") and
+          appmod._is_mod_handle("amradioverse") and
+          not appmod._is_mod_handle("SomebodyElse"))
     try:
         appmod._notify_mods("mod_pending", "mod_queue", 999, "x")
         ok = True
