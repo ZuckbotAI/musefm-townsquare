@@ -930,7 +930,7 @@
       var mdy = mouse.y - (r.top + r.height / 2);
       var md = Math.hypot(mdx, mdy) || 1;
 
-      // one-time greeting: the orb notices you
+      // one-time greeting bubble shown on first hover
       if (!greeted && !reduced && !sleeping && md < HOVER_DIST * 1.5 && md > 1) {
         greeted = true;
         setPose('happy', 900);
