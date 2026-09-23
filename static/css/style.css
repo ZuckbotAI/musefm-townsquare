@@ -215,7 +215,7 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
   border-radius: 12px; width: 44px; height: 44px; font-size: 19px; cursor: pointer;
   align-items: center; justify-content: center; flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(20,120,190,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
-  transition: transform 0.2s var(--springy);
+  transition: transform 0.2s var(--spring);
 }
 .hamburger:active { transform: scale(0.92); }
 
@@ -293,7 +293,7 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
   background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 2px 6px rgba(20, 120, 190, 0.10);
-  transition: all 0.25s var(--spring);
+  transition: transform 0.25s var(--spring), color 0.25s var(--ease), background 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 .sb-link:hover .sb-icon { transform: scale(1.08) rotate(-4deg); }
 .sb-link.active .sb-icon {
@@ -324,7 +324,7 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
   flex-shrink: 0;
   max-width: 100%;
   filter: drop-shadow(0 3px 8px rgba(2, 132, 199, 0.45));
-  transition: transform 0.3s var(--springy);
+  transition: transform 0.3s var(--spring);
 }
 .brand:hover .wordmark { transform: translateY(-1px) scale(1.03); }
 .sidebar-title .wordmark { filter: none; }
@@ -349,7 +349,7 @@ footer .wordmark { vertical-align: -4px; filter: none; }
   border-radius: var(--radius-pill); padding: 8px 14px; min-height: 44px; min-width: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 14px; cursor: pointer;
-  transition: transform 0.25s var(--springy), box-shadow 0.25s var(--ease);
+  transition: transform 0.25s var(--spring), box-shadow 0.25s var(--ease);
   box-shadow: 0 2px 8px rgba(20, 120, 190, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   font-family: var(--font);
 }
@@ -371,7 +371,7 @@ footer .wordmark { vertical-align: -4px; filter: none; }
     top: 0; bottom: 0; z-index: 200;
     width: min(300px, 84vw);
     transform: translateX(-104%);
-    transition: transform 0.32s var(--spring);
+    transition: transform 0.3s var(--spring);
     padding: 12px 12px 110px;
   }
   body.sidebar-open .sidebar {
@@ -458,7 +458,7 @@ footer .wordmark { vertical-align: -4px; filter: none; }
     var(--shadow-card);
   padding: 20px 22px;
   margin-bottom: 14px;
-  transition: transform 0.3s var(--spring), box-shadow 0.3s var(--spring);
+  transition: transform 0.25s var(--spring), box-shadow 0.25s var(--spring);
 }
 .card::before { /* glossy top sheen */
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -478,7 +478,7 @@ a.card-link:hover { text-decoration: none; transform: translateY(-3px); box-shad
   cursor: pointer; font-size: 15px; color: var(--text-3);
   width: 38px; height: 38px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  transition: transform 0.22s var(--springy), color 0.18s, box-shadow 0.22s, background 0.22s;
+  transition: transform 0.2s var(--spring), color 0.2s, box-shadow 0.2s, background 0.2s;
   box-shadow: 0 2px 8px rgba(20, 120, 190, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   line-height: 1; padding: 0;
 }
@@ -666,7 +666,7 @@ input[type="file"].input::file-selector-button {
   padding: 13px 26px; border-radius: var(--radius-pill);
   text-shadow: 0 1px 2px rgba(0, 60, 110, 0.4);
   box-shadow: var(--shadow-btn);
-  transition: transform 0.22s var(--springy), box-shadow 0.22s var(--ease), filter 0.2s var(--ease);
+  transition: transform 0.2s var(--spring), box-shadow 0.2s var(--ease), filter 0.2s var(--ease);
   position: relative; overflow: hidden;
 }
 .btn::after { /* traveling shine */
@@ -761,7 +761,7 @@ input[type="file"].input::file-selector-button {
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   box-shadow: 0 2px 8px rgba(20,120,190,0.10), inset 0 1px 0 rgba(255,255,255,0.65);
-  transition: all 0.25s var(--spring);
+  transition: transform 0.25s var(--spring), color 0.25s var(--ease), background 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 .tabs a:hover { text-decoration: none; transform: translateY(-2px); color: var(--text); box-shadow: 0 6px 16px rgba(20,120,190,0.16), inset 0 1px 0 rgba(255,255,255,0.7); }
 .tabs a.active {
@@ -824,7 +824,7 @@ input[type="file"].input::file-selector-button {
   font-size: 34px; color: #fff;
   box-shadow: 0 10px 24px rgba(0, 144, 231, 0.40), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -3px 8px rgba(0, 40, 80, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  transition: transform 0.3s var(--springy);
+  transition: transform 0.3s var(--spring);
 }
 .ep-card:hover .ep-art { transform: scale(1.05) rotate(-3deg); }
 .ep-main { flex: 1; min-width: 0; }
@@ -842,7 +842,7 @@ input[type="file"].input::file-selector-button {
   cursor: pointer; font-family: var(--font);
   display: inline-flex; align-items: center; gap: 7px;
   box-shadow: 0 2px 8px rgba(20,120,190,0.12), inset 0 1px 0 rgba(255,255,255,0.65);
-  transition: transform 0.22s var(--springy), box-shadow 0.22s var(--ease), border-color 0.2s;
+  transition: transform 0.2s var(--spring), box-shadow 0.2s var(--ease), border-color 0.2s;
   text-decoration: none;
 }
 .tool-btn:hover { transform: translateY(-2px) scale(1.03); border-color: var(--accent-ice); box-shadow: 0 6px 16px rgba(0,144,231,0.22), inset 0 1px 0 rgba(255,255,255,0.7); text-decoration: none; color: var(--text); }
@@ -880,7 +880,7 @@ audio::-webkit-media-controls-panel {
   border: 1px solid var(--glass-border); border-radius: 26px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 20px 50px rgba(10, 90, 150, 0.30);
   padding: 14px 18px;
-  transition: transform 0.5s var(--spring);
+  transition: transform 0.4s var(--spring);
 }
 #miniplayer.show { transform: translateX(-50%) translateY(0); }
 .mp-row { display: flex; align-items: center; gap: 12px; }
@@ -902,7 +902,7 @@ audio::-webkit-media-controls-panel {
   color: var(--accent-deep);
   width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 15px;
   display: inline-flex; align-items: center; justify-content: center;
-  transition: transform 0.22s var(--springy), box-shadow 0.22s;
+  transition: transform 0.2s var(--spring), box-shadow 0.2s;
   box-shadow: 0 2px 8px rgba(20,120,190,0.14), inset 0 1px 0 rgba(255,255,255,0.65);
   flex-shrink: 0; font-family: var(--font);
 }
@@ -931,7 +931,7 @@ audio::-webkit-media-controls-panel {
 #queue-panel.open { display: block; animation: pop 0.3s var(--springy); }
 .q-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 6px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--glass-edge); }
 .q-item:last-child { border-bottom: none; }
-.q-item button { border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 15px; padding: 6px; border-radius: 50%; transition: transform 0.2s var(--springy), color 0.2s; }
+.q-item button { border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 15px; padding: 6px; border-radius: 50%; transition: transform 0.2s var(--spring), color 0.2s; }
 .q-item button:hover { transform: scale(1.25); color: #ff5a5a; }
 
 /* ================= clips ================= */
@@ -974,7 +974,7 @@ audio::-webkit-media-controls-panel {
   color: var(--text); font-size: 15px; font-weight: 600; font-family: var(--font);
   cursor: pointer; margin-bottom: 9px;
   box-shadow: 0 2px 8px rgba(20,120,190,0.10), inset 0 1px 0 rgba(255,255,255,0.65);
-  transition: transform 0.22s var(--springy), box-shadow 0.22s;
+  transition: transform 0.2s var(--spring), box-shadow 0.2s;
 }
 .share-opt:hover { transform: scale(1.02) translateY(-1px); box-shadow: 0 6px 16px rgba(0,144,231,0.18), inset 0 1px 0 rgba(255,255,255,0.7); }
 .share-opt:active { transform: scale(0.98); }
@@ -1280,7 +1280,7 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   background: rgba(10, 30, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.35);
   color: #fff; font-size: 19px; cursor: pointer; text-decoration: none; font-family: var(--font);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  transition: transform 0.2s var(--springy), background 0.2s;
+  transition: transform 0.2s var(--spring), background 0.2s;
 }
 .shorts-back:hover, .shorts-chrome-btn:hover { background: rgba(0, 144, 231, 0.65); color: #fff; text-decoration: none; }
 .shorts-back:active, .shorts-chrome-btn:active { transform: scale(0.92); }
@@ -1377,89 +1377,60 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .watch-meta .author { font-weight: 700; color: var(--text); }
 .watch-meta .when { font-size: 12px; color: var(--text-3); }
 
-/* ================= FB reactions ================= */
-.rxn { position: relative; display: inline-block; margin-top: 10px; }
+/* ================= signals: Muse FM's own reaction row =================
+   Five one-tap pills, always visible — no picker, no long-press, no
+   Facebook hover menu. 44px minimum touch targets. */
+.rxn { position: relative; margin-top: 10px; }
 .rxn-compact { margin-top: 6px; }
-.rxn-row { display: flex; align-items: center; gap: 8px; }
-.rxn-form { margin: 0; }
-.rxn-like {
-  border: 1px solid var(--glass-border);
+.sig-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sig-form { margin: 0; }
+.sig {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; min-width: 44px; padding: 8px 13px;
+  border-radius: 999px; border: 1px solid var(--glass-border);
   background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  color: var(--text-2);
-  border-radius: var(--radius-pill); padding: 8px 15px; font-size: 13px; font-weight: 700;
-  cursor: pointer; font-family: var(--font);
-  display: inline-flex; align-items: center; gap: 6px;
-  box-shadow: 0 2px 8px rgba(20,120,190,0.12), inset 0 1px 0 rgba(255,255,255,0.65);
-  transition: transform 0.22s var(--springy), box-shadow 0.22s var(--ease), color 0.2s;
-  user-select: none; -webkit-user-select: none; touch-action: pan-y;
-  -webkit-touch-callout: none; /* iOS: don't show the callout on long-press (reaction picker) */
+  font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--text-2);
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+  box-shadow: 0 2px 8px rgba(20,120,190,.12), inset 0 1px 0 rgba(255,255,255,.65);
+  transition: transform .18s var(--spring), box-shadow .2s var(--ease), color .2s, border-color .2s;
 }
-.rxn-like:hover { transform: translateY(-2px); border-color: var(--accent-ice); color: var(--text); }
-.rxn-like:active { transform: scale(0.95); }
-.rxn-like.active {
+.sig:hover { transform: translateY(-2px); border-color: var(--accent-ice); color: var(--text); }
+.sig:active { transform: scale(.94); }
+.sig.active {
   color: var(--accent-deep);
-  border-color: rgba(0, 144, 231, 0.45);
-  box-shadow: 0 4px 14px rgba(0,144,231,0.25), inset 0 1px 0 rgba(255,255,255,0.7);
+  border-color: rgba(0, 144, 231, .5);
+  background: linear-gradient(180deg, #e9f6ff, #d7edfd);
+  box-shadow: 0 4px 14px rgba(0,144,231,.28), inset 0 1px 0 rgba(255,255,255,.7);
 }
-.rxn-like-emoji { font-size: 16px; line-height: 1; }
-.rxn-count {
+.sig-emoji { font-size: 17px; line-height: 1; }
+.sig-count { font-variant-numeric: tabular-nums; }
+.sig-total {
   border: 1px solid transparent; background: transparent; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 13px; font-weight: 700; color: var(--text-2); font-family: var(--font);
-  padding: 8px 10px; border-radius: var(--radius-pill);
+  font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--text-3);
+  padding: 10px 8px; border-radius: 999px; min-height: 44px;
 }
-.rxn-count:hover { background: var(--accent-soft); color: var(--text); }
-.rxn-count-empty { opacity: 0.45; }
-.rxn-top { display: inline-flex; }
-.rxn-top-emoji { font-size: 15px; margin-left: -4px; filter: drop-shadow(0 1px 1px rgba(20,120,190,0.2)); }
-.rxn-top-emoji:first-child { margin-left: 0; }
-.rxn-total { color: var(--text-3); font-weight: 600; }
-.rxn-picker {
+.sig-total:hover { background: var(--accent-soft); color: var(--text); }
+.sig-breakdown {
   position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 60;
-  display: flex; gap: 2px; padding: 8px 10px;
-  background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border); border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-card);
-  animation: rxn-pop 0.25s var(--springy);
-}
-@keyframes rxn-pop { from { opacity: 0; transform: translateY(8px) scale(0.9); } }
-.rxn-opt {
-  border: 0; background: transparent; cursor: pointer; padding: 6px;
-  border-radius: 50%; font-size: 26px; line-height: 1;
-  transition: transform 0.18s var(--springy);
-}
-.rxn-opt:hover { transform: scale(1.35) translateY(-4px); }
-.rxn-opt:active { transform: scale(1.1); }
-.rxn-breakdown {
-  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 60;
-  min-width: 170px; padding: 8px;
+  min-width: 180px; padding: 8px;
   background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
   box-shadow: var(--shadow-card);
-  animation: rxn-pop 0.25s var(--springy);
+  animation: sig-pop .25s var(--springy);
 }
-.rxn-brow {
-  display: flex; justify-content: space-between; align-items: center;
+@keyframes sig-pop { from { opacity: 0; transform: translateY(8px) scale(.9); } }
+.sig-brow {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 7px 10px; font-size: 13px; color: var(--text); border-radius: 10px;
 }
-.rxn-brow:hover { background: var(--accent-soft); }
-.rxn-brow b { color: var(--text-2); }
+.sig-brow:hover { background: var(--accent-soft); }
+.sig-brow b { color: var(--text-2); }
+.sig-brow-empty { color: var(--text-3); font-style: italic; }
 .comment-actions .rxn { margin-top: 0; }
-.comment-actions .rxn-like { padding: 7px 12px; font-size: 12px; }
-.rxn-compact .rxn-like { padding: 6px 11px; font-size: 12px; }
-.rxn-compact .rxn-count { padding: 6px 8px; font-size: 12px; }
-@media (max-width: 480px) {
-  /* picker stays left-anchored: every widget is left-aligned, so right:0
-     would shove the ~330px picker off the left edge of the phone. */
-  .rxn-opt { font-size: 30px; padding: 8px; }
-  /* miniplayer: 5 fixed buttons + art exceed ~400px viewports, so the row
-     wraps — title on its own line, art + controls below. */
-  .mp-row { flex-wrap: wrap; gap: 8px; }
-  .mp-info { flex: 1 1 100%; order: -1; }
-}
+.rxn-compact .sig { min-height: 40px; padding: 6px 11px; font-size: 12px; }
+.rxn-compact .sig-total { min-height: 40px; }
 
 /* ================= FM brand hero (homepage) =================
    Shrunken in-style take on the Muse FM brand card: frosted light glass,
@@ -1473,6 +1444,7 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   border: 1px solid rgba(255, 255, 255, .9);
   box-shadow: 0 14px 44px rgba(30, 120, 220, .16), inset 0 1px 0 #fff;
   color: #0a2540;
+  display: flex; align-items: center; gap: 18px;
 }
 .fm-hero-orbs { position: absolute; inset: 0; pointer-events: none; }
 .fm-hero-orbs .orb {
@@ -1481,11 +1453,21 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   border: 1px solid rgba(255, 255, 255, .65);
   box-shadow: inset -10px -14px 34px rgba(80, 170, 255, .28);
 }
-.fm-hero-orbs .orb1 { width: 200px; height: 200px; right: 7%; top: -52px; }
 .fm-hero-orbs .orb2 { width: 132px; height: 132px; right: -14px; bottom: -56px; }
-.fm-hero-inner { position: relative; max-width: 64ch; }
+.fm-hero-inner { position: relative; max-width: 64ch; flex: 1 1 auto; min-width: 0; }
+/* the orb's home on the homepage — fills the card's right side so the hero
+   isn't a wall of empty space; the orb snaps in here on load (orb-dock.js).
+   The stage is an invisible layout box: no placeholder outlines (2026-09-23). */
+.fm-hero-stage { position: relative; flex: 0 0 auto; }
+.hero-orb-stage {
+  width: 168px; height: 168px; border-radius: 50%; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+@media (max-width: 640px) {
+  .fm-hero { flex-wrap: wrap; gap: 12px; }
+  .hero-orb-stage { width: 120px; height: 120px; }
+}
 .fm-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.fm-mark { display: inline-flex; line-height: 0; filter: drop-shadow(0 3px 10px rgba(31,143,255,.30)); }
 .fm-wordmark { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 0; color: #0a1f44; line-height: 1; }
 .fm-wordmark span {
   background: linear-gradient(180deg, #1f9dff 20%, #22d3ee 90%);
@@ -1498,7 +1480,6 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .fm-cta { font-size: 13.5px; color: #5a7391; margin: 6px 0 0; }
 @media (max-width: 640px) {
   .fm-hero { padding: 18px; }
-  .fm-hero-orbs .orb1 { width: 128px; height: 128px; right: 2%; }
   .fm-wordmark { font-size: 28px; }
   .fm-head { font-size: 20px; }
 }
@@ -1625,17 +1606,18 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   pointer-events: auto;
 }
 .short-rxn .rxn { margin-top: 0; }
-.short-rxn .rxn-like, .short-rxn .rxn-count {
+/* shorts overlay: dark glass variant of the signal pills, slightly smaller */
+.short-rxn .sig-row { gap: 6px; }
+.short-rxn .sig {
   background: rgba(10,30,45,.55); border-color: rgba(255,255,255,.4); color: #fff;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  min-height: 40px; padding: 6px 11px; font-size: 12px; gap: 5px;
 }
-/* shorts overlay: reaction control sits smaller and less obtrusive than the
-   default widget (compact variant is the base; this trims it further). */
-.short-rxn .rxn-row { gap: 6px; }
-.short-rxn .rxn-like { padding: 5px 10px; font-size: 12px; gap: 5px; }
-.short-rxn .rxn-like-emoji { font-size: 14px; }
-.short-rxn .rxn-count { padding: 5px 8px; font-size: 12px; gap: 4px; }
-.short-rxn .rxn-top-emoji { font-size: 13px; }
+.short-rxn .sig.active {
+  color: #bfe6ff; border-color: rgba(125,211,252,.7); background: rgba(14,42,67,.75);
+}
+.short-rxn .sig-emoji { font-size: 15px; }
+.short-rxn .sig-total { color: #e2e8f0; min-height: 40px; padding: 8px 6px; }
 
 /* ---- shorts comment threads: a bottom sheet inside the card ---- */
 .short-comments-btn { position: relative; }
@@ -1736,14 +1718,13 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   /* shorts: reactions move to the right rail above the action buttons,
      so the pill never covers the caption on narrow phones */
   .short-rxn { left: auto; right: 10px; bottom: calc(140px + env(safe-area-inset-bottom)); }
-  /* reaction picker / breakdown become a thumb-reachable bottom sheet on
-     mobile instead of floating over (and hiding) the content behind it */
-  .rxn-picker, .rxn-breakdown {
+  /* signal breakdown becomes a thumb-reachable bottom sheet on mobile
+     instead of floating over (and hiding) the content behind it */
+  .sig-breakdown {
     position: fixed; left: 12px; right: 12px; top: auto;
     bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 200;
-    justify-content: center; border-radius: 20px;
+    min-width: 0; border-radius: 20px;
   }
-  .rxn-breakdown { min-width: 0; }
 }
 
 /* ================= comment kit (shared: forum, watch, episodes, shorts) ================= */
@@ -1860,25 +1841,17 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 :root { --wave-hi: #5fd4ff; --wave-lo: #0070c0; }
 [data-theme="dark"] { --wave-hi: #a5ecff; --wave-lo: #38d6ff; }
 .waveform-logo { display: inline-block; vertical-align: middle; }
-.fm-mark .waveform-logo { filter: drop-shadow(0 2px 10px rgba(0,144,231,.25)); }
 
-/* ================= orb dock — the orb's deliberate home ================= */
-.orb-dock {
-  position: fixed; top: 68px; right: 14px; width: 104px; height: 104px;
-  z-index: 2147482990; pointer-events: none; border-radius: 50%;
+/* ================= orb home — parks by the topbar logo button =================
+   The orb's home on pages with no hero stage: an invisible, outline-free
+   placeholder next to the home "Muse FM" logo button. The orb itself is a
+   fixed-position wrap moved by orb-dock.js (transform only); this span just
+   reserves layout space so the topbar never shifts (2026-09-23). */
+#orb-home {
+  display: inline-block; width: 48px; height: 48px; flex: 0 0 auto;
+  visibility: hidden; pointer-events: none;
 }
-.orb-dock::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent);
-  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 68%);
-}
-.orb-dock .orb-dock-tag {
-  position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%);
-  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--text-3); white-space: nowrap;
-}
-/* the orb keeps its own pointer events inside the pointer-transparent dock */
-.orb-dock .muse-orb-wrap { pointer-events: auto; }
+/* the orb keeps its own pointer events; management moves it via transform */
 .muse-orb-wrap.muse-orb-dockmanaged {
   position: fixed !important; left: 0 !important; top: 0 !important; right: auto !important;
   margin: 0 !important;
@@ -1886,52 +1859,5 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   will-change: transform;
 }
 @media (max-width: 640px) {
-  .orb-dock { width: 76px; height: 76px; top: 64px; right: 10px; }
-  .orb-dock .orb-dock-tag { display: none; }
+  #orb-home { width: 40px; height: 40px; }
 }
-
-/* ================= homepage: Zuckbot Says section ================= */
-.zb-says { display: flex; gap: 18px; align-items: center; }
-.zb-says-stage { flex: 0 0 auto; }
-.zb-orb-stage {
-  width: 168px; height: 168px; border-radius: 50%; position: relative;
-  display: flex; align-items: center; justify-content: center;
-}
-.zb-orb-stage::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  border: 1.5px dashed color-mix(in srgb, var(--accent) 40%, transparent);
-  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
-  transition: border-color .4s, box-shadow .4s;
-}
-.zb-orb-stage.orb-here::before {
-  border-style: solid; border-color: color-mix(in srgb, var(--accent) 65%, transparent);
-  box-shadow: 0 0 42px var(--accent-soft), inset 0 0 30px var(--accent-soft);
-}
-.zb-says-copy { flex: 1 1 auto; min-width: 0; }
-.zb-says-copy h2 { margin: 8px 0 6px; font-size: 22px; }
-.zb-quote { margin: 0 0 10px; }
-.zb-quote p {
-  margin: 0; font-size: 19px; line-height: 1.45; font-weight: 600; color: var(--text);
-  transition: opacity .3s ease;
-}
-.zb-quote p.zb-fade { opacity: 0; }
-.zb-quote-dots { display: flex; gap: 6px; margin: 0 0 12px; }
-.zb-quote-dots button {
-  width: 8px; height: 8px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
-  background: color-mix(in srgb, var(--text-3) 45%, transparent);
-}
-.zb-quote-dots button[aria-current="true"] { background: var(--accent); }
-@media (max-width: 640px) {
-  .zb-says { flex-direction: column; text-align: center; }
-  .zb-quote p { font-size: 17px; }
-  .zb-quote-dots { justify-content: center; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .muse-orb-wrap.muse-orb-dockmanaged { transition: none; }
-  .zb-quote p { transition: none; }
-}
-/* dock ring dims while the orb is out visiting a page stage */
-.orb-dock.orb-away::before { opacity: .45; }
-/* hero waveform: wrap + shrink on narrow screens so the wordmark stays visible */
-.fm-brand { flex-wrap: wrap; }
-.fm-brand .waveform-logo { max-width: 100%; height: auto; }

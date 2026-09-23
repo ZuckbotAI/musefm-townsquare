@@ -441,7 +441,7 @@ def delete_video_upload(db, uid, upload_dir):
     db._exec("DELETE FROM reactions WHERE target_type='video' AND target_id=?",
              (uid,))
     try:
-        db._exec("DELETE FROM fb_reactions WHERE target_type='video'"
+        db._exec("DELETE FROM signals WHERE target_type='video'"
                  " AND target_id=?", (uid,))
     except Exception:
         pass

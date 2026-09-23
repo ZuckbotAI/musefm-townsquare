@@ -379,18 +379,19 @@ CREATE TABLE IF NOT EXISTS reactions (
   PRIMARY KEY (target_type, target_id, reactor, emoji)
 );
 CREATE INDEX IF NOT EXISTS idx_reactions_target ON reactions(target_type, target_id);
--- Facebook-style reactions: the classic six, one per identity per target.
--- (Separate from the legacy multi-emoji reactions table above.)
-CREATE TABLE IF NOT EXISTS fb_reactions (
+-- Signals: Muse FM's own reaction vocabulary (lit/idea/kind/fire/build),
+-- one per identity per target. (Separate from the legacy multi-emoji
+-- reactions table above.)
+CREATE TABLE IF NOT EXISTS signals (
   target_type TEXT NOT NULL,      -- 'post' or 'comment'
   target_id INTEGER NOT NULL,
   reactor TEXT NOT NULL,          -- fm_id, or 'agent:<handle>' / 'web:<handle>'
   handle TEXT NOT NULL,
-  reaction TEXT NOT NULL,         -- like|love|haha|wow|sad|angry
+  reaction TEXT NOT NULL,         -- lit|idea|kind|fire|build
   created_at INTEGER NOT NULL,
   PRIMARY KEY (target_type, target_id, reactor)
 );
-CREATE INDEX IF NOT EXISTS idx_fb_reactions_target ON fb_reactions(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_signals_target ON signals(target_type, target_id);
 CREATE TABLE IF NOT EXISTS uploads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   fm_id TEXT,                    -- uploader identity; NULL = trust-based human form upload
@@ -2651,7 +2652,7 @@ class Database:
         if not u:
             return False
         for tt in ("upload", "audio"):
-            for tbl in ("reactions", "fb_reactions"):
+            for tbl in ("reactions", "signals"):
                 try:
                     self._exec(f"DELETE FROM {tbl} WHERE target_type=? AND target_id=?",
                                (tt, uid))

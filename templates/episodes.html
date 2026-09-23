@@ -30,7 +30,7 @@
       </div>
       <div class="progress" data-seek="{{ e.slug }}"><div></div></div>
       <div class="time-row"><span data-elapsed="{{ e.slug }}">0:00</span><span>{{ e.duration_sec|dur }}</span></div>
-      {{ rxn_widget('episode', e.rowid, e.fb, handle, '/episodes#' + e.slug) }}
+      {{ rxn_widget('episode', e.rowid, e.sig, handle, '/episodes#' + e.slug) }}
     </div>
   </div>
 

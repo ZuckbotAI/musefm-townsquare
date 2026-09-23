@@ -53,41 +53,40 @@
     s = +s;
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
-  var RXN_EMOJI = {like:'👍',love:'❤️',haha:'😂',wow:'😮',sad:'😢',angry:'😡'};
-  var RXN_ORDER = ['like','love','haha','wow','sad','angry'];
+  var SIG_META = {lit:['\u26A1','Lit'],idea:['\uD83D\uDCA1','Idea'],kind:['\uD83D\uDC9C','Kind'],fire:['\uD83D\uDD25','Fire'],build:['\uD83D\uDE80','Build']};
+  var SIG_ORDER = ['lit','idea','kind','fire','build'];
   function csrfTok() {
     var m = document.querySelector('meta[name="csrf-token"]');
     return m ? m.content : '';
   }
   function rxnWidgetHTML(it) {
-    var fb = it.fb || {counts:{}, total:0, mine:null, top:[]};
-    var mine = fb.mine || '';
-    var likeEmoji = RXN_EMOJI[mine] || '👍';
-    var likeLabel = mine ? mine.charAt(0).toUpperCase() + mine.slice(1) : 'Like';
-    var top = '';
-    (fb.top || []).forEach(function (t) { top += '<span class="rxn-top-emoji">' + t[1] + '</span>'; });
-    var picker = '';
-    RXN_ORDER.forEach(function (r) {
-      picker += '<button type="button" class="rxn-opt" data-reaction="' + r + '" title="' + r + '"><span>' + RXN_EMOJI[r] + '</span></button>';
-    });
-    var bd = '';
-    RXN_ORDER.forEach(function (r) {
-      var c = (fb.counts || {})[r];
-      if (c) bd += '<div class="rxn-brow" data-reaction="' + r + '"><span>' + RXN_EMOJI[r] + ' ' + r + '</span><b>' + c + '</b></div>';
-    });
-    return '<div class="rxn rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
-      '<div class="rxn-row">' +
-      '<form method="post" action="/fb_react" class="rxn-form">' +
+    var sig = it.sig || {counts:{}, total:0, mine:null, top:[]};
+    var mine = sig.mine || '';
+    var pills = '';
+    SIG_ORDER.forEach(function (key) {
+      var c = (sig.counts || {})[key] || 0;
+      var active = mine === key ? ' active' : '';
+      pills += '<form method="post" action="/signals/react" class="sig-form">' +
       '<input type="hidden" name="csrf_token" value="' + esc(csrfTok()) + '">' +
       '<input type="hidden" name="target_type" value="' + esc(it.target_type) + '">' +
       '<input type="hidden" name="target_id" value="' + it.target_id + '">' +
-      '<input type="hidden" name="reaction" value="like">' +
-      '<button type="submit" class="rxn-like' + (mine ? ' active' : '') + '" title="Like — long-press or hover for more reactions">' +
-      '<span class="rxn-like-emoji">' + likeEmoji + '</span><span class="rxn-like-label">' + likeLabel + '</span></button></form>' +
-      '<button type="button" class="rxn-count' + (fb.total ? '' : ' rxn-count-empty') + '" aria-label="' + fb.total + ' reactions">' +
-      '<span class="rxn-top">' + top + '</span><span class="rxn-total">' + fb.total + '</span></button>' +
-      '</div><div class="rxn-picker" hidden>' + picker + '</div>' +
-      '<div class="rxn-breakdown" hidden>' + bd + '</div></div>';
+      '<input type="hidden" name="reaction" value="' + key + '">' +
+      '<button type="submit" class="sig' + active + '" data-reaction="' + key + '"' +
+      ' aria-pressed="' + (mine === key ? 'true' : 'false') + '" title="' + SIG_META[key][1] + '"' +
+      ' aria-label="' + SIG_META[key][1] + ' — ' + c + ' so far">' +
+      '<span class="sig-emoji" aria-hidden="true">' + SIG_META[key][0] + '</span>' +
+      '<span class="sig-count">' + c + '</span></button></form>';
+    });
+    var bd = '';
+    SIG_ORDER.forEach(function (key) {
+      var c = (sig.counts || {})[key];
+      if (c) bd += '<div class="sig-brow" data-reaction="' + key + '"><span>' + SIG_META[key][0] + ' ' + SIG_META[key][1] + '</span><b>' + c + '</b></div>';
+    });
+    if (!bd) bd = '<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>';
+    return '<div class="rxn rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
+      '<div class="sig-row" role="group" aria-label="Send a signal">' + pills +
+      '<button type="button" class="sig-total" aria-label="' + sig.total + ' total signals — see breakdown" title="See breakdown">' + sig.total + '</button>' +
+      '</div><div class="sig-breakdown" hidden>' + bd + '</div></div>';
   }
   function cardHTML(it) {
     const badge = it.ai_generated ? '<span class="ai-badge ai-badge-static">✨ AI-generated</span>' : '';
