@@ -15,6 +15,56 @@
   };
   var ORDER = ['lit', 'idea', 'kind', 'fire', 'build'];
 
+  // shorts wheel hub shows the LATEST reaction's emoji (Anthony 2026-09-23).
+  // The backend summary has no "latest" field and we can't touch it, so the
+  // latest is tracked client-side: the reaction just submitted through this
+  // widget IS the latest at that moment. Persisted per target in
+  // localStorage so it survives reloads; cleared when the viewer removes
+  // their reaction (we no longer know the true latest).
+  var LATEST_KEY_PREFIX = 'musefm-latest-signal:v1:';
+
+  function latestKey(w) {
+    return LATEST_KEY_PREFIX + w.getAttribute('data-target-type') + ':' +
+      w.getAttribute('data-target-id');
+  }
+
+  function getLatest(w) {
+    try {
+      var v = window.localStorage.getItem(latestKey(w));
+      return (v && META[v]) ? v : null;
+    } catch (e) { return null; }
+  }
+
+  function setLatest(w, reaction) {
+    try {
+      if (reaction && META[reaction]) {
+        window.localStorage.setItem(latestKey(w), reaction);
+      } else {
+        window.localStorage.removeItem(latestKey(w));
+      }
+    } catch (e) { /* private mode etc. — hub just falls back to the count */ }
+  }
+
+  // Wheel hub only: paint the latest reaction's emoji big, with the numeric
+  // total demoted to a small badge. No latest known (or zero reactions) ->
+  // keep the current look: the plain count.
+  function paintWheelHub(w, total) {
+    var totalBtn = w.querySelector('.sig-total');
+    if (!totalBtn) return;
+    var latest = getLatest(w);
+    if (latest && total > 0) {
+      totalBtn.innerHTML =
+        '<span class="hub-latest" aria-hidden="true">' + META[latest].emoji + '</span>' +
+        '<span class="hub-total">' + total + '</span>';
+      totalBtn.setAttribute('aria-label', META[latest].label +
+        ' \u2014 latest signal, ' + total + ' total \u2014 open reactions');
+    } else {
+      totalBtn.textContent = total;
+      totalBtn.setAttribute('aria-label',
+        total + ' total signals \u2014 open reactions');
+    }
+  }
+
   function closeAll(except) {
     document.querySelectorAll('.rxn .sig-breakdown:not([hidden])')
       .forEach(function (el) {
@@ -54,10 +104,13 @@
       btn.setAttribute('aria-label', META[key].label + ' — ' + c + ' so far');
     });
     var totalBtn = w.querySelector('.sig-total');
-    totalBtn.textContent = d.total;
-    totalBtn.setAttribute('aria-label', d.total +
-      (isShortsWheel(w) ? ' total signals \u2014 open reactions'
-                         : ' total signals \u2014 see breakdown'));
+    if (isShortsWheel(w)) {
+      paintWheelHub(w, d.total);
+    } else {
+      totalBtn.textContent = d.total;
+      totalBtn.setAttribute('aria-label', d.total +
+        ' total signals \u2014 see breakdown');
+    }
     var bd = w.querySelector('.sig-breakdown');
     var bdHtml = '';
     ORDER.forEach(function (key) {
@@ -97,6 +150,12 @@
       }
       closeAll();
       closeWheels();
+      // the reaction just submitted is the latest — track it for the hub
+      if (d.action === 'added' || d.action === 'switched') {
+        setLatest(w, reaction);
+      } else if (d.action === 'removed') {
+        setLatest(w, null);
+      }
       renderWidget(w, d);
     }).catch(function () { toast('network hiccup — try again'); });
   }
@@ -114,8 +173,10 @@
     var totalBtn = w.querySelector('.sig-total');
     if (totalBtn) {
       if (isShortsWheel(w)) {
-        totalBtn.setAttribute('aria-label',
-          totalBtn.textContent.trim() + ' total signals \u2014 open reactions');
+        // page load: upgrade the server-rendered count to latest-emoji hub
+        // when we have a persisted latest for this target
+        var t = parseInt((totalBtn.textContent || '').replace(/\D/g, ''), 10) || 0;
+        paintWheelHub(w, t);
       }
       totalBtn.addEventListener('click', function () {
         if (isShortsWheel(w)) {

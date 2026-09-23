@@ -1816,6 +1816,18 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   }
   .short-rxn .rxn.open .sig-total { border-color: rgba(125,211,252,.8); color: #bfe6ff; }
   .short-rxn .rxn.open .sig-total::after { content: "\00d7"; background: rgba(255,255,255,.25); }
+  /* hub shows the latest reaction's emoji; the numeric total is demoted to
+     a small badge at the hub's lower-left (Anthony 2026-09-23) */
+  .short-rxn .sig-total .hub-latest { font-size: 22px; line-height: 1; }
+  .short-rxn .sig-total .hub-total {
+    position: absolute; left: -6px; bottom: -6px;
+    font-size: 10px; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    background: rgba(10,30,45,.85); color: #cfe9f7;
+    border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
+    padding: 3px 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  }
   /* spokes: parked at hub center, invisible, until the wheel opens */
   .short-rxn .sig-form {
     position: absolute; left: 50%; top: 50%;
