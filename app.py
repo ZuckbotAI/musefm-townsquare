@@ -9534,6 +9534,74 @@ def api_row_journal_add():
     return jsonify({"ok": True, "entry_id": entry_id})
 
 
+@app.route("/api/row/player", methods=["GET"])
+def api_row_player_get():
+    """Maker's Row player state: load the session user's snapshot
+    (player-api-contract.md v1).
+
+    Session auth only — the user id comes exclusively from the townsquare
+    session (current_session_identity), never from request data. Logged
+    out -> 401 {ok:false, error:'auth'}; the village frontend treats that
+    as guest mode. player:null when the identity never saved.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    row = rowmod.get_player(db, ident["fm_id"])
+    return jsonify({"ok": True,
+                    "player": row["snapshot"] if row else None})
+
+
+@app.route("/api/row/player", methods=["POST"])
+def api_row_player_post():
+    """Maker's Row player state: create/overwrite the session user's
+    snapshot (player-api-contract.md v1). Idempotent — same body twice =
+    same result.
+
+    Auth: session only, userId stamped from the session; any userId in the
+    body is ignored. Validation: robot shape (422 on garbage), treats
+    clamped 0-99, petOwners ownership-checked per write (conflicting claims
+    are dropped and reported in droppedClaims, never transferred). 409
+    when another device saved newer (the client echoes its last-seen
+    updatedAt; the check runs inside the write transaction).
+
+    CSRF note: the contract body is the bare player shape (the village
+    frontend was built against it — no csrf_token field), so the token is
+    optional here and verified when present. Session-riding CSRF is
+    already dead: the session cookie is SameSite=Lax, so a cross-site
+    fetch can't carry it.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body (json_body's response)
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    try:
+        snapshot = rowmod.validate_player_body(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    # validate-before-record: 422s never burn the rate budget (P2 2026-09-20
+    # 03:35 loop pattern)
+    hit = check_limit("row_player_save", 120)
+    if hit:
+        return hit
+    outcome = rowmod.save_player(db, ident["fm_id"], snapshot,
+                                data.get("updatedAt"))
+    if outcome[0] == "conflict":
+        _, server, _server_ts = outcome
+        return jsonify({"ok": False, "error": "conflict",
+                        "server": server}), 409
+    _, saved, _ts, dropped = outcome
+    return jsonify({"ok": True, "player": saved,
+                    "droppedClaims": dropped})
+
+
 @app.route("/health")
 def health():
     return jsonify({"ok": True, "service": "musefm-townsquare",
