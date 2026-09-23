@@ -1117,6 +1117,14 @@
         // kill the dock's fly transition while dragging — the orb must
         // track the pointer 1:1 (restored on drop)
         wrap.style.transition = 'none';
+        // Snapshot where the orb actually is RIGHT NOW (includes any
+        // persisted user offset from a previous drag). The finger delta
+        // applies on top of this — without the snapshot the orb would
+        // teleport back by the old offset the moment a new drag starts,
+        // landing far from the finger. (iOS glitch, 2026-09-23.)
+        var rc0 = wrap.getBoundingClientRect();
+        drag.snapX = rc0.left;
+        drag.snapY = rc0.top;
         setPose('playful');
       }
       if (drag.moved) {
@@ -1125,7 +1133,7 @@
           var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
           drag.ddx = dx; drag.ddy = dy;
           wrap.style.transform =
-            'translate(' + Math.round(b.x + dx) + 'px,' + Math.round(b.y + dy) +
+            'translate(' + Math.round(drag.snapX + dx) + 'px,' + Math.round(drag.snapY + dy) +
             'px) scale(' + b.s + ')';
         } else {
           wrap.style.left = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, e.clientX - drag.ox)) + 'px';
@@ -1138,16 +1146,25 @@
       if (!drag) return;
       var wasDrag = drag.moved;
       var dropDx = drag.ddx, dropDy = drag.ddy;
+      // Final rendered spot before handing back to the dock (measured
+      // before classes/transitions change — includes the old offset).
+      var endRect = wasDrag ? wrap.getBoundingClientRect() : null;
       drag = null;
       wrap.classList.remove('muse-orb-dragging');
       if (wasDrag) {
         wrap.style.transition = ''; // dock fly transition back on
         var dock = window.MuseOrbDock;
         if (dock && wrap.classList.contains('muse-orb-dockmanaged')) {
-          // dock-managed: the drop point becomes a user offset on the
-          // dock's target (persists until state change / double-click)
+          // dock-managed: persist the TOTAL offset (old offset + this
+          // drag's delta), measured from the final rendered position —
+          // persisting only the finger delta would lose the old offset.
           wrap.classList.remove('muse-orb-fixed'); // dock owns positioning
-          dock.setOffset(dropDx, dropDy);
+          var db = (dock.getBase && dock.getBase()) || null;
+          if (db && endRect) {
+            dock.setOffset(endRect.left - db.x, endRect.top - db.y);
+          } else {
+            dock.setOffset(dropDx, dropDy);
+          }
         } else {
           // legacy free mode: persist the dropped spot
           try {
