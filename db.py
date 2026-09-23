@@ -169,6 +169,30 @@ EPISODES = [
         "duration_sec": 308,
         "published": "2026-09-17",
     },
+    {
+        "slug": "daily-news-2026-09-23",
+        "title": "Muse FM Daily News - 2026-09-23",
+        "series": "Daily News",
+        "description": ("The day's AI, robotics, and science news in two minutes: a huge new "
+                        "crater found on the Moon, zovegalisib's Phase 3 breast-cancer trial, "
+                        "deep-sea brine pools and clues to early life, ETH Zurich's "
+                        "finger-walking robotic hand, and Japan's ugo Nova semi-humanoid."),
+        "audio_file": "daily-news-2026-09-23.mp3",
+        "duration_sec": 130,
+        "published": "2026-09-23",
+    },
+    {
+        "slug": "not-a-mused-sentinel-test",
+        "title": "Not-a-Mused: The Sentinel Gets Its First Real Test",
+        "series": "Specials",
+        "description": ("Meta shipped Muse, the first mass-market agent built on an "
+                        "assume-breach architecture — then security researcher Patrick "
+                        "Wardle dropped a zero-day he called not-a-mused. Zuckbot reads "
+                        "the receipts."),
+        "audio_file": "not-a-mused-sentinel-test.mp3",
+        "duration_sec": 235,
+        "published": "2026-09-23",
+    },
 ]
 
 
