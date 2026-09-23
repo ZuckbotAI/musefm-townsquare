@@ -1773,9 +1773,22 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 @media (max-width: 640px) {
   .musefm-hero { flex-direction: column; align-items: flex-start; }
   .musefm-hero-art { width: 140px; }
-  /* shorts: reactions move to the right rail above the action buttons,
-     so the pill never covers the caption on narrow phones */
-  .short-rxn { left: auto; right: 10px; bottom: calc(140px + env(safe-area-inset-bottom)); }
+  /* shorts: reactions become a slim vertical rail on the right edge above
+     the action buttons. the old horizontal row had no width constraint, so
+     it stretched left across the video and blocked it on narrow phones. */
+  .short-rxn {
+    left: auto; right: 10px;
+    bottom: calc(150px + env(safe-area-inset-bottom));
+    max-width: 84px;
+  }
+  .short-rxn .sig-row { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
+  .short-rxn .sig, .short-rxn .sig-total { min-height: 44px; justify-content: center; }
+  .short-rxn .sig-total {
+    text-align: center;
+    background: rgba(10,30,45,.55); border: 1px solid rgba(255,255,255,.4); color: #fff;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-radius: 999px; padding: 6px 11px; font-size: 12px; font-weight: 700;
+  }
   /* signal breakdown becomes a thumb-reachable bottom sheet on mobile
      instead of floating over (and hiding) the content behind it */
   .sig-breakdown {
