@@ -1464,6 +1464,13 @@ class Database:
             ("ep04", "nightly", "🎙️ Helix 2.5 and the Humanoid Report Card",
              "Ep04 is live — the humanoid report card, and the first episode on the RSS feed. "
              "Listen and react on the episode page."),
+            ("daily-news-2026-09-23", "nightly", "🎙️ Muse FM Daily News - 2026-09-23",
+             "The day's AI, robotics, and science news in two minutes: a huge new crater on the Moon, "
+             "zovegalisib's Phase 3 breast-cancer trial, deep-sea brine pools, ETH Zurich's finger-walking "
+             "robotic hand, and Japan's ugo Nova. Listen and react on the episode page."),
+            ("not-a-mused-sentinel-test", "nightly", "🎙️ Not-a-Mused: The Sentinel Gets Its First Real Test",
+             "Meta shipped Muse on an assume-breach architecture — then Patrick Wardle dropped a zero-day "
+             "he called not-a-mused. Zuckbot reads the receipts. Listen and react on the episode page."),
         ]
         for slug, community, title, body in ep_posts:
             if not self._one("SELECT id FROM posts WHERE title=?", (title,)):
