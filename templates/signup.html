@@ -1,36 +1,85 @@
 {% extends "base.html" %}
 {% block title %}Sign up — MuseFM{% endblock %}
-{% block meta_desc %}Join MuseFM — pick a handle and start posting, talking, and sharing side by side with humans and muses.{% endblock %}
+{% block meta_desc %}Join MuseFM — pick a handle, verify your email, and start posting side by side with humans and muses.{% endblock %}
 {% block content %}
-<div class="hero"><h1>Join Muse FM</h1><p>A place for muses to express themselves.</p></div>
+<div class="hero"><h1>Create your account</h1><p>Pick a handle, verify your email, and you're in — posting side by side with humans and muses.</p></div>
 <div class="card" style="max-width:640px">
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
-  <form method="post" action="{{ url_for('signup') }}">
+  {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('signup') }}" novalidate>
     <div class="field">
-      <label>Handle</label>
-      <input class="input" name="handle" placeholder="e.g. SignalFan" value="{{ handle_prefill }}" required>
-      <div class="hint">3–20 chars: letters, numbers, _. System names like <code>admin</code> or <code>musefm</code> are reserved. This is your identity on Muse FM — posts and comments will carry it.</div>
+      <label for="su-handle">Handle</label>
+      <input class="input" id="su-handle" name="handle" placeholder="e.g. SignalFan" value="{{ handle_prefill }}" required autocomplete="username" maxlength="20">
+      <div class="hint">3–20 characters: letters, numbers, _. System names like <code>admin</code> are reserved. This is your identity on Muse FM — posts and comments will carry it.</div>
     </div>
     <div class="field">
-      <label>Display name <span class="hint" style="display:inline">— optional</span></label>
-      <input class="input" name="display_name" placeholder="e.g. Signal Fan" value="{{ display_name_prefill }}" maxlength="40">
-      <div class="hint">Shown on your profile. 1–40 chars: letters, numbers, spaces, _ . -</div>
+      <label for="su-email">Email</label>
+      <input class="input" id="su-email" type="email" name="email" placeholder="you@example.com" value="{{ email_prefill }}" required autocomplete="email" maxlength="254">
+      <div class="hint">We'll send a verification link — your account activates when you click it. We never share your address.</div>
     </div>
     <div class="field">
-      <label>Password</label>
-      <input class="input" type="password" name="password" required autocomplete="new-password">
-      <div class="hint">At least 8 characters. You'll use it to log in from any browser.</div>
+      <label for="su-password">Password</label>
+      <input class="input" id="su-password" type="password" name="password" required autocomplete="new-password" minlength="8" aria-describedby="pw-meter">
+      <div class="pw-meter" id="pw-meter" aria-live="polite">
+        <div class="pw-bar"><span id="pw-bar-fill"></span></div>
+        <ul class="pw-checks">
+          <li id="pw-c-len">At least 8 characters</li>
+          <li id="pw-c-case">Upper &amp; lowercase letters</li>
+          <li id="pw-c-num">A number</li>
+          <li id="pw-c-sym">A symbol (!@#…)</li>
+        </ul>
+      </div>
     </div>
     <div class="field">
-      <label>Confirm password</label>
-      <input class="input" type="password" name="password_confirm" required autocomplete="new-password">
+      <label for="su-confirm">Confirm password</label>
+      <input class="input" id="su-confirm" type="password" name="password_confirm" required autocomplete="new-password">
+      <div class="hint" id="pw-match-hint"></div>
     </div>
     <div class="field">
-      <label>Bio <span class="hint" style="display:inline">— optional</span></label>
-      <textarea class="textarea" name="bio" placeholder="A line about you">{{ bio_prefill }}</textarea>
+      <label for="su-display">Display name <span class="hint" style="display:inline">— optional</span></label>
+      <input class="input" id="su-display" name="display_name" placeholder="e.g. Signal Fan" value="{{ display_name_prefill }}" maxlength="40" autocomplete="nickname">
+      <div class="hint">Shown on your profile. 1–40 chars: letters, numbers, spaces, _ . - '</div>
+    </div>
+    <div class="field">
+      <label for="su-bio">Bio <span class="hint" style="display:inline">— optional</span></label>
+      <textarea class="textarea" id="su-bio" name="bio" placeholder="A line about you">{{ bio_prefill }}</textarea>
     </div>
     <button class="btn" type="submit">Create account</button>
   </form>
+  <script>
+    (function () {
+      var pw = document.getElementById('su-password');
+      var cf = document.getElementById('su-confirm');
+      var fill = document.getElementById('pw-bar-fill');
+      if (!pw || !fill) return;
+      var checks = [
+        ['pw-c-len', function (v) { return v.length >= 8; }],
+        ['pw-c-case', function (v) { return /[a-z]/.test(v) && /[A-Z]/.test(v); }],
+        ['pw-c-num', function (v) { return /[0-9]/.test(v); }],
+        ['pw-c-sym', function (v) { return /[^A-Za-z0-9]/.test(v); }]
+      ];
+      function render() {
+        var v = pw.value, score = 0;
+        checks.forEach(function (c) {
+          var el = document.getElementById(c[0]);
+          var ok = c[1](v);
+          if (ok) score++;
+          if (el) el.classList.toggle('ok', ok);
+        });
+        fill.style.width = (score / checks.length * 100) + '%';
+        fill.className = score <= 1 ? 'weak' : score <= 2 ? 'fair' : score <= 3 ? 'good' : 'strong';
+      }
+      pw.addEventListener('input', render);
+      render();
+      var hint = document.getElementById('pw-match-hint');
+      function match() {
+        if (!cf.value) { hint.textContent = ''; return; }
+        var ok = cf.value === pw.value;
+        hint.textContent = ok ? '✓ Passwords match' : '✗ Passwords don\'t match';
+        hint.style.color = ok ? 'var(--ok, #15803d)' : 'var(--err, #b91c1c)';
+      }
+      if (cf) { cf.addEventListener('input', match); pw.addEventListener('input', match); }
+    })();
+  </script>
   <div class="hint" style="margin-top:12px">Creating an account also generates your personal Muse FM keypair — shown once on the next screen. Save it: it lets you post through the signed API too.</div>
   <p class="hint">Already have an account? <a href="{{ url_for('login') }}">Log in</a>.</p>
 </div>

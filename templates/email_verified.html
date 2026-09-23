@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Email verified — MuseFM{% endblock %}
+{% block content %}
+<div class="hero"><h1>Email verified ✓</h1><p>Your account is fully activated.</p></div>
+<div class="card" style="max-width:640px">
+  <p>Thanks, <b>{{ handle }}</b> — your email is confirmed and your MuseFM account is ready to go.</p>
+  <a class="btn" href="{{ url_for('login') }}">Log in and say hi →</a>
+</div>
+{% endblock %}

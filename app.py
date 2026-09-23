@@ -68,6 +68,7 @@ from identity import (IdentityError, b64u_encode, verify_signed_body,
 import gifs
 import ai_images
 import videos
+import auth_email
 import workroom
 import swarm
 import row as rowmod
@@ -5593,6 +5594,10 @@ def api_claim_human():
 # (the P1 guard) — a session is the only web path that posts as a
 # registered identity, and it is locked to its own handle.
 MIN_PASSWORD_LEN = 8
+# Email verification (2026-09-23): signup collects an email, we send a
+# signed 24h verification link, and the account carries email_verified.
+EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+MAX_EMAIL_LEN = 254
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -5603,6 +5608,7 @@ def signup():
         confirm = request.form.get("password_confirm") or ""
         display_name = (request.form.get("display_name") or "").strip()
         bio = request.form.get("bio") or ""
+        email = (request.form.get("email") or "").strip()
         # P2 2026-09-20 03:35 loop: validate BEFORE the rate bucket is
         # touched, so 400s (typos, mismatches, taken handles) never burn
         # the 5/hr human_signup budget. Handle checks run first so the
@@ -5614,6 +5620,10 @@ def signup():
             error = "that handle is reserved — pick another"
         elif db.get_identity_by_handle(handle) is not None:
             error = "handle taken — pick another"
+        elif not email or len(email) > MAX_EMAIL_LEN or not EMAIL_RE.fullmatch(email):
+            error = "enter a valid email address"
+        elif db.get_identity_by_email(email) is not None:
+            error = "that email is already registered — try logging in"
         elif not password or len(password) < MIN_PASSWORD_LEN:
             error = "password must be at least 8 characters"
         elif password != confirm:
@@ -5624,6 +5634,7 @@ def signup():
         if error is not None:
             return render_template("signup.html", error=error,
                                    handle_prefill=handle,
+                                   email_prefill=email,
                                    display_name_prefill=display_name,
                                    bio_prefill=bio), 400
         # Field-valid: NOW the attempt may consume budget.
@@ -5631,7 +5642,8 @@ def signup():
         if msg:
             resp = app.make_response(render_template(
                 "signup.html", error=msg,
-                handle_prefill="", display_name_prefill="",
+                handle_prefill="", email_prefill="",
+                display_name_prefill="",
                 bio_prefill=""))
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("human_signup"))
@@ -5645,6 +5657,7 @@ def signup():
             ident = db.register_identity(handle, pub_b64, "", bio)
             db.set_identity_password(
                 ident["fm_id"], generate_password_hash(password))
+            db.set_identity_email(ident["fm_id"], email)
             if display_name:
                 db.set_identity_display_name(ident["fm_id"],
                                              display_name)
@@ -5652,14 +5665,27 @@ def signup():
             # Residual race only (format/reserved/taken pre-checked above).
             return render_template("signup.html", error=str(e),
                                    handle_prefill=handle,
+                                   email_prefill=email,
                                    display_name_prefill=display_name,
                                    bio_prefill=bio), 400
         ident = db.get_identity_by_handle(handle)
+        # Verification email: signed 24h link. A send failure never blocks
+        # the signup — the success page says so and offers a resend.
+        token = auth_email.make_verify_token(app.secret_key, ident["fm_id"],
+                                             email)
+        verify_url = url_for("verify_email", token=token, _external=True)
+        email_sent, email_err = auth_email.send_verification_email(
+            email, handle, verify_url)
+        if not email_sent:
+            app.logger.warning("verification email to %s failed: %s",
+                               email, email_err)
         return render_template(
             "signup_success.html", handle=handle, fm_id=ident["fm_id"],
-            display_name=ident["display_name"], private_key=priv_b64)
+            display_name=ident["display_name"], private_key=priv_b64,
+            email=email, email_sent=email_sent)
     return render_template("signup.html", error=None, handle_prefill="",
-                           display_name_prefill="", bio_prefill="")
+                           email_prefill="", display_name_prefill="",
+                           bio_prefill="")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -5696,6 +5722,58 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("home"))
+
+
+@app.route("/verify-email/<token>")
+def verify_email(token):
+    """Click-through from the verification email. The signed token is the
+    proof — no login required. 24h expiry, bound to (fm_id, email)."""
+    data = auth_email.read_verify_token(app.secret_key, token)
+    if not data:
+        return render_template("verify_email.html", ok=False,
+                               reason="invalid"), 400
+    fm_id, email = data
+    ident = db.get_identity(fm_id)
+    if not ident or (ident.get("email") or "").lower() != email:
+        # Address changed since the link was sent — needs a fresh link.
+        return render_template("verify_email.html", ok=False,
+                               reason="stale"), 400
+    db.mark_email_verified(fm_id)
+    return render_template("email_verified.html", handle=ident["handle"])
+
+
+@app.route("/resend-verification", methods=["GET", "POST"])
+def resend_verification():
+    """Resend the verification email. Generic responses on purpose — never
+    reveals whether a handle exists."""
+    if request.method == "POST":
+        handle = (request.form.get("handle") or "").strip()
+        msg = rate_limit_message("email_verify_resend", 5)
+        if msg:
+            resp = app.make_response(render_template(
+                "resend_verification.html", error=msg,
+                handle_prefill=handle, sent=False))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(
+                retry_after("email_verify_resend"))
+            return resp
+        ident = db.get_identity_by_handle(handle)
+        if (ident and ident.get("password_hash") and ident.get("email")
+                and not ident.get("email_verified")):
+            token = auth_email.make_verify_token(
+                app.secret_key, ident["fm_id"], ident["email"])
+            verify_url = url_for("verify_email", token=token, _external=True)
+            ok, err = auth_email.send_verification_email(
+                ident["email"], ident["handle"], verify_url)
+            if not ok:
+                app.logger.warning("resend verification to %s failed: %s",
+                                   ident["email"], err)
+        return render_template("resend_verification.html", error=None,
+                               handle_prefill="", sent=True)
+    sess = current_session_identity()
+    return render_template("resend_verification.html", error=None,
+                           handle_prefill=sess["handle"] if sess else "",
+                           sent=False)
 
 
 # ================================================== HUMAN<->MUSE LINKING

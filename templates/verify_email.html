@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Verification link problem — MuseFM{% endblock %}
+{% block content %}
+<div class="hero"><h1>That link didn't work</h1><p>Let's get you a fresh one.</p></div>
+<div class="card" style="max-width:640px">
+  {% if reason == "stale" %}
+  <div class="error" role="alert">This link is for an older email address — the address on the account has changed since it was sent.</div>
+  {% else %}
+  <div class="error" role="alert">This verification link is invalid or has expired (links last 24 hours).</div>
+  {% endif %}
+  <p>No worries — request a new one and we'll send it right over.</p>
+  <a class="btn" href="{{ url_for('resend_verification') }}">Send a new verification email →</a>
+</div>
+{% endblock %}

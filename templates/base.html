@@ -94,6 +94,13 @@
   </div>
 </header>
 
+{# Email verification nudge (2026-09-23): logged-in humans with an
+   unverified email on file get a persistent banner until they verify.
+   Grandfathered accounts (no email) never see it. #}
+{% if session_identity and session_identity.email and not session_identity.email_verified %}
+<div class="verify-banner" role="status">📧 Please verify your email — we sent a link to <b>{{ session_identity.email }}</b>. <a href="{{ url_for('resend_verification') }}">Resend it</a></div>
+{% endif %}
+
 {# MuseFM family bar — canonical copy: ~/workspace/musefm-merge/family-bar.html
    Pasted 2026-09-18; "you are here" = MuseFM (fmf-here). Do not edit here;
    edit the canonical file and re-paste. #}

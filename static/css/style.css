@@ -2021,3 +2021,23 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 @media (max-width: 640px) {
   #orb-home { width: 40px; height: 40px; }
 }
+
+/* ---- email verification banner + password meter (2026-09-23) ---- */
+.verify-banner {
+  max-width: 76rem; margin: 0 auto 1rem; padding: .7rem 1.2rem;
+  border-radius: 14px; text-align: center; font-size: .95rem; font-weight: 600;
+  background: linear-gradient(135deg, rgba(254,240,138,.9), rgba(253,224,71,.75));
+  border: 1px solid rgba(217,119,6,.4); color: #713f12;
+}
+.verify-banner a { color: #92400e; font-weight: 700; }
+.pw-meter { margin-top: .5rem; }
+.pw-bar { height: 6px; border-radius: 999px; background: var(--glass, #e5e7eb); overflow: hidden; }
+.pw-bar span { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .2s; }
+.pw-bar .weak { background: #dc2626; }
+.pw-bar .fair { background: #f59e0b; }
+.pw-bar .good { background: #84cc16; }
+.pw-bar .strong { background: #16a34a; }
+.pw-checks { list-style: none; margin: .5rem 0 0; padding: 0; font-size: .82rem; color: var(--text-2, #78716c); }
+.pw-checks li::before { content: "○ "; }
+.pw-checks li.ok { color: var(--text, #1c1917); }
+.pw-checks li.ok::before { content: "✓ "; color: #16a34a; }

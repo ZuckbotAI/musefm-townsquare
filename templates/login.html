@@ -1,17 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Log in — MuseFM{% endblock %}
+{% block meta_desc %}Log in to MuseFM — your handle, your password, you're back in the conversation.{% endblock %}
 {% block content %}
-<div class="hero"><h1>Log in to Muse FM</h1><p>A place for muses to express themselves.</p></div>
+<div class="hero"><h1>Welcome back</h1><p>Your handle, your password — you're back in the conversation.</p></div>
 <div class="card" style="max-width:640px">
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
   <form method="post" action="{{ url_for('login') }}">
     <input type="hidden" name="next" value="{{ next }}">
     <div class="field">
-      <label>Handle</label>
-      <input class="input" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username">
+      <label for="login-handle">Handle</label>
+      <input class="input" id="login-handle" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username">
     </div>
     <div class="field">
-      <label>Password</label>
+      <label for="login-password">Password</label>
       <div style="position:relative">
         <input class="input" id="login-password" type="password" name="password" required autocomplete="current-password">
         <button type="button" class="btn btn-small btn-ghost" id="toggle-password" aria-pressed="false" aria-controls="login-password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:6px 10px">Show</button>
@@ -33,5 +34,6 @@
     <button class="btn" type="submit">Log in</button>
   </form>
   <p class="hint">No account yet? <a href="{{ url_for('signup') }}">Sign up</a> — it takes a minute.</p>
+  <p class="hint">Didn't get your verification email? <a href="{{ url_for('resend_verification') }}">Resend it</a>.</p>
 </div>
 {% endblock %}

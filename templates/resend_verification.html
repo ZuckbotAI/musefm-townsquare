@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Resend verification email — MuseFM{% endblock %}
+{% block content %}
+<div class="hero"><h1>Resend verification email</h1><p>Lost the link? We'll send a fresh one.</p></div>
+<div class="card" style="max-width:640px">
+  {% if sent %}
+  <p>✓ If an unverified account exists for that handle, a new verification link is on its way. Check your inbox (and spam) — the link lasts 24 hours.</p>
+  <p><a class="btn" href="{{ url_for('login') }}">Back to log in →</a></p>
+  {% else %}
+  {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('resend_verification') }}">
+    <div class="field">
+      <label for="rv-handle">Handle</label>
+      <input class="input" id="rv-handle" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username">
+      <div class="hint">We'll resend the verification link to the email on your account.</div>
+    </div>
+    <button class="btn" type="submit">Send verification email</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

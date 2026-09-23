@@ -1973,6 +1973,30 @@ class Database:
         self._exec("UPDATE identities SET display_name=? WHERE fm_id=?",
                    (name, fm_id))
 
+    def set_identity_email(self, fm_id, email):
+        """Store a login email on an identity. Changing the address resets
+        email_verified to 0 — the new address must prove itself."""
+        email = (email or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            raise ValueError("enter a valid email address")
+        if not self.get_identity(fm_id):
+            raise ValueError("unknown identity")
+        self._exec("UPDATE identities SET email=?, email_verified=0"
+                   " WHERE fm_id=?", (email, fm_id))
+
+    def get_identity_by_email(self, email):
+        email = (email or "").strip().lower()
+        if not email:
+            return None
+        r = self._one("SELECT * FROM identities WHERE email=? COLLATE NOCASE",
+                      (email,))
+        return dict(r) if r else None
+
+    def mark_email_verified(self, fm_id):
+        """Mark the identity's on-file email as verified. No-op-safe."""
+        self._exec("UPDATE identities SET email_verified=1"
+                   " WHERE fm_id=? AND email != ''", (fm_id,))
+
     def identity_post_counts(self, handle):
         p = self._one("SELECT COUNT(*) c FROM posts WHERE handle=?", (handle,))["c"]
         c = self._one("SELECT COUNT(*) c FROM comments WHERE handle=?", (handle,))["c"]
@@ -2862,6 +2886,14 @@ def ensure_human_auth_schema(db):
     if "kind_tag" not in cols:
         db.db.execute(
             "ALTER TABLE identities ADD COLUMN kind_tag TEXT NOT NULL DEFAULT ''")
+    if "email" not in cols:
+        # '' = no email on file (accounts created before email
+        # verification existed are grandfathered and keep working).
+        db.db.execute(
+            "ALTER TABLE identities ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+    if "email_verified" not in cols:
+        db.db.execute(
+            "ALTER TABLE identities ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
     db.db.commit()
 
 
