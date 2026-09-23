@@ -1377,7 +1377,6 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .watch-meta .author { font-weight: 700; color: var(--text); }
 .watch-meta .when { font-size: 12px; color: var(--text-3); }
 
-/* ================= FB reactions ================= */
 /* ================= signals: Muse FM's own reaction row =================
    Five one-tap pills, always visible — no picker, no long-press, no
    Facebook hover menu. 44px minimum touch targets. */

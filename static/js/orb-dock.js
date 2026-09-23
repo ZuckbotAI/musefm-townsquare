@@ -84,31 +84,55 @@
     }, 16);
   }
 
+  // The wrap must be a direct child of <body>, NOT inside #orb-dock: the
+  // dock fades to opacity:0 when the orb flies to a stage, and opacity on
+  // an ancestor fades the whole subtree — the orb rendered its frames but
+  // was invisible whenever it left the dock (2026-09-23).
+  function ensureOnBody() {
+    if (wrap && wrap.parentNode !== document.body) document.body.appendChild(wrap);
+  }
+
   function takeOver() {
     if (!wrap) return;
+    ensureOnBody();
     wrap.classList.add('muse-orb-dockmanaged');
     wrap.style.transformOrigin = 'top left';
-    // user grabbed it themselves -> yield completely: drop our positioning
-    // so the orb's native drag (left/top) works, and stop managing
-    var fx = wrap.querySelector('canvas');
-    if (fx) {
-      fx.addEventListener('pointerdown', function () {
-        managed = false;
+    // User grabbed it themselves -> yield completely, but only on a real
+    // drag: a plain click opens the sayings bubble and must NOT unmanage.
+    // (The orb's native drag also waits for a ~7px move before it engages.)
+    // NOTE: listen on the wrap, not the first canvas — the canvases are
+    // siblings and a canvas-level listener misses drags that start on the
+    // topmost (FX) layer.
+    var downPos = null;
+    wrap.addEventListener('pointerdown', function (e) {
+      downPos = { x: e.clientX, y: e.clientY };
+    }, { capture: true });
+    window.addEventListener('pointermove', function (e) {
+      if (!downPos || !managed) return;
+      if (Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 7) {
+        downPos = null;
+        managed = false; // drop our positioning; the user's placement wins
         wrap.classList.remove('muse-orb-dockmanaged');
         wrap.style.transform = '';
         dock.classList.remove('orb-home');
         dock.classList.add('orb-drop');
-      }, { capture: true });
-      var endDrop = function () {
-        if (managed) return;
-        dock.classList.remove('orb-drop');
-      };
-      fx.addEventListener('pointerup', endDrop);
-      fx.addEventListener('pointercancel', endDrop);
-    }
-    // double-click = orb's own "send home" -> resume management
+      }
+    }, { capture: true });
+    var endDown = function () { downPos = null; };
+    window.addEventListener('pointerup', endDown, { capture: true });
+    window.addEventListener('pointercancel', endDown, { capture: true });
+    var endDrop = function () {
+      if (managed) return;
+      dock.classList.remove('orb-drop');
+    };
+    wrap.addEventListener('pointerup', endDrop);
+    wrap.addEventListener('pointercancel', endDrop);
+    // double-click = orb's own "send home" -> resume management. (The orb
+    // core re-inserts the wrap next to its anchor inside the dock on
+    // send-home, so pull it back out to <body> here too.)
     wrap.addEventListener('dblclick', function () {
       managed = true;
+      ensureOnBody();
       wrap.classList.add('muse-orb-dockmanaged');
       wrap.style.transformOrigin = 'top left';
       dock.classList.remove('orb-drop');
