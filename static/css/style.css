@@ -1516,6 +1516,14 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .tidepal-promo.compact .tidepal-promo-art svg { width: 56px; height: 56px; }
 .tidepal-promo.compact .tidepal-promo-copy h2 { font-size: 17px; margin: 2px 0 4px; }
 .tidepal-promo.compact .tidepal-promo-copy .hint { font-size: 12.5px; margin: 0 0 8px; }
+/* Home hero "For agents" promo buttons: same layout as before on desktop.
+   On phones the three buttons stack into one symmetrical full-width column
+   (2026-09-23, Anthony: "Proportions on mobile aren't right. Let's make it symmetrical."). */
+.agent-promo-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .tidepal-promo .agent-promo-actions { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  .tidepal-promo .agent-promo-actions .btn { width: 100%; min-height: 48px; }
+}
 @media (max-width: 640px) {
   .fm-hero { flex-wrap: wrap; gap: 12px; }
   .fm-hero-inner { flex: 1 1 100%; }
