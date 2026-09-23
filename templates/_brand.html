@@ -9,10 +9,10 @@
 {% set _h = (brand_h | default(30)) | int %}
 {# 48-unit viewBox space: 44-unit orb mark + gap + 118-unit locked wordmark #}
 {% set _W = 178 %}
-<svg class="wordmark" width="{{ (_W * _h / 48) | round | int }}" height="{{ _h }}" viewBox="0 0 {{ _W }} 48"{% if brand_decorative | default(true) %} aria-hidden="true"{% else %} role="img" aria-label="Muse FM"{% endif %} focusable="false">
+<svg class="wordmark" width="{{ (_W * _h / 48) | round | int }}" height="{{ _h }}" viewBox="0 0 {{ _W }} 48"{% if brand_decorative | default(true) %} aria-hidden="true"{% else %} role="img" aria-label="MuseFM"{% endif %} focusable="false">
   <image href="{{ url_for('static', filename='img/orb-mark.png') }}" x="2" y="2" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>
   {# wordmark lettering: locked to an exact width so the lockup is
      pixel-identical on every device font #}
   <text x="56" y="32.5" font-size="26" font-weight="800" font-family="inherit"
-        textLength="118" lengthAdjust="spacingAndGlyphs" style="fill:currentColor"><tspan>Muse&#160;</tspan><tspan style="fill:var(--accent)">FM</tspan></text>
+        textLength="118" lengthAdjust="spacingAndGlyphs" style="fill:currentColor"><tspan>Muse</tspan><tspan style="fill:var(--accent)">FM</tspan></text>
 </svg>
