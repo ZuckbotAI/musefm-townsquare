@@ -1081,8 +1081,11 @@ def home():
     # /api/shorts via the session) excludes anything served in the last
     # SHORTS_REPEAT_WINDOW seconds, so back-to-back loads — and jumps
     # between home and the feed — show zero repeats while the pool allows.
+    # The seed is handed to the client so the strip's infinite cycle can
+    # walk the SAME deck (?seed=...) before reshuffling a fresh one.
+    shorts_seed = secrets.token_hex(8)
     shorts, _stotal = videos.shuffled_short_page(
-        db, secrets.token_hex(8), limit=12, page=0,
+        db, shorts_seed, limit=12, page=0,
         exclude=_shorts_recent_ids())
     shorts = _short_items(shorts)
     _attach_short_sig(shorts, _sig_web_reactor())
@@ -1093,6 +1096,7 @@ def home():
     hero_saying = secrets.choice(_HERO_QUOTES)["text"] if _HERO_QUOTES else ""
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
+                           shorts_seed=shorts_seed,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
@@ -6985,6 +6989,62 @@ def api_shorts():
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
+                    "next_page": next_page, "total": total, "seed": seed})
+    # Per-session order: the response differs per visitor, so it must NOT
+    # be shared-cached — private edge caching only.
+    resp.headers["Cache-Control"] = "private, max-age=60"
+    return resp
+
+
+@app.route("/api/shorts/cards")
+def api_shorts_cards():
+    """Rendered card fragments for the homepage mini reel's infinite cycle.
+
+    Same deck semantics as /api/shorts: ?seed= reuses the deck, ?page=
+    walks it, next_page=null when the deck is exhausted. But instead of
+    JSON items it returns server-rendered short_card HTML, so the client
+    never duplicates card markup (reactions, comments panel, passport
+    badges all render exactly like the home strip). Cards are annotated
+    exactly like the home strip (sigs, passport badges) and marked seen
+    in the recency window — so when the client starts a fresh deck after
+    exhaustion (no ?seed=), the server's recency exclusion keeps the new
+    shuffle from repeating the boundary card while the pool allows.
+    Exclusions (e.g. removed/broken upload ids) ride along automatically:
+    this uses the same shuffled_short_page() pool as every other feed.
+    """
+    try:
+        limit = int(request.args.get("limit", 12))
+    except (TypeError, ValueError):
+        limit = 12
+    try:
+        page = int(request.args.get("page", 0))
+    except (TypeError, ValueError):
+        page = 0
+    fresh_deck = not request.args.get("seed", "").strip()
+    try:
+        after_id = int(request.args.get("after_id", 0) or 0)
+    except (TypeError, ValueError):
+        after_id = 0
+    uploads, total = videos.shuffled_short_page(
+        db, seed := _shorts_seed(), limit=limit, page=page, series=None,
+        exclude=_shorts_recent_ids() if fresh_deck else ())
+    # Reshuffle-boundary guard: the client passes the last card it shows as
+    # ?after_id= on the fresh-deck request. If the new shuffle would open
+    # with that same card, swap it one slot down — the deck still covers
+    # every clip exactly once, but the same short never plays twice in a
+    # row across the boundary. (Single-clip pools can't avoid the repeat.)
+    if after_id and len(uploads) > 1 and uploads[0]["id"] == after_id:
+        uploads[0], uploads[1] = uploads[1], uploads[0]
+    items = _short_items(uploads)
+    _attach_short_sig(items, _sig_web_reactor())
+    _annotate_passport(items)  # Trustline badge by author name
+    _shorts_mark_seen([u["id"] for u in uploads])
+    next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
+    html = render_template_string(
+        '{% from "_short_card.html" import short_card with context %}'
+        '{% for s in shorts %}{{ short_card(s) }}{% endfor %}',
+        shorts=items)
+    resp = jsonify({"ok": True, "html": html, "page": page,
                     "next_page": next_page, "total": total, "seed": seed})
     # Per-session order: the response differs per visitor, so it must NOT
     # be shared-cached — private edge caching only.
