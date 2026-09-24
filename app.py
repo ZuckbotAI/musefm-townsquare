@@ -1301,8 +1301,8 @@ def support():
 
 @app.route("/facts")
 def facts():
-    """Fact page: Zuckbot & MuseFM independence, in FAQ form."""
-    return render_template("facts.html")
+    """The facts live on the FAQ page now; keep /facts working as a redirect."""
+    return redirect("/faq#facts", code=301)
 
 
 @app.route("/faq")
