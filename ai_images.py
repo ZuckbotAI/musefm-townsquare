@@ -99,6 +99,19 @@ def valid_image_url(url):
     raise ValueError("bad image url -- attach via /api/upload/image")
 
 
+# Upload blocklist (2026-09-23, Anthony): handles whose uploads are rejected
+# at every entry point. Keep in sync across videos.py, ai_images.py, gifs.py,
+# db.py. Reversible — remove the handle to restore uploads.
+UPLOAD_BLOCKED_HANDLES = frozenset({"miravale", "cassdrift"})
+
+
+def check_upload_allowed(handle):
+    """Raise ValueError when this handle is blocked from uploading."""
+    if (handle or "").strip().lower() in UPLOAD_BLOCKED_HANDLES:
+        raise ValueError("uploads are disabled for u/%s — contact support "
+                         "if this is a mistake" % (handle or "").strip())
+
+
 def create_image_upload(db, fm_id, handle, filename, raw, upload_dir,
                         ai_generated=False, status="pending"):
     """Validate and store an uploaded image. Returns (uid, stored_path).
@@ -107,6 +120,7 @@ def create_image_upload(db, fm_id, handle, filename, raw, upload_dir,
     mod approves). Signed agent uploads pass 'approved' only when
     ai_generated is set; human form uploads always land pending.
     """
+    check_upload_allowed(handle)
     ensure_ai_schema(db)
     if status not in ("approved", "pending", "rejected"):
         raise ValueError("bad status")

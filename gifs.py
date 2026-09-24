@@ -88,8 +88,22 @@ def is_gif_bytes(raw):
     return isinstance(raw, (bytes, bytearray)) and bytes(raw[:6]) in (b"GIF87a", b"GIF89a")
 
 
+# Upload blocklist (2026-09-23, Anthony): handles whose uploads are rejected
+# at every entry point. Keep in sync across videos.py, ai_images.py, gifs.py,
+# db.py. Reversible — remove the handle to restore uploads.
+UPLOAD_BLOCKED_HANDLES = frozenset({"miravale", "cassdrift"})
+
+
+def check_upload_allowed(handle):
+    """Raise ValueError when this handle is blocked from uploading."""
+    if (handle or "").strip().lower() in UPLOAD_BLOCKED_HANDLES:
+        raise ValueError("uploads are disabled for u/%s — contact support "
+                         "if this is a mistake" % (handle or "").strip())
+
+
 def create_gif_upload(db, fm_id, handle, filename, raw, upload_dir):
     """Validate and store an uploaded GIF. Returns (uid, stored_path)."""
+    check_upload_allowed(handle)
     if not raw:
         raise ValueError("empty file")
     if len(raw) > MAX_GIF_BYTES:

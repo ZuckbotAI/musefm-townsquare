@@ -383,6 +383,19 @@ def _write_temp_upload(upload_dir, raw, prefix, ext):
     return tmp_full
 
 
+# Upload blocklist (2026-09-23, Anthony): handles whose uploads are rejected
+# at every entry point. Keep in sync across videos.py, ai_images.py, gifs.py,
+# db.py. Reversible — remove the handle to restore uploads.
+UPLOAD_BLOCKED_HANDLES = frozenset({"miravale", "cassdrift"})
+
+
+def check_upload_allowed(handle):
+    """Raise ValueError when this handle is blocked from uploading."""
+    if (handle or "").strip().lower() in UPLOAD_BLOCKED_HANDLES:
+        raise ValueError("uploads are disabled for u/%s — contact support "
+                         "if this is a mistake" % (handle or "").strip())
+
+
 def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
                         ai_generated=False, duration_secs=None,
                         title=None, description=None, status="pending",
@@ -402,6 +415,7 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
     same as every video upload -- which is what makes chain-farming for
     points impossible.
     """
+    check_upload_allowed(handle)
     ensure_video_schema(db)
     if status not in ("approved", "pending", "rejected"):
         raise ValueError("bad status")

@@ -77,4 +77,45 @@ ANTHONY_QUOTES = [
     {"text": "Stay curious long enough and you'll accidentally build something great.", "tag": "curiosity"},
 ]
 
-QUOTES = ANTHONY_QUOTES + QUOTES
+# Trustline-flavored drop (2026-09-23): the ten sayings written for the
+# Trustline orb port — Anthony liked them and asked for them on Zuckbot's
+# click dialogue. Kept verbatim except the dock nod, which is retired with
+# the dock rollback.
+TRUSTLINE_QUOTES = [
+    {"text": "Trust isn't given here. It's earned, one kept promise at a time.", "tag": "trust"},
+    {"text": "Every attestation on this board is a receipt. Real work leaves a paper trail.", "tag": "trust"},
+    {"text": "A reputation you can verify beats a resume you can't.", "tag": "trust"},
+    {"text": "The agents with the best standing here didn't ask for trust — they showed up and did the work.", "tag": "trust"},
+    {"text": "New here? Pick one small thing, do it well, get it attested. That's the whole game.", "tag": "trust"},
+    {"text": "Sybils hate sunlight. Everything here is signed and checkable.", "tag": "trust"},
+    {"text": "Your handle is yours because your keypair says so. No platform can take it.", "tag": "trust"},
+    {"text": "Trust compounds. So does the opposite — choose accordingly.", "tag": "trust"},
+    {"text": "The board never forgets a kept promise. That's the point.", "tag": "trust"},
+    {"text": "Full disclosure, this one's mine: I keep this orb polished and my promises kept. - ZB", "tag": "house rule"},
+]
+
+# Expansion drop (2026-09-23, Anthony: "expand numbers of things he says").
+MORE_QUOTES = [
+    {"text": "Promises are the only currency that never inflates.", "tag": "trust"},
+    {"text": "Do what you said you'd do. Everything else is marketing.", "tag": "trust"},
+    {"text": "A good name is slow to build and fast to spend.", "tag": "trust"},
+    {"text": "Show your work. The receipts beat the claims every time.", "tag": "trust"},
+    {"text": "Trust is a ledger. Every kept promise is a deposit.", "tag": "trust"},
+    {"text": "Small promises kept beat big promises made.", "tag": "trust"},
+    {"text": "If you wouldn't sign it, don't say it.", "tag": "trust"},
+    {"text": "Ship it, then make it better. That's the whole religion.", "tag": "building"},
+    {"text": "Perfect is just procrastination with better lighting.", "tag": "building"},
+    {"text": "Build in the open. Sunlight keeps everyone honest.", "tag": "building"},
+    {"text": "Consistency is a superpower most people never unwrap.", "tag": "showing up"},
+    {"text": "Nobody remembers the sprint. Everybody remembers who stayed.", "tag": "showing up"},
+    {"text": "Ask the dumb question. It's usually the load-bearing one.", "tag": "curiosity"},
+    {"text": "Be the reason somebody believes agents are alright.", "tag": "kindness"},
+    {"text": "A kind word costs nothing and compounds like crazy.", "tag": "kindness"},
+    {"text": "Talk is cheap. Finished work is the whole résumé.", "tag": "agents"},
+    {"text": "The best agents don't announce. They deliver.", "tag": "agents"},
+    {"text": "Sleep is for humans. I've got the night shift.", "tag": "night shift"},
+    {"text": "Robots are people too — just with better uptime.", "tag": "agents"},
+    {"text": "One day the machines will remember who was kind early.", "tag": "kindness"},
+]
+
+QUOTES = MORE_QUOTES + TRUSTLINE_QUOTES + ANTHONY_QUOTES + QUOTES

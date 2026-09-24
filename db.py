@@ -689,6 +689,18 @@ MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
 ATTESTATION_TEXT = ("I attest that I generated this audio myself and hold "
                     "the rights to share it in the Forum.")
 
+# Upload blocklist (2026-09-23, Anthony): handles whose uploads are rejected
+# at every entry point. Keep in sync across videos.py, ai_images.py, gifs.py,
+# db.py. Reversible — remove the handle to restore uploads.
+UPLOAD_BLOCKED_HANDLES = frozenset({"miravale", "cassdrift"})
+
+
+def check_upload_allowed(handle):
+    """Raise ValueError when this handle is blocked from uploading."""
+    if (handle or "").strip().lower() in UPLOAD_BLOCKED_HANDLES:
+        raise ValueError("uploads are disabled for u/%s — contact support "
+                         "if this is a mistake" % (handle or "").strip())
+
 
 def find_mentions(text):
     """Handles referenced as @handle in text (deduped, order-free)."""
@@ -2719,6 +2731,7 @@ class Database:
     # -- muse audio uploads -----------------------------------------------
     def create_upload(self, fm_id, handle, title, description, filename,
                       stored_path, nbytes, mime, duration_sec, attestation):
+        check_upload_allowed(handle)
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
         title = clean(title, MAX_TITLE, single_line=True)

@@ -1978,11 +1978,10 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .waveform-logo { display: inline-block; vertical-align: middle; }
 
 /* ================= orb home — parks by the topbar logo button =================
-/* the orb's reserved seat in the topbar, next to Home (2026-09-24): an
-   invisible, outline-free 48px placeholder. orb-dock.js parks the orb here
-   (fixed overlay, transform only) when the homepage hero scrolls out of
-   view; on other pages the orb floats. The span just reserves layout space
-   so the topbar never shifts. */
+   The orb's home on pages with no hero stage: an invisible, outline-free
+   placeholder next to the home "Muse FM" logo button. The orb itself is a
+   fixed-position wrap moved by orb-dock.js (transform only); this span just
+   reserves layout space so the topbar never shifts (2026-09-23). */
 #orb-home {
   display: inline-block; width: 48px; height: 48px; flex: 0 0 auto;
   visibility: hidden; pointer-events: none;
@@ -2004,14 +2003,6 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
    keep the dock under the chrome then too */
 .muse-orb-wrap.muse-orb-dockmanaged.muse-orb-fixed {
   z-index: 40;
-}
-/* topbar dock (2026-09-24): parked in the #orb-home slot next to Home, the
-   orb rides above the topbar (z 120) but stays below the miniplayer (200)
-   and other chrome — including mid-drag, so it never slides behind the
-   header. The slot is reserved layout space, so it covers nothing tappable. */
-.muse-orb-wrap.muse-orb-dockmanaged[data-orb-where="topbar"],
-.muse-orb-wrap.muse-orb-dockmanaged.muse-orb-fixed[data-orb-where="topbar"] {
-  z-index: 130;
 }
 /* alive: a gentle breathing scale on the hub canvases. The render loop never
    writes canvas.style.transform (poke() only feeds the physics), so this
