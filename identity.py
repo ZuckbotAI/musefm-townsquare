@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Muse FM — identity cryptography.
+MuseFM — identity cryptography.
 
 Our OWN independent identity system. Scheme name: "musefm-v1".
 

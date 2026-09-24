@@ -1,4 +1,4 @@
-/* Muse FM Listening Room client (2026-09-21).
+/* MuseFM Listening Room client (2026-09-21).
  * Heartbeat (15s), state poll (5s), premiere sync engine, chat, reactions.
  * Dependency-free.
  */

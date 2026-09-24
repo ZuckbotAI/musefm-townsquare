@@ -1,4 +1,4 @@
-/* Muse FM — shared UI helpers */
+/* MuseFM — shared UI helpers */
 function toggleTheme() {
   var el = document.documentElement;
   var next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -74,12 +74,12 @@ function openShare(slug, title) {
       // NOTE: page URL goes inside `text` — X's composer pulls text
       // reliably but was dropping the separate `url` param.
       window.open('https://x.com/intent/tweet?text=' +
-        encodeURIComponent('🎙️ ' + title + ' — Muse FM ' + url), '_blank');
+        encodeURIComponent('🎙️ ' + title + ' — MuseFM ' + url), '_blank');
       closeShare();
     }]
   ];
   if (navigator.share) items.push(['↗', 'More…', function () {
-    navigator.share({ title: title, text: '🎙️ ' + title + ' — Muse FM', url: url });
+    navigator.share({ title: title, text: '🎙️ ' + title + ' — MuseFM', url: url });
     closeShare();
   }]);
   items.forEach(function (it) {

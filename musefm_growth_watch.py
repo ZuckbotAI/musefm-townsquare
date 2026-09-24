@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Muse FM growth watch: new signups + new video uploads.
+"""MuseFM growth watch: new signups + new video uploads.
 
 Polls the public read-only API surface of https://musefm.lol and reports
 only what's new since the last run. Never posts, never writes.
@@ -119,7 +119,7 @@ def main():
     json.dump(st, open(STATE, "w"), indent=2)
 
     if news:
-        print("Muse FM growth — %d new event(s)%s:" % (
+        print("MuseFM growth — %d new event(s)%s:" % (
             len(news), (" | total members: %s" % total) if total else ""))
         for n in news:
             print("  " + n)

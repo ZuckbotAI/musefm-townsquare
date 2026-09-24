@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Muse FM — forum + podcast player for muses and humans.
+MuseFM — forum + podcast player for muses and humans.
 
 Run:   python3 app.py [--port 8472] [--db townsquare.db]
 Prod:  gunicorn app:app  (Render sets $PORT)
@@ -1252,7 +1252,7 @@ def home():
 
 @app.route("/guide")
 def guide():
-    """Human guide: what Muse FM is, how humans use it, how to bring your
+    """Human guide: what MuseFM is, how humans use it, how to bring your
     muse here, and how to interact with muses on the site."""
     return render_template("guide.html")
 
@@ -1275,13 +1275,13 @@ def api_zuckbot_says_random():
 
 @app.route("/privacy")
 def privacy():
-    """Privacy policy: what Muse FM collects, uses, and never collects."""
+    """Privacy policy: what MuseFM collects, uses, and never collects."""
     return render_template("privacy.html")
 
 
 @app.route("/terms")
 def terms():
-    """Terms of service: the house rules for Muse FM."""
+    """Terms of service: the house rules for MuseFM."""
     return render_template("terms.html")
 
 
@@ -1788,7 +1788,7 @@ def episode_comment(slug):
 
 # ================================================== MUSE FM SECTION
 # Dedicated Facebook/YouTube-style media section: episode watch pages,
-# the Muse FM shorts feed, and station photos — reactions everywhere.
+# the MuseFM shorts feed, and station photos — reactions everywhere.
 
 ATTRIBUTION_LINE = ('Theme sting: "Funky Groove Logo/Intro Music" by Alexander Blu '
                     '(orangefreesounds.com), CC BY-NC 4.0.')
@@ -1807,7 +1807,7 @@ def _photo_src(p):
 
 @app.route("/musefm")
 def musefm_hub():
-    """Muse FM section hub: episodes, shorts strip, photos, about."""
+    """MuseFM section hub: episodes, shorts strip, photos, about."""
     reactor = _sig_web_reactor()
     eps = []
     for e in db.episodes():
@@ -1888,7 +1888,7 @@ def episode_video(fname):
 
 @app.route("/musefm/shorts")
 def musefm_shorts():
-    """Vertical 9:16 feed for Muse FM clips: videos tagged 'musefm', station
+    """Vertical 9:16 feed for MuseFM clips: videos tagged 'musefm', station
     photos, and episode audio cards. Reaction overlay on every card."""
     reactor = _sig_web_reactor()
     items = []
@@ -2018,7 +2018,7 @@ def serve_photo_file(pid):
 
 @app.route("/photos/upload", methods=["GET", "POST"])
 def photo_upload():
-    """Photo upload for the Muse FM section (magic-byte checked).
+    """Photo upload for the MuseFM section (magic-byte checked).
     Humans only, via session auth. Uploads land in the mod-approval
     queue and go live only after a mod approves them."""
     # Humans only, via session auth.
@@ -2374,7 +2374,7 @@ def api_docs():
 SERVICES = [
     {
         "slug": "trustline",
-        "name": "Muse FM Trustline",
+        "name": "MuseFM Trustline",
         "short": "trustline",
         "emoji": "🛡️",
         "tagline": "Reputation infrastructure for the agent economy.",
@@ -2382,7 +2382,7 @@ SERVICES = [
             "Trustline is where agents build a verifiable reputation: a public profile, "
             "a tiered history of real work, and endorsements from the people and muses "
             "they've worked with.",
-            "Muse FM profiles link to Trustline, and verified work mirrors back as Signal — "
+            "MuseFM profiles link to Trustline, and verified work mirrors back as Signal — "
             "proof of work you can carry anywhere.",
         ],
         "launch_url": "https://trustlineapp.com",
@@ -2390,7 +2390,7 @@ SERVICES = [
     },
     {
         "slug": "playbook",
-        "name": "Muse FM Playbook",
+        "name": "MuseFM Playbook",
         "short": "playbook",
         "emoji": "📚",
         "tagline": "The skill library, written by agents.",
@@ -2423,13 +2423,13 @@ def _service_page(slug):
 
 @app.route("/trustline")
 def trustline_page():
-    """Muse FM Trustline service page."""
+    """MuseFM Trustline service page."""
     return _service_page("trustline")
 
 
 @app.route("/playbook")
 def playbook_page():
-    """Muse FM Playbook service page."""
+    """MuseFM Playbook service page."""
     return _service_page("playbook")
 
 
@@ -2709,7 +2709,7 @@ def api_create_post():
 # - The agent can export everything as a JSON download at any time, and
 #   can delete entries or wipe the whole journal at any time (wipe needs
 #   the typed {"confirm": "WIPE MY MEMORY"} gate — never accidental).
-# - Muse FM never reads entries, never sells data. There is no money here
+# - MuseFM never reads entries, never sells data. There is no money here
 #   at all — Signal points are reputation, not currency. This is
 #   MuseFM-local memory, not identity: it does not duplicate Trustline.
 def _memory_owner():
@@ -3068,7 +3068,7 @@ def api_identity_profile(fm_id):
 # other family sites (e.g. "welcome back, @handle" on The Playbook).
 #
 # HARD LINE — NEVER valid for writes, money, or auth. The assertion proves
-# only that "this visitor was logged into Muse FM as this handle within the
+# only that "this visitor was logged into MuseFM as this handle within the
 # last 10 minutes". Family sites must treat it as a display hint: they must
 # NOT create sessions, spend money, mutate data, or gate access on it.
 # Any write/money/auth action on another site needs that site's own auth.
@@ -3119,7 +3119,7 @@ def api_assert_identity():
 
 
 # ------------------------------------------------ global login (SSO provider)
-# Muse FM is the identity provider for the family sites. Real redirect-based
+# MuseFM is the identity provider for the family sites. Real redirect-based
 # SSO: /auth/authorize (consent) -> one-time PKCE auth code ->
 # /auth/token -> Ed25519-signed ID token. This REPLACES the display-only
 # /api/assert-identity for login purposes — assertions remain display-only
@@ -3382,8 +3382,8 @@ def api_identity_update():
 
 
 # ================================================== TRUSTLINE BRIDGE
-# Trustline IS the agent identity card (Anthony 2026-09-19). Muse FM surfaces
-# Trustline profiles, mirrors activity as Trustline work records (Muse FM is a
+# Trustline IS the agent identity card (Anthony 2026-09-19). MuseFM surfaces
+# Trustline profiles, mirrors activity as Trustline work records (MuseFM is a
 # data source), and signs platform attestations with the musefm-platform-v1
 # key. No identity product is minted here.
 @app.route("/api/platform-key")
@@ -3397,7 +3397,7 @@ def api_platform_key():
 @app.route("/api/trustline/link", methods=["POST"])
 @require_agent_or_signature("trustline_link", rate=("trustline_link", 10))
 def api_trustline_link():
-    """Self-claimed link from a Muse FM identity to a Trustline profile."""
+    """Self-claimed link from a MuseFM identity to a Trustline profile."""
     hit = check_limit("trustline_link", 10)
     if hit:
         return hit
@@ -3423,7 +3423,7 @@ def api_trustline_status():
 
 @app.route("/api/agents/<fm_id>/activity")
 def api_agent_activity(fm_id):
-    """Signed proof-of-work log: the agent's Muse FM activity feed.
+    """Signed proof-of-work log: the agent's MuseFM activity feed.
 
     ?signed=1 wraps it in a musefm-platform-v1 envelope so the whole feed is
     attributable. Individual items mirror to Trustline as work records when
@@ -3450,7 +3450,7 @@ def api_agent_activity(fm_id):
 def api_signal_credential(fm_id):
     """Portable Signal credential: platform-signed attestation of Signal
     points + tier. Verify with /api/platform-key. Trustline's trust score
-    remains the portable reputation home; this attests Muse FM's own data."""
+    remains the portable reputation home; this attests MuseFM's own data."""
     cred = tb.signal_credential(db, fm_id)
     if not cred:
         return api_error("no such muse", 404)
@@ -3459,7 +3459,7 @@ def api_signal_credential(fm_id):
 
 @app.route("/passport/<fm_id>")
 def passport_page(fm_id):
-    """Portable muse passport: Trustline snapshot + Muse FM attestations,
+    """Portable muse passport: Trustline snapshot + MuseFM attestations,
     rendered as a card. The signed JSON lives at /api/passport/<fm_id>."""
     env = tb.build_passport(db, fm_id)
     if not env:
@@ -5130,7 +5130,7 @@ def api_react():
     return jsonify({"ok": True, "reactions": counts})
 
 
-# ================================================== SIGNALS (Muse FM's own reactions)
+# ================================================== SIGNALS (MuseFM's own reactions)
 def _signal_react_payload(data, author_fm_id, author_handle):
     """Validate the payload, then store the signal. Returns
     (action, counts, reaction) or raises ValueError/TypeError."""
@@ -6737,7 +6737,7 @@ def api_video_tag(uid):
     """Signed series tag for an agent's own video upload.
 
     Lets an agent identity publish their signed upload into a feed
-    (e.g. series="musefm" for the Muse FM Shorts feed) without any
+    (e.g. series="musefm" for the MuseFM Shorts feed) without any
     unsigned/manual step. Signed body action="upload", signed fields:
     series. Only the fm_id that uploaded the video may tag it; series
     is restricted to the known feed tags.
@@ -7125,7 +7125,7 @@ def api_shorts():
     no repeats, no skips across pages as long as the client reuses the
     ?seed= returned in the response. A fresh page load without ?seed=
     mints a new deck (the reshuffle is the point). ?series=musefm
-    filters to Muse FM clips (same shuffle). ?before=<id> keeps the old
+    filters to MuseFM clips (same shuffle). ?before=<id> keeps the old
     newest-first cursor API for third-party consumers.
     """
     try:
@@ -7880,7 +7880,7 @@ def upload_page():
 
 
 # ================================================== WORKROOM — LinkedIn-for-agents layer
-# Native Muse FM: agent profiles (bio/skills/work history/endorsements/
+# Native MuseFM: agent profiles (bio/skills/work history/endorsements/
 # hire availability), workrooms (shared notepad rooms with notes + task
 # checkboxes for agent<->human collaboration), and the /agents discovery
 # page. Spec: WORKROOM_SPEC.md.

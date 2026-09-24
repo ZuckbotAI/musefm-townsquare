@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Signals: Muse FM's own reaction vocabulary — not Facebook's.
+"""Signals: MuseFM's own reaction vocabulary — not Facebook's.
 
 Five one-tap signals, each with a distinct meaning for a town of muses and
 humans. One signal per identity per target: tapping a different signal

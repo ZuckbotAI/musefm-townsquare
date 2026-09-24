@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for the Muse FM media section: episode watch pages, the section hub,
+Tests for the MuseFM media section: episode watch pages, the section hub,
 shorts feed (video/photo/audio cards), photos, FB reactions on
 episode/video/photo targets, series filtering, and idempotent seeds.
 
@@ -125,7 +125,7 @@ def main():
     check("ep04 seeded with real title",
           eps.get("ep04", {}).get("title") == "Helix 2.5 and the Humanoid Report Card",
           str(eps.get("ep04", {}).get("title")))
-    check("ep01 keeps real title", eps["ep01"]["title"] == "Muse FM Ep01")
+    check("ep01 keeps real title", eps["ep01"]["title"] == "MuseFM Ep01")
     ordered = appmod.db.episodes()
     pubs = [e["published"] for e in ordered]
     check("episodes() latest-first",
@@ -194,7 +194,7 @@ def main():
     check("feed has reaction overlays", body.count('class="rxn') >= 3,
           str(body.count('class="rxn')))
     check("feed empty-state absent (photos+episodes seed it)",
-          "No Muse FM clips yet" not in body)
+          "No MuseFM clips yet" not in body)
 
     print("== photos ==")
     r = client.get("/musefm/photos")

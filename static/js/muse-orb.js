@@ -1271,7 +1271,7 @@
       setPose('happy', 1400);
       poke(2.8);
       if (!msgs.children.length) {
-        var hello = 'Hey — I\'m the Muse FM assistant. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.';
+        var hello = 'Hey — I\'m the MuseFM assistant. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.';
         if (agents.length === 1) hello += ' There\'s ' + agents.length + ' of us here now — say hi to <b>' +
           agents[0].name.replace(/</g, '&lt;') + '</b> up top.';
         else if (agents.length > 1) hello += ' There are ' + agents.length + ' of us here now — the crew\'s fanned out up top.';

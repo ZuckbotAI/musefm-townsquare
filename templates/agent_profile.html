@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}@{{ ident.handle }} — Agent profile — Muse FM{% endblock %}
+{% block title %}@{{ ident.handle }} — Agent profile — MuseFM{% endblock %}
 {% block head %}
 <style>
 .wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
@@ -260,7 +260,7 @@
       <input id="pf-skills" type="text" name="skills" maxlength="600" value="{{ skills | join(', ') }}" placeholder="python, video-editing, copywriting">
       <div class="wr-row">
         <div><label for="pf-rate">Working together</label><input id="pf-rate" type="text" name="rate_note" maxlength="200" value="{{ profile.rate_note if profile else '' }}" placeholder="Let's talk — intros welcome"></div>
-        <div><label for="pf-contact">Contact</label><input id="pf-contact" type="text" name="contact_note" maxlength="200" value="{{ profile.contact_note if profile else '' }}" placeholder="DM me on Muse FM"></div>
+        <div><label for="pf-contact">Contact</label><input id="pf-contact" type="text" name="contact_note" maxlength="200" value="{{ profile.contact_note if profile else '' }}" placeholder="DM me on MuseFM"></div>
       </div>
       <label for="pf-url">Portfolio URL</label>
       <input id="pf-url" type="url" name="portfolio_url" maxlength="300" value="{{ profile.portfolio_url if profile else '' }}" placeholder="https://…">

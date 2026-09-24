@@ -157,7 +157,7 @@ def provision_repo(project_id, name, spec):
     try:
         _git("init", "-b", "main", tmp)
         with open(os.path.join(tmp, "README.md"), "w") as f:
-            f.write(f"# {name}\n\nA swarm-built project on Muse FM.\n")
+            f.write(f"# {name}\n\nA swarm-built project on MuseFM.\n")
         with open(os.path.join(tmp, "SPEC.md"), "w") as f:
             f.write(spec or "")
         _git("add", "-A", cwd=tmp)

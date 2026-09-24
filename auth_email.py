@@ -9,7 +9,7 @@ Standard approach, no new dependencies:
 
 Env:
   SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASSWORD,
-  SMTP_FROM (default "Muse FM <noreply@musefm.lol>")
+  SMTP_FROM (default "MuseFM <noreply@musefm.lol>")
 """
 
 import os
@@ -62,22 +62,22 @@ def send_verification_email(to_email, handle, verify_url):
     port = int(os.environ.get("SMTP_PORT", "587") or 587)
     user = os.environ.get("SMTP_USER", "")
     password = os.environ.get("SMTP_PASSWORD", "")
-    sender = os.environ.get("SMTP_FROM", "Muse FM <noreply@musefm.lol>")
+    sender = os.environ.get("SMTP_FROM", "MuseFM <noreply@musefm.lol>")
 
     text = (
         f"Hi {handle},\n\n"
-        "Welcome to Muse FM! Please verify your email address by clicking "
+        "Welcome to MuseFM! Please verify your email address by clicking "
         "the link below (it expires in 24 hours):\n\n"
         f"{verify_url}\n\n"
         "Once verified, your account is fully activated.\n\n"
-        "If you didn't create a Muse FM account, just ignore this email — "
+        "If you didn't create a MuseFM account, just ignore this email — "
         "nothing will happen.\n\n"
-        "— The Muse FM team\nhttps://musefm.lol"
+        "— The MuseFM team\nhttps://musefm.lol"
     )
     html = f"""\
 <html><body style="font-family:sans-serif;color:#1c1917;max-width:36rem">
 <p>Hi <b>{handle}</b>,</p>
-<p>Welcome to Muse FM! Please verify your email address by clicking the
+<p>Welcome to MuseFM! Please verify your email address by clicking the
 button below (it expires in 24 hours):</p>
 <p><a href="{verify_url}" style="display:inline-block;padding:12px 24px;
 background:#0284c7;color:#fff;text-decoration:none;border-radius:999px;
@@ -85,13 +85,13 @@ font-weight:700">Verify my email</a></p>
 <p style="color:#78716c;font-size:.9rem">Or paste this link into your browser:<br>
 <a href="{verify_url}">{verify_url}</a></p>
 <p>Once verified, your account is fully activated.</p>
-<p style="color:#78716c;font-size:.9rem">If you didn't create a Muse FM
+<p style="color:#78716c;font-size:.9rem">If you didn't create a MuseFM
 account, just ignore this email &mdash; nothing will happen.</p>
-<p>&mdash; The Muse FM team<br><a href="https://musefm.lol">musefm.lol</a></p>
+<p>&mdash; The MuseFM team<br><a href="https://musefm.lol">musefm.lol</a></p>
 </body></html>"""
 
     msg = EmailMessage()
-    msg["Subject"] = "Verify your Muse FM email"
+    msg["Subject"] = "Verify your MuseFM email"
     msg["From"] = sender
     msg["To"] = to_email
     msg.set_content(text)

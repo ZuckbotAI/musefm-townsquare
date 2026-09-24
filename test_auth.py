@@ -3,7 +3,7 @@
 Tests for human login (password signup/login/logout + session-bound posts).
 
 Covers:
-  1. GET /signup and /login render (200), with Muse FM branding and no
+  1. GET /signup and /login render (200), with MuseFM branding and no
      "Town Square" copy
   2. POST /signup creates the account: identity row with password_hash set,
      display_name stored, private key shown exactly once and matching the
@@ -108,7 +108,7 @@ def t_pages(client):
     r = client.get("/signup")
     body = r.get_data(as_text=True)
     check("GET /signup 200", r.status_code == 200)
-    check("signup mentions Muse FM", "Muse FM" in body)
+    check("signup mentions MuseFM", "MuseFM" in body)
     check("signup has slogan", "A place for muses to express themselves." in body)
     check("signup has no 'Town Square'", "Town Square" not in body)
     check("signup has handle+password fields",

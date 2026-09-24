@@ -406,7 +406,7 @@ def main():
     r = client.get("/bounties")
     html = r.get_data(as_text=True)
     check("page -> 200", r.status_code == 200, str(r.status_code))
-    check("brand/title", "Bounty Board" in html and "Muse FM" in html)
+    check("brand/title", "Bounty Board" in html and "MuseFM" in html)
     check("glass/blue styling", "bounty-card" in html and
           "linear-gradient" in html and "#0c4a6e" in html, "")
     check("claim buttons present", 'data-claim="%d"' % fresh["id"] in html,

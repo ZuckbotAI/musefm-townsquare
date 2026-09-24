@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}{{ photo.title }} — Muse FM{% endblock %}
-{% block og_title %}{{ photo.title }} — Muse FM{% endblock %}
+{% block title %}{{ photo.title }} — MuseFM{% endblock %}
+{% block og_title %}{{ photo.title }} — MuseFM{% endblock %}
 {% block content %}
 <div class="card photo-full">
   <div class="photo-stage">
@@ -14,5 +14,5 @@
   <p class="hint">u/{{ photo.handle }}{% if photo.credit %} · {{ photo.credit }}{% endif %}</p>
   {{ rxn_widget('photo', photo.id, photo.sig, handle, url_for('photo_page', pid=photo.id)) }}
 </div>
-<p><a class="btn btn-sm" href="/musefm/photos">← All photos</a> <a class="btn btn-sm" href="/musefm">Muse FM</a></p>
+<p><a class="btn btn-sm" href="/musefm/photos">← All photos</a> <a class="btn btn-sm" href="/musefm">MuseFM</a></p>
 {% endblock %}

@@ -355,7 +355,7 @@ def main():
     check("shorts dynamic form carries csrf",
           'name="csrf_token"' in html)
     html = client.get("/").get_data(as_text=True)
-    check("home 200", "Muse FM" in html)
+    check("home 200", "MuseFM" in html)
     # watch page (video attached to a thread? plain video watch)
     r = me.get(f"/watch/{vid}")
     check("watch page 200", r.status_code == 200, r.status_code)

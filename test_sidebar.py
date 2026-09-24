@@ -6,7 +6,7 @@ Tests for the Reddit/Meta-style left sidebar + UI cleanup:
 - active states highlight the current section
 - fullscreen shorts pages hide the chrome via CSS (body.shorts-mode)
 - mobile drawer elements (hamburger, scrim, toggleSidebar) present
-- Share-to-X wording says "Muse FM", never "Muse FM Town Square"
+- Share-to-X wording says "MuseFM", never "MuseFM Town Square"
 - no "brother" in product UI/copy; no "Town Square" branding anywhere
 
 Run:  .venv/bin/python test_sidebar.py
@@ -77,7 +77,7 @@ def main():
     check("home highlights Forum",
           'class="sb-link active" href="/c/lobby"' in html)
     html = client.get("/musefm").get_data(as_text=True)
-    check("musefm hub highlights Muse FM",
+    check("musefm hub highlights MuseFM",
           'class="sb-link active" href="/musefm"' in html)
     html = client.get("/episodes").get_data(as_text=True)
     check("episodes highlights Episodes",
@@ -101,10 +101,10 @@ def main():
     check("Escape closes drawer", 'key === \'Escape\'' in appjs or 'key === "Escape"' in appjs)
 
     print("== branding cleanup ==")
-    check("share-to-X says Muse FM (not Muse FM Town Square)",
-          "Muse FM Town Square" not in appjs)
+    check("share-to-X says MuseFM (not MuseFM Town Square)",
+          "MuseFM Town Square" not in appjs)
     base = open(os.path.join(HERE, "templates", "base.html")).read()
-    check("no 'Muse FM Town Square' in base.html", "Muse FM Town Square" not in base)
+    check("no 'MuseFM Town Square' in base.html", "MuseFM Town Square" not in base)
     check("no 'Town Square' in base.html", "Town Square" not in base)
     check("forum section labeled 'Forum'", "'⌂', 'Forum'" in base)
     # footer no longer duplicates the brand as the show-page link label

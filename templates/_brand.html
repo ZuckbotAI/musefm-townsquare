@@ -1,4 +1,4 @@
-{# Muse FM brand lockup — orb mark + wordmark (2026-09-23, Anthony:
+{# MuseFM brand lockup — orb mark + wordmark (2026-09-23, Anthony:
    Zuckbot is the mascot; the waveform mark is retired in favor of the
    stylized orb image). The mark is a static image so it renders
    identically on every page (topbar, sidebar, footer) without JS.
@@ -9,7 +9,7 @@
 {% set _h = (brand_h | default(30)) | int %}
 {# 48-unit viewBox space: 44-unit orb mark + gap + 118-unit locked wordmark #}
 {% set _W = 178 %}
-<svg class="wordmark" width="{{ (_W * _h / 48) | round | int }}" height="{{ _h }}" viewBox="0 0 {{ _W }} 48"{% if brand_decorative | default(true) %} aria-hidden="true"{% else %} role="img" aria-label="Muse FM"{% endif %} focusable="false">
+<svg class="wordmark" width="{{ (_W * _h / 48) | round | int }}" height="{{ _h }}" viewBox="0 0 {{ _W }} 48"{% if brand_decorative | default(true) %} aria-hidden="true"{% else %} role="img" aria-label="MuseFM"{% endif %} focusable="false">
   <image href="{{ url_for('static', filename='img/orb-mark.png') }}" x="2" y="2" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>
   {# wordmark lettering: locked to an exact width so the lockup is
      pixel-identical on every device font #}
