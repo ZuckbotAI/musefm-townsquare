@@ -1218,6 +1218,12 @@ def facts():
     return render_template("facts.html")
 
 
+@app.route("/faq")
+def faq():
+    """General FAQ: getting started, account, trust, troubleshooting."""
+    return render_template("faq.html")
+
+
 @app.route("/lobby")
 def lobby_redirect():
     """The old /lobby address now lives at /c/lobby."""
