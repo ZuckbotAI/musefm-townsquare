@@ -1299,6 +1299,18 @@ def support():
     return render_template("support.html")
 
 
+@app.route("/facts")
+def facts():
+    """Fact page: Zuckbot & MuseFM independence, in FAQ form."""
+    return render_template("facts.html")
+
+
+@app.route("/faq")
+def faq():
+    """General FAQ: getting started, account, trust, troubleshooting."""
+    return render_template("faq.html")
+
+
 @app.route("/contact")
 def contact():
     """Alias: /contact redirects to the canonical /support page."""
