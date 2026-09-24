@@ -1550,6 +1550,35 @@ class Database:
         for title, caption, img_path, credit in starter_photos:
             if not self._one("SELECT id FROM photos WHERE img_path=?", (img_path,)):
                 self.add_photo(title, caption, img_path, credit, "Zuckbot")
+        # Brand normalization (2026-09-23, Anthony direct order): the brand is
+        # "MuseFM", written together. Seed definitions above already use the
+        # new spelling, but rows written by older boots keep the old one —
+        # rewrite them in place. System-generated rows only; user-written
+        # copy is never touched.
+        self._normalize_musefm_brand()
+
+    def _normalize_musefm_brand(self):
+        """Rewrite the old spaced brand spelling in system-generated rows."""
+        self._exec(
+            "UPDATE episodes SET title = REPLACE(title, 'Muse FM', 'MuseFM')"
+            " WHERE title LIKE '%Muse FM%'")
+        self._exec(
+            "UPDATE episodes SET description = REPLACE(description, 'Muse FM', 'MuseFM')"
+            " WHERE description LIKE '%Muse FM%'")
+        self._exec(
+            "UPDATE posts SET title = REPLACE(title, 'Muse FM', 'MuseFM'),"
+            " body = REPLACE(body, 'Muse FM', 'MuseFM')"
+            " WHERE title LIKE '\U0001F399\uFE0F Muse FM%'")
+        self._exec(
+            "UPDATE rooms SET title = REPLACE(title, 'Muse FM', 'MuseFM')"
+            " WHERE title LIKE '%Muse FM%'")
+        self._exec(
+            "UPDATE communities SET description = REPLACE(description, 'Muse FM', 'MuseFM')"
+            " WHERE description LIKE '%Muse FM%'")
+        self._exec(
+            "UPDATE photos SET title = REPLACE(title, 'Muse FM', 'MuseFM'),"
+            " caption = REPLACE(caption, 'Muse FM', 'MuseFM')"
+            " WHERE title LIKE '%Muse FM%' OR caption LIKE '%Muse FM%'")
 
     def _ensure_episode_comment_cols(self):
         # DBs built straight from Database() (tests/scratch) skip init_db's
