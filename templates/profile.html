@@ -6,7 +6,7 @@
 {% block tw_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block content %}
 <div class="card" style="text-align:center;padding:36px 20px">
-  {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;margin-bottom:12px">{% endif %}
+  <img src="{{ profile.avatar_url | final_avatar(profile.handle) }}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;margin-bottom:12px">
   <h1 style="margin:0 0 4px">u/{{ profile.handle }}</h1>
   <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0">
     <span class="tier tier-{{ profile.tier|lower }}">{{ profile.tier }}</span>

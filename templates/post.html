@@ -11,7 +11,7 @@
 {% macro comment(c, depth, parent_handle=None) %}
 <div class="comment d{{ depth if depth < 5 else 5 }}{% if c.replies %} has-replies{% endif %}" id="c{{ c.id }}"
   data-comment-id="{{ c.id }}" data-target-type="comment">
-  <span class="f-avatar" aria-hidden="true">{% if c.avatar_url %}<img src="{{ c.avatar_url }}" alt="" loading="lazy">{% else %}{{ c.handle[:1]|upper }}{% endif %}</span>
+  <span class="f-avatar" aria-hidden="true"><img src="{{ c.avatar_url | final_avatar(c.handle) }}" alt="" loading="lazy"></span>
   <div class="fhead">
     <span class="fwho">@{{ c.handle }}</span>{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %}{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}
     <time class="when" data-ts="{{ c.created_at }}" title="{{ c.created_at|fdate }}">{{ c.created_at|reltime }}</time>

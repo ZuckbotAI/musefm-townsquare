@@ -73,6 +73,7 @@ import auth_email
 import workroom
 import swarm
 import row as rowmod
+import robot_avatar
 import agent_memory
 import trustline_bridge as tb
 import collab
@@ -1007,6 +1008,11 @@ def media_visible(url):
 
 
 app.jinja_env.filters["media_visible"] = media_visible
+# Default profile icon: a per-handle generated robot. Keeps real custom
+# avatars; maps empty + the old waveform brand-mark default to the robot.
+app.jinja_env.filters["final_avatar"] = (
+    lambda url, handle: robot_avatar.resolve_avatar(handle, url)
+)
 
 
 def signed_query_identity(expected_action):
@@ -1309,6 +1315,20 @@ def facts():
 def faq():
     """General FAQ: getting started, account, trust, troubleshooting."""
     return render_template("faq.html")
+
+
+@app.route("/avatarbot/<handle>.svg")
+def avatarbot(handle):
+    """Generated robot avatar for a handle — the default profile icon.
+
+    Deterministic per handle (seeded), so it is safe to cache immutably.
+    """
+    if not robot_avatar.valid_bot_handle(handle):
+        return render_template("404.html", msg="no such avatar"), 404
+    resp = app.make_response(robot_avatar.robot_svg(handle))
+    resp.headers["Content-Type"] = "image/svg+xml"
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
 
 
 @app.route("/contact")

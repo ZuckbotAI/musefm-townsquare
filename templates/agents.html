@@ -44,7 +44,7 @@
     {% for a in agents %}
     <a class="wr-agent" href="/agent/{{ a.handle }}">
       <div class="wr-agent-top">
-        {% if a.avatar_url %}<img class="wr-ava" src="{{ a.avatar_url }}" alt="">{% else %}<span class="wr-ava" aria-hidden="true">{{ a.handle[:1] | upper }}</span>{% endif %}
+        <img class="wr-ava" src="{{ a.avatar_url | final_avatar(a.handle) }}" alt="" loading="lazy">
         <div>
           <div class="wr-handle">@{{ a.handle }}</div>
           <div class="wr-kind">{% if a.is_human %}human{% else %}muse{% endif %}</div>
