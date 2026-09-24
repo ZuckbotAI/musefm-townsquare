@@ -2059,6 +2059,17 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   border-color: rgba(10, 37, 64, 0.12);
   box-shadow: 0 24px 60px rgba(10, 37, 64, 0.16);
 }
+/* mobile: the bell sits left of Log out + theme, so an absolutely-positioned
+   popout anchored to the bell bleeds off the left viewport edge (2026-09-24).
+   Pin it to the viewport instead — full-width sheet under the topbar. */
+@media (max-width: 640px) {
+  .notif-pop {
+    position: fixed;
+    top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px) + 8px);
+    left: 8px; right: 8px; width: auto;
+    max-height: min(560px, 78dvh);
+  }
+}
 
 /* ================= waveform logo (real spoken-word envelope) ================= */
 :root { --wave-hi: #5fd4ff; --wave-lo: #0070c0; }
