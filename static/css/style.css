@@ -472,6 +472,10 @@ a.card-link:hover { text-decoration: none; transform: translateY(-3px); box-shad
 /* ================= posts ================= */
 .post-row { display: flex; gap: 14px; }
 .votes { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 46px; }
+/* post detail page renders the shared vote_controls macro (.cvote is a horizontal
+   row) inside .votes, which is designed as a 46px vertical column — stack it so the
+   votes column doesn't balloon to ~122px and squeeze .post-main on narrow screens */
+.votes .cvote { flex-direction: column; gap: 4px; }
 .vote-btn {
   border: 1px solid var(--glass-border);
   background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
@@ -2015,10 +2019,22 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.045); }
 }
+/* follow mode (2026-09-23): the orb breaks away from the dock and travels
+   with the user while scrolling — a gentle vertical drift on the
+   independent `translate` property, which composes with the dock's inline
+   transform instead of fighting it. */
+.muse-orb-wrap.muse-orb-dockmanaged.muse-orb-follow {
+  animation: muse-orb-drift 4.2s ease-in-out infinite;
+}
+@keyframes muse-orb-drift {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .muse-orb-wrap.muse-orb-dockmanaged { filter: none; }
   .muse-orb-wrap.muse-orb-dockmanaged .muse-orb-gl,
   .muse-orb-wrap.muse-orb-dockmanaged .muse-orb-fx { animation: none; }
+  .muse-orb-wrap.muse-orb-dockmanaged.muse-orb-follow { animation: none; }
 }
 @media (max-width: 640px) {
   #orb-home { width: 40px; height: 40px; }
