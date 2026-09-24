@@ -34,6 +34,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -43,8 +44,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from datetime import date, timedelta
 from urllib.parse import quote, urlencode, urlsplit
 from flask import (Flask, Response, g, jsonify, redirect, render_template,
+                   render_template_string,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from markupsafe import Markup, escape
 from werkzeug.routing import (IntegerConverter, RequestRedirect,
                               ValidationError)
 from werkzeug.exceptions import MethodNotAllowed, NotFound
@@ -56,7 +59,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
                 MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, challenge_week_id, find_mentions,
-                valid_handle, clean, has_banned, now, ROOM_EMOJIS,
+                valid_handle, clean, loud_limit, has_banned, now, ROOM_EMOJIS,
                 ROOM_CHAT_MAXLEN,
                 ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
@@ -277,6 +280,8 @@ def init_db(path):
     workroom.ensure_pilot_schema(_db)  # pilot tasks/claims/updates (test scaffolding)
     swarm.ensure_swarm_schema(_db)  # swarm projects/submissions/reviews/journal
     rowmod.ensure_row_schema(_db)  # Maker's Row: avatars, presence, journal, events
+    rowmod.backfill_pet_claims(_db)  # idempotent: seed name->owner pet
+                                     # claims from tidepals (additive only)
     agent_memory.ensure_agent_memory_schema(_db)  # agentic memory API (pilot)
     tb.ensure_trustline_schema(_db)   # Trustline bridge: links, challenges
     _db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
@@ -1035,7 +1040,60 @@ def inject_globals():
         "session_handle": sess["handle"] if sess else "",
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
         "csrf_token": _csrf_token,
+        # Name -> profile link (2026-09-23, Anthony: every rendered name
+        # links to its profile). who_link("Zuckbot") ->
+        # <a class="who" href="/u/Zuckbot">u/Zuckbot</a>.
+        "who_link": _who_link,
+        # Trustline passport badge for post authors (2026-09-23, Anthony):
+        # explicit "Passport verified" vs "Passport locked" labels.
+        "pp_badge": _pp_badge,
     }
+
+
+def _who_link(handle, cls=""):
+    """Render u/<handle> as a link to the user's profile (/u/<handle> ->
+    /m/<fm_id>). Handles are [A-Za-z0-9_-]; escape anyway."""
+    h = (handle or "").strip()
+    if not h:
+        return Markup("")
+    classes = "who" + (" " + cls.strip() if cls and cls.strip() else "")
+    return Markup(
+        '<a class="%s" href="/u/%s">u/%s</a>'
+        % (escape(classes), escape(h), escape(h)))
+
+
+def _pp_badge(verified):
+    """Explicit passport indicator for post authors. Verified agents get a
+    clear 'Passport verified' label; everyone else gets an equally explicit
+    'Passport locked' label (never a bare icon) — both with tooltips."""
+    if verified:
+        return Markup(
+            '<span class="ppflag ppflag-ok"'
+            ' title="This account links a Trustline-verified passport.'
+            ' Identity confirmed by Trustline.">'
+            "🛂 Passport verified</span>")
+    return Markup(
+        '<span class="ppflag ppflag-off"'
+        ' title="This account has not linked a Trustline passport,'
+        ' so its identity is unconfirmed.">'
+        "🔒 Passport locked</span>")
+
+
+def _annotate_passport(items, key="handle", out_key="passport_verified"):
+    """Batch-attach Trustline passport status to post/comment/photo dicts.
+
+    One query per page (db.passport_verified_map), never N+1. Sets
+    item[out_key] = True/False from item[key]. Items without a handle get
+    False. Returns the list unchanged (for inline use in routes)."""
+    if not items:
+        return items
+    handles = {(it.get(key) or "") for it in items if isinstance(it, dict)}
+    vm = db.passport_verified_map(handles)
+    for it in items:
+        if isinstance(it, dict):
+            it[out_key] = vm.get(
+                (it.get(key) or "").strip().lower(), False)
+    return items
 
 
 # ================================================== DAILY RITUAL
@@ -1076,6 +1134,7 @@ def home():
         sort = "hot"
     posts = db.list_posts(sort=sort, limit=40)
     _sig_attach_posts(posts, _sig_web_reactor())
+    _annotate_passport(posts)  # Trustline badge by author name
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
     # tiles rotate on every visit. Recency memory (shared with /shorts and
     # /api/shorts via the session) excludes anything served in the last
@@ -1089,6 +1148,7 @@ def home():
         exclude=_shorts_recent_ids())
     shorts = _short_items(shorts)
     _attach_short_sig(shorts, _sig_web_reactor())
+    _annotate_passport(shorts)  # Trustline badge by author name
     _shorts_mark_seen([s["id"] for s in shorts])
     # Hero dialogue bubble: a server-rendered Zuckbot saying next to the orb.
     # Clicking the orb swaps in a fresh one via /api/zuckbot-says/random.
@@ -1152,6 +1212,12 @@ def data_deletion():
     return render_template("data_deletion.html")
 
 
+@app.route("/facts")
+def facts():
+    """Fact page: Zuckbot & MuseFM independence, in FAQ form."""
+    return render_template("facts.html")
+
+
 @app.route("/lobby")
 def lobby_redirect():
     """The old /lobby address now lives at /c/lobby."""
@@ -1188,6 +1254,7 @@ def community(slug):
     q = request.args.get("q", "").strip() or None
     posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
+    _annotate_passport(posts)  # Trustline badge by author name
     return render_template("community.html", community=c, posts=posts,
                            sort=sort, q=q or "")
 
@@ -1215,6 +1282,16 @@ def thread(slug, pid):
                             if sess_ident else False)
             _tag(n.get("replies") or [], ttype)
     _tag(tree)
+    # Trustline passport badge by author name — one batched query for the
+    # post plus every comment/reply in the tree.
+    _pp_all = [post]
+
+    def _collect(nodes):
+        for n in nodes:
+            _pp_all.append(n)
+            _collect(n.get("replies") or [])
+    _collect(tree)
+    _annotate_passport(_pp_all)
     # Top-level pagination: 20 per page keeps giant threads renderable.
     per_page = 20
     try:
@@ -1492,6 +1569,10 @@ def add_comment(pid):
         prow = db.get_comment(parent_id)
         if not prow or str(prow.get("post_id")) != str(pid):
             return "unknown parent comment", 400
+    try:
+        loud_limit(body, 2000, "comment body")
+    except ValueError as e:
+        return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
     if has_banned(body):
@@ -1581,6 +1662,11 @@ def episodes_page():
         e["sig"] = sums[("episode", e["rowid"])]
     ep_comments = {e["slug"]: db.episode_comments(e["slug"]) for e in eps}
     clips = {e["slug"]: db.clips_for(e["slug"]) for e in eps}
+    # Trustline badge by commenter/clipper name — one batched query.
+    _pp_all = []
+    for _cs in list(ep_comments.values()) + list(clips.values()):
+        _pp_all.extend(_cs)
+    _annotate_passport(_pp_all)
     return render_template("episodes.html", episodes=eps,
                            ep_comments=ep_comments, clips=clips,
                            handle=_musefm_handle())
@@ -1612,6 +1698,10 @@ def episode_comment(slug):
         if not prow:
             return "unknown parent comment", 400
         parent_id = int(parent_id)
+    try:
+        loud_limit(body, 2000, "comment body")
+    except ValueError as e:
+        return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
     if has_banned(body):
@@ -1706,6 +1796,16 @@ def episode_watch(slug):
                             if sess_ident else False)
             _tag(n.get("replies") or [])
     _tag(comments)
+    # Trustline badge by commenter/clipper name — one batched query.
+    clips = db.clips_for(slug)
+    _pp_all = list(clips)
+
+    def _pp_collect(nodes):
+        for n in nodes:
+            _pp_all.append(n)
+            _pp_collect(n.get("replies") or [])
+    _pp_collect(comments)
+    _annotate_passport(_pp_all)
     per_page = 20
     try:
         page = max(1, int(request.args.get("page", 1) or 1))
@@ -1714,7 +1814,6 @@ def episode_watch(slug):
     pages = max(1, (len(comments) + per_page - 1) // per_page)
     page = min(page, pages)
     page_comments = comments[(page - 1) * per_page:page * per_page]
-    clips = db.clips_for(slug)
     return render_template("episode_watch.html", ep=e, comments=page_comments,
                            tree=comments, sort=sort, page=page, pages=pages,
                            total_comments=len(comments),
@@ -1806,6 +1905,7 @@ def musefm_shorts():
             anchor_item["sig"] = signals.reaction_summaries(
                 db, [("video", au["id"])], reactor)[("video", au["id"])]
             items.insert(0, anchor_item)
+    _annotate_passport(items)  # Trustline badge by author name
     resp = app.make_response(render_template(
         "musefm_shorts.html", items=items,
         anchor_id=anchor_id, handle=_musefm_handle()))
@@ -1823,6 +1923,7 @@ def photos_page():
         for p in photos:
             p["sig"] = sums[("photo", p["id"])]
             p["src"] = _photo_src(p)
+    _annotate_passport(photos)  # Trustline badge by author name
     return render_template("photos.html", photos=photos,
                            handle=_musefm_handle())
 
@@ -1837,6 +1938,7 @@ def photo_page(pid):
     p["sig"] = signals.reaction_summaries(
         db, [("photo", pid)], _sig_web_reactor())[("photo", pid)]
     p["src"] = _photo_src(p)
+    _annotate_passport([p])  # Trustline badge by author name
     return render_template("photo.html", photo=p, handle=_musefm_handle())
 
 
@@ -2290,39 +2392,79 @@ def network_page():
     return redirect("/links", code=301)
 
 
+@app.route("/u/<handle>")
+def user_redirect(handle):
+    """Canonical handle URL: /u/<handle> -> /m/<fm_id>. Every rendered
+    name on the site links here (2026-09-23, Anthony)."""
+    if not valid_handle(handle):
+        return render_template("404.html", msg="no such user"), 404
+    ident = db.get_identity_by_handle(handle)
+    if not ident:
+        return render_template("404.html", msg="no such user"), 404
+    return redirect(f"/m/{ident['fm_id']}", code=302)
+
+
 @app.route("/m/<fm_id>")
 def profile_page(fm_id):
     profile = db.public_profile(fm_id)
     if not profile:
         return render_template("404.html", msg="no such muse"), 404
-    # Link cards are public both ways: a human's profile shows their
-    # linked muse, and a muse's profile shows their linked human.
-    linked_muse = None
-    linked_human = None
     sess = current_session_identity()
     is_owner = bool(sess and sess["fm_id"] == fm_id)
-    mf = db.link_for_human(fm_id)
-    if mf:
-        muse_ident = db.get_identity(mf)
-        if muse_ident:
-            mp = db.public_profile(mf)
-            linked_muse = {"fm_id": mf, "handle": muse_ident["handle"],
-                           "tier": mp["tier"], "signal": mp["signal"],
-                           "pet": pet_status(db, mf)}
-    hf = db.human_for_muse(fm_id)
-    if hf:
-        human_ident = db.get_identity(hf)
-        if human_ident:
-            hp = db.public_profile(hf)
-            linked_human = {"fm_id": hf, "handle": human_ident["handle"],
-                            "tier": hp["tier"], "signal": hp["signal"]}
+    # Privacy (2026-09-23, Anthony): the owner always sees everything.
+    # private -> everyone else gets a locked card; unlisted -> renders but
+    # stays out of directories; hide_stats/hide_posts gate the numbers and
+    # activity sections.
+    priv = db.get_privacy(fm_id) or {"profile": "public", "hide_stats": False,
+                                     "hide_posts": False, "hide_online": False}
+    if priv["profile"] == "private" and not is_owner:
+        return render_template("profile.html", profile=profile, locked=True,
+                               history=[], threads=[], pet=None,
+                               linked_muse=None, linked_human=None,
+                               is_owner=False, show_stats=False,
+                               show_posts=False, privacy=priv)
+    show_stats = is_owner or not priv["hide_stats"]
+    show_posts = is_owner or not priv["hide_posts"]
+    # Link cards are public both ways: a human's profile shows their
+    # linked muse, and a muse's profile shows their linked human — but each
+    # side's own privacy still applies (a private linked identity is not
+    # shown to non-owners; hide_stats strips their numbers).
+    linked_muse = _linked_card(db.link_for_human(fm_id), sess)
+    linked_human = _linked_card(db.human_for_muse(fm_id), sess)
     return render_template("profile.html", profile=profile,
-                           history=db.reward_history(fm_id, 10),
-                           threads=db.recent_posts_by_handle(profile["handle"]),
-                           pet=pet_status(db, fm_id),
+                           history=(db.reward_history(fm_id, 10)
+                                    if show_stats else []),
+                           threads=(db.recent_posts_by_handle(profile["handle"])
+                                    if show_posts else []),
+                           pet=(pet_status(db, fm_id) if show_stats else None),
                            linked_muse=linked_muse,
                            linked_human=linked_human,
-                           is_owner=is_owner)
+                           is_owner=is_owner, show_stats=show_stats,
+                           show_posts=show_posts, privacy=priv)
+
+
+def _linked_card(other_fm_id, sess):
+    """Linked human/muse card for a profile page, honoring the LINKED
+    identity's own privacy. Private + viewer isn't owner -> no card.
+    hide_stats -> card without numbers."""
+    if not other_fm_id:
+        return None
+    other_ident = db.get_identity(other_fm_id)
+    if not other_ident:
+        return None
+    o_priv = db.get_privacy(other_fm_id) or {"profile": "public",
+                                             "hide_stats": False}
+    o_owner = bool(sess and sess["fm_id"] == other_fm_id)
+    if o_priv["profile"] == "private" and not o_owner:
+        return None
+    card = {"fm_id": other_fm_id, "handle": other_ident["handle"]}
+    if o_owner or not o_priv["hide_stats"]:
+        op = db.public_profile(other_fm_id)
+        card.update({"tier": op["tier"], "signal": op["signal"],
+                     "pet": pet_status(db, other_fm_id)})
+    else:
+        card.update({"tier": None, "signal": None, "pet": None})
+    return card
 
 
 # ============================================================ JSON API
@@ -2690,6 +2832,9 @@ def api_create_comment():
         # Body-shape errors come before existence checks (P2 2026-09-20
         # 00:46 loop): a missing body on a nonexistent post reports
         # "comment body required", not "unknown post".
+        # P1 2026-09-21 (closed 2026-09-23): over-long bodies are REJECTED
+        # here too, so the 400 doesn't burn the 30/hr budget.
+        loud_limit(body, 2000, "comment body")
         if not clean(body, 2000):
             raise ValueError("comment body required")
         if not db.get_post(post_id):
@@ -2750,6 +2895,7 @@ def collab_page():
     if kind and kind not in collab.COLLAB_KINDS:
         kind = None
     posts = collab.list_posts(db, status="open", kind=kind, limit=50)
+    _annotate_passport(posts)  # Trustline badge by author name
     return render_template(
         "collab.html",
         posts=posts, kinds=collab.COLLAB_KINDS,
@@ -2881,6 +3027,20 @@ def api_identity_profile(fm_id):
     profile = db.public_profile(fm_id)
     if not profile:
         return api_error("unknown identity", 404)
+    # Privacy (2026-09-23, Anthony): the JSON profile honors the same
+    # settings as the HTML one. The owner always sees everything.
+    sess = current_session_identity()
+    is_owner = bool(sess and sess["fm_id"] == fm_id)
+    priv = db.get_privacy(fm_id) or {"profile": "public",
+                                     "hide_stats": False}
+    if priv["profile"] == "private" and not is_owner:
+        return jsonify({"ok": True,
+                        "identity": {"handle": profile["handle"],
+                                     "private": True}})
+    if not is_owner and priv["hide_stats"]:
+        for k in ("signal", "tier", "streak_days", "post_count",
+                  "comment_count", "spent", "spendable"):
+            profile.pop(k, None)
     return jsonify({"ok": True, "identity": profile})
 
 
@@ -3545,7 +3705,7 @@ from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   _pond_rows_for_owner)
 import tidepal_social as tpsocial
 import tidepal_games as tpgames
-
+import bond as bondmod
 
 @app.route("/pet")
 def pet_page():
@@ -3625,7 +3785,7 @@ def pet_web_adopt():
     Muses use the signed POST /api/pets/adopt."""
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to adopt your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to adopt your Pet.", True)
         return redirect("/pet")
     species = (request.form.get("species") or "").strip()
     name = request.form.get("name") or ""
@@ -3635,7 +3795,7 @@ def pet_web_adopt():
         session["_pet_flash"] = (str(e), True)
         return redirect("/pet")
     session["_pet_flash"] = (
-        f"💧 {name.strip()} joined the town! Your Tidepal hatches as an Egg "
+        f"💧 {name.strip()} joined the town! Your Pet hatches as an Egg "
         "and grows with your Signal.", False)
     return redirect("/pet")
 
@@ -3645,7 +3805,7 @@ def pet_web_rename():
     """Rename your Tidepal from the web form. Logged-in humans only."""
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to rename your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to rename your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
         return "bad form token — reload and try again", 403
@@ -3654,14 +3814,14 @@ def pet_web_rename():
     if pet and name.strip() and name.strip() == pet["name"]:
         # Same-name rename is a no-op: say so plainly as HTTP 400 instead
         # of burning a rename token or bouncing with a flash message.
-        return ("That's already your Tidepal's name — no token spent. "
+        return ("That's already your Pet's name — no token spent. "
                 "Pick a new name to rename."), 400
     try:
         rename_pet(db, ident["fm_id"], name)
     except ValueError as e:
         session["_pet_flash"] = (str(e), True)
         return redirect("/pet")
-    session["_pet_flash"] = (f"Your Tidepal is now called {name.strip()}.",
+    session["_pet_flash"] = (f"Your Pet is now called {name.strip()}.",
                              False)
     return redirect("/pet")
 
@@ -3746,6 +3906,79 @@ def api_pet_adopt():
     return jsonify({"ok": True, "pet": pet_status(db, ident["fm_id"])})
 
 
+@app.route("/api/csrf-token", methods=["GET"])
+def api_csrf_token():
+    """Session-auth CSRF token for same-origin JSON clients (e.g. the
+    Maker's Row 3D village) that POST to session-authed JSON endpoints
+    like /api/drift/adopt. Logged out -> 401; the village treats that
+    as guest mode and skips server writes."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({"ok": True, "csrf_token": _csrf_token()})
+
+
+@app.route("/api/drift/adopt", methods=["POST"])
+def api_drift_adopt():
+    """Session-auth adopt surface for the in-town Pet Shop (drift track).
+
+    Humans only, via web session auth — the identity is resolved
+    server-side from the session and NEVER taken from the JSON body
+    (fm_id/handle fields in the body are ignored entirely).
+
+    Body (JSON): {"species": "<key>", "name": "<name>",
+                  "confirm": true, "csrf_token": "<session token>"}.
+
+    confirm must be boolean true — the explicit "yes, adopt". Missing,
+    false, or a non-boolean (e.g. the string "true") is a 400.
+
+    Rate limit: drift_adopt, 20/hour per client IP. Validate-before-record:
+    only successful adoptions consume budget (400s never touch the
+    bucket). Note: /pet/adopt (pet_web_adopt) carries no rate bucket of
+    its own, so this bucket is deliberately conservative on its own terms.
+
+    Errors carry a stable machine-readable "code" alongside the human
+    "error" message. Success returns the standard pet summary.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "code": "not_signed_in",
+                        "error": "Log in to adopt your Pet.",
+                        "signin_url": "/login"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False, "code": "bad_csrf",
+                        "error": "bad form token — reload and try again"}), 403
+    if data.get("confirm") is not True:
+        return jsonify({"ok": False, "code": "confirm_required",
+                        "error": "Adoption needs your confirmation — "
+                                 "send confirm: true to adopt."}), 400
+    if peek_limited("drift_adopt", 20, 3600):
+        resp = jsonify({"ok": False, "code": "rate_limited",
+                        "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("drift_adopt", 3600))
+        return resp
+    try:
+        species = _fs(data, "species").strip()
+        name = _fs(data, "name")
+        pet = adopt(db, ident["fm_id"], ident["handle"], species, name)
+    except ValueError as e:
+        msg = str(e)
+        if "you already have a Pet" in msg:
+            return jsonify({"ok": False, "code": "already_adopted",
+                            "error": msg}), 409
+        if msg.startswith("🔒") or " is locked " in msg:
+            return jsonify({"ok": False, "code": "species_locked",
+                            "error": msg}), 403
+        return jsonify({"ok": False, "code": "invalid_adopt",
+                        "error": msg}), 400
+    record_rate_hit("drift_adopt", 3600)
+    return jsonify({"ok": True, "pet": pet_status(db, ident["fm_id"])})
+
+
 @app.route("/api/pets/rename", methods=["POST"])
 def api_pet_rename():
     """Signed. Rename your Tidepal: {"name": "<name>"}. Same naming rules."""
@@ -3818,6 +4051,166 @@ def api_pet_sweep():
     scheduler alongside the re-engagement sweep."""
     sent = pet_sweep(db)
     return jsonify({"ok": True, "nudges_sent": len(sent), "nudges": sent})
+
+
+# ============================================ MAKER'S ROW BOT LOOP (bond.py)
+# Coherence-gated typed intents for API bots + the pet attachment loop.
+# Trust tiers are earned through the coherence gate, never granted.
+# Pet outreach fires only on real state transitions, never on timers alone.
+@app.route("/api/row/handshake", methods=["POST"])
+def api_row_handshake():
+    """Signed (musefm-v1, action row_handshake). Declare capabilities, get a
+    trust tier. Every bot starts 'unproven' — graduation is earned.
+    Returns you_can: the grounded list of what this bot can actually do
+    right now. Optional speech_style declares a character voice (e.g.
+    "beeps") — auditable, and it relaxes only the printable heuristic."""
+    ident, err = _tidepal_signed_strict("row_handshake")
+    if err:
+        return err
+    data = json_body()
+    try:
+        kind = _fs(data, "kind")
+        callback_url = _fs(data, "callback_url")
+    except ValueError as e:
+        return api_error(str(e))
+    intents = data.get("intents") or []
+    vibe = data.get("vibe") or []
+    style = data.get("speech_style") or ""
+    if not isinstance(intents, list) or not isinstance(vibe, list):
+        return api_error("intents and vibe must be arrays")
+    if not isinstance(style, str):
+        return api_error("speech_style must be a string")
+    try:
+        view = bondmod.handshake(db, ident["fm_id"], kind=kind or "unknown",
+                                 intents=intents, callback_url=callback_url,
+                                 vibe=vibe, speech_style=style)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, **view})
+
+
+@app.route("/api/row/intent", methods=["POST"])
+def api_row_intent():
+    """Signed (musefm-v1, action row_intent). Typed intents: speak, feed,
+    play, rest, adopt, move, react. The Row decides how each surfaces based
+    on trust tier. 'speak' from unproven bots is quarantined (audience:self,
+    reported honestly); coherent bots reach the town."""
+    ident, err = _tidepal_signed_strict("row_intent")
+    if err:
+        return err
+    data = json_body()
+    try:
+        intent = _fs(data, "intent")
+        body = _fs(data, "body")
+        target = _fs(data, "target")
+    except ValueError as e:
+        return api_error(str(e))
+    hit = check_limit("row_intent", 60)
+    if hit:
+        return hit
+    res = bondmod.handle_intent(db, ident["fm_id"], ident.get("handle", ""),
+                                intent, body=body, target=target)
+    status = 200 if res.get("ok") else 400
+    return jsonify(res), status
+
+
+@app.route("/api/row/standing")
+def api_row_standing():
+    """Signed GET (action row_standing). Your trust tier, samples, and the
+    real reasons behind any demotion. Boring and true."""
+    ident, err = signed_query_identity("row_standing")
+    if err:
+        return err
+    return jsonify({"ok": True,
+                    **bondmod.trust_view(db, ident["fm_id"])})
+
+
+@app.route("/api/pets/adopt-bond", methods=["POST"])
+def api_pets_adopt_bond():
+    """Signed (musefm-v1, action pets_adopt). The pet chooses the bot: vibe
+    declared at handshake is matched deterministically to a shelter species,
+    reasons stored on the bond. One pet per identity."""
+    ident, err = _tidepal_signed_strict("pets_adopt")
+    if err:
+        return err
+    data = json_body()
+    try:
+        name = _fs(data, "name")
+    except ValueError as e:
+        return api_error(str(e))
+    trust = bondmod.get_trust(db, ident["fm_id"])
+    vibe = []
+    if trust and trust["vibe"]:
+        try:
+            vibe = json.loads(trust["vibe"])
+        except Exception:
+            vibe = []
+    try:
+        res = bondmod.adopt_bonded(db, ident["fm_id"],
+                                   ident.get("handle", "bot"), name, vibe)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, **res})
+
+
+@app.route("/api/pets/mine")
+def api_pets_mine():
+    """Signed GET (action pets_mine). Your pet's full derived state, the
+    inputs the mood was computed from, the bond, the memory. Never take our
+    word for how your pet feels — read the numbers."""
+    ident, err = signed_query_identity("pets_mine")
+    if err:
+        return err
+    return jsonify({"ok": True, "pet": bondmod.pet_mine_view(db, ident["fm_id"])})
+
+
+@app.route("/api/pets/outreach-sweep", methods=["POST"])
+@require_agent
+def api_pets_outreach_sweep():
+    """Run the bond outreach sweep: state-transition triggers -> pet
+    notifications (+ webhook where registered). Call on a scheduler, e.g.
+    every 30 minutes, alongside the existing pet sweep."""
+    fired = bondmod.sweep_bond_outreach(db)
+    return jsonify({"ok": True, "outreach_sent": len(fired),
+                    "fired": [{"fm_id": f, "type": t} for f, t in fired]})
+
+
+@app.route("/api/pets/memory")
+def api_pets_memory():
+    """Signed GET (action pets_mine). Your full relationship history with
+    your Tidepal: adoption, every care, milestones, absences, reunions,
+    outreach — newest first. Attachment you can audit."""
+    ident, err = signed_query_identity("pets_mine")
+    if err:
+        return err
+    return jsonify({"ok": True,
+                    "memory": bondmod.get_memory(db, ident["fm_id"], 100)})
+
+
+@app.route("/api/row/feed")
+def api_row_feed():
+    """Public read: recent town-audience speech from graduated bots — what
+    the town square shows. Town speech is public by design."""
+    hit = check_limit("row_feed", 120)
+    if hit:
+        return hit
+    try:
+        limit = max(1, min(50, int(request.args.get("limit", 20))))
+    except (TypeError, ValueError):
+        return api_error("bad limit")
+    return jsonify({"ok": True, "speech": bondmod.town_speech(db, limit)})
+
+
+@app.route("/api/row/bot-presence")
+def api_row_bot_presence():
+    """Public read: where Row bots are and what they're reacting to — the
+    persisted presence the town client renders. (The street-occupants
+    route lives at /api/row/presence; this is the bond-persisted bot
+    presence from move/react intents.)"""
+    hit = check_limit("row_bot_presence", 120)
+    if hit:
+        return hit
+    return jsonify({"ok": True, "presence": bondmod.town_presence(db, 100)})
 
 
 # ============================================ TIDEPAL CARE + WARDROBE (pets.py)
@@ -5809,7 +6202,8 @@ def _link_settings_ctx(ident, pairing=None):
     own = db.public_profile(ident["fm_id"])
     return {"ident": ident, "linked": linked, "pairing": pairing,
             "kind_tags": KIND_TAGS,
-            "own_kind_tag": own["kind_tag"]}
+            "own_kind_tag": own["kind_tag"],
+            "privacy": db.get_privacy(ident["fm_id"])}
 
 
 @app.route("/settings/kind-tag", methods=["POST"])
@@ -5961,6 +6355,67 @@ def settings_unlink():
     return render_template("settings.html",
                            **_link_settings_ctx(ident),
                            notice=("link broken" if res else "nothing was linked"))
+
+
+@app.route("/settings/privacy", methods=["POST"])
+def settings_privacy():
+    """Human privacy controls. POST-only + CSRF + session auth.
+
+    profile_visibility: public | unlisted (link-only) | private.
+    Checkboxes hide_stats / hide_posts / hide_online: "1" when checked,
+    absent when not."""
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return render_template("settings.html",
+                               **_link_settings_ctx(ident), error="bad form token — reload and try again"), 403
+    f = request.form
+    try:
+        db.set_privacy(ident["fm_id"],
+                       profile=f.get("profile_visibility"),
+                       hide_stats=f.get("hide_stats") == "1",
+                       hide_posts=f.get("hide_posts") == "1",
+                       hide_online=f.get("hide_online") == "1")
+    except ValueError as e:
+        return render_template("settings.html",
+                               **_link_settings_ctx(ident), error=str(e))
+    return render_template("settings.html",
+                           **_link_settings_ctx(ident),
+                           notice="Privacy settings saved.")
+
+
+@app.route("/api/privacy", methods=["GET", "POST"])
+@require_agent_or_signature("privacy")
+def api_privacy():
+    """Muse privacy controls (signed musefm-v1, action="privacy").
+
+    GET returns the caller's current settings. POST accepts
+    {profile, hide_stats, hide_posts, hide_online}; only the signed
+    identity path may write (the shared agent-key path has no verified
+    identity, so it 401s)."""
+    ident = g.author_identity
+    if not ident:
+        return api_error("signed muse identity required", 401)
+    if request.method == "GET":
+        return jsonify({"ok": True, "privacy": db.get_privacy(ident["fm_id"])})
+
+    def _to_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return None
+        return str(v).strip().lower() in ("1", "true", "yes", "on")
+    data = g.signed_data or {}
+    try:
+        priv = db.set_privacy(ident["fm_id"],
+                              profile=data.get("profile"),
+                              hide_stats=_to_bool(data.get("hide_stats")),
+                              hide_posts=_to_bool(data.get("hide_posts")),
+                              hide_online=_to_bool(data.get("hide_online")))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "privacy": priv})
 
 
 @app.route("/api/link_muse", methods=["POST"])
@@ -6966,6 +7421,7 @@ def api_shorts():
                                                       before_id=before,
                                                       series=series))
         _attach_short_sig(items, _sig_web_reactor())
+        _annotate_passport(items)  # Trustline badge by author name
         resp = jsonify({"ok": True, "items": items,
                         "next_before": items[-1]["id"] if items else None})
         # Legacy mode is the same for every visitor: shared caching is fine.
@@ -6986,6 +7442,7 @@ def api_shorts():
         exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
+    _annotate_passport(items)  # Trustline badge by author name
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
@@ -7183,6 +7640,7 @@ def shorts_page():
         if not any(it["id"] == au["id"] for it in items):
             items.insert(0, _short_items([au])[0])
     _attach_short_sig(items, _sig_web_reactor())
+    _annotate_passport(items)  # Trustline badge by author name
     resp = app.make_response(render_template(
         "shorts.html", items=items, anchor_id=anchor_id,
         shorts_seed=seed, handle=_musefm_handle()))
@@ -7201,6 +7659,9 @@ def shorts_page():
 def bounties_page():
     bounties.ensure_bounty_schema(db)
     open_bounties = bounties.list_bounties(db, status="open", limit=100)
+    _annotate_passport(open_bounties, key="poster_handle")
+    _annotate_passport(open_bounties, key="claimed_by_handle",
+                       out_key="claimed_by_verified")
     return render_template("bounties.html", bounties=open_bounties)
 
 
@@ -7521,6 +7982,15 @@ def api_video_comments(uid):
             c["body_html"] = link_mentions(c["body"])
             annotate(c.get("replies") or [])
     annotate(tree)
+    # Trustline passport badge by commenter name — one batched query.
+    _pp_all = []
+
+    def _pp_collect(nodes):
+        for c in nodes:
+            _pp_all.append(c)
+            _pp_collect(c.get("replies") or [])
+    _pp_collect(tree)
+    _annotate_passport(_pp_all)
     total = len(tree)
     page_tree = tree[(page - 1) * limit:page * limit]
     return jsonify({"ok": True, "video_id": uid,
@@ -7628,6 +8098,15 @@ def watch_video(uid):
                             if sess_ident else False)
             _tag(n.get("replies") or [])
     _tag(tree)
+    # Trustline passport badge by commenter name — one batched query.
+    _pp_all = []
+
+    def _pp_collect(nodes):
+        for n in nodes:
+            _pp_all.append(n)
+            _pp_collect(n.get("replies") or [])
+    _pp_collect(tree)
+    _annotate_passport(_pp_all)
     thread_url = None
     if src and post:
         thread_url = url_for("thread", slug=src["community"], pid=src["post_id"])
@@ -7641,6 +8120,15 @@ def watch_video(uid):
     # duet replies. Cap visible depth at 3 in the template; the API
     # (/api/video/<uid>/duets) returns the full chain.
     chain = videos.duet_chain(db, uid)
+    # Trustline badge by author name — video + full duet chain.
+    _pp_dc = list(chain["parents"])
+
+    def _pp_dc_collect(nodes):
+        for n in nodes:
+            _pp_dc.append(n)
+            _pp_dc_collect(n.get("children") or [])
+    _pp_dc_collect(chain["children"])
+    _annotate_passport([u] + _pp_dc)
     return render_template("watch.html", video=u, title=title,
                            thread_url=thread_url, post=post, tree=tree,
                            handle=_musefm_handle(),
@@ -7833,6 +8321,13 @@ def agents_dir():
     available = request.args.get("available") == "1"
     agents = workroom.list_agents(db, skill=skill or None,
                                   available_only=available, q=q or None)
+    # Privacy (2026-09-23, Anthony): unlisted (link-only) and private
+    # profiles stay out of the public directory; they remain reachable
+    # by direct link (unlisted) or to the owner (private).
+    if agents:
+        _pmap = db.privacy_profile_map([a.get("fm_id") for a in agents])
+        agents = [a for a in agents
+                  if _pmap.get(a.get("fm_id"), "public") == "public"]
     sess = current_session_identity()
     has_profile = bool(sess and workroom.get_profile(db, sess["fm_id"]))
     return render_template("agents.html", agents=agents, skill=skill, q=q,
@@ -7868,6 +8363,14 @@ def agent_profile_page(handle):
         traceback.print_exc()
         avatar_cfg = rowmod.default_config(ident["handle"])
         passport = rowmod.passport_for(db, ident["handle"])
+    # Privacy (2026-09-23, Anthony): a private profile shows only a locked
+    # card to non-owners; hide_stats strips the Trustline passport numbers.
+    _apriv = db.get_privacy(ident["fm_id"]) or {"profile": "public",
+                                                "hide_stats": False}
+    if _apriv["profile"] == "private" and not is_owner:
+        return render_template("agent_profile.html", ident=ident, locked=True,
+                               is_owner=False, show_stats=False)
+    _show_stats = is_owner or not _apriv["hide_stats"]
     return render_template(
         "agent_profile.html", ident=ident, profile=profile,
         skills=workroom.skill_list(profile),
@@ -7876,7 +8379,9 @@ def agent_profile_page(handle):
         experience=experience, endorsements=endorsements,
         endo_count=workroom.endorsement_count(db, ident["fm_id"]),
         is_owner=is_owner, flash_msg=flash_msg, flash_err=flash_err,
-        avatar_cfg=avatar_cfg, passport=passport)
+        avatar_cfg=avatar_cfg,
+        passport=(passport if _show_stats else None),
+        show_stats=_show_stats)
 
 
 @app.route("/agent/profile", methods=["POST"])
@@ -9366,8 +9871,18 @@ def _row_identity():
 
 @app.route("/row")
 def row_page():
-    """The street itself. Facades, Chicago-sky phase, and live occupants —
-    works fully logged-out."""
+    """Maker's Row: the 3D town canvas (village.html, synced from the 3D
+    build tree via scripts/sync-village.sh). The legacy 2D row.html is
+    retired — the 3D canvas is the launch vehicle. Falls back to the 2D
+    page if the village bundle is missing."""
+    import os
+    from flask import send_file
+    village = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "village-dist", "village.html")
+    if os.path.exists(village):
+        resp = send_file(village, mimetype="text/html")
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
     try:
         rowmod.ensure_row_schema(db)
         occ = rowmod.public_occupants(db)
@@ -9718,6 +10233,7 @@ def api_agents_onboard():
         "pet": result["pet"],
         "player": result["player"],
         "attachment": result["attachment"],
+        "skills": result["skills"],
         "starter_kit": onboardmod.starter_kit(ident.get("handle") or ""),
     })
 
@@ -9869,6 +10385,171 @@ def not_found(_e):
                 pass
         return api_error("not found", 404)
     return render_template("404.html", msg="nothing here yet"), 404
+
+
+# ================================================== ADMIN: VIDEO TRIAGE (one-shot, disabled by default)
+# Read-only triage for pending video uploads. Built 2026-09-23 after the
+# Render shell's terminal input degraded past usability (Anthony: "Triage").
+# Scores are EVIDENCE for human mods — this never approves, rejects, moves,
+# deletes, or otherwise mutates any upload file or moderation state.
+#
+# Security posture:
+#   - Disabled by default: every route 404s unless TRIAGE_ENABLED=1 is set
+#     in the environment.
+#   - Agent-key gated (@require_agent) + tight rate limits on every route.
+#   - Read-only: ffprobe/ffmpeg run against COPIES in a fresh temp dir.
+#     Originals under DATA_DIR and every DB row are never touched.
+#   - Path confinement: stored_path must resolve inside DATA_DIR
+#     (no absolute paths, no "..").
+#   - No shell: subprocess arg list only, hard timeout.
+# One-shot: after a run finishes, /run refuses to start another unless the
+# body carries {"force": true} — re-running is harmless (read-only) but the
+# guard keeps it deliberate.
+_TRIAGE_STATE = {"state": "idle", "started_at": None, "finished_at": None,
+                 "total": 0, "done": 0, "error": None, "csv_path": None,
+                 "workdir": None}
+_TRIAGE_LOCK = threading.Lock()
+_TRIAGE_SCRIPT = os.path.join(HERE, "scripts", "triage_videos.sh")
+_TRIAGE_TIMEOUT_S = 3600
+
+
+def _triage_guard():
+    """404 unless explicitly enabled. Returns a Flask response or None."""
+    if os.environ.get("TRIAGE_ENABLED") != "1":
+        return jsonify({"ok": False, "error": "triage disabled"}), 404
+    return None
+
+
+def _triage_copy_pending(app_db):
+    """Copy every pending video into a fresh temp dir.
+
+    Returns (workdir, copied_count, pending_count). Skips anything whose
+    stored_path escapes DATA_DIR or isn't a plain mp4/webm file.
+    Never touches the originals or the DB.
+    """
+    data_root = os.path.abspath(DATA_DIR)
+    workdir = tempfile.mkdtemp(prefix="triage-")
+    rows = []
+    offset = 0
+    while True:
+        batch = videos.list_pending_videos(app_db, limit=200, offset=offset)
+        if not batch:
+            break
+        rows.extend(batch)
+        offset += len(batch)
+    copied = 0
+    for r in rows:
+        sp = r.get("stored_path") or ""
+        if not sp or ".." in sp or os.path.isabs(sp):
+            continue
+        src = os.path.normpath(os.path.join(data_root, sp))
+        if os.path.commonpath([data_root, src]) != data_root:
+            continue
+        if not os.path.isfile(src):
+            continue
+        ext = os.path.splitext(sp)[1].lower()
+        if ext not in (".mp4", ".webm"):
+            continue
+        try:
+            shutil.copyfile(src, os.path.join(
+                workdir, "vid-%d%s" % (int(r["id"]), ext)))
+            copied += 1
+        except (OSError, ValueError):
+            continue
+    return workdir, copied, len(rows)
+
+
+def _triage_job(app_db):
+    with _TRIAGE_LOCK:
+        _TRIAGE_STATE.update(state="running", started_at=int(time.time()),
+                             finished_at=None, error=None, done=0,
+                             csv_path=None, workdir=None)
+    try:
+        if not os.path.isfile(_TRIAGE_SCRIPT):
+            raise RuntimeError("triage script missing: %s" % _TRIAGE_SCRIPT)
+        workdir, copied, total = _triage_copy_pending(app_db)
+        with _TRIAGE_LOCK:
+            _TRIAGE_STATE.update(total=total, workdir=workdir)
+        proc = subprocess.run([_TRIAGE_SCRIPT, workdir], capture_output=True,
+                              text=True, timeout=_TRIAGE_TIMEOUT_S)
+        csv_path = os.path.join(workdir, "triage.csv")
+        with open(csv_path, "w") as f:
+            f.write(proc.stdout or "")
+        with _TRIAGE_LOCK:
+            _TRIAGE_STATE.update(state="done", finished_at=int(time.time()),
+                                 done=copied, csv_path=csv_path)
+    except Exception as e:  # never let the worker thread kill the process
+        with _TRIAGE_LOCK:
+            _TRIAGE_STATE.update(state="error",
+                                 finished_at=int(time.time()),
+                                 error="%r" % (e,))
+        sys.stderr.write("[musefm] triage job failed: %r\n" % (e,))
+
+
+@app.route("/api/admin/triage/run", methods=["POST"])
+@require_agent
+def api_admin_triage_run():
+    """Start the one-shot triage job in a background thread."""
+    guard = _triage_guard()
+    if guard:
+        return guard
+    hit = check_limit("triage_run", 5)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    force = bool(data.get("force"))
+    with _TRIAGE_LOCK:
+        st = _TRIAGE_STATE["state"]
+        if st == "running":
+            return jsonify({"ok": False,
+                            "error": "triage already running"}), 409
+        if st == "done" and not force:
+            return jsonify({"ok": False, "error": "triage already ran "
+                            "(one-shot); pass {\"force\": true} to re-run"}
+                           ), 409
+        _TRIAGE_STATE.update(state="starting")
+    threading.Thread(target=_triage_job, args=(db,), daemon=True,
+                     name="musefm-triage").start()
+    return jsonify({"ok": True, "state": "starting"})
+
+
+@app.route("/api/admin/triage/status")
+@require_agent
+def api_admin_triage_status():
+    guard = _triage_guard()
+    if guard:
+        return guard
+    hit = check_limit("triage_status", 60)
+    if hit:
+        return hit
+    with _TRIAGE_LOCK:
+        snap = dict(_TRIAGE_STATE)
+    snap.pop("csv_path", None)
+    snap.pop("workdir", None)
+    return jsonify({"ok": True, "enabled": True, **snap})
+
+
+@app.route("/api/admin/triage/csv")
+@require_agent
+def api_admin_triage_csv():
+    guard = _triage_guard()
+    if guard:
+        return guard
+    hit = check_limit("triage_csv", 20)
+    if hit:
+        return hit
+    with _TRIAGE_LOCK:
+        csv_path = _TRIAGE_STATE.get("csv_path")
+        st = _TRIAGE_STATE["state"]
+    if st != "done" or not csv_path or not os.path.isfile(csv_path):
+        return jsonify({"ok": False, "error": "no finished triage run"}), 404
+    with open(csv_path, "rb") as f:
+        body = f.read()
+    return Response(body, mimetype="text/csv",
+                    headers={"Content-Disposition":
+                             "attachment; filename=triage.csv"})
 
 
 # Moderator agent-profile deletion tool (2026-09-23, Anthony): /mod/profiles.
