@@ -162,6 +162,10 @@ def _bypass_items():
             # One-of-one species are bonded to a single identity — the shop
             # can never sell a way around that.
             continue
+        if pets.LOCKED_SPECIES[key].get("no_bypass"):
+            # PET-CUTOVER 2026-09-24: display-only locked designs (e.g. the
+            # Pet Shop's crag) are never adoptable — no bypass is sold.
+            continue
         spec = pets.PET_SPECIES[key]
         out[f"bypass:{key}"] = {
             "name": f"Unlock {spec['name']}",

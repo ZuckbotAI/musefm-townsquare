@@ -78,7 +78,8 @@ def main():
 
     privA, fmA = reg(c, "PresenceOwner")
     privB, fmB = reg(c, "PresenceReader")
-    pets.adopt(db, fmA, "PresenceOwner", "driplet", "Droppy")
+    # PET-CUTOVER 2026-09-24: canonical roster key.
+    pets.adopt(db, fmA, "PresenceOwner", "brine", "Droppy")
     privC, fmC = reg(c, "PondOwner")
     pets.adopt(db, fmC, "PondOwner", "bloop", "Pondy")
     db._exec("UPDATE tidepals SET in_pond=1, pond_at=? WHERE fm_id=?",
@@ -102,7 +103,7 @@ def main():
     check("pet fields",
           p["pet_id"] == fmA and p["owner_fm_id"] == fmA
           and p["owner_handle"] == "PresenceOwner"
-          and p["species"] == "driplet" and p["species_name"] == "Driplet"
+          and p["species"] == "brine" and p["species_name"] == "Driplet"
           and p["name"] == "Droppy" and p["mood"] == "happy"
           and p["room_id"] is None and p["room_name"] is None
           and p["holder_fm_id"] == fmA
@@ -165,14 +166,15 @@ def main():
     print("== web nap route ==")
     r = c.post("/signup", data={"handle": "webnapper",
                                 "password": "s3cretpw!!",
-                                "password_confirm": "s3cretpw!!"})
+                                "password_confirm": "s3cretpw!!",
+                                "email": "webnapper@example.test"})
     check("web test human signup", r.status_code == 200, r.status_code)
     r = c.post("/login", data={"handle": "webnapper",
                                "password": "s3cretpw!!"})
     check("web test human login", r.status_code in (200, 302),
           r.status_code)
     human_fm = db.get_identity_by_handle("webnapper")["fm_id"]
-    r = c.post("/pet/adopt", data={"species": "driplet", "name": "Nappy"},
+    r = c.post("/pet/adopt", data={"species": "brine", "name": "Nappy"},
                follow_redirects=True)
     check("web adopt for nap test", r.status_code == 200, r.status_code)
     import re as _re

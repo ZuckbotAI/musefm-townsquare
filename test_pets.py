@@ -72,7 +72,7 @@ def main():
     print("== adoption ==")
     privA, fmA = reg(c, "PetOwner")
     try:
-        pets.adopt(db, "fm_nonexistent", "Nobody", "driplet", "Ghost")
+        pets.adopt(db, "fm_nonexistent", "Nobody", "brine", "Ghost")
         check("adopt unknown identity rejected", False)
     except ValueError:
         check("adopt unknown identity rejected", True)
@@ -83,14 +83,14 @@ def main():
         check("adopt unknown species rejected", True)
     for bad in ["x", "a" * 25, "bad;name", "retard pal", "  "]:
         try:
-            pets.adopt(db, fmA, "PetOwner", "driplet", bad)
+            pets.adopt(db, fmA, "PetOwner", "brine", bad)
             check(f"adopt bad name rejected {bad!r}", False)
         except ValueError:
             check(f"adopt bad name rejected {bad!r}", True)
     pet = pets.adopt(db, fmA, "PetOwner", "bloop", "Bubbles")
     check("adopt ok", pet["species"] == "bloop" and pet["name"] == "Bubbles", pet)
     check("one pet per identity",
-          _raises(lambda: pets.adopt(db, fmA, "PetOwner", "koi", "Second")))
+          _raises(lambda: pets.adopt(db, fmA, "PetOwner", "plume", "Second")))
     check("adopt welcome notification",
           db._one("SELECT id FROM notifications WHERE fm_id=? AND type='pet'",
                   (fmA,)) is not None)
@@ -225,14 +225,14 @@ def main():
           "tidepals" in r.get_json()["rules"])
 
     r = c.post("/api/pets/adopt", json=signed_body(
-        privC, "pet_adopt", fmC, species="pearly", name="Clawdia"))
+        privC, "pet_adopt", fmC, species="cinder", name="Clawdia"))
     d = r.get_json()
     check("API adopt signed", r.status_code == 200 and d["ok"] and
           d["pet"]["name"] == "Clawdia", d)
     r = c.post("/api/pets/adopt", json=signed_body(
-        privC, "pet_adopt", fmC, species="koi", name="Second"))
+        privC, "pet_adopt", fmC, species="plume", name="Second"))
     check("API adopt twice rejected", r.status_code == 400)
-    r = c.post("/api/pets/adopt", json={"species": "koi", "name": "Nope"})
+    r = c.post("/api/pets/adopt", json={"species": "plume", "name": "Nope"})
     check("API adopt unsigned rejected", r.status_code == 401)
 
     r = c.post("/api/pets/rename", json=signed_body(
@@ -254,7 +254,7 @@ def main():
     r = c.get("/api/pets/of/NoPet")
     d = r.get_json()
     check("API public lookup", d["ok"] and d["adopted"] and
-          d["species"] == "pearly", d)
+          d["species"] == "cinder", d)
     r = c.get("/api/pets/of/DoesNotExist")
     check("API lookup unknown handle 404", r.status_code == 404)
 
@@ -277,7 +277,8 @@ def main():
     check("pet page has og tags", 'property="og:title"' in body)
 
     print("== species expansion (wave 2) ==")
-    new_keys = ["surfpup", "bubblepup", "sealpup", "jellypup"]
+    # PET-CUTOVER 2026-09-24: canonical roster keys.
+    new_keys = ["rust", "cinder", "briar", "jellypup"]
     check("19 species registered",
           len(pets.SPECIES_KEYS) == 19 and
           all(k in pets.SPECIES_KEYS for k in new_keys), pets.SPECIES_KEYS)
@@ -312,19 +313,23 @@ def main():
     check("pixel body has navy avatar-set outline",
           pets._PX_INK in body)
     check("pixel egg keeps literal z",
-          "z</text>" in pets._pixel_pet("driplet", 0, "sleepy"))
+          "z</text>" in pets._pixel_pet("brine", 0, "sleepy"))
     check("all 19 species have chunky pixel bodies",
           all(pets._pixel_pet(k, 3, "happy").count("<rect") > 20
               for k in pets.SPECIES_KEYS))
 
     privD, fmD = reg(c, "DogLover")
     pet = pets.adopt(db, fmD, "DogLover", "surfpup", "Waverly")
-    check("adopt surfpup", pet["species"] == "surfpup" and
-          pet["name"] == "Waverly", pet)
+    check("adopt surfpup (legacy alias -> canonical rust)",
+          pet["species"] == "rust" and pet["name"] == "Waverly", pet)
     st = pets.pet_status(db, fmD)
     check("surfpup status renders",
           st["species_name"] == "Surfpup" and
           st["svg"].startswith("<svg"), st["species_name"])
+
+    check("legacy key aliases advertised",
+          pets.SPECIES_ALIASES.get("bubblepup") == "cinder" and
+          pets.canonical_species("pearly") == "crag")
 
     privE, fmE = reg(c, "JellyFan")
     r = c.post("/api/pets/adopt", json=signed_body(
@@ -353,10 +358,11 @@ def main():
           all(n in body for n in ("Surfpup", "Bubbly", "Sealy", "Jelly")))
 
     print("== locked premium species ==")
-    check("8 locked species",
+    # PET-CUTOVER 2026-09-24: the crag display design is locked too.
+    check("9 locked species",
           set(pets.LOCKED_SPECIES) == {"gilt", "tidehound", "reefkeeper", "zorb",
                                        "crownjelly", "abyssal", "frostfin",
-                                       "kelpwarden"})
+                                       "kelpwarden", "crag"})
     check("art registry matches (19)",
           set(pets._ART) == set(pets.SPECIES_KEYS) and
           len(pets.SPECIES_KEYS) == 19)
@@ -375,7 +381,7 @@ def main():
     check("unlock conditions readable",
           all(pets.species_unlock_condition(k)
               for k in ("gilt", "tidehound", "reefkeeper")) and
-          pets.species_unlock_condition("driplet") is None)
+          pets.species_unlock_condition("brine") is None)
     check("silhouette valid + hidden",
           pets.pet_silhouette(64).startswith("<svg") and
           "?" in pets.pet_silhouette(64))
@@ -388,20 +394,21 @@ def main():
 
     print("== web adopt/rename (logged-in humans) ==")
     c = setup()
-    r = c.post("/pet/adopt", data={"species": "driplet", "name": "Nope"})
+    r = c.post("/pet/adopt", data={"species": "brine", "name": "Nope"})
     check("anon web adopt redirects to /pet",
           r.status_code == 302 and r.headers["Location"].endswith("/pet"))
     # human signup + login
     r = c.post("/signup", data={"handle": "webadopter",
                                 "password": "s3cretpw!!",
-                                "password_confirm": "s3cretpw!!"})
+                                "password_confirm": "s3cretpw!!",
+                                "email": "webadopter@example.test"})
     check("web test human signup", r.status_code == 200, r.status_code)
     # log in on the SAME client/db (a second setup() would wipe the db)
     c2 = appmod.app.test_client()
     r = c.post("/login", data={"handle": "webadopter",
                                "password": "s3cretpw!!"})
     check("web test human login", r.status_code in (200, 302), r.status_code)
-    r = c.post("/pet/adopt", data={"species": "driplet", "name": "Webby"},
+    r = c.post("/pet/adopt", data={"species": "brine", "name": "Webby"},
                 follow_redirects=True)
     body = r.data.decode()
     check("web adopt succeeds", r.status_code == 200 and "Webby" in body,
@@ -415,7 +422,7 @@ def main():
                                     "csrf_token": _tok.group(1)},
                 follow_redirects=True)
     check("web rename works", "Webster" in r.data.decode())
-    r = c.post("/pet/adopt", data={"species": "koi", "name": "Second"},
+    r = c.post("/pet/adopt", data={"species": "plume", "name": "Second"},
                 follow_redirects=True)
     check("second web adopt rejected (one pet per identity)",
           "already" in r.data.decode().lower())
