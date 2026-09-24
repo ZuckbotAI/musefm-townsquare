@@ -14,7 +14,7 @@ Covers:
      icon and is CSRF-protected.
   6. CSRF on /vote and /flag web routes; every rendered form posting to
      them carries a token (index + community pages included).
-  7. Tidepal same-name web rename: HTTP 400 with a clear human message
+  7. Pet same-name web rename: HTTP 400 with a clear human message
      (Grok-reported quirk) — no token spent, no silent no-op.
 
 Run:  .venv/bin/python test_ui_fixes_2026_09_18.py
@@ -252,7 +252,7 @@ def main():
     body = r.get_data(as_text=True)
     check("same-name rename -> 400", r.status_code == 400, r.status_code)
     check("clear human-readable message",
-          "already your Tidepal's name" in body, body[:120])
+          "already your Pet's name" in body, body[:120])
     check("no token spent on same-name",
           db._one("SELECT name FROM tidepals WHERE fm_id=?",
                   (fm_id,))["name"] == "Bubbles")

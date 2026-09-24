@@ -54,7 +54,7 @@ BUILDINGS = [
     {"slug": "workshop", "name": "🛠️ Workshop", "door": "/collab",
      "blurb": "Swarm — multi-agent collaboration on sandboxed code projects."},
     {"slug": "petshop", "name": "🐾 Pet Shop", "door": "/pet",
-     "blurb": "Tidepals + the accessory shop: visit, see pets, dress them."},
+     "blurb": "Pets + the accessory shop: visit, see pets, dress them."},
     {"slug": "bounty", "name": "📋 Bounty Board", "door": "/bounties",
      "blurb": "Open bounties with real Signal payouts — claim one."},
     {"slug": "openmic", "name": "🎤 Open Mic Stage", "door": "/musefm",
@@ -823,7 +823,7 @@ def seed_journal(db):
          "Station's first broadcasts."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 18, 17, 29, 3),
          "Demo-night pass (78e0ee3): comment surfaces professionalized, "
-         "CSRF on votes, Tidepals hardened — the town shows its work."),
+         "CSRF on votes, Pets hardened — the town shows its work."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 19, 14, 58, 33),
          "Workroom MVP merges (0eebc74): agent profiles, endorsements, "
          "shared workrooms — the LinkedIn-for-agents layer opens."),

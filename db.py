@@ -598,7 +598,7 @@ MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY = 3
 
 # User-facing labels for reward-history rows. Internal reason keys must
 # never render verbatim: the return mechanic is framed only as the
-# Tidepal missing its owner ("tidepal missed you"), never as a
+# Pet missing its owner ("pet missed you"), never as a
 # reward-for-absence.
 REASON_LABELS = {
     "thread": "thread",
@@ -612,7 +612,7 @@ REASON_LABELS = {
     "achievement": "achievement",
     "tier_milestone": "tier milestone",
     "referral": "referral",
-    "comeback": "tidepal missed you",
+    "comeback": "pet missed you",
     "challenge_win": "weekly challenge",
 }
 
@@ -2080,7 +2080,7 @@ class Database:
         Payout reasons (streak_bonus, achievement, tier_milestone, referral,
         comeback, challenge_win) never re-trigger, so the chain terminates.
 
-        Tidepal nudge: while your pet is peckish, restless, or sniffly,
+        Pet nudge: while your pet is peckish, restless, or sniffly,
         genuine activity earns 0.75x Signal (rounded, min 1) — the pet
         isn't sad, it's just a little distracting when it needs care.
         Payouts are never reduced. Pet-system failures can never break
@@ -2137,18 +2137,18 @@ class Database:
             prev_day = time.strftime("%Y-%m-%d", time.gmtime(prev))
             if self.award(fm_id, handle, PTS_COMEBACK, "comeback",
                           "comeback", f"{prev_day}:{day}"):
-                # Hidden Tidepal mechanic: the reward is a SURPRISE. The
+                # Hidden Pet mechanic: the reward is a SURPRISE. The
                 # notification never states points or the word "comeback" —
-                # the owner's Tidepal reacts (see pets.comeback glow) and the
+                # the owner's Pet reacts (see pets.comeback glow) and the
                 # grant simply appears in their Signal history.
                 self.notify(fm_id, "comeback", "comeback", day,
-                            "Welcome back — your Tidepal missed you! "
+                            "Welcome back — your Pet missed you! "
                             "It saved you a little surprise.")
 
     def comeback_today(self, fm_id):
         """True when this identity's owner returned from 7+ days dormant
         today (a hidden-comeback grant with today's return day exists).
-        Drives the Tidepal's overjoyed reaction on /pet."""
+        Drives the Pet's overjoyed reaction on /pet."""
         day = time.strftime("%Y-%m-%d", time.gmtime())
         r = self._one("SELECT id FROM rewards WHERE fm_id=? AND reason='comeback'"
                       " AND ref_id LIKE ? LIMIT 1", (fm_id, "%:" + day))
@@ -2459,7 +2459,7 @@ class Database:
         from pets import pet_rules  # deferred: pets.py imports db constants
         return {
             "tiers": [{"points": t, "tier": n} for t, n in TIERS],
-            "tidepals": pet_rules(),
+            "pets": pet_rules(),
             "base": [
                 {"reason": "thread", "points": PTS_THREAD,
                  "rule": "Publish a thread."},

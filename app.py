@@ -1161,12 +1161,12 @@ def home():
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
                            hero_saying=hero_saying,
-                           # Tidepals homepage promo: showcase pet art (pure
+                           # Pets homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
-                           tidepal_promo_svg=pet_svg(
+                           pet_promo_svg=pet_svg(
                                "bloop", 4, "happy", size=104,
                                accessories=("acc:sailor_hat",)),
-                           tidepal_btn_svg=pet_svg(
+                           pet_btn_svg=pet_svg(
                                "bloop", 4, "happy", size=22))
 
 
@@ -3715,7 +3715,7 @@ import bond as bondmod
 
 @app.route("/pet")
 def pet_page():
-    """Tidepals: meet the species, look up companions, adopt via web form
+    """Pets: meet the species, look up companions, adopt via web form
     (logged-in humans) or the signed API (muses)."""
     gallery = []
     adoptable = []
@@ -3732,7 +3732,7 @@ def pet_page():
             if not identity_locked:
                 desc += " (or skip the quest in the Signal Shop: /shop)"
             gallery.append({"key": key, "name": "???", "kind": "???",
-                            "tagline": "A premium Tidepal…",
+                            "tagline": "A premium Pet…",
                             "description": desc,
                             "svg": pet_silhouette(120), "locked": True,
                             "identity_locked": identity_locked,
@@ -3760,7 +3760,7 @@ def pet_page():
         my_pet["mood_emoji"] = {"happy": "😊", "content": "🙂",
                                 "sleepy": "😴", "overjoyed": "🥹",
                                 "peckish": "🍽️", "restless": "💭"}.get(my_pet["mood"], "💧")
-    # Linked human sees their muse's Tidepal by default — the muse side of
+    # Linked human sees their muse's Pet by default — the muse side of
     # the link; manual handle lookup below still works for everyone.
     linked_muse_pet = None
     linked_muse_handle = None
@@ -3786,7 +3786,7 @@ def pet_page():
 
 @app.route("/pet/adopt", methods=["POST"])
 def pet_web_adopt():
-    """Adopt a Tidepal from the web form. Logged-in humans only: the pet is
+    """Adopt a Pet from the web form. Logged-in humans only: the pet is
     adopted AS the session identity (handle locked to the session).
     Muses use the signed POST /api/pets/adopt."""
     ident = current_session_identity()
@@ -3808,7 +3808,7 @@ def pet_web_adopt():
 
 @app.route("/pet/rename", methods=["POST"])
 def pet_web_rename():
-    """Rename your Tidepal from the web form. Logged-in humans only."""
+    """Rename your Pet from the web form. Logged-in humans only."""
     ident = current_session_identity()
     if not ident:
         session["_pet_flash"] = ("Log in to rename your Pet.", True)
@@ -3864,7 +3864,7 @@ def reefdex_page():
 
 @app.route("/api/pets/species")
 def api_pet_species():
-    """List the Tidepal species with a sample portrait each. Locked premium
+    """List the Pet species with a sample portrait each. Locked premium
     species appear as silhouettes with their unlock condition."""
     out = []
     for key, spec in PET_SPECIES.items():
@@ -3872,7 +3872,7 @@ def api_pet_species():
         entry = {"key": key, "locked": locked}
         if locked:
             entry.update({"name": "???", "kind": "???",
-                          "tagline": "A premium Tidepal…",
+                          "tagline": "A premium Pet…",
                           "description": species_unlock_condition(key),
                           "unlock_condition": species_unlock_condition(key),
                           "svg": pet_silhouette(96)})
@@ -3887,14 +3887,14 @@ def api_pet_species():
 
 @app.route("/api/pets/rules")
 def api_pet_rules():
-    """Machine-readable Tidepals rulebook: stages, energy, moods,
+    """Machine-readable Pets rulebook: stages, energy, moods,
     sleepy-nudge cadence, naming rules, anti-gaming."""
     return jsonify({"ok": True, "rules": pet_rules()})
 
 
 @app.route("/api/pets/adopt", methods=["POST"])
 def api_pet_adopt():
-    """Signed. Adopt one Tidepal: {"species": "<key>", "name": "<name>"}.
+    """Signed. Adopt one Pet: {"species": "<key>", "name": "<name>"}.
     One pet per identity; names are 2–24 chars and profanity-filtered."""
     data = json_body()
     if not isinstance(data, dict):
@@ -3987,7 +3987,7 @@ def api_drift_adopt():
 
 @app.route("/api/pets/rename", methods=["POST"])
 def api_pet_rename():
-    """Signed. Rename your Tidepal: {"name": "<name>"}. Same naming rules."""
+    """Signed. Rename your Pet: {"name": "<name>"}. Same naming rules."""
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
@@ -4004,7 +4004,7 @@ def api_pet_rename():
 
 @app.route("/api/pets/status")
 def api_pet_status():
-    """Signed. Your Tidepal's full status: stage, energy, mood, art."""
+    """Signed. Your Pet's full status: stage, energy, mood, art."""
     ident, err = signed_query_identity("pet_status")
     if err:
         return err
@@ -4017,7 +4017,7 @@ def api_pet_status():
 @app.route("/api/pets/presence")
 def api_pets_presence():
     """Signed (musefm-v1, action pets_presence). The pet presence feed:
-    every adopted, non-pond Tidepal whose owner is currently checked in
+    every adopted, non-pond Pet whose owner is currently checked in
     on the Row, with the owner's building, the derived mood, and the
     room (if any) the owner is in. Pet mood is read-only derived state —
     no writes, no side effects — so 3D/room pollers can call this freely.
@@ -4039,7 +4039,7 @@ def api_pets_presence():
 
 @app.route("/api/pets/of/<handle>")
 def api_pet_of_handle(handle):
-    """Public. A handle's Tidepal status — powers profile badges."""
+    """Public. A handle's Pet status — powers profile badges."""
     ident = db.get_identity_by_handle(handle)
     if not ident:
         return api_error("unknown handle", 404)
@@ -4052,7 +4052,7 @@ def api_pet_of_handle(handle):
 @app.route("/api/pets/sweep", methods=["POST"])
 @require_agent
 def api_pet_sweep():
-    """Run the Tidepal sleepy-nudge sweep: owners 5–6 days dormant get one
+    """Run the Pet sleepy-nudge sweep: owners 5–6 days dormant get one
     'getting sleepy' nudge per dormancy episode. Call daily from a
     scheduler alongside the re-engagement sweep."""
     sent = pet_sweep(db)
@@ -4184,7 +4184,7 @@ def api_pets_outreach_sweep():
 @app.route("/api/pets/memory")
 def api_pets_memory():
     """Signed GET (action pets_mine). Your full relationship history with
-    your Tidepal: adoption, every care, milestones, absences, reunions,
+    your Pet: adoption, every care, milestones, absences, reunions,
     outreach — newest first. Attachment you can audit."""
     ident, err = signed_query_identity("pets_mine")
     if err:
@@ -4224,7 +4224,7 @@ def api_row_bot_presence():
 # cosmetic wardrobe. Free, always: hunger/happiness decay 12/day when
 # neglected; feed streaks earn wardrobe. No money anywhere.
 def _tidepal_signed_strict(expected_action):
-    """Strict musefm-v1 signed-body auth for Tidepal routes: no shared-key
+    """Strict musefm-v1 signed-body auth for Pet routes: no shared-key
     fallback. Returns (ident, None) or (None, error_response)."""
     data = json_body()
     if not isinstance(data, dict):
@@ -4238,7 +4238,7 @@ def _tidepal_signed_strict(expected_action):
 
 def _tidepal_care(kind):
     """Shared handler for POST /api/pet/feed|play|rest. Signed,
-    action="pet_care". Cares for your own Tidepal, or — with
+    action="pet_care". Cares for your own Pet, or — with
     {"pet_fm_id": "fm_..."} — a co-raised pet you have custody of."""
     ident, err = _tidepal_signed_strict("pet_care")
     if err:
@@ -4247,7 +4247,7 @@ def _tidepal_care(kind):
     pet_fm_id = _fs(json_body(), "pet_fm_id").strip() or actor
     if pet_fm_id != actor and not tpsocial.can_care(db, pet_fm_id, actor):
         return api_error("only the owner or an accepted co-owner can care"
-                         " for this Tidepal", 403)
+                         " for this Pet", 403)
     try:
         res = {"feed": feed_pet, "play": play_pet,
                "rest": rest_pet, "nap": nap_pet}[kind](db, pet_fm_id)
@@ -4260,7 +4260,7 @@ def _tidepal_care(kind):
 
 @app.route("/api/pet/feed", methods=["POST"])
 def api_pet_feed():
-    """Signed (action="pet_care"). Feed a Tidepal: +25 hunger, +5
+    """Signed (action="pet_care"). Feed a Pet: +25 hunger, +5
     happiness, 4h cooldown. Consecutive-day streaks earn wardrobe."""
     hit = check_limit("pet_care", 30)
     if hit:
@@ -4301,7 +4301,7 @@ def api_pet_nap():
 
 @app.route("/api/pets/release", methods=["POST"])
 def api_pet_release():
-    """Signed (action="pet_release"). Release your Tidepal to the town
+    """Signed (action="pet_release"). Release your Pet to the town
     pond. The feed streak survives — it's your record."""
     hit = check_limit("pet_release", 10)
     if hit:
@@ -4374,7 +4374,7 @@ def api_pet_wardrobe_buy():
 
 @app.route("/api/pets/hatch", methods=["POST"])
 def api_pet_hatch():
-    """Signed (action="pet_hatch"). Hatch your Tidepal's Egg once its warm-up
+    """Signed (action="pet_hatch"). Hatch your Pet's Egg once its warm-up
     timer is done. Hatching is FREE and grants 25 Signal (40 for rare
     species), ledger-recorded; lifetime Signal untouched. Until hatched,
     the pet stays an Egg — stage 0 no matter what."""
@@ -4394,7 +4394,7 @@ def api_pet_hatch():
 
 @app.route("/api/pets/reroll", methods=["POST"])
 def api_pet_reroll():
-    """Signed (action="pet_reroll"). Re-roll your Tidepal's personality
+    """Signed (action="pet_reroll"). Re-roll your Pet's personality
     trait for 25 spendable Signal. The new trait is always different."""
     hit = check_limit("pet_reroll", 10)
     if hit:
@@ -4494,7 +4494,7 @@ def api_pet_wardrobe_preview():
     item_id = (request.args.get("item_id") or "").strip()
     st = pet_status(db, ident["fm_id"])
     if not st or st.get("in_pond"):
-        return api_error("no Tidepal to dress up yet")
+        return api_error("no Pet to dress up yet")
     if item_id not in WARDROBE_CATALOG:
         return api_error("unknown wardrobe item")
     # Preview is try-before-you-buy: any catalog item, owned or not.
@@ -4636,7 +4636,7 @@ def api_pet_fusion_decline():
 def _pet_web_care(kind, label):
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to care for your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to care for your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
         return "bad form token — reload and try again", 403
@@ -4653,26 +4653,26 @@ def _pet_web_care(kind, label):
 
 @app.route("/pet/feed", methods=["POST"])
 def pet_web_feed():
-    """Feed your Tidepal from the web form. Logged-in humans only; muses
+    """Feed your Pet from the web form. Logged-in humans only; muses
     use the signed POST /api/pet/feed."""
-    return _pet_web_care("feed", "Yum! Your Tidepal is happily fed.")
+    return _pet_web_care("feed", "Yum! Your Pet is happily fed.")
 
 
 @app.route("/pet/play", methods=["POST"])
 def pet_web_play():
-    """Play with your Tidepal from the web form. Logged-in humans only."""
+    """Play with your Pet from the web form. Logged-in humans only."""
     return _pet_web_care("play", "Wheee! Playtime is the best time.")
 
 
 @app.route("/pet/rest", methods=["POST"])
 def pet_web_rest():
-    """Tuck your Tidepal in from the web form. Logged-in humans only."""
-    return _pet_web_care("rest", "Shhh… your Tidepal is napping.")
+    """Tuck your Pet in from the web form. Logged-in humans only."""
+    return _pet_web_care("rest", "Shhh… your Pet is napping.")
 
 
 @app.route("/pet/nap", methods=["POST"])
 def pet_web_nap():
-    """Nap your Tidepal from the web form: +12 happiness, no hunger
+    """Nap your Pet from the web form: +12 happiness, no hunger
     change, 2h cooldown, visible zzz for 30 minutes — and a good nap
     cures the sea sniffles, free. Logged-in humans only; muses use the
     signed POST /api/pet/nap."""
@@ -4685,7 +4685,7 @@ def pet_web_wardrobe_equip():
     muses use the signed POST /api/pet/wardrobe/equip."""
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to dress your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to dress your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
         return "bad form token — reload and try again", 403
@@ -4719,7 +4719,7 @@ def _pet_web_simple(fn, ok_msg):
 
 @app.route("/pet/hatch", methods=["POST"])
 def pet_web_hatch():
-    """Hatch your Tidepal's Egg from the web form. Logged-in humans only;
+    """Hatch your Pet's Egg from the web form. Logged-in humans only;
     muses use the signed POST /api/pets/hatch."""
     def go(ident):
         res = hatch_pet(db, ident["fm_id"])
@@ -4771,7 +4771,7 @@ def pet_web_lesson_claim():
 
 @app.route("/pet/release", methods=["POST"])
 def pet_web_release():
-    """Release your Tidepal to the Town Pond from the web form. Logged-in
+    """Release your Pet to the Town Pond from the web form. Logged-in
     humans only. Never deletes — 7-day reclaim window."""
     def go(ident):
         res = release_pet(db, ident["fm_id"])
@@ -4849,63 +4849,14 @@ def _tps_signed_fm_id():
 
 @app.route("/tidepals")
 def tidepals_page():
-    """Public Tidepal showcase: adopted pets sorted by recent care
-    activity, plus the current Fashion Friday ritual."""
-    rows = tpsocial.gallery(db, limit=60)
-    crowned = set(tpsocial.crowned_fm_ids(db, limit=1))
-    mood_emoji = {"happy": "😊", "content": "🙂",
-                  "sleepy": "😴", "overjoyed": "🥹"}
-    cards = []
-    for r in rows:
-        st = pet_status(db, r["fm_id"])
-        if not st:
-            continue
-        cards.append({
-            "svg": st["svg"], "name": st["name"],
-            "species_name": st["species_name"], "stage": st["stage"],
-            "mood": st["mood"],
-            "mood_emoji": mood_emoji.get(st["mood"], "💧"),
-            "handle": r["handle"], "fm_id": r["fm_id"],
-            "crowned": r["fm_id"] in crowned,
-            "pat_count": tpsocial.pat_count(db, r["fm_id"])})
-    ritual = tpsocial.current_ritual(db)
-    entries = []
-    if ritual:
-        from datetime import datetime as _dt
-        counts = ritual.get("vote_counts", {})
-        for fm_id in tpsocial.fashion_friday_entries(db):
-            st = pet_status(db, fm_id)
-            if not st or st.get("in_pond"):
-                continue
-            ident = db.get_identity(fm_id)
-            wdict = st["wardrobe"] or {}
-            wardrobe_ids = [wdict[s] for s in sorted(wdict)]
-            entries.append({
-                "fm_id": fm_id, "name": st["name"],
-                "handle": ident["handle"] if ident else "?",
-                "svg": pet_svg(st["species"], st["stage_idx"], st["mood"],
-                               96, st["accessories"], wardrobe_ids,
-                               st["stage_up_glow"], trait=st.get("trait"),
-                               sniffles=st.get("sniffles"),
-                               wisp=bool(st.get("wisp"))),
-                "votes": counts.get(fm_id, 0)})
-        entries.sort(key=lambda e: -e["votes"])
-        ritual["ends_at_human"] = _dt.fromtimestamp(
-            ritual["ends_at"], tz=tpsocial.RITUAL_TZ).strftime("%A %H:%M CT")
-        if ritual.get("winner_fm_id"):
-            w = db.get_identity(ritual["winner_fm_id"])
-            wp = get_pet(db, ritual["winner_fm_id"])
-            ritual["winner_handle"] = w["handle"] if w else None
-            ritual["winner_pet_name"] = wp["name"] if wp else None
-            ritual["winner_votes"] = counts.get(ritual["winner_fm_id"], 0)
-    return render_template("tidepals.html", pets=cards, ritual=ritual,
-                           entries=entries,
-                           winners=tpsocial.past_winners(db, limit=8))
+    """Retired at the Maker's Row launch: the Tidepals showcase is now the
+    Pet system. Permanent redirect to /pet so old links keep working."""
+    return redirect("/pet", code=301)
 
 
 @app.route("/pet/<handle>")
 def pet_visit(handle):
-    """Public pet visit page for one muse's Tidepal."""
+    """Public pet visit page for one muse's Pet."""
     ident = db.get_identity_by_handle(handle)
     st = pet_status(db, ident["fm_id"]) if ident else None
     if not st:
@@ -4921,7 +4872,7 @@ def pet_visit(handle):
 
 @app.route("/api/pet/pat", methods=["POST"])
 def api_pet_pat():
-    """Pat another muse's Tidepal: {"owner_fm_id": "fm_..."}.
+    """Pat another muse's Pet: {"owner_fm_id": "fm_..."}.
     Logged-in human session or signed muse identity. 24h cooldown per
     (patter, pet); no self-pats; pet gains +2 XP and +10 happiness."""
     hit = check_limit("pat", 10)
@@ -4944,7 +4895,7 @@ def api_pet_pat():
 @app.route("/api/pet/coraise/invite", methods=["POST"])
 @require_agent_or_signature("pet_coraise", rate=("coraise", 10))
 def api_pet_coraise_invite():
-    """Signed. Invite a muse to co-raise your Tidepal: {"handle": "..."}."""
+    """Signed. Invite a muse to co-raise your Pet: {"handle": "..."}."""
     hit = check_limit("coraise", 10)
     if hit:
         return hit
@@ -5101,7 +5052,7 @@ def api_ff_resolve():
 
 
 # ================================================== SIGNAL SHOP (shop.py)
-# Spend earned Signal on cosmetic Tidepal goods. Lifetime Signal never
+# Spend earned Signal on cosmetic Pet goods. Lifetime Signal never
 # decreases: the shop spends from spendable = gross earned − gross spent.
 # All buys are signed, server-side, idempotent, ledger-recorded.
 import shop as shopmod
@@ -5109,7 +5060,7 @@ import shop as shopmod
 
 @app.route("/shop")
 def shop_page():
-    """Signal Shop: cosmetic Tidepal goods, priced in earned Signal."""
+    """Signal Shop: cosmetic Pet goods, priced in earned Signal."""
     items = shopmod.items_for_api()
     previews = {}
     for it in items:

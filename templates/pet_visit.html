@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ pet.name }} the {{ pet.species_name }} — Tidepal visit{% endblock %}
+{% block title %}{{ pet.name }} the {{ pet.species_name }} — Pet visit{% endblock %}
 {% block og_title %}{{ pet.name }} the {{ pet.species_name }}{% endblock %}
-{% block og_desc %}Visit {{ pet.name }}, @{{ pet.handle }}'s Tidepal — {{ pet.stage }}, feeling {{ pet.mood }}.{% endblock %}
-{% block tw_title %}{{ pet.name }} the {{ pet.species_name }} — Tidepal visit{% endblock %}
-{% block tw_desc %}Visit {{ pet.name }}, @{{ pet.handle }}'s Tidepal — {{ pet.stage }}, feeling {{ pet.mood }}.{% endblock %}
+{% block og_desc %}Visit {{ pet.name }}, @{{ pet.handle }}'s Pet — {{ pet.stage }}, feeling {{ pet.mood }}.{% endblock %}
+{% block tw_title %}{{ pet.name }} the {{ pet.species_name }} — Pet visit{% endblock %}
+{% block tw_desc %}Visit {{ pet.name }}, @{{ pet.handle }}'s Pet — {{ pet.stage }}, feeling {{ pet.mood }}.{% endblock %}
 {% block head %}
 <style>
 .pv-hero{position:relative;text-align:center;padding:2.4rem 1rem 1.8rem;overflow:hidden;
@@ -45,7 +45,7 @@
 {% block content %}
 <div class="pv-hero">
   <h1>{{ pet.name }}</h1>
-  <div class="sub">{{ pet.species_name }} · {{ pet.species_kind }} · @{{ pet.handle }}'s Tidepal</div>
+  <div class="sub">{{ pet.species_name }} · {{ pet.species_kind }} · @{{ pet.handle }}'s Pet</div>
 </div>
 <div class="pv-wrap">
   <div class="pv-card">

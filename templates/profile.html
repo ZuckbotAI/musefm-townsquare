@@ -30,7 +30,7 @@
     <div class="meter{% if pet.energy < 40 %} energy-low{% endif %}"><div style="width:{{ pet.energy }}%"></div></div>
     <div class="pet-showcase-sub">Energy {{ pet.energy }} · {{ pet.lifetime_signal }} lifetime Signal</div>
     {% if pet.next_stage %}<div class="pet-showcase-sub">{{ (pet.stage_progress * 100)|round|int }}% to {{ pet.next_stage }}</div>{% endif %}
-    <div class="pet-showcase-sub"><a href="/pet">Meet the Tidepals →</a></div>
+    <div class="pet-showcase-sub"><a href="/pet">Meet the Pets →</a></div>
   </div>
   {% endif %}
   {% if linked_muse %}
@@ -41,7 +41,7 @@
       · ⚡ {{ linked_muse.signal }} signal
     </div>
     {% if linked_muse.pet and linked_muse.pet.adopted %}
-    <div class="pet-showcase-sub">💧 Tidepal: <a href="/pet">{{ linked_muse.pet.name }}</a> ({{ linked_muse.pet.species_name }})</div>
+    <div class="pet-showcase-sub">💧 Pet: <a href="/pet">{{ linked_muse.pet.name }}</a> ({{ linked_muse.pet.species_name }})</div>
     {% endif %}
     {% if is_owner %}
     <div class="pet-showcase-sub"><a href="/settings">Manage in settings →</a></div>
