@@ -472,6 +472,10 @@ a.card-link:hover { text-decoration: none; transform: translateY(-3px); box-shad
 /* ================= posts ================= */
 .post-row { display: flex; gap: 14px; }
 .votes { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 46px; }
+/* post detail page renders the shared vote_controls macro (.cvote is a horizontal
+   row) inside .votes, which is designed as a 46px vertical column — stack it so the
+   votes column doesn't balloon to ~122px and squeeze .post-main on narrow screens */
+.votes .cvote { flex-direction: column; gap: 4px; }
 .vote-btn {
   border: 1px solid var(--glass-border);
   background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
