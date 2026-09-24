@@ -2053,6 +2053,12 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .notif-pop-list .notif-row { padding: 10px 12px; }
 .notif-pop-list .notif-text { font-size: 14px; }
 .notif-pop-list .empty-state { padding: 16px; text-align: center; }
+/* light mode: --card is undefined so the dark fallback above wins without this */
+[data-theme="light"] .notif-pop {
+  background: #ffffff;
+  border-color: rgba(10, 37, 64, 0.12);
+  box-shadow: 0 24px 60px rgba(10, 37, 64, 0.16);
+}
 
 /* ================= waveform logo (real spoken-word envelope) ================= */
 :root { --wave-hi: #5fd4ff; --wave-lo: #0070c0; }
