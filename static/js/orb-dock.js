@@ -4,8 +4,12 @@
  *
  *  - HERO: on the homepage, when the hero card's orb stage is in view, the
  *    orb snaps into the stage. Click/tap it for a saying.
+ *  - TOPBAR: on the homepage, once the hero scrolls out of view, the orb
+ *    parks in the topbar's reserved slot next to Home (2026-09-24,
+ *    Anthony) instead of floating — the header keeps its companion.
  *  - FLOAT: everywhere else — a fixed overlay that stays visible while the
- *    user scrolls. Home past the hero, Shorts, forum, every main surface.
+ *    user scrolls. Shorts, forum, every main surface, and any page with no
+ *    hero stage.
  *    The user can drag it anywhere (touch + mouse, via the pointer
  *    handlers in muse-orb.js); the spot persists across reloads in
  *    localStorage. Double-click clears the saved spot and re-syncs to the
@@ -166,6 +170,25 @@
     };
   }
 
+  // TOPBAR dock (2026-09-24, Anthony): the orb's seat in the header, next
+  // to Home. The anchor #orb-home reserves real layout space (48px,
+  // style.css), so center a topbar-sized orb in it. It never covers
+  // anything tappable — the slot is its own. Returns null when the topbar
+  // or anchor isn't laid out (caller falls through to FLOAT).
+  function topbarSpot() {
+    var anchor = document.getElementById('orb-home');
+    if (!anchor || !anchor.getBoundingClientRect) return null;
+    var ar = anchor.getBoundingClientRect();
+    if (!ar.width || !ar.height) return null;
+    var s = Math.min(0.46, Math.max(0.3, (ar.height - 8) / ORB));
+    var d = ORB * s;
+    return {
+      x: ar.left + (ar.width - d) / 2,
+      y: ar.top + (ar.height - d) / 2,
+      s: s
+    };
+  }
+
   // where the orb belongs right now: {x, y, s} top-left px + scale
   function target() {
     var st = stage();
@@ -178,6 +201,11 @@
         y: r.top + (r.height - ORB * s) / 2,
         s: s, where: 'hero'
       };
+    }
+    // TOPBAR: homepage scrolled past the hero — park next to Home.
+    if (st) {
+      var ts = topbarSpot();
+      if (ts) return { x: ts.x, y: ts.y, s: ts.s, where: 'topbar' };
     }
     // FLOAT: fixed overlay on every page, visible while scrolling.
     // The resting spot is the resolved smart default corner — probed so it
@@ -200,7 +228,8 @@
         off.dx = rs.x - t.x;
         off.dy = rs.y - t.y;
       } else {
-        // hero snap, or a fresh float with no saved spot: no offset
+        // hero snap, topbar dock, or a fresh float with no saved spot:
+        // no offset
         off.dx = 0; off.dy = 0;
       }
       lastWhere = t.where;

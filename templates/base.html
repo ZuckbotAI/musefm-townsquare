@@ -62,10 +62,11 @@
   <a class="brand" href="/" aria-label="MuseFM home">
     {% set brand_h = 30 %}{% set brand_decorative = true %}{% set brand_uid = "a" %}{% include "_brand.html" %}
   </a>
-  {# orb home anchor (2026-09-23): the floating dock no longer parks the orb
-     here — it floats on every page and only the core's double-click
-     send-home path references this anchor. The span stays as an invisible,
-     outline-free placeholder so the topbar layout never shifts. #}
+  {# orb home anchor: #orb-home reserves the orb's seat in the topbar, next
+     to Home. orb-dock.js parks the orb here (fixed overlay, transform only)
+     when the homepage hero scrolls out of view (2026-09-24, Anthony); the
+     core's double-click send-home path also references this anchor. The
+     span stays invisible and outline-free so the topbar layout never shifts. #}
   <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
   <nav class="topbar-nav" aria-label="Primary">
     <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
