@@ -1096,7 +1096,7 @@ _SKILL_VERBS = {
 
 
 def _skill_verb_base(word):
-    w = (word or "").strip().lower()
+    w = (word or "").strip().lower().strip(",.;:!?\"'")
     if w in _SKILL_VERBS:
         return w
     if w.endswith("ies") and w[:-3] + "y" in _SKILL_VERBS:
@@ -1127,9 +1127,12 @@ def _skill_capability(desc):
     tw = tail.split(" ")[0] if tail else ""
     hb, tb = _skill_verb_base(hw), _skill_verb_base(tw)
     if hb:
-        phrase = hb + head[len(hw):]
+        # keep the original token's trailing punctuation ("Plan," -> "plan,")
+        punct = hw[len(hw.rstrip(",.;:!?\"'")):]
+        phrase = hb + punct + head[len(hw):]
     elif tb:
-        phrase = tb + tail[len(tw):]
+        punct = tw[len(tw.rstrip(",.;:!?\"'")):]
+        phrase = tb + punct + tail[len(tw):]
     else:
         core = head if (not tail or len(head) < len(tail)) else tail
         phrase = "use " + (core[0].lower() + core[1:] if core else "")
