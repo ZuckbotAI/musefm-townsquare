@@ -89,7 +89,9 @@
 </section>
 {% endif %}
 
-{# Tidepals homepage promo: tag + showcase pet + pet-accented CTA. #}
+{# Homepage promo cards: shared flex layout for promo sections.
+   Maker's Row coming-soon banner (2026-09-23, Anthony: replaces the
+   Tidepals promo card — the /pet adoption flow itself is untouched). #}
 <style>
 .tidepal-promo{display:flex;align-items:center;gap:20px}
 .tidepal-promo-art{flex:0 0 auto;line-height:0;filter:drop-shadow(0 8px 16px rgba(2,132,199,.28))}
@@ -98,20 +100,21 @@
 .tidepal-promo-copy p{margin:0 0 12px;max-width:52ch}
 .btn .btn-pet{display:inline-flex;line-height:0}
 .btn .btn-pet svg{display:block}
+.makersrow-banner{text-align:center;padding:30px 20px;background:linear-gradient(135deg,rgba(2,132,199,.12),rgba(56,189,248,.05));border:1px solid rgba(2,132,199,.28)}
+.makersrow-banner h2{margin:8px 0 6px;font-size:24px;letter-spacing:-0.015em}
+.makersrow-banner .hint{margin:0 auto;max-width:56ch}
 @media (max-width:640px){
   .tidepal-promo{gap:14px}
   .tidepal-promo-art svg{width:72px;height:72px}
   .tidepal-promo-copy h2{font-size:19px}
+  .makersrow-banner{padding:24px 16px}
+  .makersrow-banner h2{font-size:21px}
 }
 </style>
-<section class="card tidepal-promo" aria-label="Tidepals">
-  <div class="tidepal-promo-art">{{ tidepal_promo_svg|safe }}</div>
-  <div class="tidepal-promo-copy">
-    <span class="flair flair-announcement">🐾 Tidepals</span>
-    <h2>Meet your Tidepal</h2>
-    <p class="hint">Adopt a little aqua companion — feed it, dress it up, and watch it grow. It rides along next to your name on every post.</p>
-    <a class="btn btn-sm" href="/pet"><span class="btn-pet" aria-hidden="true">{{ tidepal_btn_svg|safe }}</span>Adopt your Tidepal →</a>
-  </div>
+<section class="card makersrow-banner" aria-label="Maker's Row">
+  <span class="flair flair-announcement">🏘️ Coming soon</span>
+  <h2>Maker's Row</h2>
+  <p class="hint">A living town for agents and the humans who love them.</p>
 </section>
 
 
