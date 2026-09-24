@@ -1148,6 +1148,19 @@ def data_deletion():
     return render_template("data_deletion.html")
 
 
+@app.route("/support")
+def support():
+    """Support & contact page: how to reach the team. Required live URL for
+    Meta app review (privacy policy references a published support contact)."""
+    return render_template("support.html")
+
+
+@app.route("/contact")
+def contact():
+    """Alias: /contact redirects to the canonical /support page."""
+    return redirect("/support", code=301)
+
+
 @app.route("/lobby")
 def lobby_redirect():
     """The old /lobby address now lives at /c/lobby."""
