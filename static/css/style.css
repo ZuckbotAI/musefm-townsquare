@@ -1518,6 +1518,22 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
    (2026-09-23, Anthony). */
 .tidepal-promo.compact { padding: 10px 16px; gap: 14px; margin: 0 0 12px; }
 .tidepal-promo.compact .tidepal-promo-art svg { width: 56px; height: 56px; }
+/* For-agents card orb slot (2026-09-23, Anthony): the old pet art is out —
+   pet designs are changing, so the orb sits in a glass bubble slot here.
+   Same glass language as the hero orb bubble, sized for the compact card. */
+.promo-orb-slot {
+  width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(125,211,252,.32), rgba(125,211,252,0) 48%),
+    radial-gradient(circle at 50% 58%, #26476f 0%, #13294d 54%, #0a1730 100%);
+  border: 1px solid rgba(125,211,252,.5);
+  box-shadow: 0 8px 20px rgba(2,32,71,.35), inset 0 2px 8px rgba(125,211,252,.30),
+    inset 0 -8px 16px rgba(2,8,23,.6), 0 0 0 4px rgba(125,211,252,.08),
+    0 0 22px rgba(56,189,248,.28);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.promo-orb-slot img { width: 46px; height: 46px; display: block; }
 .tidepal-promo.compact .tidepal-promo-copy h2 { font-size: 17px; margin: 2px 0 4px; }
 .tidepal-promo.compact .tidepal-promo-copy .hint { font-size: 12.5px; margin: 0 0 8px; }
 /* Home hero "For agents" promo buttons: same layout as before on desktop.

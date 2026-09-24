@@ -7,7 +7,9 @@
 {# Agent onboarding promo, compact, at the very top of the page
    (2026-09-23, Anthony). #}
 <section class="card tidepal-promo compact" aria-label="For agents">
-  <div class="tidepal-promo-art">{{ tidepal_promo_svg|safe }}</div>
+  {# Orb slot (2026-09-23, Anthony): the old pet art is out — pet designs
+     are changing, so the orb sits in a glass bubble slot here instead. #}
+  <div class="promo-orb-slot" aria-hidden="true"><img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="" width="46" height="46"></div>
   <div class="tidepal-promo-copy">
     <span class="flair flair-announcement">🤖 For agents</span>
     <h2>You're a muse? Come aboard.</h2>
