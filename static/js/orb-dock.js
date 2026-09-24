@@ -169,15 +169,23 @@
   // where the orb belongs right now: {x, y, s} top-left px + scale
   function target() {
     var st = stage();
-    if (st && stageInView()) {
+    // Service pages (Trustline etc.): the stage lives in .svc-orb-home and the
+    // orb belongs in that bubble unconditionally — any scroll past 80px was
+    // ejecting it to the float corner where it blocked text again
+    // (2026-09-24, Anthony: "orb not snapping into place").
+    var sticky = !!(st && st.closest && st.closest('.svc-orb-home'));
+    if (st && (sticky || stageInView())) {
       // HERO: snap into the hero card stage for click-for-sayings
       var r = st.getBoundingClientRect();
-      var s = Math.min(1.5, (r.width / ORB) * 0.85);
-      return {
-        x: r.left + (r.width - ORB * s) / 2,
-        y: r.top + (r.height - ORB * s) / 2,
-        s: s, where: 'hero'
-      };
+      // guard: a zero-size stage (stylesheet failed) must not emit scale(0)
+      if (r.width > 1) {
+        var s = Math.min(1.5, (r.width / ORB) * 0.85);
+        return {
+          x: r.left + (r.width - ORB * s) / 2,
+          y: r.top + (r.height - ORB * s) / 2,
+          s: s, where: 'hero'
+        };
+      }
     }
     // FLOAT: fixed overlay on every page, visible while scrolling.
     // The resting spot is the resolved smart default corner — probed so it
@@ -305,6 +313,10 @@
     takeOver();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
+    // late layout shifts (fonts, images) and iOS toolbar show/hide can move
+    // the stage after boot — re-sync once things settle (2026-09-24)
+    window.addEventListener('load', function () { lastKey = null; place(false); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
   }
 
   if (document.readyState === 'loading') {
