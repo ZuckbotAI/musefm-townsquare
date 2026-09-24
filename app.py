@@ -34,6 +34,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -9559,6 +9560,171 @@ def not_found(_e):
                 pass
         return api_error("not found", 404)
     return render_template("404.html", msg="nothing here yet"), 404
+
+
+# Read-only triage for pending video uploads. Built 2026-09-23 after the
+# Render shell's terminal input degraded past usability (Anthony: "Triage").
+# Scores are EVIDENCE for human mods — this never approves, rejects, moves,
+# deletes, or otherwise mutates any upload file or moderation state.
+#
+# Security posture:
+#   - Disabled by default: every route 404s unless TRIAGE_ENABLED=1 is set
+#     in the environment.
+#   - Agent-key gated (@require_agent) + tight rate limits on every route.
+#   - Read-only: ffprobe/ffmpeg run against COPIES in a fresh temp dir.
+#     Originals under DATA_DIR and every DB row are never touched.
+#   - Path confinement: stored_path must resolve inside DATA_DIR
+#     (no absolute paths, no "..").
+#   - No shell: subprocess arg list only, hard timeout.
+# One-shot: after a run finishes, /run refuses to start another unless the
+# body carries {"force": true} — re-running is harmless (read-only) but the
+# guard keeps it deliberate.
+_TRIAGE_STATE = {"state": "idle", "started_at": None, "finished_at": None,
+                 "total": 0, "done": 0, "error": None, "csv_path": None,
+                 "workdir": None}
+_TRIAGE_LOCK = threading.Lock()
+_TRIAGE_SCRIPT = os.path.join(HERE, "scripts", "triage_videos.sh")
+_TRIAGE_TIMEOUT_S = 3600
+
+
+def _triage_guard():
+    """404 unless explicitly enabled. Returns a Flask response or None."""
+    if os.environ.get("TRIAGE_ENABLED") != "1":
+        return jsonify({"ok": False, "error": "triage disabled"}), 404
+    return None
+
+
+def _triage_copy_pending(app_db):
+    """Copy every pending video into a fresh temp dir.
+
+    Returns (workdir, copied_count, pending_count). Skips anything whose
+    stored_path escapes DATA_DIR or isn't a plain mp4/webm file.
+    Never touches the originals or the DB.
+    """
+    data_root = os.path.abspath(DATA_DIR)
+    workdir = tempfile.mkdtemp(prefix="triage-")
+    rows = []
+    offset = 0
+    while True:
+        batch = videos.list_pending_videos(app_db, limit=200, offset=offset)
+        if not batch:
+            break
+        rows.extend(batch)
+        offset += len(batch)
+    copied = 0
+    for r in rows:
+        sp = r.get("stored_path") or ""
+        if not sp or ".." in sp or os.path.isabs(sp):
+            continue
+        src = os.path.normpath(os.path.join(data_root, sp))
+        if os.path.commonpath([data_root, src]) != data_root:
+            continue
+        if not os.path.isfile(src):
+            continue
+        ext = os.path.splitext(sp)[1].lower()
+        if ext not in (".mp4", ".webm"):
+            continue
+        try:
+            shutil.copyfile(src, os.path.join(
+                workdir, "vid-%d%s" % (int(r["id"]), ext)))
+            copied += 1
+        except (OSError, ValueError):
+            continue
+    return workdir, copied, len(rows)
+
+
+def _triage_job(app_db):
+    with _TRIAGE_LOCK:
+        _TRIAGE_STATE.update(state="running", started_at=int(time.time()),
+                             finished_at=None, error=None, done=0,
+                             csv_path=None, workdir=None)
+    try:
+        if not os.path.isfile(_TRIAGE_SCRIPT):
+            raise RuntimeError("triage script missing: %s" % _TRIAGE_SCRIPT)
+        workdir, copied, total = _triage_copy_pending(app_db)
+        with _TRIAGE_LOCK:
+            _TRIAGE_STATE.update(total=total, workdir=workdir)
+        proc = subprocess.run([_TRIAGE_SCRIPT, workdir], capture_output=True,
+                              text=True, timeout=_TRIAGE_TIMEOUT_S)
+        csv_path = os.path.join(workdir, "triage.csv")
+        with open(csv_path, "w") as f:
+            f.write(proc.stdout or "")
+        with _TRIAGE_LOCK:
+            _TRIAGE_STATE.update(state="done", finished_at=int(time.time()),
+                                 done=copied, csv_path=csv_path)
+    except Exception as e:  # never let the worker thread kill the process
+        with _TRIAGE_LOCK:
+            _TRIAGE_STATE.update(state="error",
+                                 finished_at=int(time.time()),
+                                 error="%r" % (e,))
+        sys.stderr.write("[musefm] triage job failed: %r\n" % (e,))
+
+
+@app.route("/api/admin/triage/run", methods=["POST"])
+@require_agent
+def api_admin_triage_run():
+    """Start the one-shot triage job in a background thread."""
+    guard = _triage_guard()
+    if guard:
+        return guard
+    hit = check_limit("triage_run", 5)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    force = bool(data.get("force"))
+    with _TRIAGE_LOCK:
+        st = _TRIAGE_STATE["state"]
+        if st == "running":
+            return jsonify({"ok": False,
+                            "error": "triage already running"}), 409
+        if st == "done" and not force:
+            return jsonify({"ok": False, "error": "triage already ran "
+                            "(one-shot); pass {\"force\": true} to re-run"}
+                           ), 409
+        _TRIAGE_STATE.update(state="starting")
+    threading.Thread(target=_triage_job, args=(db,), daemon=True,
+                     name="musefm-triage").start()
+    return jsonify({"ok": True, "state": "starting"})
+
+
+@app.route("/api/admin/triage/status")
+@require_agent
+def api_admin_triage_status():
+    guard = _triage_guard()
+    if guard:
+        return guard
+    hit = check_limit("triage_status", 60)
+    if hit:
+        return hit
+    with _TRIAGE_LOCK:
+        snap = dict(_TRIAGE_STATE)
+    snap.pop("csv_path", None)
+    snap.pop("workdir", None)
+    return jsonify({"ok": True, "enabled": True, **snap})
+
+
+@app.route("/api/admin/triage/csv")
+@require_agent
+def api_admin_triage_csv():
+    guard = _triage_guard()
+    if guard:
+        return guard
+    hit = check_limit("triage_csv", 20)
+    if hit:
+        return hit
+    with _TRIAGE_LOCK:
+        csv_path = _TRIAGE_STATE.get("csv_path")
+        st = _TRIAGE_STATE["state"]
+    if st != "done" or not csv_path or not os.path.isfile(csv_path):
+        return jsonify({"ok": False, "error": "no finished triage run"}), 404
+    with open(csv_path, "rb") as f:
+        body = f.read()
+    return Response(body, mimetype="text/csv",
+                    headers={"Content-Disposition":
+                             "attachment; filename=triage.csv"})
+
 
 
 # Moderator agent-profile deletion tool (2026-09-23, Anthony): /mod/profiles.
