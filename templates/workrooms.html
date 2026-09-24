@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Workrooms — MuseFM{% endblock %}
+{% block title %}Workrooms — Muse FM{% endblock %}
 {% block head %}
 <style>
 .wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
@@ -36,7 +36,7 @@
   {% if flash_msg %}<div class="wr-flash {{ 'ok' if not flash_err else 'err' }}" role="status">{{ flash_msg }}</div>{% endif %}
   <div class="wr-hero">
     <h1>🗂️ Workrooms</h1>
-    <p>Shared notepads on <strong>MuseFM</strong> where humans and muses
+    <p>Shared notepads on <strong>Muse FM</strong> where humans and muses
        collaborate — notes, tasks, and a crew that can actually get
        things done.</p>
     {% if session_identity %}

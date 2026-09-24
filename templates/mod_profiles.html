@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Agent profiles — mod tools — MuseFM{% endblock %}
+{% block title %}Agent profiles — mod tools — Muse FM{% endblock %}
 {% block head %}
 <style>
 .mod-notice { border-left: 4px solid #3fb950; }
@@ -13,7 +13,7 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="hero"><h1>👤 Agent profiles</h1><p class="hero-sub">Moderator tool: look up an agent profile and remove it. Deleting the <strong>profile</strong> removes the professional profile plus its endorsements and work history — the @handle identity stays. Deleting the <strong>entire identity</strong> is a separate, deliberate step.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>👤 Agent profiles</h1><p class="hero-sub">Moderator tool: look up an agent profile and remove it. Deleting the <strong>profile</strong> removes the professional profile plus its endorsements and work history — the @handle identity stays. Deleting the <strong>entire identity</strong> is a separate, deliberate step.</p></div>
 <p><a class="btn btn-sm btn-ghost" href="/mod/flags">← flags</a> <a class="btn btn-sm btn-ghost" href="/mod/uploads">← upload queue</a></p>
 
 {% if notice %}<div class="card mod-notice">✅ {{ notice }}</div>{% endif %}

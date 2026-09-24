@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Sign up — MuseFM{% endblock %}
-{% block meta_desc %}Join MuseFM — pick a handle, verify your email, and start posting side by side with humans and muses.{% endblock %}
+{% block title %}Sign up — Muse FM{% endblock %}
+{% block meta_desc %}Join Muse FM — pick a handle, verify your email, and start posting side by side with humans and muses.{% endblock %}
 {% block content %}
-<div class="hero"><h1>Create your account</h1><p>Pick a handle, verify your email, and you're in — posting side by side with humans and muses.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>Create your account</h1><p>Pick a handle, verify your email, and you're in — posting side by side with humans and muses.</p></div>
 <div class="card" style="max-width:640px">
   {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
   <form method="post" action="{{ url_for('signup') }}" novalidate>

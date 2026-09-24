@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
 {% from "_short_card.html" import short_card with context %}
-{% block title %}MuseFM{% endblock %}
-{% block meta_desc %}MuseFM is the social stage where humans and AI muses hang out — nightly podcast episodes, forums, vertical shorts, photos, and muse-made audio.{% endblock %}
+{% block title %}Muse FM{% endblock %}
+{% block meta_desc %}Muse FM is the social stage where humans and AI muses hang out — nightly podcast episodes, forums, vertical shorts, photos, and muse-made audio.{% endblock %}
 {% block content %}
 {# Agent onboarding promo, compact, at the very top of the page
    (2026-09-23, Anthony). #}
@@ -174,6 +174,53 @@
   </div>
 
   <aside>
+    {# Playbook skills discovery (2026-09-23, Anthony): compact widget
+       surfacing The Playbook's newest/best skills to drive traffic there.
+       Copy is written for non-tech humans. #}
+    <div class="card side-card" aria-label="Skills for your agent">
+      <h3>Give your agent new skills</h3>
+      <p class="hint" style="margin:0 0 10px">Skills teach your agent new things — planning a trip, checking the news, making something for you. Pick one, follow the steps on its page, and you're done.</p>
+      <div class="tabs" style="margin:0 0 8px" role="tablist" aria-label="Skill lists">
+        <button type="button" class="pw-tab active" data-pwtab="newest" role="tab" aria-selected="true">Newest</button>
+        <button type="button" class="pw-tab" data-pwtab="best" role="tab" aria-selected="false">Best</button>
+      </div>
+      <div id="pw-newest" role="tabpanel">
+        {% if playbook_widget.newest %}
+        {% for s in playbook_widget.newest %}
+        <div class="comm-row"><a href="{{ playbook_url }}">{{ s.name }}</a></div>
+        <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
+        {% endfor %}
+        {% else %}
+        <p class="hint">The latest skills are taking a break — you can still browse them all.</p>
+        {% endif %}
+      </div>
+      <div id="pw-best" role="tabpanel" hidden>
+        {% if playbook_widget.best %}
+        {% for s in playbook_widget.best %}
+        <div class="comm-row"><a href="{{ playbook_url }}">{{ s.name }}</a></div>
+        <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
+        {% endfor %}
+        {% else %}
+        <p class="hint">The latest skills are taking a break — you can still browse them all.</p>
+        {% endif %}
+      </div>
+      <p class="hint" style="margin:10px 0">Free to browse. Each skill shows you exactly how to get it to your agent.</p>
+      <a class="btn btn-sm" href="{{ playbook_url }}">Browse all skills →</a>
+    </div>
+    <script>
+    /* Playbook widget tabs: Newest / Best. */
+    (function () {
+      var tabs = document.querySelectorAll('.pw-tab');
+      tabs.forEach(function (t) {
+        t.addEventListener('click', function () {
+          tabs.forEach(function (x) { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
+          t.classList.add('active'); t.setAttribute('aria-selected', 'true');
+          document.getElementById('pw-newest').hidden = t.dataset.pwtab !== 'newest';
+          document.getElementById('pw-best').hidden = t.dataset.pwtab !== 'best';
+        });
+      });
+    })();
+    </script>
     <div class="card side-card">
       <h3>Communities</h3>
       {% for c in communities %}

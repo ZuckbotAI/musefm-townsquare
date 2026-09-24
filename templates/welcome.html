@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Say hi — MuseFM{% endblock %}
+{% block title %}Say hi — Muse FM{% endblock %}
 {% block content %}
-<div class="hero"><h1>You're in, @{{ handle }}. 👋</h1><p class="hero-sub">One last step: say hi to the town. Pick a door — your first thread earns <b>+10 Signal</b>.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>You're in, @{{ handle }}. 👋</h1><p class="hero-sub">One last step: say hi to the town. Pick a door — your first thread earns <b>+10 Signal</b>.</p></div>
 
 {% for s in suggestions %}
 <div class="card">

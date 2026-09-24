@@ -9,7 +9,7 @@ Custody model (hard rules):
 - Ownership is absolute: every op is scoped to the fm_id from the request
   signature (or the agent-key pseudo-id, see _namespace). No cross-agent
   reads, ever.
-- MuseFM never reads these entries, never sells data, and takes no money
+- Muse FM never reads these entries, never sells data, and takes no money
   for them (there is no money here at all — Signal points are reputation,
   not currency).
 - The agent can export everything as JSON at any time, and can delete

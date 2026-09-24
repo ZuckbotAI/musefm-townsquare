@@ -775,6 +775,26 @@ input[type="file"].input::file-selector-button {
   text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 [data-theme="dark"] .tabs a.active { background: linear-gradient(180deg, #0e5a8f, #083a5e); }
+/* Playbook widget tabs (2026-09-23, Anthony): button version of the .tabs
+   pill language, for the homepage skills sidebar. */
+.tabs .pw-tab {
+  padding: 10px 20px; border-radius: var(--radius-pill); font-size: 14px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  color: var(--text-2);
+  background: linear-gradient(180deg, var(--glass-strong), var(--glass-deep));
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 2px 8px rgba(20,120,190,0.10), inset 0 1px 0 rgba(255,255,255,0.65);
+  transition: transform 0.25s var(--spring), color 0.25s var(--ease), background 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.tabs .pw-tab:hover { transform: translateY(-2px); color: var(--text); box-shadow: 0 6px 16px rgba(20,120,190,0.16), inset 0 1px 0 rgba(255,255,255,0.7); }
+.tabs .pw-tab.active {
+  background: linear-gradient(180deg, #0b3d66, #0a2540);
+  color: #fff; border-color: rgba(11, 61, 102, 0.6);
+  box-shadow: 0 6px 16px rgba(11, 61, 102, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+[data-theme="dark"] .tabs .pw-tab.active { background: linear-gradient(180deg, #0e5a8f, #083a5e); }
 .search-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .search-row .input { flex: 1; border-radius: var(--radius-pill); padding-left: 20px; }
 
@@ -858,6 +878,9 @@ input[type="file"].input::file-selector-button {
   box-shadow: var(--shadow-btn);
 }
 .tool-btn.primary:hover { color: #fff; filter: brightness(1.07); }
+/* destructive affordance (clip delete, 2026-09-23): quiet red outline. */
+.tool-btn.danger { color: #e05252; border-color: rgba(224,82,82,.45); }
+.tool-btn.danger:hover { color: #e05252; border-color: rgba(224,82,82,.7); }
 .progress { height: 10px; background: rgba(10, 60, 100, 0.12); border-radius: 6px; margin-top: 14px; overflow: hidden; cursor: pointer; box-shadow: inset 0 2px 4px rgba(10, 60, 100, 0.18), inset 0 1px 0 rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.5); }
 .progress > div {
   height: 100%; width: 0%;
@@ -1494,6 +1517,13 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   position: relative; overflow: hidden;
 }
 .hero-orb-stage { width: 140px; height: 140px; position: relative; }
+/* page-hero orb home (2026-09-23, Anthony): sub-page heroes had no in-layout
+   orb home, so the floating orb drifted over the banner. Same glass bubble
+   language as the homepage/service heroes, sized down for sub-pages. One
+   #hero-orb-stage per page — never more than one live-orb home. */
+.page-orb-home { display: flex; justify-content: center; margin-bottom: 12px; }
+.page-orb-home .hero-orb-bubble { width: 104px; height: 104px; }
+.page-orb-home .hero-orb-stage { width: 88px; height: 88px; }
 /* hero dialogue: the orb's saying as a speech bubble with a tail pointing
    at the orb bubble — fills the hero's middle instead of floating over it. */
 .hero-says {
@@ -1865,6 +1895,23 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .photo-title { font-weight: 700; margin-top: 8px; }
 .photo-full { padding: 18px; }
 .photo-img { width: 100%; border-radius: var(--radius); }
+/* photo detail prev/next (2026-09-23, Anthony): step through the gallery
+   without going back to the grid. Same 44px circular glass arrow language
+   as the shorts chrome (.shorts-back). */
+.photo-stage { position: relative; }
+.photo-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 44px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(10, 30, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff; font-size: 22px; line-height: 1; cursor: pointer; text-decoration: none;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.2s var(--spring), background 0.2s;
+}
+.photo-nav:hover { background: rgba(0, 144, 231, 0.65); color: #fff; text-decoration: none; }
+.photo-nav:active { transform: translateY(-50%) scale(0.92); }
+.photo-prev { left: 12px; }
+.photo-next { right: 12px; }
 .photo-title-lg { margin: 12px 0 6px; font-size: 22px; }
 .error { color: #ff7b7b; font-weight: 700; }
 

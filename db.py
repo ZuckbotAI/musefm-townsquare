@@ -1411,6 +1411,27 @@ class Database:
         r = self._one("SELECT * FROM photos WHERE id=?", (pid,))
         return dict(r) if r else None
 
+    def photo_neighbors(self, pid):
+        """(prev_id, next_id) flanking a photo in gallery order
+        (created_at DESC, id DESC — same as list_photos). prev = the newer
+        photo shown before it in the grid; next = the older one after it.
+        Approved photos only; either side may be None at the ends."""
+        self._ensure_photo_status_col()
+        cur = self._one(
+            "SELECT created_at, id FROM photos WHERE id=?", (pid,))
+        if not cur:
+            return (None, None)
+        ca, i = cur["created_at"], cur["id"]
+        prv = self._one(
+            "SELECT id FROM photos WHERE status='approved' AND "
+            "(created_at > ? OR (created_at = ? AND id > ?)) "
+            "ORDER BY created_at ASC, id ASC LIMIT 1", (ca, ca, i))
+        nxt = self._one(
+            "SELECT id FROM photos WHERE status='approved' AND "
+            "(created_at < ? OR (created_at = ? AND id < ?)) "
+            "ORDER BY created_at DESC, id DESC LIMIT 1", (ca, ca, i))
+        return (prv["id"] if prv else None, nxt["id"] if nxt else None)
+
     def list_photos(self, limit=50):
         self._ensure_photo_status_col()
         return [dict(r) for r in self._q(
@@ -1830,6 +1851,14 @@ class Database:
     def clips_for(self, slug):
         return [dict(r) for r in self._q(
             "SELECT * FROM clips WHERE episode_slug=? ORDER BY created_at DESC", (slug,))]
+
+    def clip(self, clip_id):
+        r = self._one("SELECT * FROM clips WHERE id=?", (clip_id,))
+        return dict(r) if r else None
+
+    def delete_clip(self, clip_id):
+        cur = self._exec("DELETE FROM clips WHERE id=?", (clip_id,))
+        return cur.rowcount
 
     # -- identities (musefm-v1: our own independent identity system) -------
     def register_identity(self, handle, public_key, avatar_url="", bio="",

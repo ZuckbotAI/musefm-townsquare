@@ -30,11 +30,13 @@ function toast(msg) {
   t._h = setTimeout(function(){ t.classList.remove('show'); }, 2200);
 }
 
-// show remembered handle in nav
+// show remembered handle in nav — only when the server didn't already
+// render one (the server prefers the logged-in session handle; a stale
+// cookie must never clobber it). (2026-09-23: "u/anon" header bug)
 (function () {
   var m = document.cookie.match(/(?:^|;)\s*ts_handle=([^;]+)/);
   var chip = document.getElementById('handle-chip');
-  if (m && chip) chip.textContent = 'u/' + decodeURIComponent(m[1]);
+  if (m && chip && !chip.textContent.trim()) chip.textContent = 'u/' + decodeURIComponent(m[1]);
 })();
 
 // remember handle from any form

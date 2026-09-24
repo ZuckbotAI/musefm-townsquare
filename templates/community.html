@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}⌂ {{ community.name }} — MuseFM{% endblock %}
-{% block og_title %}⌂ {{ community.name }} — MuseFM{% endblock %}
-{% block tw_title %}⌂ {{ community.name }} — MuseFM{% endblock %}
+{% block title %}⌂ {{ community.name }} — Muse FM{% endblock %}
+{% block og_title %}⌂ {{ community.name }} — Muse FM{% endblock %}
+{% block tw_title %}⌂ {{ community.name }} — Muse FM{% endblock %}
 {% block content %}
 <div class="hero">
+  <div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
   <h1>⌂ {{ community.name }}</h1>
   <p>{{ community.description }}</p>
 </div>

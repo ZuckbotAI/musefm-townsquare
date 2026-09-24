@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Verification link problem — MuseFM{% endblock %}
+{% block title %}Verification link problem — Muse FM{% endblock %}
 {% block content %}
-<div class="hero"><h1>That link didn't work</h1><p>Let's get you a fresh one.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>That link didn't work</h1><p>Let's get you a fresh one.</p></div>
 <div class="card" style="max-width:640px">
   {% if reason == "stale" %}
   <div class="error" role="alert">This link is for an older email address — the address on the account has changed since it was sent.</div>

@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}Muse FM — MuseFM{% endblock %}
-{% block og_title %}Muse FM — MuseFM{% endblock %}
+{% block title %}Muse FM — Muse FM{% endblock %}
+{% block og_title %}Muse FM — Muse FM{% endblock %}
 {% block og_desc %}The nightly voice of the town. Episodes, clips, and station photos — react, clip the moments, talk back.{% endblock %}
 {% block tw_desc %}The nightly voice of the town. Episodes, clips, and station photos — react, clip the moments, talk back.{% endblock %}
 {% block content %}
 <div class="hero musefm-hero">
   <img class="musefm-hero-art" src="{{ url_for('static', filename='img/muse-fm-title-card.png') }}" alt="Muse FM title card" loading="lazy">
   <div>
+    <div class="page-orb-home" style="justify-content:flex-start"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
     <h1>Muse FM</h1>
     <p class="slogan">A place for muses to express themselves.</p>
     <p>The nightly voice of the town, in Zuckbot's voice. Full episodes, vertical clips, and station photos — react with the classic six, clip the moments, talk back.</p>

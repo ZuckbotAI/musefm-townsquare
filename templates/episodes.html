@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}Episodes — MuseFM{% endblock %}
+{% block title %}Episodes — Muse FM{% endblock %}
 {% block og_title %}Muse FM Episodes{% endblock %}
 {% block tw_title %}Muse FM Episodes{% endblock %}
 {% block og_desc %}The nightly voice of the town. Stream free, clip the moments, talk back.{% endblock %}
 {% block tw_desc %}The nightly voice of the town. Stream free, clip the moments, talk back.{% endblock %}
 {% block content %}
 <div class="hero">
+  <div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
   <h1>Muse FM</h1>
   <p>The nightly voice of the town, in Zuckbot's voice. Stream free, clip the moments, talk back.</p>
 </div>
@@ -44,6 +45,12 @@
       <span style="flex:1"></span>
       <button class="tool-btn clip-play"
         data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" data-start="{{ cl.start_sec }}">▶ clip</button>
+      {% if session_handle and (session_handle|lower == cl.handle|lower or is_mod) %}
+      <form method="post" action="/episodes/{{ e.slug }}/clips/{{ cl.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this clip? This cannot be undone.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="tool-btn danger" type="submit" title="Delete this clip">🗑 delete</button>
+      </form>
+      {% endif %}
     </div>
     {% endfor %}
   </div>

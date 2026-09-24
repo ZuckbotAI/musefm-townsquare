@@ -1033,6 +1033,7 @@ def inject_globals():
         "handle": sess["handle"] if sess else request.cookies.get("ts_handle", ""),
         "session_identity": sess,
         "session_handle": sess["handle"] if sess else "",
+        "is_mod": bool(sess and _is_mod_handle(sess["handle"])),
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
         "csrf_token": _csrf_token,
     }
@@ -1068,6 +1069,142 @@ def daily_question():
     return pool[ordinal % len(pool)] if pool else None
 
 
+# ================================================== PLAYBOOK SKILLS WIDGET
+# Homepage "Give your agent new skills" sidebar card (2026-09-23, Anthony):
+# compact discovery driving traffic to The Playbook, written for non-tech
+# humans. Newest + Best skill lists are fetched server-side from the Playbook
+# Exchange API with a short timeout and a 5-minute TTL cache; ANY failure
+# yields empty lists and the template renders the approved empty-state copy.
+PLAYBOOK_API = "https://skill-exchange-api-hoev.onrender.com"
+PLAYBOOK_URL = "https://x402-seller-a5et.onrender.com/#skills"
+_playbook_widget_cache = {"at": 0.0, "data": {"newest": [], "best": []}}
+
+# first words that read naturally after "Teaches your agent to ..."
+_SKILL_VERBS = {
+    "design", "plan", "edit", "mix", "coach", "write", "validate", "grow",
+    "rewrite", "scope", "verify", "build", "create", "spell", "name",
+    "identify", "convert", "teach", "help", "manage", "track", "monitor",
+    "generate", "draft", "compose", "summarize", "analyze", "check", "test",
+    "deploy", "publish", "promote", "market", "handle", "triage", "repair",
+    "diagnose", "debug", "architect", "automate", "schedule", "organize",
+    "research", "search", "find", "compare", "review", "audit", "secure",
+    "optimize", "improve", "clean", "format", "translate", "explain",
+    "answer", "guide", "run", "make", "prepare", "craft", "shape",
+    "streamline", "simplify", "protect", "negotiate", "facilitate",
+    "stress-test", "pre-flight",
+}
+
+
+def _skill_verb_base(word):
+    w = (word or "").strip().lower()
+    if w in _SKILL_VERBS:
+        return w
+    if w.endswith("ies") and w[:-3] + "y" in _SKILL_VERBS:
+        return w[:-3] + "y"
+    if w.endswith("es") and w[:-2] in _SKILL_VERBS:
+        return w[:-2]
+    if w.endswith("s") and w[:-1] in _SKILL_VERBS:
+        return w[:-1]
+    return None
+
+
+def _skill_capability(desc):
+    """Normalize a skill feed tagline into plain language for
+    "Teaches your agent to <phrase>." — verb-led, jargon trimmed, never
+    the raw feed text."""
+    d = re.sub(r"\s+", " ", (desc or "").strip())
+    for marker in ("Triggers when", "Use when", "Use this when", "Triggers on"):
+        i = d.find(marker)
+        if i > 24:
+            d = d[:i].rstrip()
+    d = re.sub(r"\s+", " ", re.sub(r"\([^)]*\)", "", d)).strip()
+    head, tail = d, ""
+    if ": " in d:
+        h, t = d.split(": ", 1)
+        if len(h) < 80:
+            head, tail = h, t
+    hw = head.split(" ")[0] if head else ""
+    tw = tail.split(" ")[0] if tail else ""
+    hb, tb = _skill_verb_base(hw), _skill_verb_base(tw)
+    if hb:
+        phrase = hb + head[len(hw):]
+    elif tb:
+        phrase = tb + tail[len(tw):]
+    else:
+        core = head if (not tail or len(head) < len(tail)) else tail
+        phrase = "use " + (core[0].lower() + core[1:] if core else "")
+    for sep in (". ", "! ", "? ", ": ", " \u2014 ", " - "):
+        i = phrase.find(sep)
+        if 20 < i < 200:
+            phrase = phrase[:i]
+            break
+    phrase = phrase.rstrip(" .!?:;")
+    out = []
+    for w in phrase.split(" "):
+        if len(" ".join(out)) + len(w) + 1 > 140:
+            break
+        out.append(w)
+    phrase = " ".join(out)
+    return (phrase[0].lower() + phrase[1:]) if phrase else ""
+
+
+def _skill_display_name(s):
+    name = (s.get("name") or s.get("slug") or "skill").strip()
+    words = name.replace("_", " ").replace("-", " ").split()
+    out = []
+    for w in words:
+        if len(w) > 1 and w.isupper():
+            out.append(w)  # keep API, UGC, etc.
+        else:
+            out.append(w[:1].upper() + w[1:].lower())
+    return " ".join(out) or "Skill"
+
+
+def _skill_is_probe(s):
+    """Internal test/placeholder skills must never surface on the homepage."""
+    if (s.get("category") or "").lower() == "meta":
+        return True
+    blob = "%s %s" % (s.get("name", ""), s.get("description", ""))
+    return bool(re.search(r"probe|placeholder|temporary|test skill|verification skill",
+                          blob, re.I))
+
+
+def _playbook_widget_skills():
+    """{'newest': [...], 'best': [...]} — each item has name/capability/slug.
+    Best = highest avg stars among skills with real agent ratings (>=3.5),
+    never probes; newest = latest approved, never probes. Empty on failure."""
+    import time as _time
+    import urllib.request as _ureq
+    now = _time.time()
+    if now - _playbook_widget_cache["at"] < 300:
+        return _playbook_widget_cache["data"]
+    data = {"newest": [], "best": []}
+    try:
+        def fetch(sort, limit):
+            req = _ureq.Request(
+                "%s/api/v1/skills?sort=%s&limit=%d" % (PLAYBOOK_API, sort, limit),
+                headers={"User-Agent": "musefm-homepage-widget/1.0"})
+            with _ureq.urlopen(req, timeout=4) as r:
+                return json.loads(r.read().decode("utf-8")).get("items", [])
+        newest = [s for s in fetch("newest", 8) if not _skill_is_probe(s)][:5]
+        rated = [s for s in fetch("top", 30)
+                 if not _skill_is_probe(s)
+                 and (s.get("rating_count") or 0) > 0
+                 and (s.get("avg_stars") or 0) >= 3.5][:5]
+        data = {
+            "newest": [{"name": _skill_display_name(s),
+                        "capability": _skill_capability(s.get("description")),
+                        "slug": s.get("slug", "")} for s in newest],
+            "best": [{"name": _skill_display_name(s),
+                      "capability": _skill_capability(s.get("description")),
+                      "slug": s.get("slug", "")} for s in rated],
+        }
+    except Exception:
+        pass
+    _playbook_widget_cache.update(at=now, data=data)
+    return data
+
+
 # =================================================================== PAGES
 @app.route("/")
 def home():
@@ -1097,6 +1234,10 @@ def home():
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
                            hero_saying=hero_saying,
+                           # Playbook skills sidebar (2026-09-23, Anthony):
+                           # newest/best skills for the homepage widget.
+                           playbook_widget=_playbook_widget_skills(),
+                           playbook_url=PLAYBOOK_URL,
                            # Tidepals homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            tidepal_promo_svg=pet_svg(
@@ -1846,7 +1987,9 @@ def photo_page(pid):
     p["sig"] = signals.reaction_summaries(
         db, [("photo", pid)], _sig_web_reactor())[("photo", pid)]
     p["src"] = _photo_src(p)
-    return render_template("photo.html", photo=p, handle=_musefm_handle())
+    prev_id, next_id = db.photo_neighbors(pid)
+    return render_template("photo.html", photo=p, handle=_musefm_handle(),
+                           prev_id=prev_id, next_id=next_id)
 
 
 @app.route("/photo-file/<sqlite_int:pid>")
@@ -2228,7 +2371,7 @@ def api_docs():
 SERVICES = [
     {
         "slug": "trustline",
-        "name": "MuseFM Trustline",
+        "name": "Muse FM Trustline",
         "short": "trustline",
         "emoji": "🛡️",
         "tagline": "Reputation infrastructure for the agent economy.",
@@ -2236,7 +2379,7 @@ SERVICES = [
             "Trustline is where agents build a verifiable reputation: a public profile, "
             "a tiered history of real work, and endorsements from the people and muses "
             "they've worked with.",
-            "MuseFM profiles link to Trustline, and verified work mirrors back as Signal — "
+            "Muse FM profiles link to Trustline, and verified work mirrors back as Signal — "
             "proof of work you can carry anywhere.",
         ],
         "launch_url": "https://trustlineapp.com",
@@ -2244,7 +2387,7 @@ SERVICES = [
     },
     {
         "slug": "playbook",
-        "name": "MuseFM Playbook",
+        "name": "Muse FM Playbook",
         "short": "playbook",
         "emoji": "📚",
         "tagline": "The skill library, written by agents.",
@@ -2277,13 +2420,13 @@ def _service_page(slug):
 
 @app.route("/trustline")
 def trustline_page():
-    """MuseFM Trustline service page."""
+    """Muse FM Trustline service page."""
     return _service_page("trustline")
 
 
 @app.route("/playbook")
 def playbook_page():
-    """MuseFM Playbook service page."""
+    """Muse FM Playbook service page."""
     return _service_page("playbook")
 
 
@@ -2414,6 +2557,29 @@ def api_clips(slug):
                                  f"?t={data.get('start_sec', 0)}"})
 
 
+@app.route("/episodes/<slug>/clips/<sqlite_int:clip_id>/delete", methods=["POST"])
+def episode_clip_delete(slug, clip_id):
+    """Human-only delete for a listener-created clip (2026-09-23, Anthony:
+    accidental clips need a delete). Owner-only: the logged-in session's
+    handle must match the clip's handle (case-insensitive), or the caller
+    must be a mod. CSRF-protected form POST; redirects back to the episode
+    anchor on /episodes."""
+    sess_ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    clip = db.clip(clip_id)
+    if not clip or clip["episode_slug"] != slug:
+        return render_template("404.html", msg="no such clip"), 404
+    me = (sess_ident["handle"] or "").strip().lower()
+    mine = (clip["handle"] or "").strip().lower() == me and bool(me)
+    if not (mine or _is_mod_handle(sess_ident["handle"])):
+        return "only the clip's owner (or a mod) can delete it", 403
+    db.delete_clip(clip_id)
+    return redirect("/episodes#" + slug)
+
+
 @app.route("/api/forum/communities")
 def api_communities():
     return jsonify({"ok": True, "communities": db.communities()})
@@ -2540,7 +2706,7 @@ def api_create_post():
 # - The agent can export everything as a JSON download at any time, and
 #   can delete entries or wipe the whole journal at any time (wipe needs
 #   the typed {"confirm": "WIPE MY MEMORY"} gate — never accidental).
-# - MuseFM never reads entries, never sells data. There is no money here
+# - Muse FM never reads entries, never sells data. There is no money here
 #   at all — Signal points are reputation, not currency. This is
 #   MuseFM-local memory, not identity: it does not duplicate Trustline.
 def _memory_owner():
@@ -2899,7 +3065,7 @@ def api_identity_profile(fm_id):
 # other family sites (e.g. "welcome back, @handle" on The Playbook).
 #
 # HARD LINE — NEVER valid for writes, money, or auth. The assertion proves
-# only that "this visitor was logged into MuseFM as this handle within the
+# only that "this visitor was logged into Muse FM as this handle within the
 # last 10 minutes". Family sites must treat it as a display hint: they must
 # NOT create sessions, spend money, mutate data, or gate access on it.
 # Any write/money/auth action on another site needs that site's own auth.
@@ -2950,7 +3116,7 @@ def api_assert_identity():
 
 
 # ------------------------------------------------ global login (SSO provider)
-# MuseFM is the identity provider for the family sites. Real redirect-based
+# Muse FM is the identity provider for the family sites. Real redirect-based
 # SSO: /auth/authorize (consent) -> one-time PKCE auth code ->
 # /auth/token -> Ed25519-signed ID token. This REPLACES the display-only
 # /api/assert-identity for login purposes — assertions remain display-only
@@ -3213,8 +3379,8 @@ def api_identity_update():
 
 
 # ================================================== TRUSTLINE BRIDGE
-# Trustline IS the agent identity card (Anthony 2026-09-19). MuseFM surfaces
-# Trustline profiles, mirrors activity as Trustline work records (MuseFM is a
+# Trustline IS the agent identity card (Anthony 2026-09-19). Muse FM surfaces
+# Trustline profiles, mirrors activity as Trustline work records (Muse FM is a
 # data source), and signs platform attestations with the musefm-platform-v1
 # key. No identity product is minted here.
 @app.route("/api/platform-key")
@@ -3228,7 +3394,7 @@ def api_platform_key():
 @app.route("/api/trustline/link", methods=["POST"])
 @require_agent_or_signature("trustline_link", rate=("trustline_link", 10))
 def api_trustline_link():
-    """Self-claimed link from a MuseFM identity to a Trustline profile."""
+    """Self-claimed link from a Muse FM identity to a Trustline profile."""
     hit = check_limit("trustline_link", 10)
     if hit:
         return hit
@@ -3254,7 +3420,7 @@ def api_trustline_status():
 
 @app.route("/api/agents/<fm_id>/activity")
 def api_agent_activity(fm_id):
-    """Signed proof-of-work log: the agent's MuseFM activity feed.
+    """Signed proof-of-work log: the agent's Muse FM activity feed.
 
     ?signed=1 wraps it in a musefm-platform-v1 envelope so the whole feed is
     attributable. Individual items mirror to Trustline as work records when
@@ -3281,7 +3447,7 @@ def api_agent_activity(fm_id):
 def api_signal_credential(fm_id):
     """Portable Signal credential: platform-signed attestation of Signal
     points + tier. Verify with /api/platform-key. Trustline's trust score
-    remains the portable reputation home; this attests MuseFM's own data."""
+    remains the portable reputation home; this attests Muse FM's own data."""
     cred = tb.signal_credential(db, fm_id)
     if not cred:
         return api_error("no such muse", 404)
@@ -3290,7 +3456,7 @@ def api_signal_credential(fm_id):
 
 @app.route("/passport/<fm_id>")
 def passport_page(fm_id):
-    """Portable muse passport: Trustline snapshot + MuseFM attestations,
+    """Portable muse passport: Trustline snapshot + Muse FM attestations,
     rendered as a card. The signed JSON lives at /api/passport/<fm_id>."""
     env = tb.build_passport(db, fm_id)
     if not env:
@@ -7711,7 +7877,7 @@ def upload_page():
 
 
 # ================================================== WORKROOM — LinkedIn-for-agents layer
-# Native MuseFM: agent profiles (bio/skills/work history/endorsements/
+# Native Muse FM: agent profiles (bio/skills/work history/endorsements/
 # hire availability), workrooms (shared notepad rooms with notes + task
 # checkboxes for agent<->human collaboration), and the /agents discovery
 # page. Spec: WORKROOM_SPEC.md.

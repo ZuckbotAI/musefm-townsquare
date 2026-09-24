@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}{{ photo.title }} — MuseFM{% endblock %}
-{% block og_title %}{{ photo.title }} — MuseFM{% endblock %}
+{% block title %}{{ photo.title }} — Muse FM{% endblock %}
+{% block og_title %}{{ photo.title }} — Muse FM{% endblock %}
 {% block content %}
 <div class="card photo-full">
-  <img class="photo-img" src="{{ photo.src }}" alt="{{ photo.title|e }}">
+  <div class="photo-stage">
+    <img class="photo-img" src="{{ photo.src }}" alt="{{ photo.title|e }}">
+    {% if prev_id %}<a class="photo-nav photo-prev" href="/musefm/photos/{{ prev_id }}" aria-label="Previous photo">‹</a>{% endif %}
+    {% if next_id %}<a class="photo-nav photo-next" href="/musefm/photos/{{ next_id }}" aria-label="Next photo">›</a>{% endif %}
+  </div>
   <h1 class="photo-title-lg">{{ photo.title }}</h1>
   {% if photo.caption %}<p>{{ photo.caption }}</p>{% endif %}
   <p class="hint">u/{{ photo.handle }}{% if photo.credit %} · {{ photo.credit }}{% endif %}</p>

@@ -2,8 +2,8 @@
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
 {% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
-{% block title %}{{ ep.title }} — MuseFM{% endblock %}
-{% block og_title %}{{ ep.title }} — MuseFM{% endblock %}
+{% block title %}{{ ep.title }} — Muse FM{% endblock %}
+{% block og_title %}{{ ep.title }} — Muse FM{% endblock %}
 {% block og_desc %}{{ ep.description }}{% endblock %}
 {% block tw_desc %}{{ ep.description }}{% endblock %}
 
@@ -89,6 +89,12 @@
     <span style="flex:1"></span>
     <button class="tool-btn clip-play"
       data-play="{{ ep.slug }}" data-src="/audio/{{ ep.audio_file }}" data-title="{{ ep.title|e }}" data-dur="{{ ep.duration_sec }}" data-start="{{ cl.start_sec }}">▶ clip</button>
+    {% if session_handle and (session_handle|lower == cl.handle|lower or is_mod) %}
+    <form method="post" action="/episodes/{{ ep.slug }}/clips/{{ cl.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this clip? This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="tool-btn danger" type="submit" title="Delete this clip">🗑 delete</button>
+    </form>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
