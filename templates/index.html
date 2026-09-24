@@ -361,11 +361,15 @@
           if (!v.muted) card._setMuted(true, false);
           v.play().catch(function () {});
         });
-      } else {
+      } else if (!e.isIntersecting || e.intersectionRatio < 0.3) {
+        // Pause only once the card is genuinely out of view — not on
+        // every transient dip below the play threshold (scroll-snap
+        // settling, dvh resizes, layout shifts), which used to stop
+        // playback mid-watch.
         v.pause();
       }
     });
-  }, { root: feed, threshold: [0, 0.6, 1] });
+  }, { root: feed, threshold: [0, 0.3, 0.6, 1] });
 
   /* ---- comments ---- */
   var SVG_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>';
@@ -480,6 +484,17 @@
         });
     });
   }
+
+  /* ---- per-visit shuffle (Fisher–Yates): the server already deals a fresh
+     deck per page load, but this guarantees the reel order varies on every
+     visit even if the HTML was cached — a small client-side shuffle of the
+     rendered cards before anything is wired to them. */
+  (function shuffleReel() {
+    var cards = Array.prototype.slice.call(feed.querySelectorAll('.short-item'));
+    while (cards.length) {
+      feed.appendChild(cards.splice(Math.floor(Math.random() * cards.length), 1)[0]);
+    }
+  })();
 
   feed.querySelectorAll('.short-item').forEach(function (card) {
     wireCard(card);

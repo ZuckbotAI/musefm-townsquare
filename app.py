@@ -6097,6 +6097,34 @@ def notifications():
     return render_template("notifications.html", items=items)
 
 
+@app.route("/api/notifications/mine")
+def api_notifications_mine():
+    """Session JSON feed for the nav-bell popout (humans only).
+
+    Same item shape as the /notifications page. Fetching marks everything
+    read — the popout opening clears the badge, just like the page did.
+    """
+    ident, redir = _require_human()
+    if redir is not None:
+        return jsonify({"ok": False, "error": "login required"}), 401
+    rows = db.notifications_for(ident["fm_id"], 20)
+    items = []
+    for n in rows:
+        url, label = _notif_link(n)
+        items.append({
+            "id": n["id"],
+            "type": n["type"],
+            "icon": _NOTIF_ICONS.get(n["type"], "🔔"),
+            "text": n.get("text") or "",
+            "created_at": n.get("created_at"),
+            "read": bool(n.get("read")),
+            "url": url,
+            "link_label": label,
+        })
+    db.mark_notifications_read(ident["fm_id"])
+    return jsonify({"ok": True, "unread": 0, "notifications": items})
+
+
 @app.route("/settings/link-code", methods=["POST"])
 def settings_link_code():
     """Mint a single-use pairing code. POST-only + CSRF. The code is

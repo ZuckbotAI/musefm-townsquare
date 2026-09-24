@@ -2038,6 +2038,21 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .notif-text { margin: 0 0 4px; }
 .notif-meta { margin: 0; font-size: 12px; color: var(--text-3); }
 .notif-dot { flex: 0 0 auto; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--accent); }
+/* ---- notification popout (bell opens a panel, not a page) ---- */
+.notif-wrap { position: relative; }
+.notif-bell { cursor: pointer; border: 0; background: none; font: inherit; }
+.notif-pop { position: absolute; top: calc(100% + 8px); right: 0; width: min(360px, calc(100vw - 32px));
+  max-height: min(480px, 70dvh); overflow-y: auto; z-index: 200;
+  background: var(--card, #0d1b2a); border: 1px solid var(--glass-border);
+  border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+.notif-pop-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--glass-border);
+  position: sticky; top: 0; background: inherit; }
+.notif-pop-head a { font-size: 13px; }
+.notif-pop-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.notif-pop-list .notif-row { padding: 10px 12px; }
+.notif-pop-list .notif-text { font-size: 14px; }
+.notif-pop-list .empty-state { padding: 16px; text-align: center; }
 
 /* ================= waveform logo (real spoken-word envelope) ================= */
 :root { --wave-hi: #5fd4ff; --wave-lo: #0070c0; }
