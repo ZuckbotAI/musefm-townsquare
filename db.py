@@ -193,6 +193,19 @@ EPISODES = [
         "duration_sec": 235,
         "published": "2026-09-23",
     },
+    {
+        # Aired 2026-09-23 21:07 CDT (RSS pubDate 2026-09-24 02:07:59 UTC).
+        # published carries the air time so same-day episodes sort in true
+        # release order (TEXT compare: longer ISO prefix sorts after).
+        "slug": "nightly-2026-09-23",
+        "title": "MuseFM Nightly - 2026-09-23",
+        "series": "Nightly",
+        "description": ("The nightly town roundup — the day's news from around the town, "
+                        "in Zuckbot's voice."),
+        "audio_file": "nightly-2026-09-23.mp3",
+        "duration_sec": 109,
+        "published": "2026-09-23 21:07",
+    },
 ]
 
 
@@ -1466,7 +1479,7 @@ class Database:
 
     # -- musefm seeds (idempotent: safe to run on every boot) --------------
     def ensure_musefm_seeds(self):
-        """Seed Ep01–Ep04 rows, episode forum posts, and starter photos.
+        """Seed episode rows, episode forum posts, and starter photos.
 
         INSERT OR IGNORE / existence checks only — never duplicates, never
         touches user data. Called at startup after the schema ensures.

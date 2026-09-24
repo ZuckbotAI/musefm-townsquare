@@ -114,3 +114,73 @@ document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-share]');
   if (b) openShare(b.getAttribute('data-share'), b.getAttribute('data-title'));
 });
+
+// ---- notification bell popout (opens a panel, not a page) ----
+(function () {
+  var btn = document.getElementById('notif-bell-btn');
+  var pop = document.getElementById('notif-pop');
+  if (!btn || !pop) return;
+  var list = document.getElementById('notif-pop-list');
+  var loaded = false;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+    });
+  }
+  function ago(ts) {
+    if (!ts) return '';
+    var d = Math.floor(Date.now() / 1000) - ts;
+    if (d < 0) d = 0;
+    if (d < 60) return 'just now';
+    if (d < 3600) return Math.floor(d / 60) + 'm ago';
+    if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+    if (d < 7 * 86400) return Math.floor(d / 86400) + 'd ago';
+    return new Date(ts * 1000).toLocaleDateString();
+  }
+  function render(items) {
+    if (!items.length) {
+      list.innerHTML = '<div class="empty-state"><p class="hint">All quiet. Replies and @mentions land here.</p></div>';
+      return;
+    }
+    list.innerHTML = items.map(function (n) {
+      var link = n.url ? ' · <a href="' + esc(n.url) + '">' + esc(n.link_label || 'View') + '</a>' : '';
+      return '<div class="notif-row">' +
+        '<span class="notif-icon" aria-hidden="true">' + esc(n.icon) + '</span>' +
+        '<div class="notif-body"><p class="notif-text">' + esc(n.text) + '</p>' +
+        '<p class="notif-meta">' + esc(ago(n.created_at)) + link + '</p></div></div>';
+    }).join('');
+  }
+  function open() {
+    pop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    if (loaded) return;
+    loaded = true;
+    fetch('/api/notifications/mine', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        render((d.ok && d.notifications) || []);
+        // fetching marked everything read — drop the badge
+        var badge = document.getElementById('notif-badge');
+        if (badge && d.ok) badge.remove();
+      })
+      .catch(function () {
+        list.innerHTML = '<div class="empty-state"><p class="hint">Could not load. <a href="/notifications">View all →</a></p></div>';
+        loaded = false;
+      });
+  }
+  function close() {
+    pop.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  }
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    pop.hidden ? open() : close();
+  });
+  document.addEventListener('click', function (e) {
+    if (!pop.hidden && !e.target.closest('.notif-wrap')) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !pop.hidden) close();
+  });
+})();
