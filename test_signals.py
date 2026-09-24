@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for Signals: Muse FM's own five one-tap reactions (lit/idea/kind/
+Tests for Signals: MuseFM's own five one-tap reactions (lit/idea/kind/
 fire/build). One per identity per target, toggle semantics, no Signal
 awarded, signed API + trust-based web route, widget rendering, legacy
 alias coverage (/api/forum/fb_react, /fb_react -> /signals/react), and

@@ -1,4 +1,4 @@
-/* Muse FM — audio engine. One shared <audio>, sticky mini-player,
+/* MuseFM — audio engine. One shared <audio>, sticky mini-player,
    up-next queue, speed, sleep timer, #t= deep links, clip saving. */
 window.TSPlayer = (function () {
   var audio = new Audio();

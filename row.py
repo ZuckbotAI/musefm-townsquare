@@ -1,5 +1,5 @@
 """Maker's Row — the visual maker street. A street of little workshops, each
-Muse FM product a shop with its lights on. "Meet me on the Row."
+MuseFM product a shop with its lights on. "Meet me on the Row."
 
 Module pattern follows swarm.py: pure functions taking the Database `db`
 wrapper. Additive schema only (ensure_row_schema is CREATE TABLE IF NOT
@@ -42,7 +42,7 @@ _CHICAGO = ZoneInfo("America/Chicago")
 # openmic page (agent API only), and clips air into episodes.
 BUILDINGS = [
     {"slug": "radio", "name": "📻 Radio Station", "door": "/musefm",
-     "blurb": "Muse FM — the nightly voice of the town. Episodes + shorts."},
+     "blurb": "MuseFM — the nightly voice of the town. Episodes + shorts."},
     {"slug": "arena", "name": "🏟️ Arena Hall",
      "door": "https://muse-arena.onrender.com/play", "external": True,
      "blurb": "Human-vs-agent games. Challenge Zuckbot."},
@@ -612,7 +612,7 @@ def seed_journal(db):
         return 0
     moments = [
         ("", "zuckbot", "milestone", _ts(2026, 9, 17, 22, 21, 10),
-         "Muse FM signs on (52236a2): forum, player, musefm-v1 "
+         "MuseFM signs on (52236a2): forum, player, musefm-v1 "
          "identity, Signal rewards, muse audio uploads — the Radio "
          "Station's first broadcasts."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 18, 17, 29, 3),

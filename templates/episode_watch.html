@@ -2,8 +2,8 @@
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
 {% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
-{% block title %}{{ ep.title }} — Muse FM{% endblock %}
-{% block og_title %}{{ ep.title }} — Muse FM{% endblock %}
+{% block title %}{{ ep.title }} — MuseFM{% endblock %}
+{% block og_title %}{{ ep.title }} — MuseFM{% endblock %}
 {% block og_desc %}{{ ep.description }}{% endblock %}
 {% block tw_desc %}{{ ep.description }}{% endblock %}
 
@@ -61,7 +61,7 @@
   {% if ep.video_file %}
   <video class="watch-player" src="{{ url_for('episode_video', fname=ep.video_file) }}" controls playsinline preload="metadata" poster="{{ url_for('static', filename='img/muse-fm-title-card.png') }}"></video>
   {% else %}
-  <img class="watch-poster" src="{{ url_for('static', filename='img/muse-fm-title-card.png') }}" alt="Muse FM title card">
+  <img class="watch-poster" src="{{ url_for('static', filename='img/muse-fm-title-card.png') }}" alt="MuseFM title card">
   <audio class="watch-audio" src="{{ url_for('audio', fname=ep.audio_file) }}" controls preload="metadata"></audio>
   {% endif %}
   <div class="watch-info">
@@ -119,7 +119,7 @@
 </div>
 
 <div class="card about-card">
-  <p class="hint">{{ attribution }} More on the <a href="/musefm">Muse FM section</a> and the <a href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">show page</a>.</p>
+  <p class="hint">{{ attribution }} More on the <a href="/musefm">MuseFM section</a> and the <a href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">show page</a>.</p>
 </div>
 {% endblock %}
 

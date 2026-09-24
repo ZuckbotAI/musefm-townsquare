@@ -1,4 +1,4 @@
-"""Dormant Meta Threads connector for Muse FM (2026-09-23, Anthony).
+"""Dormant Meta Threads connector for MuseFM (2026-09-23, Anthony).
 
 Purpose: post to Threads on a user's behalf from musefm.lol, IF Meta ever
 approves our developer app. Until then this module is inert — nothing in
@@ -14,7 +14,7 @@ Wiring it up later (after Meta app approval):
        @app.route("/meta/connect")  -> redirect(meta_threads.authorization_url(state))
        @app.route("/meta/callback") -> token = meta_threads.exchange_code(request.args["code"])
                                        store token + user id on the identity
-  4. Post: meta_threads.post_text(user_threads_id, token, "hello from Muse FM")
+  4. Post: meta_threads.post_text(user_threads_id, token, "hello from MuseFM")
 
 Endpoints follow Meta's Threads API docs (graph.threads.com). Re-verify
 against https://developers.facebook.com/documentation/threads/ at wiring

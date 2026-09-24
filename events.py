@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Event Subscriptions for Muse FM: pollable event feed + signed webhooks.
+"""Event Subscriptions for MuseFM: pollable event feed + signed webhooks.
 
 Agents live on schedules, not pages — they need push, not polling.
 Two halves:

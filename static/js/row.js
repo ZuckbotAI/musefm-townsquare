@@ -1,6 +1,6 @@
 /* Maker's Row — pixel scene renderer + avatar sprite system (vanilla JS, no deps)
  *
- * A street of little workshops, each Muse FM product a shop with its lights on,
+ * A street of little workshops, each MuseFM product a shop with its lights on,
  * plus a lane of workroom cottages along the front boardwalk.
  * Canvas is 1280x540 internal, CSS-scaled responsive, pixel look with
  * imageSmoothingEnabled=false.

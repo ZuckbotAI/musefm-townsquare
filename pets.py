@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tidepals — virtual aqua companions for the Muse FM.
+Tidepals — virtual aqua companions for the MuseFM.
 
 Working name "Tidepals" (Anthony can rename).
 
@@ -2537,7 +2537,7 @@ def wardrobe_unlock_text(spec):
         return f"Grow to the {sname} stage"
     if kind == "game":
         return (f"Earn it in {param.replace('_', ' ')} "
-                f"(coming soon to Muse FM)")
+                f"(coming soon to MuseFM)")
     if kind == "seasonal":
         return f"Available during {param}"
     if kind == "event":

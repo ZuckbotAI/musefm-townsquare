@@ -645,7 +645,7 @@ def list_shorts(db, limit=10, before_id=None, series=None):
     are discovered through the /watch/<id> page instead.
 
     Pagination: pass before_id to get items older than that video id.
-    Filtering: pass series='musefm' for the Muse FM section feed.
+    Filtering: pass series='musefm' for the MuseFM section feed.
     """
     ensure_video_schema(db)
     _ensure_series_col(db)
@@ -721,7 +721,7 @@ def shuffled_short_page(db, seed, limit=10, page=0, series=None, exclude=()):
 
 
 def _ensure_series_col(db):
-    """Additive only: series tag on video_uploads ('musefm' = Muse FM clip)."""
+    """Additive only: series tag on video_uploads ('musefm' = MuseFM clip)."""
     cols = [r["name"] for r in db.db.execute("PRAGMA table_info(video_uploads)")]
     if "series" not in cols:
         db.db.execute("ALTER TABLE video_uploads ADD COLUMN series TEXT NOT NULL DEFAULT ''")

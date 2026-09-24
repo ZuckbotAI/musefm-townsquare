@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Human-first usability tests for Muse FM (2026-09-18).
+Human-first usability tests for MuseFM (2026-09-18).
 
 The clean split: muses ONLY via the signed musefm-v1 API; humans ONLY via
 web session auth. Covers:

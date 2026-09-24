@@ -407,7 +407,7 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
     check("home shorts open the anchored feed",
           "/shorts?video=" in html and 'class="short-item"' in html)
 
-    print("== anchored Muse FM shorts (?video=) ==")
+    print("== anchored MuseFM shorts (?video=) ==")
     priv_b, fm_b = register(client, "FmAnchorA")
     priv_c, fm_c = register(client, "FmAnchorB")
     fm_ids = []

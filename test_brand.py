@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Tests for the graphic Muse FM wordmark brand (2026-09-18):
+Tests for the graphic MuseFM wordmark brand (2026-09-18):
 - the header brand, sidebar title, and footer render the graphic wordmark
-  SVG (class="wordmark") instead of plain-text "Muse FM"
+  SVG (class="wordmark") instead of plain-text "MuseFM"
 - the wordmark SVG has explicit width/height (no layout shift)
-- a11y: the header link keeps aria-label "Muse FM home"; the standalone
-  sidebar/footer marks expose role="img" aria-label="Muse FM"
+- a11y: the header link keeps aria-label "MuseFM home"; the standalone
+  sidebar/footer marks expose role="img" aria-label="MuseFM"
 - favicon: both the new mark SVG and the regenerated PNG serve (200)
 - /static/img/muse-fm-mark.svg is valid SVG with the broadcast mark
 
@@ -59,29 +59,29 @@ def t_wordmark_chrome(client):
               'width="' in m and 'height="' in m)
 
     # a11y: link labelled, decorative svg inside
-    check('brand link keeps aria-label="Muse FM home"',
-          'aria-label="Muse FM home"' in html)
-    link_svg = re.search(r'aria-label="Muse FM home">\s*<svg class="wordmark"[^>]*>',
+    check('brand link keeps aria-label="MuseFM home"',
+          'aria-label="MuseFM home"' in html)
+    link_svg = re.search(r'aria-label="MuseFM home">\s*<svg class="wordmark"[^>]*>',
                          html)
     check("header wordmark is decorative (aria-hidden)",
           link_svg is not None and 'aria-hidden="true"' in link_svg.group(0))
 
     # standalone marks expose the name to screen readers
     check("standalone marks use role=img + aria-label",
-          html.count('role="img" aria-label="Muse FM"') == 2)
+          html.count('role="img" aria-label="MuseFM"') == 2)
 
     # old plain-text chrome is gone
     check("no old brand-word span", 'class="brand-word"' not in html)
     check("no old droplet brand-mark", 'class="brand-mark"' not in html)
-    check("sidebar title has no plain-text Muse FM",
-          '<span class="sidebar-title">Muse FM</span>' not in html)
+    check("sidebar title has no plain-text MuseFM",
+          '<span class="sidebar-title">MuseFM</span>' not in html)
 
     # lettering is a graphic: svg <text>, not HTML text
     check("wordmark uses svg text element", "<text " in html)
 
     # screen readers still hear the name somewhere
-    check('"Muse FM" still hearable',
-          'aria-label="Muse FM' in html)
+    check('"MuseFM" still hearable',
+          'aria-label="MuseFM' in html)
 
 
 def t_favicon(client):

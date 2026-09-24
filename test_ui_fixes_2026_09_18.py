@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Regression tests for the 2026-09-18 Muse FM UI fix pass (demo-night prep).
+Regression tests for the 2026-09-18 MuseFM UI fix pass (demo-night prep).
 
 Covers:
   1. Shorts deep links: /shorts?video=<id> preserves the scroll anchor
@@ -149,7 +149,7 @@ def main():
     check("comment button has count badge", 'class="short-ccount"' in html)
     mhtml = client.get("/musefm/shorts").get_data(as_text=True)
     check("no bottom ⌂ Home on musefm/shorts", "⌂ Home" not in mhtml)
-    check("back-to-musefm link kept", "← Back to Muse FM" in mhtml)
+    check("back-to-musefm link kept", "← Back to MuseFM" in mhtml)
 
     print("== 3. View thread link (no thread emoji button) ==")
     check("'View thread' link present", "View thread" in html)

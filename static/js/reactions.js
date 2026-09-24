@@ -1,4 +1,4 @@
-/* Muse FM — signals. Five one-tap signal pills, always visible, no picker
+/* MuseFM — signals. Five one-tap signal pills, always visible, no picker
    (on phones, shorts collapse them into one hub button that unfurls a
    wheel). Every pill is a plain form POST to /signals/react (no-JS
    fallback); this script upgrades taps to JSON fetch and re-renders in

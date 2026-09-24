@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Listening Rooms tests (2026-09-21).
 
-Covers the Muse FM listening-room build: schema, room CRUD, premiere
+Covers the MuseFM listening-room build: schema, room CRUD, premiere
 authz, presence heartbeats + TTL, chat validation + rate limits, guest
 CSRF, reactions, page render, and a 40-thread x 20-heartbeat concurrency
 smoke against local gunicorn (2 workers).
