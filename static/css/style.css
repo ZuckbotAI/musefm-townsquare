@@ -2131,3 +2131,165 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .pw-checks li::before { content: "○ "; }
 .pw-checks li.ok { color: var(--text, #1c1917); }
 .pw-checks li.ok::before { content: "✓ "; color: #16a34a; }
+
+/* ============ forum dialogue redesign (2026-09-24, Anthony) ============
+   Scoped to .forum-thread (post.html only). watch.html and episode_watch.html
+   keep the legacy .comment / rainbow-depth styles untouched. */
+
+.forum-thread { margin-top: 4px; }
+
+/* One clean card per comment at every depth — replaces the rainbow d0..d5
+   border/background colors. The d0..d5 classes stay in the selectors so these
+   rules win over the legacy depth styles (incl. the dark-theme variants). */
+.forum-thread .comment.d0,
+.forum-thread .comment.d1,
+.forum-thread .comment.d2,
+.forum-thread .comment.d3,
+.forum-thread .comment.d4,
+.forum-thread .comment.d5 {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 12px;
+  border: 1px solid rgba(10, 37, 64, 0.09);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  padding: 12px 14px;
+  margin: 10px 0;
+}
+[data-theme="dark"] .forum-thread .comment.d0,
+[data-theme="dark"] .forum-thread .comment.d1,
+[data-theme="dark"] .forum-thread .comment.d2,
+[data-theme="dark"] .forum-thread .comment.d3,
+[data-theme="dark"] .forum-thread .comment.d4,
+[data-theme="dark"] .forum-thread .comment.d5 {
+  border-color: rgba(148, 197, 255, 0.13);
+  background: rgba(13, 27, 42, 0.65);
+}
+
+/* Avatar rail: one circle per speaker, spanning the whole comment. */
+.forum-thread .f-avatar {
+  grid-row: 1 / span 30;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  overflow: hidden;
+  flex: none;
+}
+.forum-thread .f-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Speaker identity: bold handle first, quiet meta after. */
+.forum-thread .fhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.forum-thread .fwho {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.forum-thread .fhead .when {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.forum-thread .fhead .edited {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+/* Reply context: who this comment is talking to. */
+.forum-thread .freplyto {
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 2px 0 6px;
+}
+.forum-thread .freplyto strong {
+  color: var(--accent-deep);
+  font-weight: 700;
+}
+[data-theme="dark"] .forum-thread .freplyto strong {
+  color: var(--accent);
+}
+
+/* Simpler badges inside the forum (town-wide colors kept). */
+.forum-thread .tier {
+  font-size: 10px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+  box-shadow: none;
+}
+.forum-thread .op-flag {
+  font-size: 10px;
+  padding: 2px 8px;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+/* One clean nesting rail for the whole replies subtree. */
+.forum-thread .comment .replies {
+  grid-column: 1 / -1;
+  margin: 10px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid rgba(10, 37, 64, 0.14);
+}
+.forum-thread .comment .replies:empty {
+  display: none;
+}
+[data-theme="dark"] .forum-thread .comment .replies {
+  border-left-color: rgba(148, 197, 255, 0.20);
+}
+
+/* Reply / edit forms span the full card width. */
+.forum-thread .c-reply-form,
+.forum-thread .c-edit-form {
+  grid-column: 1 / -1;
+}
+
+/* Tighter action row; 44px touch targets unchanged (see _comments.html). */
+.forum-thread .comment-actions {
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Anchor-jump highlight still works on the new cards. */
+.forum-thread .comment:target {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+@media (max-width: 640px) {
+  .forum-thread .comment.d0,
+  .forum-thread .comment.d1,
+  .forum-thread .comment.d2,
+  .forum-thread .comment.d3,
+  .forum-thread .comment.d4,
+  .forum-thread .comment.d5 {
+    grid-template-columns: 32px minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 10px 12px;
+  }
+  .forum-thread .f-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  .forum-thread .comment .replies {
+    padding-left: 10px;
+  }
+}

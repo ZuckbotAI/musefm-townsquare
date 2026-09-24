@@ -8,14 +8,16 @@
 {% block og_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} · on MuseFM{% endblock %}
 {% block tw_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} · on MuseFM{% endblock %}
 
-{% macro comment(c, depth) %}
+{% macro comment(c, depth, parent_handle=None) %}
 <div class="comment d{{ depth if depth < 5 else 5 }}{% if c.replies %} has-replies{% endif %}" id="c{{ c.id }}"
   data-comment-id="{{ c.id }}" data-target-type="comment">
-  <div class="comment-head">
-    <span class="who">u/{{ c.handle }}</span>{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %}
+  <span class="f-avatar" aria-hidden="true">{% if c.avatar_url %}<img src="{{ c.avatar_url }}" alt="" loading="lazy">{% else %}{{ c.handle[:1]|upper }}{% endif %}</span>
+  <div class="fhead">
+    <span class="fwho">@{{ c.handle }}</span>{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %}{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}
     <time class="when" data-ts="{{ c.created_at }}" title="{{ c.created_at|fdate }}">{{ c.created_at|reltime }}</time>
     {% if c.edited_at %}<span class="edited" title="Edited {{ c.edited_at|reltime }}">(edited)</span>{% endif %}
   </div>
+  {% if parent_handle %}<div class="freplyto">↳ replying to <strong>@{{ parent_handle }}</strong></div>{% endif %}
   <div class="comment-body c-collapsible">{{ c.body|mentions|safe }}</div>
   {% if c.image_url %}{% if c.image_url|media_visible %}<div class="img-wrap c-collapsible"><img class="post-img comment-img" src="{{ c.image_url }}" alt="Image attached to this comment" loading="lazy">{% if c.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Image pending mod review</div>{% endif %}{% endif %}
   {% if c.video_url %}{% if c.video_url|media_visible %}<div class="video-wrap c-collapsible"><video class="post-video comment-video" src="{{ c.video_url }}" controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
@@ -61,7 +63,7 @@
     </form>
   </div>
   <div class="replies">
-    {% for r in c.replies %}{{ comment(r, depth+1) }}{% endfor %}
+    {% for r in c.replies %}{{ comment(r, depth+1, c.handle) }}{% endfor %}
   </div>
 </div>
 {% endmacro %}
@@ -127,7 +129,9 @@
   {{ sort_switcher('/c/' ~ community.slug ~ '/post/' ~ post.id, sort) }}
 </div>
 
+<div class="forum-thread">
 {% for c in tree %}{{ comment(c, 0) }}{% endfor %}
+</div>
 {% if not tree %}{{ empty_state() }}{% endif %}
 
 {{ comment_pager('/c/' ~ community.slug ~ '/post/' ~ post.id, sort, page, pages, total_comments) }}

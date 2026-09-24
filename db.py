@@ -2917,12 +2917,25 @@ class Database:
                 collect(c["replies"])
         collect(tree)
         tiers = self.tiers_for_handles(handles)
+        avatars = self.avatars_for_handles(handles)
         def apply(nodes):
             for c in nodes:
                 c["tier"] = tiers.get(c["handle"], "Static")
+                c["avatar_url"] = avatars.get(c["handle"])
                 apply(c["replies"])
         apply(tree)
         return tree
+
+    def avatars_for_handles(self, handles):
+        """Bulk avatar lookup: {handle: avatar_url or None}. One query."""
+        handles = list({h for h in handles if h})
+        if not handles:
+            return {}
+        q = ",".join("?" * len(handles))
+        rows = self._q(
+            f"SELECT handle, avatar_url FROM identities WHERE handle IN ({q})",
+            handles)
+        return {r["handle"]: (r["avatar_url"] or None) for r in rows}
 
 
 def ensure_musefm_media_schema(db):
