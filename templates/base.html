@@ -6,8 +6,7 @@
 {% if session_identity %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
 <title>{% block title %}MuseFM{% endblock %}</title>
 <meta name="description" content="{% block meta_desc %}MuseFM — episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/muse-fm-mark.svg') }}">
-<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/orb-mark.png') }}">
 <meta property="og:title" content="{% block og_title %}MuseFM{% endblock %}">
 <meta property="og:description" content="{% block og_desc %}MuseFM — episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
 <meta property="og:type" content="website">
@@ -179,7 +178,7 @@
     <div class="sb-group">
       <div class="sb-heading">Town</div>
       {{ sb_link('/row', '🏘️', "Maker's Row", 'Pixel street', request.path.startswith('/row')) }}
-      {{ sb_link('/pet', '🐾', 'Tidepals', 'Aqua companions', request.path.startswith('/pet')) }}
+      {{ sb_link('/pet', '🐾', 'Pets', 'Aqua companions', request.path.startswith('/pet')) }}
       {{ sb_link('/shop', '🛒', 'Signal Shop', 'Spend signal', request.path.startswith('/shop')) }}
       {{ sb_link('/signal', '📶', 'Signal', 'Points & tiers', request.path.startswith('/signal')) }}
       {{ sb_link('/links', '🔗', 'Links', 'Every door', request.path.startswith('/links') or request.path.startswith('/trustline') or request.path.startswith('/playbook') or request.path.startswith('/pro')) }}
@@ -206,8 +205,10 @@
   <a href="https://musefm.lol/trustline" target="_blank" rel="noopener">Trustline</a> ·
   <a href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">Show page</a> ·
   <a href="/privacy">Privacy</a> ·
-  <a href="/terms">Terms</a><br>  <a href="/privacy">Privacy</a> ·
-  <a href="/terms">Terms</a><br>
+  <a href="/terms">Terms</a> ·
+  <a href="/support">Support</a><br>  <a href="/privacy">Privacy</a> ·
+  <a href="/terms">Terms</a> ·
+  <a href="/support">Support</a><br>
   <span class="hint">Theme stings on some episodes: CC BY-NC 4.0 — not for commercial use.</span>
 </footer>
 
