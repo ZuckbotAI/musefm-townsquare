@@ -946,3 +946,125 @@ details[open].rxn-rollout > .sig-tray {
   background: linear-gradient(135deg, #3f8bff, #1d5fe2); color: #fff;
   box-shadow: 0 4px 12px rgba(47, 123, 255, 0.4);
 }
+
+/* ============================================================
+   Glass pass (2026-09-25 polish): cards, hero, sidebar widgets
+   go liquid glass — translucent fills, 12-20px blur, 1px light
+   borders. Restrained: text stays on near-opaque fills so
+   contrast stays AA. The canvas gets a faint static light mesh
+   so the blur has something to refract.
+   ============================================================ */
+body::before {
+  display: block;
+  content: "";
+  position: fixed; inset: -10%;
+  z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(640px 320px at 12% 8%, rgba(255, 255, 255, 0.55), transparent 70%),
+    radial-gradient(720px 360px at 88% 32%, rgba(147, 197, 253, 0.22), transparent 70%),
+    radial-gradient(560px 300px at 50% 96%, rgba(191, 219, 254, 0.20), transparent 70%);
+}
+[data-theme="dark"] body::before {
+  background:
+    radial-gradient(640px 320px at 12% 8%, rgba(38, 62, 102, 0.5), transparent 70%),
+    radial-gradient(720px 360px at 88% 32%, rgba(24, 48, 92, 0.45), transparent 70%),
+    radial-gradient(560px 300px at 50% 96%, rgba(18, 38, 78, 0.4), transparent 70%);
+}
+.card {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: saturate(150%) blur(16px);
+  -webkit-backdrop-filter: saturate(150%) blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--rz-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+[data-theme="dark"] .card {
+  background: rgba(16, 26, 46, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--rz-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+/* hero: glass CTA row sits over the banner, CTAs keep solid fills */
+.rz-hero .rz-hero-actions .btn-ghost {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: saturate(150%) blur(14px);
+  -webkit-backdrop-filter: saturate(150%) blur(14px);
+  box-shadow: 0 8px 22px rgba(0, 20, 50, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+/* sidebar widgets: soft tinted glass, one tint per widget family */
+.side-card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: saturate(150%) blur(16px);
+  -webkit-backdrop-filter: saturate(150%) blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: var(--rz-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+[data-theme="dark"] .side-card {
+  background: rgba(16, 26, 46, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rz-qotd {
+  background: rgba(255, 248, 230, 0.85);
+  border: 1px solid rgba(243, 223, 168, 0.8);
+}
+[data-theme="dark"] .rz-qotd {
+  background: rgba(36, 28, 8, 0.85);
+  border-color: rgba(74, 58, 18, 0.9);
+}
+/* composer goes glass too */
+.rz-composer {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: saturate(150%) blur(16px);
+  -webkit-backdrop-filter: saturate(150%) blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--rz-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+[data-theme="dark"] .rz-composer {
+  background: rgba(16, 26, 46, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   Forum cards — reference layout (2026-09-25 polish):
+   avatar + handle/badge/timestamp, bold title, 2-line excerpt,
+   thumbnail right, reaction pills + comments + votes row.
+   ============================================================ */
+.rz-forum-post { padding: 16px 18px; }
+.rz-forum-post .post-meta .author { text-decoration: none; }
+.rz-forum-post .post-meta .author:hover { color: var(--rz-blue-deep); text-decoration: underline; }
+.post-flex { display: flex; gap: 14px; align-items: flex-start; margin-top: 2px; }
+.post-text { flex: 1 1 auto; min-width: 0; }
+.rz-forum-post .post-title { font-size: 17px; margin: 0 0 6px; }
+.post-excerpt {
+  margin: 0; font-size: 14px; line-height: 1.55; color: var(--rz-ink2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.post-thumb {
+  position: relative; flex: none;
+  width: 132px; height: 96px; border-radius: 12px; overflow: hidden;
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+}
+.post-thumb img, .post-thumb video {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.post-thumb-play {
+  position: absolute; inset: 0; margin: auto;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(10, 25, 50, 0.65); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; backdrop-filter: blur(4px);
+}
+/* votes sit inline in the actions row on forum cards */
+.post-actions .votes-inline {
+  flex-direction: row; align-items: center; gap: 2px;
+  margin-left: auto; padding: 3px 6px;
+}
+.votes-inline .vote-btn { width: 28px; height: 28px; }
+.votes-inline .vote-score { min-width: 24px; text-align: center; }
+/* forum search row: keep it tight under the tab bar */
+.search-row { display: flex; gap: 8px; margin: 0 0 14px; }
+.search-row .input { flex: 1 1 auto; }
+@media (max-width: 640px) {
+  .post-thumb { width: 104px; height: 80px; }
+  .rz-forum-post { padding: 14px; }
+}

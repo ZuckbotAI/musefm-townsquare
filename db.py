@@ -3159,6 +3159,17 @@ class Database:
             out.append(d)
         return out
 
+    def online_now(self, minutes=15, limit=8):
+        """Handles with rewarded activity in the last `minutes` minutes —
+        for the forum 'Online now' sidebar card. Empty list when quiet."""
+        rows = self._q(
+            "SELECT i.handle FROM identity_activity a"
+            " JOIN identities i ON i.fm_id = a.fm_id"
+            " WHERE a.last_active > strftime('%s','now') - ?"
+            " ORDER BY a.last_active DESC LIMIT ?",
+            (minutes * 60, limit))
+        return [r["handle"] for r in rows]
+
     # -- tier enrichment --------------------------------------------------
     def _add_tiers(self, posts):
         tiers = self.tiers_for_handles([p["handle"] for p in posts])

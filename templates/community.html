@@ -10,55 +10,122 @@
   <p>{{ community.description }}</p>
 </div>
 
-<div class="feed-bar">
-  <div class="seg-tabs" role="tablist" aria-label="Sort posts">
-    <a href="/c/{{ community.slug }}?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}">Hot</a>
-    <a href="/c/{{ community.slug }}?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}">New</a>
-    <a href="/c/{{ community.slug }}?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}">Top</a>
-  </div>
-  <a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a>
-</div>
-
-<form class="search-row" method="get" action="/c/{{ community.slug }}">
-  <input type="hidden" name="sort" value="{{ sort }}">
-  <input class="input" name="q" placeholder="Search {{ community.name }}…" value="{{ q }}">
-  <button class="btn btn-ghost btn-sm" type="submit">Search</button>
-</form>
-
-{% for p in posts %}
-<div class="card"><div class="post-row">
-  <div class="votes">
-    <form method="post" action="/vote" style="margin:0">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="target_type" value="post">
-      <input type="hidden" name="target_id" value="{{ p.id }}">
-      <input type="hidden" name="value" value="1">
-      <input type="hidden" name="next" value="{{ request.full_path }}">
-      <button class="vote-btn up">▲</button>
-    </form>
-    <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}">{{ p.score }}</span>
-    <form method="post" action="/vote" style="margin:0">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="target_type" value="post">
-      <input type="hidden" name="target_id" value="{{ p.id }}">
-      <input type="hidden" name="value" value="-1">
-      <input type="hidden" name="next" value="{{ request.full_path }}">
-      <button class="vote-btn down">▼</button>
-    </form>
-  </div>
-  <div class="post-main">
-    <div class="post-meta">
-      <span class="meta-group"><span class="flair flair-{{ p.flair }}">{{ p.flair }}</span></span>
-      <span class="meta-group"><span class="author">u/{{ p.handle }}</span>{% if p.tier and p.tier != 'Static' %}<span class="tier tier-{{ p.tier|lower }}">{{ p.tier }}</span>{% endif %}<span class="when">{{ p.created_at|fdate }}</span></span>
+<div class="grid">
+  <div>
+    <div class="feed-bar">
+      <div class="seg-tabs" role="tablist" aria-label="Sort posts">
+        <a href="/c/{{ community.slug }}?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}">Hot</a>
+        <a href="/c/{{ community.slug }}?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}">New</a>
+        <a href="/c/{{ community.slug }}?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}">Top</a>
+      </div>
+      <a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a>
     </div>
-    <h3 class="post-title"><a href="/c/{{ community.slug }}/post/{{ p.id }}">{{ p.title }}</a></h3>
-    {% if p.body %}<div class="post-body">{{ p.body[:280] }}{% if p.body|length > 280 %}…{% endif %}</div>{% endif %}
-    {% set post_url = "/c/" ~ community.slug ~ "/post/" ~ p.id %}{% include "_post_media.html" %}
-    <div class="post-meta post-actions"><a class="comment-count" href="/c/{{ community.slug }}/post/{{ p.id }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>{{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}</div>
+
+    <form class="search-row" method="get" action="/c/{{ community.slug }}">
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <input class="input" name="q" placeholder="Search {{ community.name }}…" value="{{ q }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+    </form>
+
+    {% for p in posts %}
+    {% set post_url = "/c/" ~ community.slug ~ "/post/" ~ p.id %}
+    {% set thumb = p.image_url if p.image_url and (p.image_url|media_visible) else (p.gif_url or (p.video_url if p.video_url and (p.video_url|media_visible) else None)) %}
+    <article class="card rz-post rz-forum-post">
+      <div class="post-row">
+        <a class="post-avatar" href="/u/{{ p.handle }}" aria-label="u/{{ p.handle }}'s profile"></a>
+        <div class="post-main">
+          <div class="post-meta">
+            <a class="author" href="/u/{{ p.handle }}">u/{{ p.handle }}</a>
+            <span class="flair flair-{{ p.flair }}">{{ p.flair }}</span>
+            {% if p.tier and p.tier != 'Static' %}<span class="tier tier-{{ p.tier|lower }}">{{ p.tier }}</span>{% endif %}
+            <span class="when">{{ p.created_at|fdate }}</span>
+          </div>
+          <div class="post-flex">
+            <div class="post-text">
+              <h3 class="post-title"><a href="{{ post_url }}">{{ p.title }}</a></h3>
+              {% if p.body %}<p class="post-excerpt">{{ p.body[:220] }}{% if p.body|length > 220 %}…{% endif %}</p>{% endif %}
+            </div>
+            {% if thumb %}
+            <a class="post-thumb" href="{{ post_url }}" aria-label="Open post media" tabindex="-1">
+              {% if p.video_url and thumb == p.video_url %}
+              <video src="{{ p.video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
+              <span class="post-thumb-play" aria-hidden="true">▶</span>
+              {% else %}
+              <img src="{{ thumb }}" alt="" loading="lazy" decoding="async">
+              {% endif %}
+            </a>
+            {% endif %}
+          </div>
+          <div class="post-actions">
+            {{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}
+            <a class="comment-count" href="{{ post_url }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>
+            <div class="votes votes-inline">
+              <form method="post" action="/vote" style="margin:0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="target_type" value="post">
+                <input type="hidden" name="target_id" value="{{ p.id }}">
+                <input type="hidden" name="value" value="1">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <button class="vote-btn up" title="upvote" aria-label="Upvote">▲</button>
+              </form>
+              <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}">{{ p.score }}</span>
+              <form method="post" action="/vote" style="margin:0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="target_type" value="post">
+                <input type="hidden" name="target_id" value="{{ p.id }}">
+                <input type="hidden" name="value" value="-1">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <button class="vote-btn down" title="downvote" aria-label="Downvote">▼</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+    {% else %}
+    <div class="card"><p class="hint">Quiet in here. Start the conversation.</p>
+    <a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a></div>
+    {% endfor %}
   </div>
-</div></div>
-{% else %}
-<div class="card"><p class="hint">Quiet in here. Start the conversation.</p>
-<a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a></div>
-{% endfor %}
+
+  <aside>
+    {% if daily_q %}
+    <div class="card side-card rz-qotd" aria-label="Question of the day">
+      <span class="flair flair-announcement">☀️ Question of the day</span>
+      <h2>{{ daily_q.question }}</h2>
+      {% if daily_q.prompt %}<p class="hint" style="margin:0 0 10px">{{ daily_q.prompt }}</p>{% endif %}
+      <a class="btn btn-sm" href="/submit?c=lobby&title={{ ('Re: ' + daily_q.question)|urlencode }}&body={{ ('My answer: ')|urlencode }}">Answer it →</a>
+    </div>
+    {% endif %}
+    <div class="card side-card" aria-label="Trending topics">
+      <h3>📈 Trending topics</h3>
+      {% for c in communities|sort(attribute='posts', reverse=true) %}
+      {% if c.slug != community.slug and loop.index <= 6 %}
+      <div class="comm-row">
+        <a href="/c/{{ c.slug }}">⌂ {{ c.name }}</a>
+        <span class="comm-count">{{ c.posts }} posts</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div class="card side-card" aria-label="Online now">
+      <h3>🟢 Online now</h3>
+      {% if online_now %}
+      {% for h in online_now %}
+      <div class="comm-row">
+        <a href="/u/{{ h }}">u/{{ h }}</a>
+        <span class="comm-count">active</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="hint" style="margin:0">Quiet right now — be the one who shows up.</p>
+      {% endif %}
+    </div>
+    <div class="card side-card">
+      <h3>About ⌂ {{ community.name }}</h3>
+      <p class="hint" style="margin:0 0 10px">{{ community.description }}</p>
+      <a class="btn btn-sm btn-ghost" href="/submit?c={{ community.slug }}">＋ New post</a>
+    </div>
+  </aside>
+</div>
 {% endblock %}

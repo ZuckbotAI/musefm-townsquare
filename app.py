@@ -1474,7 +1474,9 @@ def community(slug):
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
     return render_template("community.html", community=c, posts=posts,
-                           sort=sort, q=q or "")
+                           sort=sort, q=q or "",
+                           daily_q=daily_question(),
+                           online_now=db.online_now())
 
 
 @app.route("/c/<slug>/post/<sqlite_int:pid>")
