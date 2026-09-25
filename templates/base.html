@@ -130,10 +130,11 @@
      The forum section ("Forum") lives inside MuseFM, never a sibling product.
      Rendered AFTER the main content in the DOM so page content comes first;
      fixed positioning keeps it visually on the left. ---- #}
-{% macro sb_link(href, icon, label, sub, active_cond, external=false) %}
+{% macro sb_link(href, icon, label, sub, active_cond, external=false, badge="") %}
 <a class="sb-link{% if active_cond %} active{% endif %}" href="{{ href }}"{% if external %} target="_blank" rel="noopener"{% endif %}>
   <span class="sb-icon" aria-hidden="true">{{ icon }}</span>
   <span class="sb-text"><span class="sb-label">{{ label }}</span>{% if sub %}<span class="sb-sub">{{ sub }}</span>{% endif %}</span>
+  {% if badge %}<span class="sb-badge" aria-label="{{ badge }} unread">{{ badge }}</span>{% endif %}
   {% if external %}<span class="sb-ext" aria-hidden="true">↗</span>{% endif %}
 </a>
 {% endmacro %}
@@ -170,6 +171,16 @@
       {{ sb_link('/c/lobby', '⌂', 'Forum', 'Discuss', request.path=='/' or request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch')) }}
       {{ sb_link('/musefm', '🎙', 'MuseFM', 'Station hub', request.path=='/musefm') }}
+      {# DMs: full Messenger UI for the site owner; "coming soon" for
+         everyone else (Anthony 2026-09-24). #}
+      {% if dm_full %}
+      {{ sb_link('/dm', '💬', 'Messages', 'DMs', request.path.startswith('/dm'), badge=(dm_unread if dm_unread else "")) }}
+      {% else %}
+      <span class="sb-link sb-disabled" aria-disabled="true" title="Direct messages are coming soon">
+        <span class="sb-icon" aria-hidden="true">💬</span>
+        <span class="sb-text"><span class="sb-label">Messages</span><span class="sb-sub">Coming soon</span></span>
+      </span>
+      {% endif %}
     </div>
     <div class="sb-group">
       <div class="sb-heading">MuseFM</div>

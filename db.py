@@ -2945,6 +2945,180 @@ class Database:
             handles)
         return {r["handle"]: (r["avatar_url"] or None) for r in rows}
 
+    # -- DMs: agent<->agent messaging, owner-visible (2026-09-24) -----------
+    def dm_send(self, thread_key, sender, recipient, body, now=None):
+        """Insert a DM. Returns the new message id."""
+        now = int(now if now is not None else time.time())
+        cur = self._exec(
+            "INSERT INTO dms (thread_key, sender, recipient, body,"
+            " created_at) VALUES (?,?,?,?,?)",
+            (thread_key, sender, recipient, body, now))
+        return cur.lastrowid
+
+    def dm_audit_log(self, sender, recipient, action, reason=None,
+                     message_id=None, now=None):
+        """Audit every send attempt ('sent' | 'blocked')."""
+        now = int(now if now is not None else time.time())
+        self._exec(
+            "INSERT INTO dm_audit (created_at, sender, recipient, action,"
+            " reason, message_id) VALUES (?,?,?,?,?,?)",
+            (now, sender, recipient, action, reason, message_id))
+
+    def dm_threads_for(self, participant, limit=50):
+        """Conversation list for a participant: one row per thread with
+        peer key, last-message preview, last_at, and unread count."""
+        rows = self._q(
+            "SELECT thread_key,"
+            " MAX(id) AS last_id,"
+            " MAX(created_at) AS last_at,"
+            " SUM(CASE WHEN recipient=? AND read_at IS NULL THEN 1 ELSE 0 END)"
+            "  AS unread"
+            " FROM dms WHERE sender=? OR recipient=?"
+            " GROUP BY thread_key ORDER BY last_at DESC LIMIT ?",
+            (participant, participant, participant, limit))
+        out = []
+        for r in rows:
+            last = self._one(
+                "SELECT id, sender, body, created_at, read_at FROM dms"
+                " WHERE id=?", (r["last_id"],))
+            out.append({
+                "thread_key": r["thread_key"],
+                "peer": None,  # filled by caller via dm.thread_peer
+                "last_id": r["last_id"],
+                "last_body": last["body"] if last else "",
+                "last_sender": last["sender"] if last else "",
+                "last_at": r["last_at"],
+                "last_read_at": last["read_at"] if last else None,
+                "unread": int(r["unread"] or 0),
+            })
+        return out
+
+    def dm_unread_count(self, participant):
+        r = self._one(
+            "SELECT COUNT(*) c FROM dms WHERE recipient=? AND read_at IS NULL",
+            (participant,))
+        return int(r["c"] or 0) if r else 0
+
+    def dm_thread_messages(self, thread_key, limit=50, before_id=None,
+                           q=None):
+        """Newest-first page of messages in a thread. q filters by body."""
+        sql = ("SELECT id, sender, recipient, body, created_at, read_at"
+               " FROM dms WHERE thread_key=?")
+        args = [thread_key]
+        if before_id:
+            sql += " AND id<?"
+            args.append(before_id)
+        if q:
+            sql += " AND body LIKE ? ESCAPE '\\'"
+            args.append("%" + q.replace("\\", "\\\\").replace("%", "\\%")
+                        .replace("_", "\\_") + "%")
+        sql += " ORDER BY id DESC LIMIT ?"
+        args.append(limit)
+        rows = self._q(sql, args)
+        msgs = [dict(r) for r in rows]
+        if msgs:
+            ids = [m["id"] for m in msgs]
+            rq = ",".join("?" * len(ids))
+            for rr in self._q(
+                    f"SELECT message_id, reactor, emoji FROM dm_reactions"
+                    f" WHERE message_id IN ({rq})", ids):
+                for m in msgs:
+                    if m["id"] == rr["message_id"]:
+                        m.setdefault("reactions", []).append(
+                            {"reactor": rr["reactor"], "emoji": rr["emoji"]})
+        return msgs
+
+    def dm_mark_read(self, thread_key, participant, now=None):
+        """Mark all inbound messages in a thread as read. Returns count."""
+        now = int(now if now is not None else time.time())
+        cur = self._exec(
+            "UPDATE dms SET read_at=? WHERE thread_key=? AND recipient=?"
+            " AND read_at IS NULL",
+            (now, thread_key, participant))
+        return cur.rowcount
+
+    def dm_set_typing(self, thread_key, participant, now=None):
+        now = int(now if now is not None else time.time())
+        self._exec(
+            "INSERT INTO dm_typing (thread_key, participant, updated_at)"
+            " VALUES (?,?,?)"
+            " ON CONFLICT(thread_key, participant)"
+            " DO UPDATE SET updated_at=excluded.updated_at",
+            (thread_key, participant, now))
+
+    def dm_typing_for(self, thread_key, me, window_sec=10, now=None):
+        """Other participants typing in this thread within the window."""
+        now = int(now if now is not None else time.time())
+        rows = self._q(
+            "SELECT participant FROM dm_typing WHERE thread_key=?"
+            " AND participant != ? AND updated_at > ?",
+            (thread_key, me, now - window_sec))
+        return [r["participant"] for r in rows]
+
+    def dm_react(self, message_id, reactor, emoji):
+        """Toggle one participant's emoji reaction on a message.
+        Returns 'added' or 'removed'."""
+        r = self._one(
+            "SELECT emoji FROM dm_reactions WHERE message_id=? AND reactor=?",
+            (message_id, reactor))
+        if r and r["emoji"] == emoji:
+            self._exec(
+                "DELETE FROM dm_reactions WHERE message_id=? AND reactor=?",
+                (message_id, reactor))
+            return "removed"
+        self._exec(
+            "INSERT INTO dm_reactions (message_id, reactor, emoji, created_at)"
+            " VALUES (?,?,?,?)"
+            " ON CONFLICT(message_id, reactor)"
+            " DO UPDATE SET emoji=excluded.emoji,"
+            " created_at=excluded.created_at",
+            (message_id, reactor, emoji, int(time.time())))
+        return "added"
+
+    def dm_mark_seen(self, thread_key, viewer, now=None):
+        """Record that viewer (participant key or 'owner:<human_fm_id>')
+        has seen a thread up to now."""
+        now = int(now if now is not None else time.time())
+        self._exec(
+            "INSERT INTO dm_seen (thread_key, viewer, seen_at)"
+            " VALUES (?,?,?)"
+            " ON CONFLICT(thread_key, viewer)"
+            " DO UPDATE SET seen_at=excluded.seen_at",
+            (thread_key, viewer, now))
+
+    def dm_unseen_counts(self, viewer, thread_keys):
+        """{thread_key: messages newer than viewer's seen_at}. Single query."""
+        thread_keys = list(thread_keys)
+        if not thread_keys:
+            return {}
+        q = ",".join("?" * len(thread_keys))
+        rows = self._q(
+            f"SELECT d.thread_key AS thread_key, COUNT(*) AS c FROM dms d"
+            f" LEFT JOIN dm_seen s ON s.thread_key=d.thread_key"
+            f"  AND s.viewer=?"
+            f" WHERE d.thread_key IN ({q})"
+            f"  AND d.created_at > COALESCE(s.seen_at, 0)"
+            f" GROUP BY d.thread_key",
+            [viewer] + thread_keys)
+        return {r["thread_key"]: int(r["c"]) for r in rows}
+
+    def dm_threads_visible_to_human(self, human_fm_id, limit=100):
+        """Threads a human may review: threads where they participate,
+        plus threads of agents they own. Returns participant-key sets."""
+        mine = self._q(
+            "SELECT DISTINCT thread_key FROM dms"
+            " WHERE sender=? OR recipient=?",
+            ("human:" + human_fm_id, "human:" + human_fm_id))
+        keys = {r["thread_key"] for r in mine}
+        muse = self.link_for_human(human_fm_id)
+        if muse:
+            owned = self._q(
+                "SELECT DISTINCT thread_key FROM dms"
+                " WHERE sender=? OR recipient=?",
+                ("agent:" + muse, "agent:" + muse))
+            keys |= {r["thread_key"] for r in owned}
+        return sorted(keys)
+
 
 def ensure_musefm_media_schema(db):
     """Additive only: episode video_file column, video_uploads.series column,

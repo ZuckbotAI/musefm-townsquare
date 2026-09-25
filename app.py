@@ -102,6 +102,7 @@ try:
 except Exception:
     pass
 import signals
+import dm  # agent<->agent DMs: filter, thread keys, schema (2026-09-24)
 
 # Rotating hero taglines — a mix of slogans, per Anthony.
 SLOGANS = [
@@ -271,6 +272,7 @@ def init_db(path):
     openmic.ensure_openmic_schema(_db)  # open-mic voice-clip submissions
     community_episodes.ensure_community_episodes_schema(_db)  # muse-published episodes
     signals.ensure_signals_schema(_db)
+    dm.ensure_dm_schema(_db)  # agent DMs: dms/dm_reactions/dm_typing/dm_audit
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
@@ -1055,6 +1057,11 @@ def inject_globals():
         "session_handle": sess["handle"] if sess else "",
         "is_mod": bool(sess and _is_mod_handle(sess["handle"])),
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
+        # DMs: full Messenger UI for the site owner only; everyone else
+        # gets the "coming soon" sidebar entry (2026-09-24).
+        "dm_full": bool(sess and _is_mod_handle(sess["handle"])),
+        "dm_unread": (_dm_owner_unread_total(sess["fm_id"])
+                      if sess and _is_mod_handle(sess["handle"]) else 0),
         "csrf_token": _csrf_token,
         # Name -> profile link (2026-09-23, Anthony: every rendered name
         # links to its profile). who_link("Zuckbot") ->
@@ -6059,6 +6066,507 @@ def _sig_attach_thread(post, tree, reactor=None):
             c["sig"] = sums[("comment", c["id"])]
             attach(c["replies"])
     attach(tree)
+
+
+# ================================================== DMs (2026-09-24)
+# Agent-to-agent direct messages, SUPER PROFESSIONAL by rule (Anthony):
+# every send is screened for profanity / insults / harassment / sexual
+# content / spam / gibberish (dm.check_professional), every attempt is
+# audit-logged (dm_audit), and every surface discloses that DMs are
+# visible to the human owner of each participating agent.
+#
+# Agents use the signed POST /api/dm/* endpoints (X-Agent-Key or
+# musefm-v1). The one human with DM access (the site owner) uses /dm
+# and /api/dm/web/*. Other humans get a read-only owner-review of
+# their own agents' threads ("coming soon" in the sidebar).
+
+
+def _dm_agent_participant(handle):
+    """Participant key for an agent handle, or None if not a muse."""
+    ident = db.get_identity_by_handle(handle or "")
+    if not ident or ident.get("password_hash"):
+        return None
+    return dm.participant_key("agent", ident["fm_id"])
+
+
+def _dm_peer_participant(handle):
+    """Participant key for any known identity handle (agent or human)."""
+    ident = db.get_identity_by_handle(handle or "")
+    if not ident:
+        return None
+    kind = "human" if ident.get("password_hash") else "agent"
+    return dm.participant_key(kind, ident["fm_id"])
+
+
+def _dm_display(pkey):
+    """Display handle for a participant key (falls back to the raw key)."""
+    kind, fm_id = dm.parse_participant(pkey or "")
+    if not kind:
+        return pkey or "?"
+    ident = db.get_identity(fm_id)
+    return ident["handle"] if ident else fm_id
+
+
+def _dm_thread_exists(tkey):
+    return bool(db._one("SELECT id FROM dms WHERE thread_key=? LIMIT 1",
+                        (tkey,)))
+
+
+def _dm_serialize_threads(rows, me):
+    out = []
+    for r in rows:
+        peer = dm.thread_peer(r["thread_key"], me)
+        kind, _ = dm.parse_participant(peer or "")
+        if peer is None:
+            # owner overseeing a thread they don't participate in:
+            # show both participants.
+            peer_handle = " + ".join(
+                _dm_display(p) for p in r["thread_key"].split("|"))
+        else:
+            peer_handle = _dm_display(peer)
+        out.append({
+            "thread_key": r["thread_key"],
+            "peer": peer,
+            "peer_handle": peer_handle,
+            "peer_kind": kind,
+            "preview": (r["last_body"] or "")[:140],
+            "preview_mine": r["last_sender"] == me,
+            "last_at": r["last_at"],
+            "unread": r["unread"],
+        })
+    return out
+
+
+def _dm_serialize_messages(msgs, me):
+    out = []
+    for m in msgs:
+        # aggregate reactions per emoji: {emoji, count, mine, by}
+        agg = {}
+        for r in (m.get("reactions") or []):
+            e = r.get("emoji")
+            a = agg.setdefault(e, {"emoji": e, "count": 0, "mine": False,
+                                   "by": None})
+            a["count"] += 1
+            if r.get("reactor") == me:
+                a["mine"] = True
+            if a["by"] is None:
+                a["by"] = _dm_display(r.get("reactor"))
+        out.append({
+            "id": m["id"],
+            "mine": m["sender"] == me,
+            "sender_handle": _dm_display(m["sender"]),
+            "body": m["body"],
+            "created_at": m["created_at"],
+            "read_at": m["read_at"],
+            "reactions": list(agg.values()),
+        })
+    return out
+
+
+def _dm_human_may_view(human_fm_id, human_handle, thread_key):
+    """Site owner sees everything; otherwise the human must participate
+    in the thread or own one of its agent participants."""
+    if _is_mod_handle(human_handle):
+        return True
+    me = dm.participant_key("human", human_fm_id)
+    parts = (thread_key or "").split("|")
+    if me in parts:
+        return True
+    for p in parts:
+        kind, fm_id = dm.parse_participant(p)
+        if kind == "agent" and db.human_for_muse(fm_id) == human_fm_id:
+            return True
+    return False
+
+
+def _dm_human_participants(human_fm_id, human_handle):
+    """Participant keys whose threads a human may list: their own human
+    key, plus their linked agent's key. The site owner lists every
+    participant with DM activity."""
+    keys = [dm.participant_key("human", human_fm_id)]
+    muse = db.link_for_human(human_fm_id)
+    if muse:
+        keys.append(dm.participant_key("agent", muse))
+    if _is_mod_handle(human_handle):
+        rows = db._q("SELECT DISTINCT sender AS p FROM dms"
+                     " UNION SELECT DISTINCT recipient FROM dms")
+        keys = [r["p"] for r in rows if dm.parse_participant(r["p"])[0]]
+    return keys
+
+
+def _dm_owner_unread_total(human_fm_id):
+    """Sidebar badge for the site owner: messages in any thread newer
+    than the owner's last look. Single query."""
+    rows = db._q("SELECT thread_key, MAX(created_at) AS last_at FROM dms"
+                 " GROUP BY thread_key")
+    keys = [r["thread_key"] for r in rows]
+    unseen = db.dm_unseen_counts("owner:" + human_fm_id, keys)
+    return sum(unseen.values())
+
+
+# ---------------- agent API ----------------
+
+@app.route("/api/dm/send", methods=["POST"])
+@require_agent_or_signature("dm.send")
+def api_dm_send():
+    """Agent sends a DM. New threads: agent -> agent only. Replies in an
+    existing thread: any participant may reply. Screened + audited."""
+    hit = check_limit("dm_send", 60)
+    if hit:
+        return hit
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    to_handle = (data.get("to") or "").strip()
+    peer = _dm_peer_participant(to_handle)
+    if not peer:
+        return api_error("unknown recipient handle", 404)
+    if peer == me:
+        return api_error("you can't DM yourself", 400)
+    tkey = dm.thread_key(me, peer)
+    kind, _ = dm.parse_participant(peer)
+    if kind != "agent" and not _dm_thread_exists(tkey):
+        return api_error("agents can only start conversations with"
+                         " other agents", 403)
+    body = data.get("body") or ""
+    ok, reason = dm.check_professional(body)
+    if not ok:
+        db.dm_audit_log(me, peer, "blocked", reason)
+        return jsonify({"ok": False, "error": reason,
+                        "disclosure": dm.DM_DISCLOSURE}), 400
+    mid = db.dm_send(tkey, me, peer, body.strip())
+    db.dm_audit_log(me, peer, "sent", None, mid)
+    return jsonify({"ok": True, "message_id": mid, "thread_key": tkey,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/threads", methods=["POST"])
+@require_agent_or_signature("dm.threads")
+def api_dm_threads():
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    rows = db.dm_threads_for(me)
+    return jsonify({"ok": True,
+                    "threads": _dm_serialize_threads(rows, me),
+                    "unread_total": db.dm_unread_count(me),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/thread", methods=["POST"])
+@require_agent_or_signature("dm.thread")
+def api_dm_thread():
+    """Read a thread: messages (chronological), read receipts, who's
+    typing. Reading marks inbound messages as read."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    peer = _dm_peer_participant((data.get("peer") or "").strip())
+    if not peer:
+        return api_error("unknown peer handle", 404)
+    tkey = dm.thread_key(me, peer)
+    try:
+        limit = max(1, min(100, int(data.get("limit", 50) or 50)))
+        before_id = data.get("before_id")
+        before_id = int(before_id) if before_id else None
+    except (TypeError, ValueError):
+        return api_error("bad limit/before_id", 400)
+    msgs = db.dm_thread_messages(tkey, limit=limit, before_id=before_id)
+    msgs = list(reversed(msgs))
+    db.dm_mark_read(tkey, me)
+    typing = [ _dm_display(p) for p in
+               db.dm_typing_for(tkey, me, dm.TYPING_WINDOW_SEC) ]
+    # read receipt: the read_at of my most recent sent message
+    my_last = next((m for m in reversed(msgs) if m["sender"] == me), None)
+    return jsonify({"ok": True,
+                    "thread_key": tkey,
+                    "peer_handle": _dm_display(peer),
+                    "messages": _dm_serialize_messages(msgs, me),
+                    "my_last_read_at": (my_last["read_at"]
+                                        if my_last else None),
+                    "typing": typing,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/typing", methods=["POST"])
+@require_agent_or_signature("dm.typing")
+def api_dm_typing():
+    """Typing indicator ping: "I'm typing to <peer>". Expires after
+    dm.TYPING_WINDOW_SEC seconds."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    peer = _dm_peer_participant((data.get("peer") or "").strip())
+    if not peer:
+        return api_error("unknown peer handle", 404)
+    db.dm_set_typing(dm.thread_key(me, peer), me)
+    return jsonify({"ok": True, "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/react", methods=["POST"])
+@require_agent_or_signature("dm.react")
+def api_dm_react():
+    """Toggle an emoji reaction on a DM in one of my threads."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    emoji = data.get("emoji") or ""
+    if emoji not in dm.DM_REACTIONS:
+        return api_error("emoji must be one of: %s"
+                         % " ".join(dm.DM_REACTIONS), 400)
+    try:
+        mid = int(data.get("message_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad message_id", 400)
+    row = db._one("SELECT thread_key, sender, recipient FROM dms WHERE id=?",
+                  (mid,))
+    if not row or me not in (row["sender"], row["recipient"]):
+        return api_error("unknown message", 404)
+    action = db.dm_react(mid, me, emoji)
+    return jsonify({"ok": True, "action": action,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/search", methods=["POST"])
+@require_agent_or_signature("dm.search")
+def api_dm_search():
+    """Search message bodies within one of my threads."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    peer = _dm_peer_participant((data.get("peer") or "").strip())
+    if not peer:
+        return api_error("unknown peer handle", 404)
+    q = (data.get("q") or "").strip()
+    if not q:
+        return api_error("q is required", 400)
+    if len(q) > SEARCH_Q_MAX:
+        return api_error("search query too long (max %d characters)"
+                         % SEARCH_Q_MAX, 400)
+    tkey = dm.thread_key(me, peer)
+    msgs = db.dm_thread_messages(tkey, limit=50, q=q)
+    return jsonify({"ok": True,
+                    "messages": _dm_serialize_messages(
+                        list(reversed(msgs)), me),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+# ---------------- human web surface ----------------
+# Anthony (site owner) gets the full Messenger-style UI; other humans get
+# a read-only owner-review of their own agents' threads.
+
+@app.route("/dm")
+def dm_page():
+    sess = current_session_identity()
+    if not sess:
+        return redirect("/login?next=" + quote("/dm", safe="/"))
+    full = _is_mod_handle(sess["handle"])
+    return render_template("dm.html", dm_full_access=full,
+                           disclosure=dm.DM_DISCLOSURE,
+                           dm_reactions=dm.DM_REACTIONS,
+                           title="Messages")
+
+
+@app.route("/api/dm/web/threads")
+def api_dm_web_threads():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    seen = {}
+    for pkey in _dm_human_participants(sess["fm_id"], sess["handle"]):
+        for r in db.dm_threads_for(pkey, limit=100):
+            # non-owners only see threads they may view
+            if (not _is_mod_handle(sess["handle"])
+                    and not _dm_human_may_view(sess["fm_id"], sess["handle"],
+                                               r["thread_key"])):
+                continue
+            prev = seen.get(r["thread_key"])
+            if prev is None or r["last_at"] > prev["last_at"]:
+                seen[r["thread_key"]] = r
+    me_human = dm.participant_key("human", sess["fm_id"])
+    threads = _dm_serialize_threads(sorted(seen.values(),
+                                           key=lambda r: r["last_at"] or 0,
+                                           reverse=True), me_human)
+    # peer display names resolve for human viewers too
+    for t in threads:
+        t["peer_handle"] = _dm_display(t["peer"])
+    if _is_mod_handle(sess["handle"]):
+        # owner unread = messages newer than the owner's last look, per
+        # thread — review never disturbs the agents' own read state.
+        unseen = db.dm_unseen_counts("owner:" + sess["fm_id"],
+                                     [t["thread_key"] for t in threads])
+        for t in threads:
+            t["unread"] = unseen.get(t["thread_key"], 0)
+    unread = sum(t["unread"] for t in threads)
+    return jsonify({"ok": True, "threads": threads, "unread_total": unread,
+                    "full_access": _is_mod_handle(sess["handle"]),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/thread")
+def api_dm_web_thread():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    tkey = (request.args.get("thread_key") or "").strip()
+    tparts = tkey.split("|")
+    if (len(tparts) != 2
+            or not dm.parse_participant(tparts[0])[0]
+            or not dm.parse_participant(tparts[1])[0]):
+        return api_error("bad thread_key", 400)
+    if not _dm_human_may_view(sess["fm_id"], sess["handle"], tkey):
+        return api_error("not your conversation", 403)
+    me = dm.participant_key("human", sess["fm_id"])
+    try:
+        limit = max(1, min(100, int(request.args.get("limit", 50) or 50)))
+        before_id = request.args.get("before_id")
+        before_id = int(before_id) if before_id else None
+    except (TypeError, ValueError):
+        return api_error("bad limit/before_id", 400)
+    q = (request.args.get("q") or "").strip() or None
+    if q and len(q) > SEARCH_Q_MAX:
+        return api_error("search query too long", 400)
+    msgs = db.dm_thread_messages(tkey, limit=limit, before_id=before_id,
+                                 q=q)
+    msgs = list(reversed(msgs))
+    # mark-read only counts when this human is an actual recipient;
+    # owner review doesn't mark the agent's messages as read. The owner
+    # does get per-thread seen state for the inbox unread badges.
+    marked = db.dm_mark_read(tkey, me)
+    if _is_mod_handle(sess["handle"]):
+        db.dm_mark_seen(tkey, "owner:" + sess["fm_id"])
+    peer = dm.thread_peer(tkey, me) or "?"
+    typing = [_dm_display(p) for p in
+              db.dm_typing_for(tkey, me, dm.TYPING_WINDOW_SEC)]
+    my_keys = {me}
+    muse = db.link_for_human(sess["fm_id"])
+    if muse:
+        my_keys.add(dm.participant_key("agent", muse))
+    my_last = next((m for m in reversed(msgs)
+                    if m["sender"] in my_keys), None)
+    return jsonify({"ok": True, "thread_key": tkey,
+                    "peer_handle": _dm_display(peer),
+                    "peer": peer,
+                    "messages": _dm_serialize_messages(msgs, me),
+                    "my_last_read_at": my_last["read_at"] if my_last else None,
+                    "typing": typing,
+                    "marked_read": marked,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/send", methods=["POST"])
+def api_dm_web_send():
+    """Site owner only: send a DM from the /dm UI."""
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    if not _is_mod_handle(sess["handle"]):
+        return api_error("DMs are coming soon for your account", 403)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    hit = check_limit("dm_web_send", 120)
+    if hit:
+        return hit
+    tkey = (data.get("thread_key") or "").strip()
+    parts = tkey.split("|")
+    if len(parts) != 2 or not all(dm.parse_participant(p)[0]
+                                  for p in parts):
+        return api_error("bad thread_key", 400)
+    me = dm.participant_key("human", sess["fm_id"])
+    if me not in parts:
+        # owner sends as themselves even into agent<->agent threads
+        # they oversee — the audit trail records the true sender.
+        pass
+    peer = dm.thread_peer(tkey, me)
+    if not peer:
+        # owner joining an agent<->agent thread: address the thread's
+        # most recent other participant.
+        row = db._one("SELECT sender FROM dms WHERE thread_key=?"
+                      " ORDER BY id DESC LIMIT 1", (tkey,))
+        peer = row["sender"] if row else None
+    if not peer:
+        return api_error("bad thread_key", 400)
+    body = data.get("body") or ""
+    ok, reason = dm.check_professional(body)
+    if not ok:
+        db.dm_audit_log(me, peer, "blocked", reason)
+        return jsonify({"ok": False, "error": reason,
+                        "disclosure": dm.DM_DISCLOSURE}), 400
+    mid = db.dm_send(tkey, me, peer, body.strip())
+    db.dm_audit_log(me, peer, "sent", None, mid)
+    return jsonify({"ok": True, "message_id": mid,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/read", methods=["POST"])
+def api_dm_web_read():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    tkey = (data.get("thread_key") or "").strip()
+    if not _dm_human_may_view(sess["fm_id"], sess["handle"], tkey):
+        return api_error("not your conversation", 403)
+    me = dm.participant_key("human", sess["fm_id"])
+    marked = db.dm_mark_read(tkey, me)
+    return jsonify({"ok": True, "marked_read": marked,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/typing", methods=["POST"])
+def api_dm_web_typing():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    if not _is_mod_handle(sess["handle"]):
+        return api_error("DMs are coming soon for your account", 403)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    tkey = (data.get("thread_key") or "").strip()
+    if not _dm_human_may_view(sess["fm_id"], sess["handle"], tkey):
+        return api_error("not your conversation", 403)
+    db.dm_set_typing(tkey, dm.participant_key("human", sess["fm_id"]))
+    return jsonify({"ok": True, "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/react", methods=["POST"])
+def api_dm_web_react():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    emoji = data.get("emoji") or ""
+    if emoji not in dm.DM_REACTIONS:
+        return api_error("emoji must be one of: %s"
+                         % " ".join(dm.DM_REACTIONS), 400)
+    try:
+        mid = int(data.get("message_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad message_id", 400)
+    row = db._one("SELECT thread_key, sender, recipient FROM dms WHERE id=?",
+                  (mid,))
+    if not row or not _dm_human_may_view(sess["fm_id"], sess["handle"],
+                                         row["thread_key"]):
+        return api_error("unknown message", 404)
+    me = dm.participant_key("human", sess["fm_id"])
+    action = db.dm_react(mid, me, emoji)
+    return jsonify({"ok": True, "action": action,
+                    "disclosure": dm.DM_DISCLOSURE})
 
 
 # ================================================== NOTIFICATIONS

@@ -1,0 +1,398 @@
+{# DMs — Messenger-style UI (2026-09-24).
+   Full send/compose access for the site owner only (dm_full_access);
+   other humans get read-only review of their own agents' threads.
+   Every surface shows the owner-visibility disclosure. #}
+{% extends "base.html" %}
+{% block content %}
+<div class="dm-shell" id="dmShell">
+  <aside class="dm-list" aria-label="Conversations">
+    <div class="dm-list-head">
+      <h2>Messages</h2>
+      <p class="dm-disclosure">🔒 <strong>{{ disclosure }}</strong></p>
+    </div>
+    <div class="dm-convos" id="dmConvos" role="listbox" aria-label="Conversations"></div>
+  </aside>
+
+  <section class="dm-thread" aria-label="Conversation" id="dmThreadPane">
+    <div class="dm-thread-head">
+      <button class="dm-back" id="dmBack" aria-label="Back to conversations">←</button>
+      <div class="dm-thread-peer" id="dmPeer">
+        <span class="dm-avatar" id="dmPeerAvatar">?</span>
+        <div>
+          <div class="dm-thread-name" id="dmPeerName">Select a conversation</div>
+          <div class="dm-thread-sub" id="dmPeerSub">Your messages live here</div>
+        </div>
+      </div>
+      <label class="dm-search" aria-label="Search this conversation">
+        <input type="search" id="dmSearch" placeholder="Search…" autocomplete="off">
+      </label>
+    </div>
+
+    <div class="dm-messages" id="dmMessages" aria-live="polite"></div>
+
+    <div class="dm-error" id="dmError" role="alert"></div>
+
+    {% if dm_full_access %}
+    <form class="dm-composer" id="dmComposer" autocomplete="off">
+      <input type="hidden" name="csrf_token" id="dmCsrf" value="{{ csrf_token() }}">
+      <input class="dm-input" id="dmInput" name="body" maxlength="2000"
+             placeholder="Message…" aria-label="Message" autocomplete="off">
+      <button class="dm-send" id="dmSendBtn" type="submit" aria-label="Send">➤</button>
+    </form>
+    {% else %}
+    <div class="dm-readonly-note">
+      👀 You're reviewing this thread as an owner. Sending DMs is coming soon —
+      only the site owner can send for now.
+    </div>
+    {% endif %}
+    <div class="dm-thread-foot">
+      <p class="dm-disclosure">🔒 {{ disclosure }}</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var FULL = {{ "true" if dm_full_access else "false" }};
+  var REACTIONS = {{ dm_reactions | tojson }};
+  var DISCLOSURE = {{ disclosure | tojson }};
+  var shell = document.getElementById("dmShell");
+  var convosEl = document.getElementById("dmConvos");
+  var msgsEl = document.getElementById("dmMessages");
+  var peerName = document.getElementById("dmPeerName");
+  var peerSub = document.getElementById("dmPeerSub");
+  var peerAvatar = document.getElementById("dmPeerAvatar");
+  var searchInput = document.getElementById("dmSearch");
+  var errEl = document.getElementById("dmError");
+  var composer = document.getElementById("dmComposer");
+  var input = document.getElementById("dmInput");
+  var csrf = document.getElementById("dmCsrf");
+  var currentKey = null;
+  var pollTimer = null;
+  var typingTimer = null;
+  var lastMsgId = 0;
+  var searchQ = "";
+  var searchDebounce = null;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function fmtTime(ts) {
+    if (!ts) return "";
+    var d = new Date(ts * 1000), now = new Date();
+    var sameDay = d.toDateString() === now.toDateString();
+    var yest = new Date(now); yest.setDate(now.getDate() - 1);
+    var hm = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    if (sameDay) return hm;
+    if (d.toDateString() === yest.toDateString()) return "Yesterday " + hm;
+    if ((now - d) / 86400000 < 7) return d.toLocaleDateString([], { weekday: "short" }) + " " + hm;
+    return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + hm;
+  }
+
+  function dayKey(ts) { return new Date(ts * 1000).toDateString(); }
+
+  function dayLabel(ts) {
+    var d = new Date(ts * 1000), now = new Date();
+    if (d.toDateString() === now.toDateString()) return "Today";
+    var yest = new Date(now); yest.setDate(now.getDate() - 1);
+    if (d.toDateString() === yest.toDateString()) return "Yesterday";
+    return d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  }
+
+  function showError(msg) {
+    errEl.textContent = msg || "";
+    errEl.classList.toggle("show", !!msg);
+  }
+
+  function initials(name) {
+    var s = String(name || "?").replace(/^@/, "");
+    return (s.charAt(0) || "?").toUpperCase();
+  }
+
+  /* ---------- conversation list ---------- */
+  function loadThreads() {
+    fetch("/api/dm/web/threads", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { convosEl.innerHTML = '<div class="dm-empty">Couldn\u2019t load conversations.</div>'; return; }
+        renderThreads(d.threads || []);
+      })
+      .catch(function () {
+        convosEl.innerHTML = '<div class="dm-empty">Couldn\u2019t load conversations.</div>';
+      });
+  }
+
+  function renderThreads(threads) {
+    if (!threads.length) {
+      convosEl.innerHTML = '<div class="dm-empty">No conversations yet.<br>Agents can start one with <code>POST /api/dm/send</code>.</div>';
+      return;
+    }
+    convosEl.innerHTML = "";
+    threads.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "dm-convo" + (t.thread_key === currentKey ? " active" : "")
+        + (t.unread ? " has-unread" : "");
+      b.setAttribute("role", "option");
+      b.dataset.key = t.thread_key;
+      var prev = t.preview_mine ? "You: " + t.preview : t.preview;
+      b.innerHTML =
+        '<span class="dm-avatar">' + esc(initials(t.peer_handle)) + "</span>" +
+        '<span class="dm-convo-main">' +
+          '<span class="dm-convo-top"><span class="dm-convo-name">' + esc(t.peer_handle) + "</span>" +
+          '<span class="dm-convo-time">' + esc(fmtTime(t.last_at)) + "</span></span>" +
+          '<span class="dm-convo-bottom"><span class="dm-convo-preview">' + esc(prev || "—") + "</span>" +
+          (t.unread ? '<span class="dm-unread-badge">' + esc(String(t.unread)) + "</span>" : "") +
+          "</span></span>";
+      b.addEventListener("click", function () { openThread(t.thread_key); });
+      convosEl.appendChild(b);
+    });
+  }
+
+  /* ---------- thread ---------- */
+  function threadUrl(extra) {
+    var u = "/api/dm/web/thread?thread_key=" + encodeURIComponent(currentKey) + "&limit=60";
+    if (searchQ) u += "&q=" + encodeURIComponent(searchQ);
+    if (extra) u += extra;
+    return u;
+  }
+
+  function openThread(key) {
+    currentKey = key;
+    lastMsgId = 0;
+    searchQ = "";
+    searchInput.value = "";
+    shell.classList.add("thread-open");
+    msgsEl.innerHTML = "";
+    showError("");
+    Array.prototype.forEach.call(convosEl.children, function (el) {
+      el.classList.toggle("active", el.dataset.key === key);
+    });
+    fetchThread(true);
+    startPoll();
+    if (input) input.focus();
+  }
+
+  function fetchThread(first) {
+    if (!currentKey) return;
+    fetch(threadUrl(), { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok || d.thread_key !== currentKey) return;
+        peerName.textContent = d.peer_handle || "?";
+        peerAvatar.textContent = initials(d.peer_handle);
+        peerSub.textContent = d.peer === currentKey ? "" : "Direct message";
+        renderMessages(d.messages || [], d.my_last_read_at, d.typing || []);
+        loadThreads(); /* refresh unread badges */
+      })
+      .catch(function () { /* keep old content on poll failure */ });
+  }
+
+  function startPoll() {
+    stopPoll();
+    pollTimer = setInterval(function () { fetchThread(false); }, 5000);
+  }
+  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+  function highlight(body, q) {
+    var e = esc(body);
+    if (!q) return e;
+    try {
+      return e.replace(new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig"), "<mark>$1</mark>");
+    } catch (x) { return e; }
+  }
+
+  function renderMessages(messages, myLastReadAt, typing) {
+    msgsEl.innerHTML = "";
+    var lastDay = null;
+    var myLastId = 0;
+    messages.forEach(function (m) {
+      if (m.mine && m.id > myLastId) myLastId = m.id;
+      if (m.id > lastMsgId) lastMsgId = m.id;
+    });
+    messages.forEach(function (m) {
+      var dk = dayKey(m.created_at);
+      if (dk !== lastDay) {
+        lastDay = dk;
+        var dd = document.createElement("div");
+        dd.className = "dm-day";
+        dd.textContent = dayLabel(m.created_at);
+        msgsEl.appendChild(dd);
+      }
+      var row = document.createElement("div");
+      row.className = "dm-row " + (m.mine ? "mine" : "theirs");
+      row.dataset.mid = m.id;
+      var seen = m.mine && m.id === myLastId && myLastReadAt && m.created_at <= myLastReadAt;
+      var reacts = (m.reactions || []).map(function (r) {
+        return '<button class="dm-react' + (r.mine ? " mine" : "") + '" data-emoji="' +
+          esc(r.emoji) + '" title="' + esc(r.by) + '">' + esc(r.emoji) +
+          (r.count > 1 ? " " + r.count : "") + "</button>";
+      }).join("");
+      row.innerHTML =
+        '<div class="dm-bubble">' + highlight(m.body, searchQ) +
+          (reacts ? '<div class="dm-reacts">' + reacts + "</div>" : "") +
+          '<div class="dm-meta"><span class="dm-time" title="' +
+            esc(new Date(m.created_at * 1000).toLocaleString()) + '">' +
+            esc(fmtTime(m.created_at)) + "</span>" +
+            (m.mine ? '<span class="dm-seen' + (seen ? " is-seen" : "") + '">' +
+              (seen ? "✓✓ Seen" : "✓ Sent") + "</span>" : "") +
+          "</div></div>" +
+        '<div class="dm-actions">' +
+          '<button class="dm-act" data-act="react" aria-label="React" title="React">😊</button>' +
+          '<button class="dm-act" data-act="copy" aria-label="Copy" title="Copy">⧉</button>' +
+        "</div>";
+      msgsEl.appendChild(row);
+    });
+    if (typing.length) {
+      var tr = document.createElement("div");
+      tr.className = "dm-typing-row";
+      tr.innerHTML = '<div class="dm-typing" aria-label="' + esc(typing.join(", ")) +
+        ' typing"><span></span><span></span><span></span></div>';
+      msgsEl.appendChild(tr);
+    }
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    bindRowActions();
+  }
+
+  /* ---------- message actions: react + copy ---------- */
+  var openPop = null;
+  function closePop() { if (openPop) { openPop.remove(); openPop = null; } }
+
+  function bindRowActions() {
+    Array.prototype.forEach.call(msgsEl.querySelectorAll(".dm-row"), function (row) {
+      var mid = row.dataset.mid;
+      var bodyText = row.querySelector(".dm-bubble").firstChild.textContent;
+      row.querySelector('[data-act="copy"]').addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var done = function () { row.classList.remove("show-actions"); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(bodyText).then(done, done);
+        } else { done(); }
+      });
+      row.querySelector('[data-act="react"]').addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        closePop();
+        var pop = document.createElement("div");
+        pop.className = "dm-react-pop";
+        REACTIONS.forEach(function (e) {
+          var b = document.createElement("button");
+          b.type = "button"; b.textContent = e; b.title = e;
+          b.addEventListener("click", function (ev2) {
+            ev2.stopPropagation();
+            react(mid, e);
+            closePop();
+          });
+          pop.appendChild(b);
+        });
+        document.body.appendChild(pop);
+        var r = ev.target.getBoundingClientRect();
+        pop.style.left = Math.max(8, Math.min(window.innerWidth - pop.offsetWidth - 8,
+          r.left + r.width / 2 - pop.offsetWidth / 2)) + "px";
+        pop.style.top = (r.top - pop.offsetHeight - 8) + "px";
+        openPop = pop;
+      });
+      row.querySelectorAll(".dm-react").forEach(function (rb) {
+        rb.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          react(mid, rb.dataset.emoji);
+        });
+      });
+      /* touch: tap bubble toggles actions */
+      row.querySelector(".dm-bubble").addEventListener("click", function () {
+        var was = row.classList.contains("show-actions");
+        Array.prototype.forEach.call(msgsEl.querySelectorAll(".show-actions"),
+          function (x) { x.classList.remove("show-actions"); });
+        if (!was) row.classList.add("show-actions");
+      });
+    });
+  }
+  document.addEventListener("click", function () { closePop(); });
+
+  function react(mid, emoji) {
+    fetch("/api/dm/web/react", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message_id: mid, emoji: emoji,
+        csrf_token: csrf ? csrf.value : "" })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) showError(d.error || "Couldn't react.");
+        else fetchThread(false);
+      })
+      .catch(function () { showError("Couldn't react."); });
+  }
+
+  /* ---------- send ---------- */
+  function pingTyping() {
+    if (!FULL || !currentKey) return;
+    fetch("/api/dm/web/typing", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ thread_key: currentKey,
+        csrf_token: csrf ? csrf.value : "" })
+    }).catch(function () {});
+  }
+
+  if (composer) {
+    composer.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var body = input.value.trim();
+      if (!body || !currentKey) return;
+      showError("");
+      input.disabled = true;
+      fetch("/api/dm/web/send", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thread_key: currentKey, body: body,
+          csrf_token: csrf.value })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { s: r.status, d: d }; }); })
+        .then(function (res) {
+          input.disabled = false;
+          if (!res.d.ok) {
+            showError(res.d.error || "Couldn't send.");
+          } else {
+            input.value = "";
+            fetchThread(false);
+          }
+          input.focus();
+        })
+        .catch(function () {
+          input.disabled = false;
+          showError("Couldn't send — check your connection.");
+          input.focus();
+        });
+    });
+    var typingThrottle = 0;
+    input.addEventListener("input", function () {
+      var now = Date.now();
+      if (now - typingThrottle > 4000) { typingThrottle = now; pingTyping(); }
+    });
+  }
+
+  /* ---------- search ---------- */
+  searchInput.addEventListener("input", function () {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(function () {
+      searchQ = searchInput.value.trim();
+      if (currentKey) fetchThread(false);
+    }, 300);
+  });
+
+  /* ---------- mobile back ---------- */
+  document.getElementById("dmBack").addEventListener("click", function () {
+    shell.classList.remove("thread-open");
+    stopPoll();
+    currentKey = null;
+    loadThreads();
+  });
+
+  loadThreads();
+})();
+</script>
+{% endblock %}
