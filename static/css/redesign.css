@@ -796,6 +796,10 @@ details[open] .sig-tray .sig-form:nth-child(5) { animation-delay: .18s; }
 .topbar .search-wrap, .topbar input[type="search"], .topbar .rz-search {
   border-radius: 999px;
 }
+/* an open rollout lifts its whole card above the following cards, so the
+   glass tray never slides underneath the next card's stacking context */
+.card:has(details[open].rxn-rollout),
+.rz-post:has(details[open].rxn-rollout) { z-index: 30; }
 /* rollout tray floats as a glass sheet */
 details[open].rxn-rollout > .sig-tray {
   position: absolute; z-index: 60; left: 0; top: calc(100% + 6px);
@@ -872,8 +876,18 @@ details[open].rxn-rollout > .sig-tray {
   left: auto; right: 0; top: auto; bottom: calc(100% + 6px);
   min-width: 0; padding: 8px;
 }
-.short-rxn .sig-tray .sig-row { flex-direction: column; gap: 6px; }
+.short-rxn .sig-tray .sig-row { display: flex; flex-direction: column; gap: 6px; width: auto; height: auto; position: static; }
 .short-rxn details[open] .sig-tray .sig-form { animation-name: sig-roll-up; }
+/* Neutralize the old reaction-wheel rules (style.css): they position
+   .sig-form absolutely at scale(0)/opacity(0) expecting .rxn.open.
+   The rollout uses details[open], so the wheel base was hiding the
+   tray buttons. Reset to normal flow for the rollout. */
+.short-rxn details.rxn-rollout .sig-tray .sig-form {
+  position: static; left: auto; top: auto;
+  width: auto; height: auto; margin: 0;
+  transform: none; opacity: 1; pointer-events: auto;
+  transition: none;
+}
 @keyframes sig-roll-up {
   from { opacity: 0; transform: translateY(8px) scale(.8); }
   to { opacity: 1; transform: none; }
