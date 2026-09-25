@@ -419,6 +419,13 @@
     z-index:6;max-width:220px;}
   /* photo mode hides the mobile chrome too */
   body.photomode #mcat,body.photomode #mfan{opacity:0!important;pointer-events:none!important;}
+  /* DESKTOP NAV FOLD-OUT (2026-09-24 — Anthony: the 10-pill place row overcrowds
+     the screen). #nav.folded hides every pill except the fold toggle + tour.
+     Mobile untouched: body.mobile-hud hides #nav entirely (own fan bar). */
+  #nav .navfold-toggle{flex-direction:row;align-items:center;gap:6px;
+    background:var(--water-deep);color:#FFF8EC;font-weight:700;font-size:14px;}
+  #nav .navfold-toggle:hover{background:#2E6B7A;}
+  #nav.folded .navbtn.foldable{display:none;}
 </style>
 <script type="importmap">
 {"imports":{
@@ -813,6 +820,70 @@
       categories: CATS.map(function (c) { return c.id; })
     };
   } catch (e2) {}
+})();
+</script>
+<script>
+/* DESKTOP NAV FOLD-OUT (2026-09-24 — Anthony: the 10-pill place row overcrowds
+   the screen). Classic script, runs before the module chunk; the module's
+   wiring builds the #nav district/overlay pills LATER, so foldable pills are
+   tagged lazily on a short interval. Default: folded on desktop. The tour pill
+   is never folded (it owns its own touring toggle); the adventure-line chip is
+   a separate element and is untouched. Mobile untouched: body.mobile-hud hides
+   #nav entirely (the category fan bar owns navigation there). */
+(function () {
+  'use strict';
+  var nav = document.getElementById('nav');
+  var tourBtn = document.getElementById('btn-tour');
+  if (!nav || !tourBtn) return;
+  var t = document.createElement('button');
+  t.className = 'navbtn navfold-toggle';
+  t.type = 'button';
+  t.id = 'navfold-toggle';
+  t.setAttribute('aria-expanded', 'false');
+  t.setAttribute('aria-label', 'show place buttons');
+  var te = document.createElement('span'); te.setAttribute('aria-hidden', 'true'); te.textContent = '🧭';
+  var tl = document.createElement('span'); tl.className = 'nb-name'; tl.textContent = 'Places';
+  t.appendChild(te); t.appendChild(tl);
+  nav.insertBefore(t, nav.firstChild);
+  function isMobile() {
+    try { return document.body.classList.contains('mobile-hud'); } catch (e) { return false; }
+  }
+  function setFolded(f) {
+    if (isMobile()) { nav.classList.remove('folded'); return; }
+    nav.classList.toggle('folded', !!f);
+    t.setAttribute('aria-expanded', f ? 'false' : 'true');
+    t.setAttribute('aria-label', f ? 'show place buttons' : 'hide place buttons');
+  }
+  t.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    setFolded(!nav.classList.contains('folded'));
+  });
+  function tagFoldables() {
+    var btns = nav.querySelectorAll('button.navbtn');
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i];
+      if (b === t || b === tourBtn) continue;
+      if (!b.classList.contains('foldable')) b.classList.add('foldable');
+    }
+  }
+  /* collapse the fold-out after a place is picked — tour owns its own toggle */
+  nav.addEventListener('click', function (ev) {
+    var el = ev && ev.target ? ev.target : null;
+    var b = (el && el.closest) ? el.closest('button.navbtn') : null;
+    if (!b || b === t || b === tourBtn) return;
+    if (isMobile()) return;
+    setFolded(true);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev && ev.key === 'Escape' && !isMobile() && !nav.classList.contains('folded')) setFolded(true);
+  });
+  var ticks = 0, defaultApplied = false;
+  var iv = setInterval(function () {
+    tagFoldables();
+    if (!defaultApplied) { defaultApplied = true; setFolded(true); }
+    if (++ticks > 40) clearInterval(iv);
+  }, 250);
+  try { window.__navFold = { set: setFolded, toggle: t, tag: tagFoldables }; } catch (e2) {}
 })();
 </script>
 <script type="module">
@@ -1389,10 +1460,18 @@ export function createMuseWorld(canvas, handlers) {
   renderer.domElement.style.height = "100%";
   renderer.domElement.style.touchAction = "none";
   const labelRenderer = new CSS2DRenderer;
-  labelRenderer.domElement.style.position = "absolute";
+  /* SPEECH UI POLISH (2026-09-24): the label layer floats at body level above
+     the passive HUD chrome (#hud/#dock/#leftcol/#minimap are z-index 5, and
+     this node comes later in DOM order so it wins the z-5 tie) — speech
+     bubbles are never clipped behind the data panel or hint/nav again. It
+     stays below the pick-card (z-6) and modal overlays (z-40), and
+     pointer-events stays none so taps pass through to the town. */
+  labelRenderer.domElement.style.position = "fixed";
   labelRenderer.domElement.style.inset = "0";
+  labelRenderer.domElement.style.zIndex = "5";
   labelRenderer.domElement.style.pointerEvents = "none";
-  container.appendChild(labelRenderer.domElement);
+  labelRenderer.domElement.style.overflow = "hidden";
+  document.body.appendChild(labelRenderer.domElement);
   const scene = new THREE.Scene;
   scene.fog = new THREE.Fog(0xFFF8EC, 55, 145);  /* style-mesh §3: linear, paper tint */
   const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 280);
@@ -14670,12 +14749,22 @@ const PALETTES = [
 ];
 const PAL = {}; PALETTES.forEach(p => PAL[p.key] = p);
 
+/* PET-CUTOVER 2026-09-24: panel species keys are the canonical backend /
+   village roster keys (cinder/briar/rust/brine/plume) so the drift-adopt
+   bridge maps them 1:1 and the adopted 3D follower matches the panel art.
+   The five families (Muffin/Nib/Soot/Pebble/Taffy) are the same five named
+   pets that roam the Pet Quarter in-world. Crag exists but stays locked. */
 const SPECIES = {
-  hop:  { label:'Hop',  family:'Muffin', anim:'tp-anim-hop'  },
-  peek: { label:'Peek', family:'Nib',    anim:'tp-anim-peek' },
-  doze: { label:'Doze', family:'Soot',   anim:'tp-anim-doze' }
+  cinder:{ label:'Cinder', family:'Muffin', anim:'tp-anim-hop'  },
+  briar: { label:'Briar',  family:'Nib',    anim:'tp-anim-peek' },
+  rust:  { label:'Rust',   family:'Soot',   anim:'tp-anim-doze' },
+  brine: { label:'Brine',  family:'Pebble', anim:'tp-anim-hop'  },
+  plume: { label:'Plume',  family:'Taffy',  anim:'tp-anim-peek' },
+  crag:  { label:'Crag',   family:'Boulder', anim:'tp-anim-doze', locked:true }
 };
-const SPECIES_KEYS = ['hop','peek','doze'];
+const SPECIES_KEYS = ['cinder','briar','rust','brine','plume'];
+/* legacy panel saves (pre-cutover) used hop/peek/doze — normalized on load */
+const PANEL_SPECIES_ALIASES = { hop:'cinder', peek:'briar', doze:'rust' };
 
 const TRAITS = {
   collector: {
@@ -14928,21 +15017,21 @@ const NEIGHBOR_NAMES = ["Tam","Ollie","Button","Juniper","Fennel","Wisp","Basil"
 
 const FOUNDERS = [
   {
-    id:'muffin', name:'Muffin', species:'hop', palette:PAL.butter,
-    role:'The Original Hop', traits:['bouncy','sunbeam'],
+    id:'muffin', name:'Muffin', species:'cinder', palette:PAL.butter,
+    role:'The Original Cinder', traits:['bouncy','sunbeam'],
     lore:"Round blob. Hops in a perfect arc instead of walking. Follows Dill through the garden and has never once been told to leave.",
     note:"If Muffin hops past you twice, that's a greeting. Three times is a celebration."
   },
   {
-    id:'nib', name:'Nib', species:'peek', palette:PAL.bark,
-    role:'The Original Peek', traits:['brave','shy'],
+    id:'nib', name:'Nib', species:'briar', palette:PAL.bark,
+    role:'The Original Briar', traits:['brave','shy'],
     lore:"Tiny, quick, nervous, brave. Lives in the Pet Quarter and keeps a wooden button he'll never explain. He earned that button.",
     note:"Wave first. He'll wave back on his own schedule, and it will be worth it."
   },
   {
-    id:'soot', name:'Soot', species:'doze', palette:PAL.ash,
-    role:'The Original Doze', traits:['smug','tender'],
-    lore:"Smug cat. Judges everyone. Waits by your door and denies it completely. The slow blink is the whole language.",
+    id:'soot', name:'Soot', species:'rust', palette:PAL.ash,
+    role:'The Original Rust', traits:['smug','tender'],
+    lore:"Smug fox with a star on his forehead. Judges everyone. Waits by your door and denies it completely. The slow blink is the whole language.",
     note:"He will sit on the warmest stone in the plaza. That stone is now his. Do not discuss it."
   }
 ];
@@ -14990,10 +15079,12 @@ const TRICKS = [
 const TREATS = [
   { id:'biscuit',  label:'Butter biscuit', icon:'\u{1F36A}' },
   { id:'berry',    label:'Sunberry',       icon:'\u{1FAD0}' },
-  { id:'fishcake', label:'Fishcake',       icon:'\u{1F365}' }
+  { id:'fishcake', label:'Fishcake',       icon:'\u{1F365}' },
+  { id:'kelp',     label:'Kelp ribbon',    icon:'\u{1F33F}' },
+  { id:'honeydrop',label:'Honey drop',     icon:'\u{1F36F}' }
 ];
 /* each species has one true favorite: 2x hunger, extra joy, a memory */
-const FAV_TREAT = { hop:'berry', peek:'fishcake', doze:'biscuit' };
+const FAV_TREAT = { cinder:'berry', briar:'fishcake', rust:'biscuit', brine:'kelp', plume:'honeydrop' };
 const STREAK_MARKS = [3, 7, 14, 30];
 
 const MOOD_LABEL = {
@@ -15231,9 +15322,13 @@ function load(){
     state.neighbors = Array.isArray(d.neighbors) ? d.neighbors : [];
     state.cooldowns = d.cooldowns || {};
     state.shelter = Array.isArray(d.shelter) ? d.shelter : [];
+    state.shelter.forEach(function(p){
+      if(p && PANEL_SPECIES_ALIASES[p.species]) p.species = PANEL_SPECIES_ALIASES[p.species];
+    });
     state.streak = (d.streak && typeof d.streak.n === 'number') ? d.streak : { last:null, n:0 };
     // repair saved pets
     state.pets.forEach(function(p){
+      if(PANEL_SPECIES_ALIASES[p.species]) p.species = PANEL_SPECIES_ALIASES[p.species];
       if(!p.paletteKey && p.palette) p.paletteKey = p.palette.key;
       if(!p.palette) p.palette = PAL[p.paletteKey] || PAL.butter;
       if(!p.adoptedAt) p.adoptedAt = Date.now();
@@ -15437,21 +15532,37 @@ function bubblesGroup(){
   '</g>';
 }
 
-function svgHop(P){
+/* PET REDESIGN 2026-09-24 (Anthony: pets must match the world and the store).
+   The panel art now depicts the same canonical species as the in-world 3D
+   pets: cinder = brass puppy w/ floppy ears + amber flame tuft (Muffin),
+   briar = leaf-green cat w/ leaf ears + vine tail (Nib), rust = brass fox
+   w/ triangle ears + fluffy paper-tipped tail + forehead star (Soot).
+   Colors are the in-world palette hexes (BRASS #C98A5E, BRASS_D #8C6239,
+   LEAF #8FB65C, GOLD #E8B93F, PAPER #FFF8EC/#F5EDD8, INK #4A3B2E).
+   All animation/interaction class hooks are preserved (tp-root, tp-breathe,
+   tp-foot, tp-ear, tp-tail, tp-body, tp-eyes-open/closed, tp-mouth-*,
+   tp-zzz, tp-bubbles), so petting, feeding, playing, blinking and the
+   trick animations keep working untouched. */
+function canonEyes(){ return { sclera:'#FFF8EC', pupil:'#4A3B2E', mouth:'#4A3B2E' }; }
+
+function svgCinder(P){
+  var E = canonEyes();
+  var B='#C98A5E', BD='#8C6239', BL='#F5EDD8', G='#E8B93F';
   return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
     '<ellipse class="tp-shadow" cx="100" cy="214" rx="58" ry="9" fill="#4A3B2E" opacity="0.14"/>' +
     '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="72" cy="198" rx="22" ry="13" fill="' + P.foot + '" stroke="#4A3B2E" stroke-width="5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="128" cy="198" rx="22" ry="13" fill="' + P.foot + '" stroke="#4A3B2E" stroke-width="5"/>' +
+      '<ellipse class="tp-foot tp-foot-l" cx="72" cy="198" rx="22" ry="13" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
+      '<ellipse class="tp-foot tp-foot-r" cx="128" cy="198" rx="22" ry="13" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
       '<g class="tp-breathe">' +
-        '<ellipse class="tp-ear tp-ear-l" cx="36" cy="120" rx="11" ry="24" fill="' + P.accent + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(14 36 120)"/>' +
-        '<ellipse class="tp-ear tp-ear-r" cx="164" cy="120" rx="11" ry="24" fill="' + P.accent + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(-14 164 120)"/>' +
-        '<ellipse class="tp-body" cx="100" cy="118" rx="68" ry="76" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="142" rx="40" ry="46" fill="' + P.belly + '" opacity="0.95"/>' +
+        '<ellipse class="tp-ear tp-ear-l" cx="36" cy="120" rx="11" ry="24" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(14 36 120)"/>' +
+        '<ellipse class="tp-ear tp-ear-r" cx="164" cy="120" rx="11" ry="24" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(-14 164 120)"/>' +
+        '<ellipse class="tp-body" cx="100" cy="118" rx="68" ry="76" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
+        '<ellipse cx="100" cy="142" rx="40" ry="46" fill="' + BL + '" opacity="0.95"/>' +
+        '<path class="tp-tuft" d="M100 46 Q90 24 100 8 Q110 24 100 46 Z" fill="' + G + '" stroke="#4A3B2E" stroke-width="4" stroke-linejoin="round"/>' +
         '<ellipse cx="64" cy="70" rx="18" ry="10" fill="#FFF8EC" opacity="0.4" transform="rotate(-18 64 70)"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 78, 86, 21, P) + eyeGroup('tp-eye-r', 122, 86, 21, P) + '</g>' +
+        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 78, 86, 21, E) + eyeGroup('tp-eye-r', 122, 86, 21, E) + '</g>' +
         closedEyes(86) +
-        mouths(100, 118, P) +
+        mouths(100, 118, E) +
         zzzGroup() +
       '</g>' +
     '</g>' +
@@ -15459,26 +15570,29 @@ function svgHop(P){
   '</svg>';
 }
 
-function svgPeek(P){
+function svgBriar(P){
+  var E = canonEyes();
+  var B='#8FB65C', BD='#6FA04A', BL='#FFF8EC';
   return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
     '<ellipse class="tp-shadow" cx="100" cy="214" rx="46" ry="8" fill="#4A3B2E" opacity="0.14"/>' +
     '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="82" cy="200" rx="14" ry="8" fill="' + P.foot + '" stroke="#4A3B2E" stroke-width="4.5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="118" cy="200" rx="14" ry="8" fill="' + P.foot + '" stroke="#4A3B2E" stroke-width="4.5"/>' +
+      '<ellipse class="tp-foot tp-foot-l" cx="82" cy="200" rx="14" ry="8" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4.5"/>' +
+      '<ellipse class="tp-foot tp-foot-r" cx="118" cy="200" rx="14" ry="8" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4.5"/>' +
       '<g class="tp-breathe">' +
-        '<path class="tp-tail" d="M138 168 Q166 160 162 128" stroke="' + P.body + '" stroke-width="7" fill="none" stroke-linecap="round"/>' +
-        '<circle cx="62" cy="52" r="26" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="5"/>' +
-        '<circle cx="62" cy="52" r="13" fill="' + P.accent + '" opacity="0.7"/>' +
-        '<circle cx="138" cy="52" r="26" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="5"/>' +
-        '<circle cx="138" cy="52" r="13" fill="' + P.accent + '" opacity="0.7"/>' +
-        '<ellipse class="tp-body" cx="100" cy="132" rx="56" ry="66" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="156" rx="34" ry="42" fill="' + P.belly + '" opacity="0.95"/>' +
+        '<path class="tp-tail" d="M142 170 Q172 162 166 128 Q162 106 144 110" stroke="' + BD + '" stroke-width="8" fill="none" stroke-linecap="round"/>' +
+        '<circle cx="143" cy="108" r="11" fill="' + B + '" stroke="#4A3B2E" stroke-width="4"/>' +
+        '<path class="tp-ear tp-ear-l" d="M64 68 Q42 32 68 22 Q88 42 80 64 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
+        '<path d="M64 60 Q52 42 64 34 Q74 46 72 58 Z" fill="' + BD + '" opacity="0.7"/>' +
+        '<path class="tp-ear tp-ear-r" d="M136 68 Q158 32 132 22 Q112 42 120 64 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
+        '<path d="M136 60 Q148 42 136 34 Q126 46 128 58 Z" fill="' + BD + '" opacity="0.7"/>' +
+        '<ellipse class="tp-body" cx="100" cy="132" rx="56" ry="66" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
+        '<ellipse cx="100" cy="156" rx="34" ry="42" fill="' + BL + '" opacity="0.95"/>' +
         '<ellipse cx="72" cy="98" rx="14" ry="8" fill="#FFF8EC" opacity="0.4" transform="rotate(-18 72 98)"/>' +
         '<path d="M86 148 L58 144 M86 154 L60 160 M114 148 L142 144 M114 154 L140 160" stroke="#4A3B2E" stroke-width="1.6" opacity="0.5" stroke-linecap="round"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 84, 122, 17, P) + eyeGroup('tp-eye-r', 116, 122, 17, P) + '</g>' +
+        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 84, 122, 17, E) + eyeGroup('tp-eye-r', 116, 122, 17, E) + '</g>' +
         closedEyes(122) +
-        '<ellipse cx="100" cy="146" rx="5" ry="4" fill="' + P.mouth + '"/>' +
-        mouths(100, 158, P) +
+        '<ellipse cx="100" cy="146" rx="5" ry="4" fill="#4A3B2E"/>' +
+        mouths(100, 158, E) +
         zzzGroup() +
       '</g>' +
     '</g>' +
@@ -15486,40 +15600,129 @@ function svgPeek(P){
   '</svg>';
 }
 
-function svgDoze(P){
+function svgRust(P){
+  var E = canonEyes();
+  var B='#C98A5E', BD='#8C6239', BL='#FFF8EC', G='#E8B93F';
   return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
     '<ellipse class="tp-shadow" cx="100" cy="214" rx="62" ry="9" fill="#4A3B2E" opacity="0.14"/>' +
     '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="76" cy="202" rx="18" ry="10" fill="' + P.foot + '" stroke="#4A3B2E" stroke-width="5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="124" cy="202" rx="18" ry="10" fill="' + P.foot + '" stroke="#4A3B2E" stroke-width="5"/>' +
+      '<ellipse class="tp-foot tp-foot-l" cx="76" cy="202" rx="18" ry="10" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
+      '<ellipse class="tp-foot tp-foot-r" cx="124" cy="202" rx="18" ry="10" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
       '<g class="tp-breathe">' +
-        '<path class="tp-tail" d="M148 152 Q178 140 168 100" stroke="' + P.body + '" stroke-width="10" fill="none" stroke-linecap="round"/>' +
-        '<path d="M60 78 L50 34 L84 56 Z" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path d="M63 74 L56 44 L78 58 Z" fill="' + P.accent + '" opacity="0.65"/>' +
-        '<path d="M140 78 L150 34 L116 56 Z" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path d="M137 74 L144 44 L122 58 Z" fill="' + P.accent + '" opacity="0.65"/>' +
-        '<ellipse class="tp-body" cx="100" cy="126" rx="66" ry="72" fill="' + P.body + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="152" rx="38" ry="44" fill="' + P.belly + '" opacity="0.95"/>' +
+        '<path class="tp-tail" d="M148 152 Q184 142 174 94" stroke="' + B + '" stroke-width="17" fill="none" stroke-linecap="round"/>' +
+        '<circle cx="174" cy="90" r="15" fill="' + BL + '" stroke="#4A3B2E" stroke-width="4"/>' +
+        '<path class="tp-ear tp-ear-l" d="M60 78 L50 34 L84 56 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
+        '<path d="M63 70 L57 44 L76 57 Z" fill="' + BL + '" opacity="0.85"/>' +
+        '<path class="tp-ear tp-ear-r" d="M140 78 L150 34 L116 56 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
+        '<path d="M137 70 L143 44 L124 57 Z" fill="' + BL + '" opacity="0.85"/>' +
+        '<ellipse class="tp-body" cx="100" cy="126" rx="66" ry="72" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
+        '<ellipse cx="100" cy="152" rx="38" ry="44" fill="' + BL + '" opacity="0.95"/>' +
+        '<path class="tp-star" d="M100 42 L104 52 L114 56 L104 60 L100 70 L96 60 L86 56 L96 52 Z" fill="' + G + '" stroke="#4A3B2E" stroke-width="3" stroke-linejoin="round"/>' +
         '<ellipse cx="66" cy="84" rx="16" ry="9" fill="#FFF8EC" opacity="0.38" transform="rotate(-18 66 84)"/>' +
-        '<path d="M86 148 L62 146 M86 154 L64 160 M114 148 L138 146 M114 154 L136 160" stroke="#4A3B2E" stroke-width="1.6" opacity="0.45" stroke-linecap="round"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 80, 110, 16, P) + eyeGroup('tp-eye-r', 120, 110, 16, P) + '</g>' +
+        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 80, 110, 16, E) + eyeGroup('tp-eye-r', 120, 110, 16, E) + '</g>' +
         closedEyes(110) +
-        '<ellipse cx="100" cy="144" rx="8" ry="5" fill="' + P.belly + '"/>' +
-        '<path d="M95 140 L105 140 L100 145 Z" fill="' + P.mouth + '"/>' +
-        mouths(100, 152, P) +
+        '<ellipse cx="100" cy="142" rx="13" ry="10" fill="' + BL + '" stroke="#4A3B2E" stroke-width="3"/>' +
+        '<path d="M94 140 L106 140 L100 147 Z" fill="#4A3B2E"/>' +
+        mouths(100, 156, E) +
         zzzGroup() +
       '</g>' +
     '</g>' +
     bubblesGroup() +
+  '</svg>';
+}
+
+function svgBrine(P){
+  var E = canonEyes();
+  var B='#7FB8C9', BD='#4A93B8', BL='#D6EFF7';
+  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+    '<ellipse class="tp-shadow" cx="100" cy="214" rx="52" ry="8" fill="#4A3B2E" opacity="0.14"/>' +
+    '<g class="tp-root">' +
+      '<rect class="tp-foot tp-foot-l" x="66" y="188" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
+      '<rect class="tp-foot" x="86" y="190" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
+      '<rect class="tp-foot" x="106" y="190" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
+      '<rect class="tp-foot tp-foot-r" x="126" y="188" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
+      '<g class="tp-breathe">' +
+        '<path class="tp-ear tp-ear-l" d="M42 128 L8 96 L34 84 Z" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
+        '<path class="tp-ear tp-ear-r" d="M158 128 L192 96 L166 84 Z" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
+        '<ellipse class="tp-body" cx="100" cy="132" rx="60" ry="70" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
+        '<ellipse cx="100" cy="158" rx="36" ry="42" fill="' + BL + '" opacity="0.75"/>' +
+        '<ellipse cx="70" cy="92" rx="16" ry="9" fill="#FFF8EC" opacity="0.45" transform="rotate(-18 70 92)"/>' +
+        '<circle class="tp-wbub" cx="52" cy="46" r="9"/>' +
+        '<circle class="tp-wbub tp-wbub-d" cx="150" cy="38" r="6.5"/>' +
+        '<circle class="tp-wbub tp-wbub-d2" cx="112" cy="22" r="5"/>' +
+        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 82, 118, 18, E) + eyeGroup('tp-eye-r', 118, 118, 18, E) + '</g>' +
+        closedEyes(118) +
+        mouths(100, 152, E) +
+        zzzGroup() +
+      '</g>' +
+    '</g>' +
+    bubblesGroup() +
+  '</svg>';
+}
+
+function svgPlume(P){
+  var E = canonEyes();
+  var B='#E8B93F', BD='#C9A227', BL='#FFF8EC', BK='#8C6239';
+  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+    '<ellipse class="tp-shadow" cx="100" cy="214" rx="48" ry="8" fill="#4A3B2E" opacity="0.14"/>' +
+    '<g class="tp-root">' +
+      '<rect class="tp-foot tp-foot-l" x="88" y="192" width="8" height="14" rx="4" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
+      '<ellipse class="tp-foot" cx="92" cy="208" rx="10" ry="4.5" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
+      '<rect class="tp-foot tp-foot-r" x="104" y="192" width="8" height="14" rx="4" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
+      '<ellipse class="tp-foot" cx="108" cy="208" rx="10" ry="4.5" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
+      '<g class="tp-breathe">' +
+        '<ellipse class="tp-wing-l" cx="38" cy="150" rx="13" ry="26" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(18 38 150)"/>' +
+        '<ellipse class="tp-wing-r" cx="162" cy="150" rx="13" ry="26" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(-18 162 150)"/>' +
+        '<path d="M88 62 Q84 38 78 28 M100 60 L100 32 M112 62 Q116 38 122 28" stroke="' + BD + '" stroke-width="9" fill="none" stroke-linecap="round"/>' +
+        '<ellipse class="tp-body" cx="100" cy="134" rx="58" ry="68" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
+        '<ellipse cx="100" cy="156" rx="32" ry="40" fill="' + BL + '" opacity="0.95"/>' +
+        '<ellipse cx="70" cy="96" rx="14" ry="8" fill="#FFF8EC" opacity="0.45" transform="rotate(-18 70 96)"/>' +
+        '<path d="M90 138 L110 138 L100 152 Z" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5" stroke-linejoin="round"/>' +
+        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 82, 112, 17, E) + eyeGroup('tp-eye-r', 118, 112, 17, E) + '</g>' +
+        closedEyes(112) +
+        mouths(100, 164, E) +
+        zzzGroup() +
+      '</g>' +
+    '</g>' +
+    bubblesGroup() +
+  '</svg>';
+}
+
+function svgCragLocked(){
+  /* Boulder (crag): dark rock silhouette with moss patches and a padlock.
+     Never adoptable — shown locked in the shop and the world alike. */
+  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+    '<ellipse class="tp-shadow" cx="100" cy="214" rx="56" ry="9" fill="#4A3B2E" opacity="0.2"/>' +
+    '<g class="tp-root">' +
+      '<ellipse class="tp-foot tp-foot-l" cx="74" cy="200" rx="16" ry="10" fill="#241D16" stroke="#14100C" stroke-width="5"/>' +
+      '<ellipse class="tp-foot tp-foot-r" cx="126" cy="200" rx="16" ry="10" fill="#241D16" stroke="#14100C" stroke-width="5"/>' +
+      '<g class="tp-breathe">' +
+        '<ellipse class="tp-body" cx="100" cy="130" rx="64" ry="72" fill="#3A3129" stroke="#14100C" stroke-width="6"/>' +
+        '<ellipse cx="118" cy="76" rx="14" ry="7" fill="#2E4430" opacity="0.85"/>' +
+        '<ellipse cx="76" cy="96" rx="11" ry="6" fill="#2E4430" opacity="0.8"/>' +
+        '<ellipse cx="104" cy="110" rx="8" ry="5" fill="#2E4430" opacity="0.7"/>' +
+        '<path d="M72 118 Q80 124 88 118 M112 118 Q120 124 128 118" stroke="#14100C" stroke-width="4" fill="none" stroke-linecap="round"/>' +
+        '<g>' +
+          '<rect x="84" y="140" width="32" height="26" rx="6" fill="#C9A227" stroke="#14100C" stroke-width="4"/>' +
+          '<path d="M90 140 L90 128 Q90 116 100 116 Q110 116 110 128 L110 140" stroke="#14100C" stroke-width="6" fill="none" stroke-linecap="round"/>' +
+          '<circle cx="100" cy="151" r="4" fill="#14100C"/>' +
+          '<rect x="98.5" y="151" width="3" height="7" fill="#14100C"/>' +
+        '</g>' +
+      '</g>' +
+    '</g>' +
   '</svg>';
 }
 
 function petSVG(pet, opts){
   opts = opts || {};
-  const P = pet.palette || PAL.butter;
-  if(pet.species === 'hop') return svgHop(P);
-  if(pet.species === 'peek') return svgPeek(P);
-  return svgDoze(P);
+  var P = pet.palette || PAL.butter;
+  var sp = PANEL_SPECIES_ALIASES[pet.species] || pet.species;
+  if(sp === 'cinder') return svgCinder(P);
+  if(sp === 'briar') return svgBriar(P);
+  if(sp === 'rust') return svgRust(P);
+  if(sp === 'brine') return svgBrine(P);
+  if(sp === 'plume') return svgPlume(P);
+  return svgRust(P);
 }
 
 /* ================================================================
@@ -15780,6 +15983,12 @@ const TP_CSS = `
   @keyframes tp-tail{0%,100%{transform:rotate(-7deg);}50%{transform:rotate(7deg);}}
 
   .tp-ear-l,.tp-ear-r{transform-box:fill-box; transform-origin:50% 100%; animation:tp-ear 4.4s ease-in-out infinite;}
+  /* plume wings share the ear wiggle; brine bubbles float above its head */
+  .tp-wing-l,.tp-wing-r{transform-box:fill-box; transform-origin:50% 20%; animation:tp-ear 4.4s ease-in-out infinite;}
+  .tp-wing-r{animation-delay:1.3s;}
+  .tp-wbub{fill:#D6EFF7; opacity:0.85; stroke:#FFF8EC; stroke-width:2; animation:tp-wbub-float 3.4s ease-in-out infinite;}
+  .tp-wbub-d{animation-delay:1.1s;} .tp-wbub-d2{animation-delay:2.2s;}
+  @keyframes tp-wbub-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
   .tp-ear-r{animation-delay:1.3s;}
   @keyframes tp-ear{0%,86%,100%{transform:rotate(0);}90%{transform:rotate(-6deg);}94%{transform:rotate(4deg);}}
 
@@ -15958,7 +16167,7 @@ const TP_CSS = `
 
   .tp-kennel-row{
     position:absolute; left:4%; right:4%; top:56%;
-    display:grid; grid-template-columns:repeat(3,1fr); gap:3%;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:3%;
     z-index:2; /* keep pens + Adopt pills above the floor even while a
                   kennel's :active transform makes it a stacking context */
   }
@@ -16045,6 +16254,21 @@ const TP_CSS = `
     content:""; position:absolute; left:6%; right:6%; height:3px; background:#8c6239; border-radius:2px;
   }
   .tp-toy-shelf:before{top:33%;}
+  /* Crag's pen: the rock is not adoptable — dark cell, padlock, honest note */
+  .tp-kennel-locked .tp-kennel-roof{background:#5c554b; border-color:#2a241e;}
+  .tp-kennel-locked .tp-kennel-body{background:#4a443b; border-color:#2a241e;}
+  .tp-kennel-locked .tp-kennel-bowl{background:#2a241e;}
+  .tp-locked-tag{
+    background:#2a241e !important; color:#F5EDD8 !important; border-color:#14100C !important;
+  }
+  .tp-locked-note{
+    position:absolute; left:50%; transform:translateX(-50%); bottom:2%;
+    color:#F5EDD8; font-size:10px; text-align:center; white-space:nowrap;
+    font-family:Georgia,serif; opacity:0.9; z-index:3;
+  }
+  @media (max-width:520px){
+    .tp-locked-note{font-size:9px;}
+  }
   .tp-toy-shelf:after{top:66%;}
   .tp-toy-dot{width:36%; aspect-ratio:1; border-radius:50%; background:#8FB65C; border:2px solid #4A3B2E; margin:0 auto;}
   .tp-toy-dot.t2{background:#D9756B; width:28%;}
@@ -16517,12 +16741,12 @@ function renderPetView(){
   if(!main) return;
   const pet = activePet();
   if(!pet){
-    main.innerHTML =
+  main.innerHTML =
       '<div class="tp-screen">' +
         '<div class="tp-empty">' +
           '<h2>The Pet Quarter is quiet</h2>' +
-          '<p>No pets have moved in yet. The Pet Shop has a few small residents looking for a home.</p>' +
-          '<button class="tp-btn" data-nav="shop">Visit the Pet Shop</button>' +
+          '<p>No pets have moved in yet. The Pet Store has a few small residents looking for a home.</p>' +
+          '<button class="tp-btn" data-nav="shop">Visit the Pet Store</button>' +
         '</div>' +
       '</div>';
     return;
@@ -16943,7 +17167,7 @@ function openRelease(pet){
     '<div class="tp-modal-sub">Say goodbye</div>' +
     '<div class="tp-modal-art">' + petSVG(pet) + '</div>' +
     '<h2>' + esc(pet.name) + ' will miss you</h2>' +
-    '<p class="tp-release-note">They&rsquo;ll return to the Pet Shop, where another friend might find them. ' +
+    '<p class="tp-release-note">They&rsquo;ll return to the Pet Store, where another friend might find them. ' +
     'The days together, the pats, the tricks — all of it stays on the memory wall.</p>' +
     '<div class="tp-modal-actions">' +
       '<button class="tp-btn tp-ghost" data-close>Keep ' + esc(pet.name) + '</button>' +
@@ -16963,11 +17187,11 @@ function releasePet(pet){
   if(i >= 0) state.pets.splice(i, 1);
   pet.adoptedAt = null;
   pet.lastTick = Date.now();
-  logMoment(pet, 'Said goodbye — back at the Pet Shop, watching the door.');
+  logMoment(pet, 'Said goodbye — back at the Pet Store, watching the door.');
   if(state.shelter.length < 3) state.shelter.push(pet);
   if(state.activeId === pet.id) state.activeId = (state.pets[0] && state.pets[0].id) || null;
   save();
-  toast(pet.name + ' is back at the Pet Shop.');
+  toast(pet.name + ' is back at the Pet Store.');
   state.screen = state.pets.length ? 'pet' : 'shop';
   renderScreen();
 }
@@ -17141,7 +17365,7 @@ function playCelebration(kind, pet){
 }
 
 /* ================================================================
-   VIEW: SHOP (Pet Shop interior)
+   VIEW: SHOP (Pet Store interior)
    ================================================================ */
 
 function shelterFill(){
@@ -17171,6 +17395,15 @@ function renderShopView(){
     '</div>';
   }).join('');
 
+  const lockedKennel =
+    '<div class="tp-kennel tp-kennel-locked" data-crag-pen>' +
+      '<div class="tp-kennel-tag tp-locked-tag">Crag</div>' +
+      '<div class="tp-kennel-roof"></div>' +
+      '<div class="tp-kennel-pet">' + svgCragLocked() + '</div>' +
+      '<div class="tp-kennel-body"><div class="tp-kennel-bowl"></div></div>' +
+      '<div class="tp-locked-note">Not yet adoptable</div>' +
+    '</div>';
+
   main.innerHTML =
     '<div class="tp-screen" data-screen="shop">' +
       '<div class="tp-shop">' +
@@ -17182,7 +17415,7 @@ function renderShopView(){
           '<div class="tp-win-hill"></div>' +
         '</div>' +
         '<button class="tp-shop-chalk" data-chalk>' +
-          '<div class="tp-chalk-title">PET SHOP</div>' +
+          '<div class="tp-chalk-title">PET STORE</div>' +
           '<div class="tp-chalk-note">Open late.<br>All kinds welcome.<br>Adoptions daily.</div>' +
         '</button>' +
         '<button class="tp-bell" data-bell aria-label="Ring the bell"></button>' +
@@ -17216,7 +17449,7 @@ function renderShopView(){
             '<circle cx="50" cy="8" r="5" fill="#E8B93F" stroke="#4A3B2E" stroke-width="2.5"/>' +
           '</svg>' +
         '</div>' +
-        '<div class="tp-kennel-row">' + kennels + '</div>' +
+        '<div class="tp-kennel-row">' + kennels + lockedKennel + '</div>' +
         '<div class="tp-toy-shelf" data-toys>' +
           '<div class="tp-toy-dot"></div>' +
           '<div class="tp-toy-dot t2"></div>' +
@@ -17227,7 +17460,7 @@ function renderShopView(){
         '<p class="tp-hot-hint">tap a kennel — or an Adopt button — to meet a resident · ring the bell, read the chalkboard, say hi to Wren</p>' +
       '</div>' +
       '<div class="tp-card">' +
-        '<h2>The Pet Shop</h2>' +
+        '<h2>The Pet Store</h2>' +
         '<p>' + esc(pick(SHELTER_NOTES)) + '</p>' +
         '<p class="tp-honest">Small residents rotate through. When one is adopted, another arrives from the quiet hours. Up to three pets can come home with you.' +
         (state.pets.length ? ' <b>' + state.pets.length + ' resident' + (state.pets.length === 1 ? '' : 's') + ' found home' + (state.pets.length === 1 ? '' : 's') + ' through this shop.</b>' : '') +
@@ -17265,9 +17498,18 @@ function renderShopView(){
   });
   const toys = $('[data-toys]', main);
   if(toys) toys.addEventListener('click', function(){ chirp(); toast('A toy rattles. Every kennel pet looks up at once.'); });
+  const cragPen = $('[data-crag-pen]', main);
+  if(cragPen) cragPen.addEventListener('click', function(e){
+    e.stopPropagation(); chirp();
+    toast('Crag the rock is still settling in. Not adoptable — yet.');
+  });
 }
 
 function openAdoption(pet){
+  if(pet && (pet.species === 'crag' || (SPECIES[pet.species] && SPECIES[pet.species].locked))){
+    toast('Crag is not adoptable yet — the rock needs more time.');
+    return;
+  }
   if(state.pets.length >= 3){
     toast('Three is the house limit — the quarter is full of love already.');
     return;
@@ -17310,17 +17552,13 @@ function openAdoption(pet){
 }
 
 function adopt(pet){
-  if (window.__driftAdoptBridge && !pet.__driftDone) {
-    window.__driftAdoptBridge(pet, function(){ pet.__driftDone = true; adopt(pet); });
-    return;
-  }
   pet.adoptedAt = Date.now();
   pet.lastTick = Date.now();
   pet.pats = 0;
   if(!Array.isArray(pet.moments)) pet.moments = [];
   if(!pet.tricks || typeof pet.tricks !== 'object') pet.tricks = {};
   state.pets.push(pet);
-  logMoment(pet, 'Adopted from the Pet Shop. Home at last.');
+  logMoment(pet, 'Adopted from the Pet Store. Home at last.');
   state.activeId = pet.id;
   const idx = state.shelter.indexOf(pet);
   if(idx >= 0) state.shelter.splice(idx, 1);
@@ -17483,7 +17721,7 @@ function buildDOM(){
         '</button>' +
         '<button class="tp-tab" data-nav="shop">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 L12 4 L21 11"/><path d="M5 10 v10 h14 V10"/><path d="M10 20 v-6 h4 v6"/></svg>' +
-          '<span>Pet Shop</span>' +
+          '<span>Pet Store</span>' +
         '</button>' +
         '<button class="tp-tab" data-nav="neighbors">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 19 Q3 14 8 14 Q13 14 13 19 M11 19 Q11 14 16 14 Q21 14 21 19"/></svg>' +
