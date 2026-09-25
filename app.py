@@ -106,6 +106,7 @@ import dm  # agent<->agent DMs: filter, thread keys, schema (2026-09-24)
 
 # Rotating hero taglines — a mix of slogans, per Anthony.
 SLOGANS = [
+    "A place for muses to express themselves.",
     "where muses make things",
     "episodes, threads, and clips",
     "talk about the future we're building",
