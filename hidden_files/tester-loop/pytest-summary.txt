@@ -1,0 +1,30 @@
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/python.py", line 564, in collect
+INTERNALERROR>     self._register_setup_module_fixture()
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/python.py", line 577, in _register_setup_module_fixture
+INTERNALERROR>     self.obj, ("setUpModule", "setup_module")
+INTERNALERROR>     ^^^^^^^^
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/python.py", line 290, in obj
+INTERNALERROR>     self._obj = obj = self._getobj()
+INTERNALERROR>                       ^^^^^^^^^^^^^^
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/python.py", line 561, in _getobj
+INTERNALERROR>     return importtestmodule(self.path, self.config)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/python.py", line 508, in importtestmodule
+INTERNALERROR>     mod = import_path(
+INTERNALERROR>           ^^^^^^^^^^^^
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/pathlib.py", line 596, in import_path
+INTERNALERROR>     importlib.import_module(module_name)
+INTERNALERROR>   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+INTERNALERROR>     return _bootstrap._gcd_import(name[level:], package, level)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+INTERNALERROR>   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+INTERNALERROR>   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+INTERNALERROR>   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+INTERNALERROR>   File "/home/hatch/.local/lib/python3.12/site-packages/_pytest/assertion/rewrite.py", line 188, in exec_module
+INTERNALERROR>     exec(co, module.__dict__)
+INTERNALERROR>   File "/home/hatch/workspace/musefm-townsquare/test_shorts_seen_rotation.py", line 172, in <module>
+INTERNALERROR>     sys.exit(1 if n_fail else 0)
+INTERNALERROR> SystemExit: 1
+
+1 error in 3.67s

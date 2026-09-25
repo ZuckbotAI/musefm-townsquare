@@ -142,7 +142,7 @@
   function renderHandles(listeners) {
     var shown = listeners.slice(0, 12);
     var html = shown.map(function (l) {
-      return '<span class="room-handle-chip">' + esc(l.handle) + "</span>";
+      return '<a class="room-handle-chip profile-link" href="/u/' + encodeURIComponent(l.handle) + '">' + esc(l.handle) + "</a>";
     }).join("");
     if (listeners.length > 12) {
       html += '<span class="room-handle-chip">+' +
@@ -163,7 +163,7 @@
     if (m.id > lastChatId) lastChatId = m.id;
     var div = document.createElement("div");
     div.className = "room-msg";
-    div.innerHTML = '<span class="who">' + esc(m.handle) + "</span>" +
+    div.innerHTML = '<a class="who profile-link" href="/u/' + encodeURIComponent(m.handle) + '">' + esc(m.handle) + "</a>" +
       '<span class="body">' + esc(m.body) + "</span>" +
       '<span class="when">' + esc(timeStr(m.created_at)) + "</span>";
     chatLog.appendChild(div);

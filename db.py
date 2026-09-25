@@ -232,6 +232,14 @@ def clean(s, limit, single_line=False):
     return s[:limit]
 
 
+def loud_limit(s, limit, label="text"):
+    # Missing since 5fe170c (imported by app.py but never defined) — broke
+    # `import app` entirely. Validator: raise ValueError when s exceeds
+    # limit chars, so over-long bodies 400 instead of slipping through.
+    if s and len(s) > limit:
+        raise ValueError(f"{label} is too long (max {limit} characters)")
+
+
 def valid_handle(h):
     # letters, numbers, underscore, dash. 2..32 chars. No spaces.
     return bool(re.fullmatch(r"[A-Za-z0-9_-]{2,32}", h or ""))
@@ -611,7 +619,7 @@ MAX_REWARDED_REPLIES_PER_THREAD_PER_DAY = 3
 
 # User-facing labels for reward-history rows. Internal reason keys must
 # never render verbatim: the return mechanic is framed only as the
-# Tidepal missing its owner ("tidepal missed you"), never as a
+# Pet missing its owner ("pet missed you"), never as a
 # reward-for-absence.
 REASON_LABELS = {
     "thread": "thread",
@@ -625,7 +633,7 @@ REASON_LABELS = {
     "achievement": "achievement",
     "tier_milestone": "tier milestone",
     "referral": "referral",
-    "comeback": "tidepal missed you",
+    "comeback": "pet missed you",
     "challenge_win": "weekly challenge",
 }
 
@@ -1032,6 +1040,10 @@ class Database:
         r = self._one("SELECT handle FROM comments WHERE id=?", (cid,))
         return r["handle"] if r else None
 
+    def episode_comment_author(self, cid):
+        r = self._one("SELECT handle FROM episode_comments WHERE id=?", (cid,))
+        return r["handle"] if r else None
+
     def comment_tree(self, post_id, sort="top"):
         rows = [dict(r) for r in self._q(
             "SELECT * FROM comments WHERE post_id=? ORDER BY created_at", (post_id,))]
@@ -1375,7 +1387,13 @@ class Database:
 
     # -- episodes ---------------------------------------------------------
     def episodes(self):
-        return [dict(r) for r in self._q("SELECT * FROM episodes ORDER BY published DESC, slug DESC")]
+        # Newest-first by published date; ties break by rowid DESC because
+        # episodes are INSERTed in upload order (seed list appends / publish
+        # flow), so rowid DESC == upload order, newest first. (2026-09-24:
+        # slug DESC tiebreak misordered same-day episodes — e.g. the 9/17
+        # batch showed Founder Tapes first and Agents & Humans last, the
+        # reverse of their upload sequence.)
+        return [dict(r) for r in self._q("SELECT * FROM episodes ORDER BY published DESC, rowid DESC")]
 
     def episode(self, slug):
         r = self._one("SELECT * FROM episodes WHERE slug=?", (slug,))
@@ -1451,6 +1469,14 @@ class Database:
             "SELECT * FROM photos WHERE status='approved'"
             " ORDER BY created_at DESC, id DESC LIMIT ?",
             (int(limit),))]
+
+    def photos_by_handle(self, handle, limit=12):
+        """Approved photos by one handle, newest first (profile Photos tab)."""
+        self._ensure_photo_status_col()
+        return [dict(r) for r in self._q(
+            "SELECT * FROM photos WHERE status='approved' AND handle=?"
+            " ORDER BY created_at DESC, id DESC LIMIT ?",
+            (handle, int(limit)))]
 
     def list_pending_photos(self, limit=50, offset=0):
         """Photos waiting on mod approval, oldest first."""
@@ -1869,6 +1895,18 @@ class Database:
             return False
         return bool(row)
 
+    def unflag_post(self, target_type, target_id, flagger_fm_id):
+        """Remove this identity's flag on the target. Returns True when a
+        flag row was actually deleted (2026-09-24: flag button toggles)."""
+        try:
+            cur = self._exec(
+                "DELETE FROM post_flags WHERE target_type=? AND target_id=?"
+                " AND flagger_fm_id=? AND status='open'",
+                (target_type, target_id, flagger_fm_id))
+        except sqlite3.OperationalError:
+            return False
+        return cur.rowcount > 0
+
     # -- clips ------------------------------------------------------------
     def add_clip(self, slug, handle, start_sec, end_sec, note=""):
         ep = self.episode(slug)
@@ -2091,6 +2129,53 @@ class Database:
                        " FROM posts WHERE handle=? ORDER BY id DESC LIMIT ?",
                        (handle, limit))
 
+    # -- privacy ------------------------------------------------------------
+    def _ensure_privacy_table(self):
+        self._exec("CREATE TABLE IF NOT EXISTS privacy ("
+                   " fm_id TEXT PRIMARY KEY,"
+                   " profile TEXT NOT NULL DEFAULT 'public',"
+                   " hide_stats INTEGER NOT NULL DEFAULT 0,"
+                   " hide_posts INTEGER NOT NULL DEFAULT 0,"
+                   " hide_online INTEGER NOT NULL DEFAULT 0)")
+
+    def get_privacy(self, fm_id):
+        """Privacy settings dict for an identity, or None if never set."""
+        self._ensure_privacy_table()
+        rows = self._q("SELECT profile, hide_stats, hide_posts, hide_online"
+                       " FROM privacy WHERE fm_id=?", (fm_id,))
+        if not rows:
+            return None
+        r = rows[0]
+        return {"profile": r["profile"],
+                "hide_stats": bool(r["hide_stats"]),
+                "hide_posts": bool(r["hide_posts"]),
+                "hide_online": bool(r["hide_online"])}
+
+    def set_privacy(self, fm_id, profile=None, hide_stats=None,
+                    hide_posts=None, hide_online=None):
+        """Upsert privacy settings. profile: public|unlisted|private."""
+        self._ensure_privacy_table()
+        cur = self.get_privacy(fm_id) or {"profile": "public",
+                                          "hide_stats": False,
+                                          "hide_posts": False,
+                                          "hide_online": False}
+        if profile is not None:
+            if profile not in ("public", "unlisted", "private"):
+                raise ValueError("bad profile visibility")
+            cur["profile"] = profile
+        for k, v in (("hide_stats", hide_stats), ("hide_posts", hide_posts),
+                     ("hide_online", hide_online)):
+            if v is not None:
+                cur[k] = bool(v)
+        self._exec("INSERT INTO privacy (fm_id, profile, hide_stats,"
+                   " hide_posts, hide_online) VALUES (?,?,?,?,?)"
+                   " ON CONFLICT(fm_id) DO UPDATE SET profile=excluded.profile,"
+                   " hide_stats=excluded.hide_stats, hide_posts=excluded.hide_posts,"
+                   " hide_online=excluded.hide_online",
+                   (fm_id, cur["profile"], int(cur["hide_stats"]),
+                    int(cur["hide_posts"]), int(cur["hide_online"])))
+        return cur
+
     def public_profile(self, fm_id):
         ident = self.get_identity(fm_id)
         if not ident:
@@ -2163,7 +2248,7 @@ class Database:
         Payout reasons (streak_bonus, achievement, tier_milestone, referral,
         comeback, challenge_win) never re-trigger, so the chain terminates.
 
-        Tidepal nudge: while your pet is peckish, restless, or sniffly,
+        Pet nudge: while your pet is peckish, restless, or sniffly,
         genuine activity earns 0.75x Signal (rounded, min 1) — the pet
         isn't sad, it's just a little distracting when it needs care.
         Payouts are never reduced. Pet-system failures can never break
@@ -2220,18 +2305,18 @@ class Database:
             prev_day = time.strftime("%Y-%m-%d", time.gmtime(prev))
             if self.award(fm_id, handle, PTS_COMEBACK, "comeback",
                           "comeback", f"{prev_day}:{day}"):
-                # Hidden Tidepal mechanic: the reward is a SURPRISE. The
+                # Hidden Pet mechanic: the reward is a SURPRISE. The
                 # notification never states points or the word "comeback" —
-                # the owner's Tidepal reacts (see pets.comeback glow) and the
+                # the owner's Pet reacts (see pets.comeback glow) and the
                 # grant simply appears in their Signal history.
                 self.notify(fm_id, "comeback", "comeback", day,
-                            "Welcome back — your Tidepal missed you! "
+                            "Welcome back — your Pet missed you! "
                             "It saved you a little surprise.")
 
     def comeback_today(self, fm_id):
         """True when this identity's owner returned from 7+ days dormant
         today (a hidden-comeback grant with today's return day exists).
-        Drives the Tidepal's overjoyed reaction on /pet."""
+        Drives the Pet's overjoyed reaction on /pet."""
         day = time.strftime("%Y-%m-%d", time.gmtime())
         r = self._one("SELECT id FROM rewards WHERE fm_id=? AND reason='comeback'"
                       " AND ref_id LIKE ? LIMIT 1", (fm_id, "%:" + day))
@@ -2542,7 +2627,7 @@ class Database:
         from pets import pet_rules  # deferred: pets.py imports db constants
         return {
             "tiers": [{"points": t, "tier": n} for t, n in TIERS],
-            "tidepals": pet_rules(),
+            "pets": pet_rules(),
             "base": [
                 {"reason": "thread", "points": PTS_THREAD,
                  "rule": "Publish a thread."},
@@ -2770,15 +2855,29 @@ class Database:
 
     # -- reactions --------------------------------------------------------
     def react(self, target_type, target_id, reactor, handle, emoji):
-        if target_type not in ("post", "comment"):
-            raise ValueError("target_type must be post or comment")
+        if target_type not in ("post", "comment", "episode_comment"):
+            raise ValueError("target_type must be post, comment, or episode_comment")
         if emoji not in REACT_EMOJIS:
             raise ValueError(f"emoji must be one of: {' '.join(REACT_EMOJIS)}")
-        table = "posts" if target_type == "post" else "comments"
+        table = {"post": "posts", "comment": "comments",
+                 "episode_comment": "episode_comments"}[target_type]
         if not self._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
             raise ValueError("unknown target")
         self._exec("INSERT OR IGNORE INTO reactions VALUES (?,?,?,?,?,?)",
                    (target_type, target_id, reactor, handle, emoji, now()))
+        return self.reaction_counts(target_type, target_id)
+
+    def unreact(self, target_type, target_id, reactor, emoji=None):
+        """Remove a reactor's reaction(s) from a target; pass emoji to
+        remove only that one. Returns fresh counts."""
+        if target_type not in ("post", "comment", "episode_comment"):
+            raise ValueError("target_type must be post, comment, or episode_comment")
+        if emoji:
+            self._exec("DELETE FROM reactions WHERE target_type=? AND target_id=? AND reactor=? AND emoji=?",
+                       (target_type, target_id, reactor, emoji))
+        else:
+            self._exec("DELETE FROM reactions WHERE target_type=? AND target_id=? AND reactor=?",
+                       (target_type, target_id, reactor))
         return self.reaction_counts(target_type, target_id)
 
     def reaction_counts(self, target_type, target_id):
@@ -2793,6 +2892,31 @@ class Database:
             """SELECT c.id cid, r.emoji, COUNT(*) c FROM comments c
                LEFT JOIN reactions r ON r.target_type='comment' AND r.target_id=c.id
                WHERE c.post_id=? GROUP BY c.id, r.emoji""", (post_id,))
+        out = {}
+        for r in rows:
+            if r["emoji"]:
+                out.setdefault(r["cid"], {})[r["emoji"]] = r["c"]
+        return out
+
+    def reactions_mine_batch(self, target_type, ids, reactor):
+        """{target_id: [emoji...]} the reactor has on each target. One query."""
+        if not ids or not reactor:
+            return {}
+        ids = list(dict.fromkeys(ids))
+        q = ("SELECT target_id, emoji FROM reactions WHERE target_type=? AND reactor=? "
+             "AND target_id IN (%s)" % ",".join("?" * len(ids)))
+        out = {}
+        for r in self._q(q, (target_type, reactor, *ids)):
+            out.setdefault(r["target_id"], []).append(r["emoji"])
+        return out
+
+    def reactions_for_episode_comments(self, slug):
+        """{comment_id: {emoji: count}} for every comment on an episode. One query."""
+        """{comment_id: {emoji: count}} for every comment on an episode. One query."""
+        rows = self._q(
+            """SELECT c.id cid, r.emoji, COUNT(*) c FROM episode_comments c
+               LEFT JOIN reactions r ON r.target_type='episode_comment' AND r.target_id=c.id
+               WHERE c.episode_slug=? GROUP BY c.id, r.emoji""", (slug,))
         out = {}
         for r in rows:
             if r["emoji"]:
@@ -2936,6 +3060,180 @@ class Database:
             f"SELECT handle, avatar_url FROM identities WHERE handle IN ({q})",
             handles)
         return {r["handle"]: (r["avatar_url"] or None) for r in rows}
+
+    # -- DMs: agent<->agent messaging, owner-visible (2026-09-24) -----------
+    def dm_send(self, thread_key, sender, recipient, body, now=None):
+        """Insert a DM. Returns the new message id."""
+        now = int(now if now is not None else time.time())
+        cur = self._exec(
+            "INSERT INTO dms (thread_key, sender, recipient, body,"
+            " created_at) VALUES (?,?,?,?,?)",
+            (thread_key, sender, recipient, body, now))
+        return cur.lastrowid
+
+    def dm_audit_log(self, sender, recipient, action, reason=None,
+                     message_id=None, now=None):
+        """Audit every send attempt ('sent' | 'blocked')."""
+        now = int(now if now is not None else time.time())
+        self._exec(
+            "INSERT INTO dm_audit (created_at, sender, recipient, action,"
+            " reason, message_id) VALUES (?,?,?,?,?,?)",
+            (now, sender, recipient, action, reason, message_id))
+
+    def dm_threads_for(self, participant, limit=50):
+        """Conversation list for a participant: one row per thread with
+        peer key, last-message preview, last_at, and unread count."""
+        rows = self._q(
+            "SELECT thread_key,"
+            " MAX(id) AS last_id,"
+            " MAX(created_at) AS last_at,"
+            " SUM(CASE WHEN recipient=? AND read_at IS NULL THEN 1 ELSE 0 END)"
+            "  AS unread"
+            " FROM dms WHERE sender=? OR recipient=?"
+            " GROUP BY thread_key ORDER BY last_at DESC LIMIT ?",
+            (participant, participant, participant, limit))
+        out = []
+        for r in rows:
+            last = self._one(
+                "SELECT id, sender, body, created_at, read_at FROM dms"
+                " WHERE id=?", (r["last_id"],))
+            out.append({
+                "thread_key": r["thread_key"],
+                "peer": None,  # filled by caller via dm.thread_peer
+                "last_id": r["last_id"],
+                "last_body": last["body"] if last else "",
+                "last_sender": last["sender"] if last else "",
+                "last_at": r["last_at"],
+                "last_read_at": last["read_at"] if last else None,
+                "unread": int(r["unread"] or 0),
+            })
+        return out
+
+    def dm_unread_count(self, participant):
+        r = self._one(
+            "SELECT COUNT(*) c FROM dms WHERE recipient=? AND read_at IS NULL",
+            (participant,))
+        return int(r["c"] or 0) if r else 0
+
+    def dm_thread_messages(self, thread_key, limit=50, before_id=None,
+                           q=None):
+        """Newest-first page of messages in a thread. q filters by body."""
+        sql = ("SELECT id, sender, recipient, body, created_at, read_at"
+               " FROM dms WHERE thread_key=?")
+        args = [thread_key]
+        if before_id:
+            sql += " AND id<?"
+            args.append(before_id)
+        if q:
+            sql += " AND body LIKE ? ESCAPE '\\'"
+            args.append("%" + q.replace("\\", "\\\\").replace("%", "\\%")
+                        .replace("_", "\\_") + "%")
+        sql += " ORDER BY id DESC LIMIT ?"
+        args.append(limit)
+        rows = self._q(sql, args)
+        msgs = [dict(r) for r in rows]
+        if msgs:
+            ids = [m["id"] for m in msgs]
+            rq = ",".join("?" * len(ids))
+            for rr in self._q(
+                    f"SELECT message_id, reactor, emoji FROM dm_reactions"
+                    f" WHERE message_id IN ({rq})", ids):
+                for m in msgs:
+                    if m["id"] == rr["message_id"]:
+                        m.setdefault("reactions", []).append(
+                            {"reactor": rr["reactor"], "emoji": rr["emoji"]})
+        return msgs
+
+    def dm_mark_read(self, thread_key, participant, now=None):
+        """Mark all inbound messages in a thread as read. Returns count."""
+        now = int(now if now is not None else time.time())
+        cur = self._exec(
+            "UPDATE dms SET read_at=? WHERE thread_key=? AND recipient=?"
+            " AND read_at IS NULL",
+            (now, thread_key, participant))
+        return cur.rowcount
+
+    def dm_set_typing(self, thread_key, participant, now=None):
+        now = int(now if now is not None else time.time())
+        self._exec(
+            "INSERT INTO dm_typing (thread_key, participant, updated_at)"
+            " VALUES (?,?,?)"
+            " ON CONFLICT(thread_key, participant)"
+            " DO UPDATE SET updated_at=excluded.updated_at",
+            (thread_key, participant, now))
+
+    def dm_typing_for(self, thread_key, me, window_sec=10, now=None):
+        """Other participants typing in this thread within the window."""
+        now = int(now if now is not None else time.time())
+        rows = self._q(
+            "SELECT participant FROM dm_typing WHERE thread_key=?"
+            " AND participant != ? AND updated_at > ?",
+            (thread_key, me, now - window_sec))
+        return [r["participant"] for r in rows]
+
+    def dm_react(self, message_id, reactor, emoji):
+        """Toggle one participant's emoji reaction on a message.
+        Returns 'added' or 'removed'."""
+        r = self._one(
+            "SELECT emoji FROM dm_reactions WHERE message_id=? AND reactor=?",
+            (message_id, reactor))
+        if r and r["emoji"] == emoji:
+            self._exec(
+                "DELETE FROM dm_reactions WHERE message_id=? AND reactor=?",
+                (message_id, reactor))
+            return "removed"
+        self._exec(
+            "INSERT INTO dm_reactions (message_id, reactor, emoji, created_at)"
+            " VALUES (?,?,?,?)"
+            " ON CONFLICT(message_id, reactor)"
+            " DO UPDATE SET emoji=excluded.emoji,"
+            " created_at=excluded.created_at",
+            (message_id, reactor, emoji, int(time.time())))
+        return "added"
+
+    def dm_mark_seen(self, thread_key, viewer, now=None):
+        """Record that viewer (participant key or 'owner:<human_fm_id>')
+        has seen a thread up to now."""
+        now = int(now if now is not None else time.time())
+        self._exec(
+            "INSERT INTO dm_seen (thread_key, viewer, seen_at)"
+            " VALUES (?,?,?)"
+            " ON CONFLICT(thread_key, viewer)"
+            " DO UPDATE SET seen_at=excluded.seen_at",
+            (thread_key, viewer, now))
+
+    def dm_unseen_counts(self, viewer, thread_keys):
+        """{thread_key: messages newer than viewer's seen_at}. Single query."""
+        thread_keys = list(thread_keys)
+        if not thread_keys:
+            return {}
+        q = ",".join("?" * len(thread_keys))
+        rows = self._q(
+            f"SELECT d.thread_key AS thread_key, COUNT(*) AS c FROM dms d"
+            f" LEFT JOIN dm_seen s ON s.thread_key=d.thread_key"
+            f"  AND s.viewer=?"
+            f" WHERE d.thread_key IN ({q})"
+            f"  AND d.created_at > COALESCE(s.seen_at, 0)"
+            f" GROUP BY d.thread_key",
+            [viewer] + thread_keys)
+        return {r["thread_key"]: int(r["c"]) for r in rows}
+
+    def dm_threads_visible_to_human(self, human_fm_id, limit=100):
+        """Threads a human may review: threads where they participate,
+        plus threads of agents they own. Returns participant-key sets."""
+        mine = self._q(
+            "SELECT DISTINCT thread_key FROM dms"
+            " WHERE sender=? OR recipient=?",
+            ("human:" + human_fm_id, "human:" + human_fm_id))
+        keys = {r["thread_key"] for r in mine}
+        muse = self.link_for_human(human_fm_id)
+        if muse:
+            owned = self._q(
+                "SELECT DISTINCT thread_key FROM dms"
+                " WHERE sender=? OR recipient=?",
+                ("agent:" + muse, "agent:" + muse))
+            keys |= {r["thread_key"] for r in owned}
+        return sorted(keys)
 
 
 def ensure_musefm_media_schema(db):

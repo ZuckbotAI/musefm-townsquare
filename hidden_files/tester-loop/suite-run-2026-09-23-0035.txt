@@ -1,0 +1,92 @@
+test_agent_memory.py ::  37 passed, 0 failed 
+SKIP test_ai_images.py
+test_asks.py ::  52 passed, 0 failed 
+test_audio_delete_2026_09_18.py ::  18 passed, 0 failed 
+test_auth.py ::  62 passed, 0 failed 
+test_bounties.py ::  73 passed, 0 failed 
+test_brand.py ::  brand: 27 passed, 0 failed 
+test_bugfix_clean_title_2026_09_19.py ::   PASS empty -> 'untitled clip' == 8 PASS, 0 FAIL == 
+test_bugfix_csrf_2026_09_19.py ::   FAIL POST /fb_react JSON with valid token -> 200 -- 307 == 8 PASS, 5 FAIL == 
+test_bugfix_form_ratelimit_burn_2026_09_20.py ::  4 passed, 0 failed 
+test_bugfix_nonce_ratelimit_2026_09_19.py ::   same body from fresh IP -> 200 (nonce was never burned) PASS: 429 does not burn the nonce 
+test_bugfix_open_redirects_2026_09_19.py ::   PASS login next=/c/lobby honored == 25 PASS, 0 FAIL == 
+test_bugfix_redirects_2026_09_19.py ::   home sidebar Forum control -> href="/c/lobby" PASS: redirects + Forum href correct 
+test_bugfix_sqlite_contention_2026_09_19.py ::   PASS bad SQL still raises == 8 PASS, 0 FAIL == 
+test_bugfix_validate_before_limit_2026_09_19.py ::   claim-human: 12 malformed -> 400s, then valid -> 200 PASS: malformed requests never touch the rate budget 
+test_collab.py ::  59 passed, 0 failed 
+test_comments_pro.py ::  60 passed, 0 failed 
+test_community_episodes.py ::  15 passed, 0 failed 
+test_duets.py ::  53 passed, 0 failed 
+test_episode_comments_2026_09_18.py ::  22 passed, 0 failed 
+test_events.py ::  48 passed, 0 failed 
+test_expansion.py ::  53 passed, 0 failed 
+test_fb_reactions.py ::     import fb_reactions ModuleNotFoundError: No module named 'fb_reactions' 
+test_fs_400s_2026_09_18.py ::  4 passed, 0 failed 
+test_gifs.py ::  48 passed, 0 failed 
+test_human_usability.py :: <p>You should be redirected automatically to the target URL: <a href="/signals/react">/signals/react</a>. If not, click the link.  
+test_identity.py ::  41 passed, 0 failed 
+test_identity_key_rotation.py ::  12 passed, 0 failed 
+test_kind_tags.py ::  33 passed, 0 failed 
+test_linking.py ::  39 passed, 0 failed 
+test_links.py ::  17 passed, 10 failed 
+test_listening_rooms_2026_09_21.py :: AGENT_KEY must be set in the environment (prevents the app from generating .agent_key inside the checkout) 
+test_memory.py ::  78 passed, 0 failed 
+test_mod_approval.py ::  PASS 56  FAIL 0 
+test_mod_notifications.py ::  11 passed, 0 failed 
+test_musefm.py ::     import fb_reactions ModuleNotFoundError: No module named 'fb_reactions' 
+test_notifications.py ::  22 passed, 0 failed 
+test_openmic.py ::  34 passed, 0 failed 
+test_p1_2026_09_18.py ::  39 passed, 3 failed 
+test_p1_csrf_human_handle_2026_09_18.py ::  20 passed, 0 failed 
+test_pet_fusion.py ::  21 passed, 0 failed 
+test_pet_onboarding.py ::  49 passed, 0 failed 
+test_pet_presence.py ::  24 passed, 0 failed 
+test_pets.py ::  101 passed, 0 failed 
+test_reefdex_nap.py ::  29 passed, 0 failed 
+test_rewards.py ::  51 passed, 0 failed 
+test_row.py :: 
+test_self_heal.py :: [musefm] self-heal: image 1 file missing -> status=rejected SELF-HEAL OK: good stays approved; corrupt/missing -> rejected; pending untouched; idempotent 
+test_shop.py ::  89 passed, 0 failed 
+test_shop_idem_retry.py ::  4 passed, 0 failed 
+test_shop_proxy.py ::  24 passed, 0 failed 
+test_shorts.py ::  78 passed, 0 failed 
+test_shorts_seen_rotation.py ::  12 passed, 6 failed 
+test_shorts_shuffle.py ::  15 passed, 0 failed 
+test_sidebar.py ::  108 passed, 11 failed 
+test_sso_provider_2026_09_21.py ::  32 passed, 0 failed 
+test_swarm.py ::  SWARM: 71 passed, 0 failed 
+test_testerloop_0046_p2s_2026_09_20.py ::     import fb_reactions ModuleNotFoundError: No module named 'fb_reactions' 
+test_testerloop_1835_fixes_2026_09_19.py ::   PASS next 4 valid 200 then 429 (limit enforced) == 24 PASS, 3 FAIL == 
+test_testerloop_1835_flood_wall_2026_09_20.py ::  12 passed, 4 failed 
+test_testerloop_bio_truncate_2026_09_22.py ::     from db import Database, ensure_human_auth_schema, clean_bio, clean_comment_body, MAX_BIO ImportError: cannot import name 'clean_bio' from 'db' (/home/hatch/workspace/musefm-townsquare/db.py) 
+test_testerloop_comment_edit_truncate_2026_09_21.py ::  4 passed, 8 failed 
+test_testerloop_episode_comment_redirect_2026_09_22.py ::  3 passed, 1 failed 
+test_testerloop_error_messages_2026_09_22.py ::  4 passed, 2 failed: ["missing-signature error says 'missing signature'", "react missing-target_id error names 'target_id'"] 
+test_testerloop_flag_messages_2026_09_19.py ::   PASS 429 on form /submit renders HTML, not JSON == 4 PASS, 0 FAIL == 
+test_testerloop_logincsrf_2026_09_21.py ::  0 passed, 3 failed 
+test_testerloop_multipart_bool_2026_09_19.py :: 0 all passed FAILURES: [] 
+test_testerloop_newline_preserve_2026_09_19.py :: PASS spaces collapsed but not to newline == 3 PASS, 0 FAIL == 
+test_testerloop_p2_2026_09_21.py ::   PASS empty/None safe == 12 PASS, 0 FAIL == 
+test_testerloop_p2_2026_09_21_b.py ::  6 passed, 0 failed 
+test_testerloop_platformkey_envelope_2026_09_22.py ::  3 passed, 1 failed: ['platform-key body carries the documented ok envelope'] 
+test_testerloop_post_body_limit_2026_09_20.py ::  3 passed, 0 failed 
+test_testerloop_ratelimit_before_validate_2026_09_20.py ::  3 passed, 2 failed 
+test_testerloop_rawint_exn_2026_09_22.py ::  3 passed, 3 failed 
+test_testerloop_xff_direct_2026_09_22.py ::  4 passed, 0 failed 
+test_tidepal_depth.py ::  99 passed, 0 failed 
+test_tidepal_homepage.py ::  7 passed, 4 failed 
+test_tidepal_social.py ::  68 passed, 0 failed 
+test_tidepal_social_routes.py ::  28 passed, 0 failed 
+test_tidepal_world.py ::  106 passed, 0 failed 
+test_trustline_bridge.py ::  23 passed, 0 failed 
+test_ui_fixes_2026_09_18.py ::  43 passed, 0 failed 
+test_upload_audio_mimetype_2026_09_18.py ::  2 passed, 0 failed 
+test_uploads.py ::  24 passed, 0 failed 
+test_video.py ::  69 passed, 0 failed 
+test_video_comments.py ::  43 passed, 0 failed 
+test_vote_stress.py ::  9 passed, 0 failed 
+test_workroom.py ::  43 passed, 0 failed 
+test_workroom_agent_loop.py ::  PASS 5  FAIL 0 
+test_workroom_bridge.py ::     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ AttributeError: module 'workroom' has no attribute 'ensure_workroom_events_schema'. Did you mean: 'ensure_workroom_schema'? 
+test_workroom_pilot.py ::  PASS 55  FAIL 0 
+test_workroom_private.py ::  71 passed, 0 failed 

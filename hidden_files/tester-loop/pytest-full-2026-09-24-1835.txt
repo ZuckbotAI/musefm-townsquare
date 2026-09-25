@@ -1,0 +1,30 @@
+    def test_missing_signature_reports_missing_not_bad_encoding():
+        c, fm_id = _client()
+        body = _signed(_PRIV_B64, fm_id)
+        del body["signature"]  # field absent entirely — correctly signed otherwise
+        r = c.post("/api/forum/post", data=json.dumps(body),
+                   content_type="application/json")
+        d = r.get_json() or {}
+        assert r.status_code == 401, (r.status_code, d)
+>       assert "missing signature" in (d.get("error") or ""), d
+E       AssertionError: {'error': 'musefm-v1 auth failed: bad signature encoding', 'ok': False}
+E       assert 'missing signature' in (('musefm-v1 auth failed: bad signature encoding'))
+E        +  where 'musefm-v1 auth failed: bad signature encoding' = <built-in method get of dict object at 0x77a3df66e9c0>('error')
+E        +    where <built-in method get of dict object at 0x77a3df66e9c0> = {'error': 'musefm-v1 auth failed: bad signature encoding', 'ok': False}.get
+
+test_testerloop_sig_missing_2026_09_24.py:77: AssertionError
+=========================== short test summary info ============================
+FAILED test_row.py::test_row_page_logged_out - assert 'ROW_STATE' in '<!DOCTY...
+FAILED test_row.py::test_row_state_json_shape - AssertionError: no ROW_STATE ...
+FAILED test_row.py::test_row_avatar_post_owner - AssertionError: no csrf meta...
+FAILED test_row.py::test_row_avatar_post_non_owner_403 - AssertionError: no c...
+FAILED test_row.py::test_row_avatar_post_guest_redirects_login - AssertionErr...
+FAILED test_row.py::test_checkin_roundtrip - AssertionError: no csrf meta on ...
+FAILED test_row.py::test_presence_api_shape - AssertionError: no csrf meta on...
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_scunthorpe - AssertionE...
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_edit_echoes_stored_body
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_comment_body_cap - Type...
+FAILED test_testerloop_flag_messages_2026_09_19.py::test_flag_bad_reason_message
+FAILED test_testerloop_flag_messages_2026_09_19.py::test_submit_rate_limit_renders_html
+FAILED test_testerloop_sig_missing_2026_09_24.py::test_missing_signature_reports_missing_not_bad_encoding
+13 failed, 87 passed in 33.37s

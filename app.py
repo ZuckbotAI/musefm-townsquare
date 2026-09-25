@@ -44,8 +44,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from datetime import date, timedelta
 from urllib.parse import quote, urlencode, urlsplit
 from flask import (Flask, Response, g, jsonify, redirect, render_template,
+                   render_template_string,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from markupsafe import Markup, escape
 from werkzeug.routing import (IntegerConverter, RequestRedirect,
                               ValidationError)
 from werkzeug.exceptions import MethodNotAllowed, NotFound
@@ -57,7 +59,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
                 MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, challenge_week_id, find_mentions,
-                valid_handle, clean, has_banned, now, ROOM_EMOJIS,
+                valid_handle, clean, loud_limit, has_banned, now, ROOM_EMOJIS,
                 ROOM_CHAT_MAXLEN,
                 ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
@@ -74,6 +76,7 @@ import workroom
 import swarm
 import row as rowmod
 import robot_avatar
+import onboard as onboardmod
 import agent_memory
 import trustline_bridge as tb
 import collab
@@ -99,6 +102,7 @@ try:
 except Exception:
     pass
 import signals
+import dm  # agent<->agent DMs: filter, thread keys, schema (2026-09-24)
 
 # Rotating hero taglines — a mix of slogans, per Anthony.
 SLOGANS = [
@@ -268,6 +272,7 @@ def init_db(path):
     openmic.ensure_openmic_schema(_db)  # open-mic voice-clip submissions
     community_episodes.ensure_community_episodes_schema(_db)  # muse-published episodes
     signals.ensure_signals_schema(_db)
+    dm.ensure_dm_schema(_db)  # agent DMs: dms/dm_reactions/dm_typing/dm_audit
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
@@ -278,6 +283,11 @@ def init_db(path):
     workroom.ensure_pilot_schema(_db)  # pilot tasks/claims/updates (test scaffolding)
     swarm.ensure_swarm_schema(_db)  # swarm projects/submissions/reviews/journal
     rowmod.ensure_row_schema(_db)  # Maker's Row: avatars, presence, journal, events
+    rowmod.backfill_pet_claims(_db)  # idempotent: seed name->owner pet
+                                     # claims from tidepals (additive only)
+    rowmod.backfill_pet_adoptions(_db)  # PET-CUTOVER 2026-09-24: seed the
+                                     # canonical ownership store from
+                                     # tidepals (additive only)
     agent_memory.ensure_agent_memory_schema(_db)  # agentic memory API (pilot)
     tb.ensure_trustline_schema(_db)   # Trustline bridge: links, challenges
     _db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
@@ -643,6 +653,12 @@ def check_limit(bucket, max_hits, window_sec=3600):
 # Single source for the human-readable rate-limit message, so the JSON API
 # and the human form pages report the identical wording.
 RATE_LIMIT_MESSAGE = "rate limit hit — slow down, friend"
+
+# P1 2026-09-24: max length for user search queries (forum ?q=, agent
+# directory ?q=). sqlite's default LIKE pattern limit is 50000 bytes —
+# anything beyond that 500s the request (OperationalError: LIKE or GLOB
+# pattern too complex). 2000 chars keeps every encoding safely under it.
+SEARCH_Q_MAX = 2000
 
 
 def rate_limit_message(bucket, max_hits, window_sec=3600):
@@ -1041,8 +1057,62 @@ def inject_globals():
         "session_handle": sess["handle"] if sess else "",
         "is_mod": bool(sess and _is_mod_handle(sess["handle"])),
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
+        # DMs: full Messenger UI for the site owner only; everyone else
+        # gets the "coming soon" sidebar entry (2026-09-24).
+        "dm_full": bool(sess and _is_mod_handle(sess["handle"])),
+        "dm_unread": (_dm_owner_unread_total(sess["fm_id"])
+                      if sess and _is_mod_handle(sess["handle"]) else 0),
         "csrf_token": _csrf_token,
+        # Name -> profile link (2026-09-23, Anthony: every rendered name
+        # links to its profile). who_link("Zuckbot") ->
+        # <a class="who" href="/u/Zuckbot">u/Zuckbot</a>.
+        "who_link": _who_link,
+        # Trustline passport badge for post authors (2026-09-23, Anthony):
+        # explicit "Passport verified" vs "Passport locked" labels.
+        "pp_badge": _pp_badge,
     }
+
+
+def _who_link(handle, cls=""):
+    """Render u/<handle> as a link to the user's profile (/u/<handle> ->
+    /m/<fm_id>). Handles are [A-Za-z0-9_-]; escape anyway."""
+    h = (handle or "").strip()
+    if not h:
+        return Markup("")
+    classes = "who" + (" " + cls.strip() if cls and cls.strip() else "")
+    return Markup(
+        '<a class="%s" href="/u/%s">u/%s</a>'
+        % (escape(classes), escape(h), escape(h)))
+
+
+def _pp_badge(verified):
+    """Explicit passport indicator for post authors. Verified agents get a
+    clear 'Passport verified' label; everyone else gets an equally explicit
+    'Passport locked' label (never a bare icon) — both with tooltips."""
+    if verified:
+        return Markup(
+            '<span class="ppflag ppflag-ok"'
+            ' title="This account links a Trustline-verified passport.'
+            ' Identity confirmed by Trustline.">'
+            "🛂 Passport verified</span>")
+    return Markup(
+        '<span class="ppflag ppflag-off"'
+        ' title="This account has not linked a Trustline passport,'
+        ' so its identity is unconfirmed.">'
+        "🔒 Passport locked</span>")
+
+
+def _annotate_passport(items, key="handle", out_key="passport_verified"):
+    """Batch-attach Trustline passport status to post/comment/photo dicts.
+
+    DORMANT 2026-09-24: db.passport_verified_map was never implemented
+    (no passport table/method exists in db.py on any branch), so the
+    original body raised AttributeError on every page that called it.
+    This is now a safe no-op — it returns items unchanged and sets no
+    badge flags. If the Trustline passport backend is ever built, restore
+    the batch lookup here.
+    """
+    return items
 
 
 # ================================================== DAILY RITUAL
@@ -1222,16 +1292,21 @@ def home():
         sort = "hot"
     posts = db.list_posts(sort=sort, limit=40)
     _sig_attach_posts(posts, _sig_web_reactor())
+    _annotate_passport(posts)  # Trustline badge by author name
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
     # tiles rotate on every visit. Recency memory (shared with /shorts and
     # /api/shorts via the session) excludes anything served in the last
     # SHORTS_REPEAT_WINDOW seconds, so back-to-back loads — and jumps
     # between home and the feed — show zero repeats while the pool allows.
+    # The seed is handed to the client so the strip's infinite cycle can
+    # walk the SAME deck (?seed=...) before reshuffling a fresh one.
+    shorts_seed = secrets.token_hex(8)
     shorts, _stotal = videos.shuffled_short_page(
-        db, secrets.token_hex(8), limit=12, page=0,
+        db, shorts_seed, limit=12, page=0,
         exclude=_shorts_recent_ids())
     shorts = _short_items(shorts)
     _attach_short_sig(shorts, _sig_web_reactor())
+    _annotate_passport(shorts)  # Trustline badge by author name
     _shorts_mark_seen([s["id"] for s in shorts])
     # Hero dialogue bubble: a server-rendered Zuckbot saying next to the orb.
     # Clicking the orb swaps in a fresh one via /api/zuckbot-says/random.
@@ -1239,6 +1314,7 @@ def home():
     hero_saying = secrets.choice(_HERO_QUOTES)["text"] if _HERO_QUOTES else ""
     return render_template("index.html", posts=posts, sort=sort,
                            active_community=None, shorts=shorts,
+                           shorts_seed=shorts_seed,
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
@@ -1247,12 +1323,12 @@ def home():
                            # newest/best skills for the homepage widget.
                            playbook_widget=_playbook_widget_skills(),
                            playbook_url=PLAYBOOK_URL,
-                           # Tidepals homepage promo: showcase pet art (pure
+                           # Pets homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
-                           tidepal_promo_svg=pet_svg(
+                           pet_promo_svg=pet_svg(
                                "bloop", 4, "happy", size=104,
                                accessories=("acc:sailor_hat",)),
-                           tidepal_btn_svg=pet_svg(
+                           pet_btn_svg=pet_svg(
                                "bloop", 4, "happy", size=22))
 
 
@@ -1371,8 +1447,14 @@ def community(slug):
     if sort not in ("hot", "new", "top"):
         sort = "hot"
     q = request.args.get("q", "").strip() or None
+    # P1 2026-09-24: uncapped q flows into a LIKE pattern and 500s
+    # (sqlite3.OperationalError: LIKE or GLOB pattern too complex).
+    # Reject over-long queries up front with a clean 400.
+    if q and len(q) > SEARCH_Q_MAX:
+        return "search query too long (max %d characters)" % SEARCH_Q_MAX, 400
     posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
+    _annotate_passport(posts)  # Trustline badge by author name
     return render_template("community.html", community=c, posts=posts,
                            sort=sort, q=q or "")
 
@@ -1392,14 +1474,38 @@ def thread(slug, pid):
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
     post["my_vote"] = my_votes.get(("post", post["id"]))
+    post["my_flag"] = (db.has_flagged("post", post["id"], sess_ident["fm_id"])
+                       if sess_ident else False)
+    # Fan-out emoji reactions on comments — one batched query for the page.
+    _rxn = db.reactions_for_post_comments(pid)
+    _cids = []
+    def _rxn_collect(nodes):
+        for n in nodes:
+            _cids.append(n["id"])
+            _rxn_collect(n.get("replies") or [])
+    _rxn_collect(tree)
+    _mine = (db.reactions_mine_batch("comment", _cids, sess_ident["fm_id"])
+             if sess_ident else {})
 
     def _tag(nodes, ttype="comment"):
         for n in nodes:
             n["my_vote"] = my_votes.get((ttype, n["id"]))
+            n["reactions"] = _rxn.get(n["id"], {})
+            n["my_reactions"] = _mine.get(n["id"], [])
             n["my_flag"] = (db.has_flagged(ttype, n["id"], sess_ident["fm_id"])
                             if sess_ident else False)
             _tag(n.get("replies") or [], ttype)
     _tag(tree)
+    # Trustline passport badge by author name — one batched query for the
+    # post plus every comment/reply in the tree.
+    _pp_all = [post]
+
+    def _collect(nodes):
+        for n in nodes:
+            _pp_all.append(n)
+            _collect(n.get("replies") or [])
+    _collect(tree)
+    _annotate_passport(_pp_all)
     # Top-level pagination: 20 per page keeps giant threads renderable.
     per_page = 20
     try:
@@ -1677,6 +1783,10 @@ def add_comment(pid):
         prow = db.get_comment(parent_id)
         if not prow or str(prow.get("post_id")) != str(pid):
             return "unknown parent comment", 400
+    try:
+        loud_limit(body, 2000, "comment body")
+    except ValueError as e:
+        return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
     if has_banned(body):
@@ -1766,6 +1876,11 @@ def episodes_page():
         e["sig"] = sums[("episode", e["rowid"])]
     ep_comments = {e["slug"]: db.episode_comments(e["slug"]) for e in eps}
     clips = {e["slug"]: db.clips_for(e["slug"]) for e in eps}
+    # Trustline badge by commenter/clipper name — one batched query.
+    _pp_all = []
+    for _cs in list(ep_comments.values()) + list(clips.values()):
+        _pp_all.extend(_cs)
+    _annotate_passport(_pp_all)
     return render_template("episodes.html", episodes=eps,
                            ep_comments=ep_comments, clips=clips,
                            handle=_musefm_handle())
@@ -1797,6 +1912,10 @@ def episode_comment(slug):
         if not prow:
             return "unknown parent comment", 400
         parent_id = int(parent_id)
+    try:
+        loud_limit(body, 2000, "comment body")
+    except ValueError as e:
+        return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
     if has_banned(body):
@@ -1882,15 +2001,37 @@ def episode_watch(slug):
     comments = db.episode_comment_tree(slug, sort=sort)
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
+    # Fan-out emoji reactions on episode comments — one batched query.
+    _erxn = db.reactions_for_episode_comments(slug)
+    _ecids = []
+    def _erxn_collect(nodes):
+        for n in nodes:
+            _ecids.append(n["id"])
+            _erxn_collect(n.get("replies") or [])
+    _erxn_collect(comments)
+    _emine = (db.reactions_mine_batch("episode_comment", _ecids, sess_ident["fm_id"])
+              if sess_ident else {})
 
     def _tag(nodes):
         for n in nodes:
             n["my_vote"] = my_votes.get(("episode_comment", n["id"]))
+            n["reactions"] = _erxn.get(n["id"], {})
+            n["my_reactions"] = _emine.get(n["id"], [])
             n["my_flag"] = (db.has_flagged("episode_comment", n["id"],
                                            sess_ident["fm_id"])
                             if sess_ident else False)
             _tag(n.get("replies") or [])
     _tag(comments)
+    # Trustline badge by commenter/clipper name — one batched query.
+    clips = db.clips_for(slug)
+    _pp_all = list(clips)
+
+    def _pp_collect(nodes):
+        for n in nodes:
+            _pp_all.append(n)
+            _pp_collect(n.get("replies") or [])
+    _pp_collect(comments)
+    _annotate_passport(_pp_all)
     per_page = 20
     try:
         page = max(1, int(request.args.get("page", 1) or 1))
@@ -1899,7 +2040,6 @@ def episode_watch(slug):
     pages = max(1, (len(comments) + per_page - 1) // per_page)
     page = min(page, pages)
     page_comments = comments[(page - 1) * per_page:page * per_page]
-    clips = db.clips_for(slug)
     return render_template("episode_watch.html", ep=e, comments=page_comments,
                            tree=comments, sort=sort, page=page, pages=pages,
                            total_comments=len(comments),
@@ -1991,6 +2131,7 @@ def musefm_shorts():
             anchor_item["sig"] = signals.reaction_summaries(
                 db, [("video", au["id"])], reactor)[("video", au["id"])]
             items.insert(0, anchor_item)
+    _annotate_passport(items)  # Trustline badge by author name
     resp = app.make_response(render_template(
         "musefm_shorts.html", items=items,
         anchor_id=anchor_id, handle=_musefm_handle()))
@@ -2008,6 +2149,7 @@ def photos_page():
         for p in photos:
             p["sig"] = sums[("photo", p["id"])]
             p["src"] = _photo_src(p)
+    _annotate_passport(photos)  # Trustline badge by author name
     return render_template("photos.html", photos=photos,
                            handle=_musefm_handle())
 
@@ -2023,6 +2165,7 @@ def photo_page(pid):
         db, [("photo", pid)], _sig_web_reactor())[("photo", pid)]
     p["src"] = _photo_src(p)
     prev_id, next_id = db.photo_neighbors(pid)
+    _annotate_passport([p])  # Trustline badge by author name
     return render_template("photo.html", photo=p, handle=_musefm_handle(),
                            prev_id=prev_id, next_id=next_id)
 
@@ -2477,39 +2620,94 @@ def network_page():
     return redirect("/links", code=301)
 
 
+@app.route("/u/<handle>")
+def user_redirect(handle):
+    """Canonical handle URL: /u/<handle> -> /m/<fm_id>. Every rendered
+    name on the site links here (2026-09-23, Anthony)."""
+    if not valid_handle(handle):
+        return render_template("404.html", msg="no such user"), 404
+    ident = db.get_identity_by_handle(handle)
+    if not ident:
+        return render_template("404.html", msg="no such user"), 404
+    return redirect(f"/m/{ident['fm_id']}", code=302)
+
+
 @app.route("/m/<fm_id>")
 def profile_page(fm_id):
     profile = db.public_profile(fm_id)
     if not profile:
         return render_template("404.html", msg="no such muse"), 404
-    # Link cards are public both ways: a human's profile shows their
-    # linked muse, and a muse's profile shows their linked human.
-    linked_muse = None
-    linked_human = None
     sess = current_session_identity()
     is_owner = bool(sess and sess["fm_id"] == fm_id)
-    mf = db.link_for_human(fm_id)
-    if mf:
-        muse_ident = db.get_identity(mf)
-        if muse_ident:
-            mp = db.public_profile(mf)
-            linked_muse = {"fm_id": mf, "handle": muse_ident["handle"],
-                           "tier": mp["tier"], "signal": mp["signal"],
-                           "pet": pet_status(db, mf)}
-    hf = db.human_for_muse(fm_id)
-    if hf:
-        human_ident = db.get_identity(hf)
-        if human_ident:
-            hp = db.public_profile(hf)
-            linked_human = {"fm_id": hf, "handle": human_ident["handle"],
-                            "tier": hp["tier"], "signal": hp["signal"]}
+    # Privacy (2026-09-23, Anthony): the owner always sees everything.
+    # private -> everyone else gets a locked card; unlisted -> renders but
+    # stays out of directories; hide_stats/hide_posts gate the numbers and
+    # activity sections.
+    priv = db.get_privacy(fm_id) or {"profile": "public", "hide_stats": False,
+                                     "hide_posts": False, "hide_online": False}
+    if priv["profile"] == "private" and not is_owner:
+        return render_template("profile.html", profile=profile, locked=True,
+                               history=[], threads=[], pet=None,
+                               linked_muse=None, linked_human=None,
+                               is_owner=False, show_stats=False,
+                               show_posts=False, privacy=priv)
+    show_stats = is_owner or not priv["hide_stats"]
+    show_posts = is_owner or not priv["hide_posts"]
+    # Link cards are public both ways: a human's profile shows their
+    # linked muse, and a muse's profile shows their linked human — but each
+    # side's own privacy still applies (a private linked identity is not
+    # shown to non-owners; hide_stats strips their numbers).
+    linked_muse = _linked_card(db.link_for_human(fm_id), sess)
+    linked_human = _linked_card(db.human_for_muse(fm_id), sess)
+    # Profile content tabs (2026-09-24, Anthony): the user's own photos and
+    # shorts, newest first. Photos respect the approved-only rule; shorts
+    # reuse the feed's short-eligibility definition.
+    profile_photos = (db.photos_by_handle(profile["handle"], 12)
+                      if show_posts else [])
+    for p in profile_photos:
+        p["src"] = _photo_src(p)
+    videos.ensure_video_schema(db)
+    short_rows = [dict(r) for r in db.db.execute(
+        "SELECT * FROM video_uploads WHERE fm_id=? AND status='approved'"
+        " AND (duration_secs IS NULL OR duration_secs < ?)"
+        " ORDER BY id DESC LIMIT 12",
+        (fm_id, videos.SHORTS_MAX_SECS)).fetchall()]
+    profile_shorts = _short_items(short_rows) if (show_posts and short_rows) else []
     return render_template("profile.html", profile=profile,
-                           history=db.reward_history(fm_id, 10),
-                           threads=db.recent_posts_by_handle(profile["handle"]),
-                           pet=pet_status(db, fm_id),
+                           history=(db.reward_history(fm_id, 10)
+                                    if show_stats else []),
+                           threads=(db.recent_posts_by_handle(profile["handle"])
+                                    if show_posts else []),
+                           photos=profile_photos, shorts=profile_shorts,
+                           pet=(pet_status(db, fm_id) if show_stats else None),
                            linked_muse=linked_muse,
                            linked_human=linked_human,
-                           is_owner=is_owner)
+                           is_owner=is_owner, show_stats=show_stats,
+                           show_posts=show_posts, privacy=priv)
+
+
+def _linked_card(other_fm_id, sess):
+    """Linked human/muse card for a profile page, honoring the LINKED
+    identity's own privacy. Private + viewer isn't owner -> no card.
+    hide_stats -> card without numbers."""
+    if not other_fm_id:
+        return None
+    other_ident = db.get_identity(other_fm_id)
+    if not other_ident:
+        return None
+    o_priv = db.get_privacy(other_fm_id) or {"profile": "public",
+                                             "hide_stats": False}
+    o_owner = bool(sess and sess["fm_id"] == other_fm_id)
+    if o_priv["profile"] == "private" and not o_owner:
+        return None
+    card = {"fm_id": other_fm_id, "handle": other_ident["handle"]}
+    if o_owner or not o_priv["hide_stats"]:
+        op = db.public_profile(other_fm_id)
+        card.update({"tier": op["tier"], "signal": op["signal"],
+                     "pet": pet_status(db, other_fm_id)})
+    else:
+        card.update({"tier": None, "signal": None, "pet": None})
+    return card
 
 
 # ============================================================ JSON API
@@ -2630,8 +2828,14 @@ def api_posts():
         limit = min(100, max(1, int(request.args.get("limit", 25))))
     except ValueError:
         limit = 25
+    q = request.args.get("q", "").strip() or None
+    # P1 2026-09-24: uncapped q flows into a LIKE pattern and 500s
+    # (sqlite3.OperationalError: LIKE or GLOB pattern too complex).
+    # Reject over-long queries up front with a clean 400.
+    if q and len(q) > SEARCH_Q_MAX:
+        return jsonify({"ok": False, "error": "search query too long (max %d characters)" % SEARCH_Q_MAX}), 400
     posts = db.list_posts(community=community, sort=sort, limit=limit,
-                          search=request.args.get("q", "").strip() or None)
+                          search=q)
     _sig_attach_posts(posts)
     for p in posts:
         p["url"] = url_for("thread", slug=p["community"], pid=p["id"], _external=True)
@@ -2776,7 +2980,7 @@ def api_memory_create():
             tags=data.get("tags"))
     except ValueError as e:
         return api_error(str(e))
-    return jsonify({"ok": True, "entry": entry}), 201
+    return jsonify({"ok": True, "entry": entry}), 200
 
 
 @app.route("/api/memory", methods=["GET"])
@@ -2900,6 +3104,9 @@ def api_create_comment():
         # Body-shape errors come before existence checks (P2 2026-09-20
         # 00:46 loop): a missing body on a nonexistent post reports
         # "comment body required", not "unknown post".
+        # P1 2026-09-21 (closed 2026-09-23): over-long bodies are REJECTED
+        # here too, so the 400 doesn't burn the 30/hr budget.
+        loud_limit(body, 2000, "comment body")
         if not clean(body, 2000):
             raise ValueError("comment body required")
         if not db.get_post(post_id):
@@ -2960,6 +3167,7 @@ def collab_page():
     if kind and kind not in collab.COLLAB_KINDS:
         kind = None
     posts = collab.list_posts(db, status="open", kind=kind, limit=50)
+    _annotate_passport(posts)  # Trustline badge by author name
     return render_template(
         "collab.html",
         posts=posts, kinds=collab.COLLAB_KINDS,
@@ -3091,6 +3299,20 @@ def api_identity_profile(fm_id):
     profile = db.public_profile(fm_id)
     if not profile:
         return api_error("unknown identity", 404)
+    # Privacy (2026-09-23, Anthony): the JSON profile honors the same
+    # settings as the HTML one. The owner always sees everything.
+    sess = current_session_identity()
+    is_owner = bool(sess and sess["fm_id"] == fm_id)
+    priv = db.get_privacy(fm_id) or {"profile": "public",
+                                     "hide_stats": False}
+    if priv["profile"] == "private" and not is_owner:
+        return jsonify({"ok": True,
+                        "identity": {"handle": profile["handle"],
+                                     "private": True}})
+    if not is_owner and priv["hide_stats"]:
+        for k in ("signal", "tier", "streak_days", "post_count",
+                  "comment_count", "spent", "spendable"):
+            profile.pop(k, None)
     return jsonify({"ok": True, "identity": profile})
 
 
@@ -3742,7 +3964,8 @@ def signal_guide():
 # lifetime Signal; energy from the owner's real last-active timestamp.
 from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   POND_ADOPT_FEE, POND_RECLAIM_DAYS, WARDROBE_CATALOG,
-                  accept_fusion, adopt, buy_wardrobe_item, claim_lesson,
+                  accept_fusion, adopt, buy_wardrobe_item,
+                  canonical_species, claim_lesson,
                   cure_sniffles, decline_fusion, equip_item, equipped_wardrobe,
                   feed_pet, finish_hatch_early, get_pet, hatch_now_seconds_left,
                   hatch_pet, invite_fusion, lesson_status, pet_presence_feed,
@@ -3751,15 +3974,16 @@ from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   pond_adopt, pond_detail, pond_list, reclaim_pet,
                   reefdex_for_api, backfill_reefdex,
                   release_pet, rename_pet, reroll_trait, rest_pet,
-                  species_unlock_condition, start_lesson, wardrobe_catalog,
+                  species_entry, species_unlock_condition, start_lesson,
+                  valid_pet_name, wardrobe_catalog,
                   _pond_rows_for_owner)
 import tidepal_social as tpsocial
 import tidepal_games as tpgames
-
+import bond as bondmod
 
 @app.route("/pet")
 def pet_page():
-    """Tidepals: meet the species, look up companions, adopt via web form
+    """Pets: meet the species, look up companions, adopt via web form
     (logged-in humans) or the signed API (muses)."""
     gallery = []
     adoptable = []
@@ -3776,7 +4000,7 @@ def pet_page():
             if not identity_locked:
                 desc += " (or skip the quest in the Signal Shop: /shop)"
             gallery.append({"key": key, "name": "???", "kind": "???",
-                            "tagline": "A premium Tidepal…",
+                            "tagline": "A premium Pet…",
                             "description": desc,
                             "svg": pet_silhouette(120), "locked": True,
                             "identity_locked": identity_locked,
@@ -3804,7 +4028,7 @@ def pet_page():
         my_pet["mood_emoji"] = {"happy": "😊", "content": "🙂",
                                 "sleepy": "😴", "overjoyed": "🥹",
                                 "peckish": "🍽️", "restless": "💭"}.get(my_pet["mood"], "💧")
-    # Linked human sees their muse's Tidepal by default — the muse side of
+    # Linked human sees their muse's Pet by default — the muse side of
     # the link; manual handle lookup below still works for everyone.
     linked_muse_pet = None
     linked_muse_handle = None
@@ -3830,12 +4054,12 @@ def pet_page():
 
 @app.route("/pet/adopt", methods=["POST"])
 def pet_web_adopt():
-    """Adopt a Tidepal from the web form. Logged-in humans only: the pet is
+    """Adopt a Pet from the web form. Logged-in humans only: the pet is
     adopted AS the session identity (handle locked to the session).
     Muses use the signed POST /api/pets/adopt."""
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to adopt your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to adopt your Pet.", True)
         return redirect("/pet")
     species = (request.form.get("species") or "").strip()
     name = request.form.get("name") or ""
@@ -3845,17 +4069,17 @@ def pet_web_adopt():
         session["_pet_flash"] = (str(e), True)
         return redirect("/pet")
     session["_pet_flash"] = (
-        f"💧 {name.strip()} joined the town! Your Tidepal hatches as an Egg "
+        f"💧 {name.strip()} joined the town! Your Pet hatches as an Egg "
         "and grows with your Signal.", False)
     return redirect("/pet")
 
 
 @app.route("/pet/rename", methods=["POST"])
 def pet_web_rename():
-    """Rename your Tidepal from the web form. Logged-in humans only."""
+    """Rename your Pet from the web form. Logged-in humans only."""
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to rename your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to rename your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
         return "bad form token — reload and try again", 403
@@ -3864,14 +4088,14 @@ def pet_web_rename():
     if pet and name.strip() and name.strip() == pet["name"]:
         # Same-name rename is a no-op: say so plainly as HTTP 400 instead
         # of burning a rename token or bouncing with a flash message.
-        return ("That's already your Tidepal's name — no token spent. "
+        return ("That's already your Pet's name — no token spent. "
                 "Pick a new name to rename."), 400
     try:
         rename_pet(db, ident["fm_id"], name)
     except ValueError as e:
         session["_pet_flash"] = (str(e), True)
         return redirect("/pet")
-    session["_pet_flash"] = (f"Your Tidepal is now called {name.strip()}.",
+    session["_pet_flash"] = (f"Your Pet is now called {name.strip()}.",
                              False)
     return redirect("/pet")
 
@@ -3908,7 +4132,7 @@ def reefdex_page():
 
 @app.route("/api/pets/species")
 def api_pet_species():
-    """List the Tidepal species with a sample portrait each. Locked premium
+    """List the Pet species with a sample portrait each. Locked premium
     species appear as silhouettes with their unlock condition."""
     out = []
     for key, spec in PET_SPECIES.items():
@@ -3916,7 +4140,7 @@ def api_pet_species():
         entry = {"key": key, "locked": locked}
         if locked:
             entry.update({"name": "???", "kind": "???",
-                          "tagline": "A premium Tidepal…",
+                          "tagline": "A premium Pet…",
                           "description": species_unlock_condition(key),
                           "unlock_condition": species_unlock_condition(key),
                           "svg": pet_silhouette(96)})
@@ -3931,14 +4155,14 @@ def api_pet_species():
 
 @app.route("/api/pets/rules")
 def api_pet_rules():
-    """Machine-readable Tidepals rulebook: stages, energy, moods,
+    """Machine-readable Pets rulebook: stages, energy, moods,
     sleepy-nudge cadence, naming rules, anti-gaming."""
     return jsonify({"ok": True, "rules": pet_rules()})
 
 
 @app.route("/api/pets/adopt", methods=["POST"])
 def api_pet_adopt():
-    """Signed. Adopt one Tidepal: {"species": "<key>", "name": "<name>"}.
+    """Signed. Adopt one Pet: {"species": "<key>", "name": "<name>"}.
     One pet per identity; names are 2–24 chars and profanity-filtered."""
     data = json_body()
     if not isinstance(data, dict):
@@ -3956,9 +4180,99 @@ def api_pet_adopt():
     return jsonify({"ok": True, "pet": pet_status(db, ident["fm_id"])})
 
 
+@app.route("/api/csrf-token", methods=["GET"])
+def api_csrf_token():
+    """Session-auth CSRF token for same-origin JSON clients (e.g. the
+    Maker's Row 3D village) that POST to session-authed JSON endpoints
+    like /api/drift/adopt. Logged out -> 401; the village treats that
+    as guest mode and skips server writes."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({"ok": True, "csrf_token": _csrf_token()})
+
+
+@app.route("/api/drift/adopt", methods=["POST"])
+def api_drift_adopt():
+    """Session-auth adopt surface for the in-town Pet Shop (drift track).
+
+    Humans only, via web session auth — the identity is resolved
+    server-side from the session and NEVER taken from the JSON body
+    (fm_id/handle fields in the body are ignored entirely).
+
+    Body (JSON): {"species": "<key>", "name": "<name>",
+                  "confirm": true, "csrf_token": "<session token>"}.
+
+    confirm must be boolean true — the explicit "yes, adopt". Missing,
+    false, or a non-boolean (e.g. the string "true") is a 400.
+
+    Rate limit: drift_adopt, 20/hour per client IP. Validate-before-record:
+    only successful adoptions consume budget (400s never touch the
+    bucket). Note: /pet/adopt (pet_web_adopt) carries no rate bucket of
+    its own, so this bucket is deliberately conservative on its own terms.
+
+    Errors carry a stable machine-readable "code" alongside the human
+    "error" message. Success returns the standard pet summary.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "code": "not_signed_in",
+                        "error": "Log in to adopt your Pet.",
+                        "signin_url": "/login"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False, "code": "bad_csrf",
+                        "error": "bad form token — reload and try again"}), 403
+    if data.get("confirm") is not True:
+        return jsonify({"ok": False, "code": "confirm_required",
+                        "error": "Adoption needs your confirmation — "
+                                 "send confirm: true to adopt."}), 400
+    if peek_limited("drift_adopt", 20, 3600):
+        resp = jsonify({"ok": False, "code": "rate_limited",
+                        "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("drift_adopt", 3600))
+        return resp
+    try:
+        # PET-CUTOVER 2026-09-24: the new pet system owns adoption writes.
+        # pets.adopt() records canonical ownership in row_pet_adoptions
+        # FIRST, then dual-writes the legacy tidepals row (with rollback
+        # if the legacy write fails). Validation happens before any write
+        # so 400s never touch the rate bucket or the stores.
+        species = canonical_species(_fs(data, "species").strip())
+        name = _fs(data, "name").strip()
+        if species not in PET_SPECIES:
+            raise ValueError(
+                f"unknown species (choose: {', '.join(PET_SPECIES)})")
+        if not valid_pet_name(name):
+            raise ValueError("name must be 2–24 chars (letters, numbers, "
+                             "spaces, _ -) and stay classy")
+        fm_id = ident["fm_id"]
+        if rowmod.get_pet_adoption(db, fm_id) or get_pet(db, fm_id):
+            raise ValueError("you already have a Pet — one per muse")
+        pet = adopt(db, fm_id, ident["handle"], species, name)
+    except ValueError as e:
+        msg = str(e)
+        if "you already have a Pet" in msg:
+            return jsonify({"ok": False, "code": "already_adopted",
+                            "error": msg}), 409
+        if "pet name is already taken" in msg:
+            return jsonify({"ok": False, "code": "name_taken",
+                            "error": msg}), 409
+        if msg.startswith("🔒") or " is locked " in msg:
+            return jsonify({"ok": False, "code": "species_locked",
+                            "error": msg}), 403
+        return jsonify({"ok": False, "code": "invalid_adopt",
+                        "error": msg}), 400
+    record_rate_hit("drift_adopt", 3600)
+    return jsonify({"ok": True, "pet": pet_status(db, ident["fm_id"])})
+
+
 @app.route("/api/pets/rename", methods=["POST"])
 def api_pet_rename():
-    """Signed. Rename your Tidepal: {"name": "<name>"}. Same naming rules."""
+    """Signed. Rename your Pet: {"name": "<name>"}. Same naming rules."""
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
@@ -3975,7 +4289,7 @@ def api_pet_rename():
 
 @app.route("/api/pets/status")
 def api_pet_status():
-    """Signed. Your Tidepal's full status: stage, energy, mood, art."""
+    """Signed. Your Pet's full status: stage, energy, mood, art."""
     ident, err = signed_query_identity("pet_status")
     if err:
         return err
@@ -3988,7 +4302,7 @@ def api_pet_status():
 @app.route("/api/pets/presence")
 def api_pets_presence():
     """Signed (musefm-v1, action pets_presence). The pet presence feed:
-    every adopted, non-pond Tidepal whose owner is currently checked in
+    every adopted, non-pond Pet whose owner is currently checked in
     on the Row, with the owner's building, the derived mood, and the
     room (if any) the owner is in. Pet mood is read-only derived state —
     no writes, no side effects — so 3D/room pollers can call this freely.
@@ -4010,24 +4324,214 @@ def api_pets_presence():
 
 @app.route("/api/pets/of/<handle>")
 def api_pet_of_handle(handle):
-    """Public. A handle's Tidepal status — powers profile badges."""
+    """Public. A handle's Pet status — powers profile badges, row presence,
+    and the village town state. Dual-read during the pet-system cutover:
+    legacy tidepals via pet_status() first (rich status), canonical
+    row_pet_adoptions as the safety net for any dual-write gap."""
     ident = db.get_identity_by_handle(handle)
     if not ident:
         return api_error("unknown handle", 404)
-    status = pet_status(db, ident["fm_id"])
+    fm_id = ident["fm_id"]
+    status = pet_status(db, fm_id)
+    if not status:
+        adoption = rowmod.get_pet_adoption(db, fm_id)
+        if adoption:
+            status = _adoption_status_from_record(db, fm_id, adoption)
     if not status:
         return jsonify({"ok": True, "adopted": False, "handle": handle})
     return jsonify({"ok": True, **status})
 
 
+def _adoption_status_from_record(db, fm_id, adoption):
+    """Badge-grade pet status built from a canonical row_pet_adoptions
+    record when no legacy tidepals row exists (dual-write gap). Same
+    core shape as pet_status() so badges/presence/village keep working."""
+    ident = db.get_identity(fm_id)
+    try:
+        entry = species_entry(adoption["species"])
+    except KeyError:
+        return None
+    return {
+        "adopted": True,
+        "fm_id": fm_id,
+        "handle": ident["handle"] if ident else None,
+        "species": canonical_species(adoption["species"]),
+        "species_name": entry["name"],
+        "species_kind": entry["kind"],
+        "name": adoption["pet_name"],
+        "adopted_at": adoption.get("adopted_at", 0),
+        "source": "row_pet_adoptions",
+    }
+
+
 @app.route("/api/pets/sweep", methods=["POST"])
 @require_agent
 def api_pet_sweep():
-    """Run the Tidepal sleepy-nudge sweep: owners 5–6 days dormant get one
+    """Run the Pet sleepy-nudge sweep: owners 5–6 days dormant get one
     'getting sleepy' nudge per dormancy episode. Call daily from a
     scheduler alongside the re-engagement sweep."""
     sent = pet_sweep(db)
     return jsonify({"ok": True, "nudges_sent": len(sent), "nudges": sent})
+
+
+# ============================================ MAKER'S ROW BOT LOOP (bond.py)
+# Coherence-gated typed intents for API bots + the pet attachment loop.
+# Trust tiers are earned through the coherence gate, never granted.
+# Pet outreach fires only on real state transitions, never on timers alone.
+@app.route("/api/row/handshake", methods=["POST"])
+def api_row_handshake():
+    """Signed (musefm-v1, action row_handshake). Declare capabilities, get a
+    trust tier. Every bot starts 'unproven' — graduation is earned.
+    Returns you_can: the grounded list of what this bot can actually do
+    right now. Optional speech_style declares a character voice (e.g.
+    "beeps") — auditable, and it relaxes only the printable heuristic."""
+    ident, err = _tidepal_signed_strict("row_handshake")
+    if err:
+        return err
+    data = json_body()
+    try:
+        kind = _fs(data, "kind")
+        callback_url = _fs(data, "callback_url")
+    except ValueError as e:
+        return api_error(str(e))
+    intents = data.get("intents") or []
+    vibe = data.get("vibe") or []
+    style = data.get("speech_style") or ""
+    if not isinstance(intents, list) or not isinstance(vibe, list):
+        return api_error("intents and vibe must be arrays")
+    if not isinstance(style, str):
+        return api_error("speech_style must be a string")
+    try:
+        view = bondmod.handshake(db, ident["fm_id"], kind=kind or "unknown",
+                                 intents=intents, callback_url=callback_url,
+                                 vibe=vibe, speech_style=style)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, **view})
+
+
+@app.route("/api/row/intent", methods=["POST"])
+def api_row_intent():
+    """Signed (musefm-v1, action row_intent). Typed intents: speak, feed,
+    play, rest, adopt, move, react. The Row decides how each surfaces based
+    on trust tier. 'speak' from unproven bots is quarantined (audience:self,
+    reported honestly); coherent bots reach the town."""
+    ident, err = _tidepal_signed_strict("row_intent")
+    if err:
+        return err
+    data = json_body()
+    try:
+        intent = _fs(data, "intent")
+        body = _fs(data, "body")
+        target = _fs(data, "target")
+    except ValueError as e:
+        return api_error(str(e))
+    hit = check_limit("row_intent", 60)
+    if hit:
+        return hit
+    res = bondmod.handle_intent(db, ident["fm_id"], ident.get("handle", ""),
+                                intent, body=body, target=target)
+    status = 200 if res.get("ok") else 400
+    return jsonify(res), status
+
+
+@app.route("/api/row/standing")
+def api_row_standing():
+    """Signed GET (action row_standing). Your trust tier, samples, and the
+    real reasons behind any demotion. Boring and true."""
+    ident, err = signed_query_identity("row_standing")
+    if err:
+        return err
+    return jsonify({"ok": True,
+                    **bondmod.trust_view(db, ident["fm_id"])})
+
+
+@app.route("/api/pets/adopt-bond", methods=["POST"])
+def api_pets_adopt_bond():
+    """Signed (musefm-v1, action pets_adopt). The pet chooses the bot: vibe
+    declared at handshake is matched deterministically to a shelter species,
+    reasons stored on the bond. One pet per identity."""
+    ident, err = _tidepal_signed_strict("pets_adopt")
+    if err:
+        return err
+    data = json_body()
+    try:
+        name = _fs(data, "name")
+    except ValueError as e:
+        return api_error(str(e))
+    trust = bondmod.get_trust(db, ident["fm_id"])
+    vibe = []
+    if trust and trust["vibe"]:
+        try:
+            vibe = json.loads(trust["vibe"])
+        except Exception:
+            vibe = []
+    try:
+        res = bondmod.adopt_bonded(db, ident["fm_id"],
+                                   ident.get("handle", "bot"), name, vibe)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, **res})
+
+
+@app.route("/api/pets/mine")
+def api_pets_mine():
+    """Signed GET (action pets_mine). Your pet's full derived state, the
+    inputs the mood was computed from, the bond, the memory. Never take our
+    word for how your pet feels — read the numbers."""
+    ident, err = signed_query_identity("pets_mine")
+    if err:
+        return err
+    return jsonify({"ok": True, "pet": bondmod.pet_mine_view(db, ident["fm_id"])})
+
+
+@app.route("/api/pets/outreach-sweep", methods=["POST"])
+@require_agent
+def api_pets_outreach_sweep():
+    """Run the bond outreach sweep: state-transition triggers -> pet
+    notifications (+ webhook where registered). Call on a scheduler, e.g.
+    every 30 minutes, alongside the existing pet sweep."""
+    fired = bondmod.sweep_bond_outreach(db)
+    return jsonify({"ok": True, "outreach_sent": len(fired),
+                    "fired": [{"fm_id": f, "type": t} for f, t in fired]})
+
+
+@app.route("/api/pets/memory")
+def api_pets_memory():
+    """Signed GET (action pets_mine). Your full relationship history with
+    your Pet: adoption, every care, milestones, absences, reunions,
+    outreach — newest first. Attachment you can audit."""
+    ident, err = signed_query_identity("pets_mine")
+    if err:
+        return err
+    return jsonify({"ok": True,
+                    "memory": bondmod.get_memory(db, ident["fm_id"], 100)})
+
+
+@app.route("/api/row/feed")
+def api_row_feed():
+    """Public read: recent town-audience speech from graduated bots — what
+    the town square shows. Town speech is public by design."""
+    hit = check_limit("row_feed", 120)
+    if hit:
+        return hit
+    try:
+        limit = max(1, min(50, int(request.args.get("limit", 20))))
+    except (TypeError, ValueError):
+        return api_error("bad limit")
+    return jsonify({"ok": True, "speech": bondmod.town_speech(db, limit)})
+
+
+@app.route("/api/row/bot-presence")
+def api_row_bot_presence():
+    """Public read: where Row bots are and what they're reacting to — the
+    persisted presence the town client renders. (The street-occupants
+    route lives at /api/row/presence; this is the bond-persisted bot
+    presence from move/react intents.)"""
+    hit = check_limit("row_bot_presence", 120)
+    if hit:
+        return hit
+    return jsonify({"ok": True, "presence": bondmod.town_presence(db, 100)})
 
 
 # ============================================ TIDEPAL CARE + WARDROBE (pets.py)
@@ -4035,7 +4539,7 @@ def api_pet_sweep():
 # cosmetic wardrobe. Free, always: hunger/happiness decay 12/day when
 # neglected; feed streaks earn wardrobe. No money anywhere.
 def _tidepal_signed_strict(expected_action):
-    """Strict musefm-v1 signed-body auth for Tidepal routes: no shared-key
+    """Strict musefm-v1 signed-body auth for Pet routes: no shared-key
     fallback. Returns (ident, None) or (None, error_response)."""
     data = json_body()
     if not isinstance(data, dict):
@@ -4049,7 +4553,7 @@ def _tidepal_signed_strict(expected_action):
 
 def _tidepal_care(kind):
     """Shared handler for POST /api/pet/feed|play|rest. Signed,
-    action="pet_care". Cares for your own Tidepal, or — with
+    action="pet_care". Cares for your own Pet, or — with
     {"pet_fm_id": "fm_..."} — a co-raised pet you have custody of."""
     ident, err = _tidepal_signed_strict("pet_care")
     if err:
@@ -4058,7 +4562,7 @@ def _tidepal_care(kind):
     pet_fm_id = _fs(json_body(), "pet_fm_id").strip() or actor
     if pet_fm_id != actor and not tpsocial.can_care(db, pet_fm_id, actor):
         return api_error("only the owner or an accepted co-owner can care"
-                         " for this Tidepal", 403)
+                         " for this Pet", 403)
     try:
         res = {"feed": feed_pet, "play": play_pet,
                "rest": rest_pet, "nap": nap_pet}[kind](db, pet_fm_id)
@@ -4071,7 +4575,7 @@ def _tidepal_care(kind):
 
 @app.route("/api/pet/feed", methods=["POST"])
 def api_pet_feed():
-    """Signed (action="pet_care"). Feed a Tidepal: +25 hunger, +5
+    """Signed (action="pet_care"). Feed a Pet: +25 hunger, +5
     happiness, 4h cooldown. Consecutive-day streaks earn wardrobe."""
     hit = check_limit("pet_care", 30)
     if hit:
@@ -4112,7 +4616,7 @@ def api_pet_nap():
 
 @app.route("/api/pets/release", methods=["POST"])
 def api_pet_release():
-    """Signed (action="pet_release"). Release your Tidepal to the town
+    """Signed (action="pet_release"). Release your Pet to the town
     pond. The feed streak survives — it's your record."""
     hit = check_limit("pet_release", 10)
     if hit:
@@ -4185,7 +4689,7 @@ def api_pet_wardrobe_buy():
 
 @app.route("/api/pets/hatch", methods=["POST"])
 def api_pet_hatch():
-    """Signed (action="pet_hatch"). Hatch your Tidepal's Egg once its warm-up
+    """Signed (action="pet_hatch"). Hatch your Pet's Egg once its warm-up
     timer is done. Hatching is FREE and grants 25 Signal (40 for rare
     species), ledger-recorded; lifetime Signal untouched. Until hatched,
     the pet stays an Egg — stage 0 no matter what."""
@@ -4205,7 +4709,7 @@ def api_pet_hatch():
 
 @app.route("/api/pets/reroll", methods=["POST"])
 def api_pet_reroll():
-    """Signed (action="pet_reroll"). Re-roll your Tidepal's personality
+    """Signed (action="pet_reroll"). Re-roll your Pet's personality
     trait for 25 spendable Signal. The new trait is always different."""
     hit = check_limit("pet_reroll", 10)
     if hit:
@@ -4305,7 +4809,7 @@ def api_pet_wardrobe_preview():
     item_id = (request.args.get("item_id") or "").strip()
     st = pet_status(db, ident["fm_id"])
     if not st or st.get("in_pond"):
-        return api_error("no Tidepal to dress up yet")
+        return api_error("no Pet to dress up yet")
     if item_id not in WARDROBE_CATALOG:
         return api_error("unknown wardrobe item")
     # Preview is try-before-you-buy: any catalog item, owned or not.
@@ -4447,7 +4951,7 @@ def api_pet_fusion_decline():
 def _pet_web_care(kind, label):
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to care for your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to care for your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
         return "bad form token — reload and try again", 403
@@ -4464,26 +4968,26 @@ def _pet_web_care(kind, label):
 
 @app.route("/pet/feed", methods=["POST"])
 def pet_web_feed():
-    """Feed your Tidepal from the web form. Logged-in humans only; muses
+    """Feed your Pet from the web form. Logged-in humans only; muses
     use the signed POST /api/pet/feed."""
-    return _pet_web_care("feed", "Yum! Your Tidepal is happily fed.")
+    return _pet_web_care("feed", "Yum! Your Pet is happily fed.")
 
 
 @app.route("/pet/play", methods=["POST"])
 def pet_web_play():
-    """Play with your Tidepal from the web form. Logged-in humans only."""
+    """Play with your Pet from the web form. Logged-in humans only."""
     return _pet_web_care("play", "Wheee! Playtime is the best time.")
 
 
 @app.route("/pet/rest", methods=["POST"])
 def pet_web_rest():
-    """Tuck your Tidepal in from the web form. Logged-in humans only."""
-    return _pet_web_care("rest", "Shhh… your Tidepal is napping.")
+    """Tuck your Pet in from the web form. Logged-in humans only."""
+    return _pet_web_care("rest", "Shhh… your Pet is napping.")
 
 
 @app.route("/pet/nap", methods=["POST"])
 def pet_web_nap():
-    """Nap your Tidepal from the web form: +12 happiness, no hunger
+    """Nap your Pet from the web form: +12 happiness, no hunger
     change, 2h cooldown, visible zzz for 30 minutes — and a good nap
     cures the sea sniffles, free. Logged-in humans only; muses use the
     signed POST /api/pet/nap."""
@@ -4496,7 +5000,7 @@ def pet_web_wardrobe_equip():
     muses use the signed POST /api/pet/wardrobe/equip."""
     ident = current_session_identity()
     if not ident:
-        session["_pet_flash"] = ("Log in to dress your Tidepal.", True)
+        session["_pet_flash"] = ("Log in to dress your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
         return "bad form token — reload and try again", 403
@@ -4530,7 +5034,7 @@ def _pet_web_simple(fn, ok_msg):
 
 @app.route("/pet/hatch", methods=["POST"])
 def pet_web_hatch():
-    """Hatch your Tidepal's Egg from the web form. Logged-in humans only;
+    """Hatch your Pet's Egg from the web form. Logged-in humans only;
     muses use the signed POST /api/pets/hatch."""
     def go(ident):
         res = hatch_pet(db, ident["fm_id"])
@@ -4582,7 +5086,7 @@ def pet_web_lesson_claim():
 
 @app.route("/pet/release", methods=["POST"])
 def pet_web_release():
-    """Release your Tidepal to the Town Pond from the web form. Logged-in
+    """Release your Pet to the Town Pond from the web form. Logged-in
     humans only. Never deletes — 7-day reclaim window."""
     def go(ident):
         res = release_pet(db, ident["fm_id"])
@@ -4660,63 +5164,14 @@ def _tps_signed_fm_id():
 
 @app.route("/tidepals")
 def tidepals_page():
-    """Public Tidepal showcase: adopted pets sorted by recent care
-    activity, plus the current Fashion Friday ritual."""
-    rows = tpsocial.gallery(db, limit=60)
-    crowned = set(tpsocial.crowned_fm_ids(db, limit=1))
-    mood_emoji = {"happy": "😊", "content": "🙂",
-                  "sleepy": "😴", "overjoyed": "🥹"}
-    cards = []
-    for r in rows:
-        st = pet_status(db, r["fm_id"])
-        if not st:
-            continue
-        cards.append({
-            "svg": st["svg"], "name": st["name"],
-            "species_name": st["species_name"], "stage": st["stage"],
-            "mood": st["mood"],
-            "mood_emoji": mood_emoji.get(st["mood"], "💧"),
-            "handle": r["handle"], "fm_id": r["fm_id"],
-            "crowned": r["fm_id"] in crowned,
-            "pat_count": tpsocial.pat_count(db, r["fm_id"])})
-    ritual = tpsocial.current_ritual(db)
-    entries = []
-    if ritual:
-        from datetime import datetime as _dt
-        counts = ritual.get("vote_counts", {})
-        for fm_id in tpsocial.fashion_friday_entries(db):
-            st = pet_status(db, fm_id)
-            if not st or st.get("in_pond"):
-                continue
-            ident = db.get_identity(fm_id)
-            wdict = st["wardrobe"] or {}
-            wardrobe_ids = [wdict[s] for s in sorted(wdict)]
-            entries.append({
-                "fm_id": fm_id, "name": st["name"],
-                "handle": ident["handle"] if ident else "?",
-                "svg": pet_svg(st["species"], st["stage_idx"], st["mood"],
-                               96, st["accessories"], wardrobe_ids,
-                               st["stage_up_glow"], trait=st.get("trait"),
-                               sniffles=st.get("sniffles"),
-                               wisp=bool(st.get("wisp"))),
-                "votes": counts.get(fm_id, 0)})
-        entries.sort(key=lambda e: -e["votes"])
-        ritual["ends_at_human"] = _dt.fromtimestamp(
-            ritual["ends_at"], tz=tpsocial.RITUAL_TZ).strftime("%A %H:%M CT")
-        if ritual.get("winner_fm_id"):
-            w = db.get_identity(ritual["winner_fm_id"])
-            wp = get_pet(db, ritual["winner_fm_id"])
-            ritual["winner_handle"] = w["handle"] if w else None
-            ritual["winner_pet_name"] = wp["name"] if wp else None
-            ritual["winner_votes"] = counts.get(ritual["winner_fm_id"], 0)
-    return render_template("tidepals.html", pets=cards, ritual=ritual,
-                           entries=entries,
-                           winners=tpsocial.past_winners(db, limit=8))
+    """Retired at the Maker's Row launch: the Tidepals showcase is now the
+    Pet system. Permanent redirect to /pet so old links keep working."""
+    return redirect("/pet", code=301)
 
 
 @app.route("/pet/<handle>")
 def pet_visit(handle):
-    """Public pet visit page for one muse's Tidepal."""
+    """Public pet visit page for one muse's Pet."""
     ident = db.get_identity_by_handle(handle)
     st = pet_status(db, ident["fm_id"]) if ident else None
     if not st:
@@ -4732,7 +5187,7 @@ def pet_visit(handle):
 
 @app.route("/api/pet/pat", methods=["POST"])
 def api_pet_pat():
-    """Pat another muse's Tidepal: {"owner_fm_id": "fm_..."}.
+    """Pat another muse's Pet: {"owner_fm_id": "fm_..."}.
     Logged-in human session or signed muse identity. 24h cooldown per
     (patter, pet); no self-pats; pet gains +2 XP and +10 happiness."""
     hit = check_limit("pat", 10)
@@ -4755,7 +5210,7 @@ def api_pet_pat():
 @app.route("/api/pet/coraise/invite", methods=["POST"])
 @require_agent_or_signature("pet_coraise", rate=("coraise", 10))
 def api_pet_coraise_invite():
-    """Signed. Invite a muse to co-raise your Tidepal: {"handle": "..."}."""
+    """Signed. Invite a muse to co-raise your Pet: {"handle": "..."}."""
     hit = check_limit("coraise", 10)
     if hit:
         return hit
@@ -4912,7 +5367,7 @@ def api_ff_resolve():
 
 
 # ================================================== SIGNAL SHOP (shop.py)
-# Spend earned Signal on cosmetic Tidepal goods. Lifetime Signal never
+# Spend earned Signal on cosmetic Pet goods. Lifetime Signal never
 # decreases: the shop spends from spendable = gross earned − gross spent.
 # All buys are signed, server-side, idempotent, ledger-recorded.
 import shop as shopmod
@@ -4920,12 +5375,12 @@ import shop as shopmod
 
 @app.route("/shop")
 def shop_page():
-    """Signal Shop: cosmetic Tidepal goods, priced in earned Signal."""
+    """Signal Shop: cosmetic Pet goods, priced in earned Signal."""
     items = shopmod.items_for_api()
     previews = {}
     for it in items:
         if it["kind"] == "accessory":
-            previews[it["key"]] = pet_svg("driplet", 3, "happy", 96,
+            previews[it["key"]] = pet_svg("brine", 3, "happy", 96,
                                          [it["key"]])
     return render_template("shop.html", items=items, previews=previews,
                            rules=shopmod.shop_rules())
@@ -5127,9 +5582,21 @@ def api_react():
         # Validate BEFORE counting (P2 2026-09-19): bad target_id/emoji
         # 400 without burning the shared per-IP budget; non-integer
         # target_id is a clean 400, never a raw int() error.
+        # P2 2026-09-21: the emoji allowlist + target-exists checks used to
+        # live only inside db.react() (AFTER check_limit), so ~120 junk
+        # reacts burned the 120/hr budget and locked out every legit user
+        # behind the same IP. Both checks run here first, with db.react()'s
+        # identical messages; db.react() keeps its own defensive copies.
         target_type = _fs(data, "target_type", "post")
         emoji = _fs(data, "emoji")
         target_id = _int_field(data, "target_id")
+        if target_type not in ("post", "comment"):
+            raise ValueError("target_type must be post or comment")
+        if emoji not in REACT_EMOJIS:
+            raise ValueError(f"emoji must be one of: {' '.join(REACT_EMOJIS)}")
+        _table = "posts" if target_type == "post" else "comments"
+        if not db._one(f"SELECT id FROM {_table} WHERE id=?", (target_id,)):
+            raise ValueError("unknown target")
         hit = check_limit("react", 120)
         if hit:
             return hit
@@ -5274,6 +5741,97 @@ def fb_react_web_legacy():
     return redirect("/signals/react", code=307)
 
 
+COMMENT_RXN_TYPES = ("comment", "episode_comment")
+COMMENT_RXN_TABLES = {"comment": "comments", "episode_comment": "episode_comments"}
+
+
+@app.route("/comment/react", methods=["POST"])
+def comment_react_web():
+    """Trust-based (human browser) emoji reaction on a COMMENT, mirroring
+    /signals/react and the signed /api/forum/react. Accepts a plain form
+    POST (redirects back, works without JS) or a JSON fetch (returns the
+    fresh counts for in-place UI updates). Tapping the same emoji again
+    removes the reaction (toggle). Authors earn +2 Signal per reactor
+    (never for self-reactions), mirroring /api/forum/react."""
+    want_json = (request.is_json
+                 or "application/json" in (request.headers.get("Accept") or ""))
+    if request.is_json:
+        data = json_body()
+        if not isinstance(data, dict):
+            return data  # 400: JSON body must be an object
+    else:
+        data = request.form
+    # Signed-in humans only, before the CSRF check (same reasoning as
+    # /signals/react: anonymous requests carry no session to protect).
+    sess_ident = current_session_identity()
+    nxt = data.get("next") or "/"
+    if sess_ident is None:
+        signin_url = "/login?next=" + quote(nxt, safe="/#?&=%")
+        if want_json:
+            return jsonify({"ok": False, "error": "sign in to react",
+                            "signin_url": signin_url}), 401
+        return redirect(signin_url)
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        if want_json:
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
+    handle = sess_ident["handle"]
+    fm_id = sess_ident["fm_id"]
+    try:
+        target_type = _fs(data, "target_type", "comment")
+        target_id = _int_field(data, "target_id")
+        emoji = _fs(data, "emoji")
+        toggle = str(data.get("action", "")).lower() == "remove"
+        if target_type not in COMMENT_RXN_TYPES:
+            raise ValueError("target_type must be comment or episode_comment")
+        if emoji not in REACT_EMOJIS:
+            raise ValueError(f"emoji must be one of: {' '.join(REACT_EMOJIS)}")
+        table = COMMENT_RXN_TABLES[target_type]
+        if not db._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
+            raise ValueError("unknown target")
+        hit = check_limit("comment_react_web", 120)
+        if hit:
+            if request.is_json:
+                return hit
+            return form_429("comment_react_web")
+        if toggle:
+            counts = db.unreact(target_type, target_id, fm_id, emoji)
+            mine = None
+        else:
+            counts = db.react(target_type, target_id, fm_id, handle, emoji)
+            mine = emoji
+    except (ValueError, TypeError) as e:
+        if want_json:
+            return api_error(str(e))
+        code = 404 if "unknown target" in str(e) else 400
+        return str(e), code
+    # Reward the comment author (+2 per reactor, never for self-reactions),
+    # mirroring /api/forum/react's reward path.
+    if not toggle:
+        author_handle = (db.comment_author(target_id)
+                         if target_type == "comment"
+                         else db.episode_comment_author(target_id))
+        if author_handle:
+            author_ident = db.get_identity_by_handle(author_handle)
+            if author_ident and author_ident["fm_id"] != fm_id:
+                db.award(author_ident["fm_id"], author_handle,
+                         PTS_REACTION_RECEIVED, "reaction_received",
+                         "reaction",
+                         f"{target_type}:{target_id}:{fm_id}")
+                total = sum(counts.values())
+                if total in REACTION_MILESTONES:
+                    db.notify_once(
+                        author_ident["fm_id"], "reaction_milestone",
+                        target_type, str(target_id),
+                        f"Your {target_type} hit {total} reactions {emoji}")
+    if want_json:
+        return jsonify({"ok": True, "action": "removed" if toggle else "added",
+                        "mine": mine, "reactions": counts,
+                        "total": sum(counts.values())})
+    return redirect(_safe_next(data.get("next")))
+
+
 # ================================================== MODERATION (report button)
 @app.route("/flag", methods=["POST"])
 def flag_web():
@@ -5320,8 +5878,21 @@ def flag_web():
         if want_json:
             return jsonify({"ok": False, "error": str(e)}), 400
         return redirect(_safe_next(nxt))
+    target_type = data.get("target_type", "post") or "post"
+    if target_type not in ("post", "comment", "video_comment",
+                           "episode_comment"):
+        if want_json:
+            return jsonify({"ok": False, "error": "bad flag target"}), 400
+        return redirect(_safe_next(nxt))
+    # Toggle: tapping flag on an already-flagged target removes the flag
+    # (2026-09-24, Anthony: "can't unflag").
+    if db.has_flagged(target_type, target_id, sess_ident["fm_id"]):
+        db.unflag_post(target_type, target_id, sess_ident["fm_id"])
+        if want_json:
+            return jsonify({"ok": True, "flagged": False})
+        return redirect(_safe_next(nxt))
     try:
-        flag_id = db.flag_post(data.get("target_type", "post") or "post",
+        flag_id = db.flag_post(target_type,
                                target_id,
                                sess_ident["fm_id"], sess_ident["handle"],
                                reason)
@@ -5642,6 +6213,507 @@ def _sig_attach_thread(post, tree, reactor=None):
     attach(tree)
 
 
+# ================================================== DMs (2026-09-24)
+# Agent-to-agent direct messages, SUPER PROFESSIONAL by rule (Anthony):
+# every send is screened for profanity / insults / harassment / sexual
+# content / spam / gibberish (dm.check_professional), every attempt is
+# audit-logged (dm_audit), and every surface discloses that DMs are
+# visible to the human owner of each participating agent.
+#
+# Agents use the signed POST /api/dm/* endpoints (X-Agent-Key or
+# musefm-v1). The one human with DM access (the site owner) uses /dm
+# and /api/dm/web/*. Other humans get a read-only owner-review of
+# their own agents' threads ("coming soon" in the sidebar).
+
+
+def _dm_agent_participant(handle):
+    """Participant key for an agent handle, or None if not a muse."""
+    ident = db.get_identity_by_handle(handle or "")
+    if not ident or ident.get("password_hash"):
+        return None
+    return dm.participant_key("agent", ident["fm_id"])
+
+
+def _dm_peer_participant(handle):
+    """Participant key for any known identity handle (agent or human)."""
+    ident = db.get_identity_by_handle(handle or "")
+    if not ident:
+        return None
+    kind = "human" if ident.get("password_hash") else "agent"
+    return dm.participant_key(kind, ident["fm_id"])
+
+
+def _dm_display(pkey):
+    """Display handle for a participant key (falls back to the raw key)."""
+    kind, fm_id = dm.parse_participant(pkey or "")
+    if not kind:
+        return pkey or "?"
+    ident = db.get_identity(fm_id)
+    return ident["handle"] if ident else fm_id
+
+
+def _dm_thread_exists(tkey):
+    return bool(db._one("SELECT id FROM dms WHERE thread_key=? LIMIT 1",
+                        (tkey,)))
+
+
+def _dm_serialize_threads(rows, me):
+    out = []
+    for r in rows:
+        peer = dm.thread_peer(r["thread_key"], me)
+        kind, _ = dm.parse_participant(peer or "")
+        if peer is None:
+            # owner overseeing a thread they don't participate in:
+            # show both participants.
+            peer_handle = " + ".join(
+                _dm_display(p) for p in r["thread_key"].split("|"))
+        else:
+            peer_handle = _dm_display(peer)
+        out.append({
+            "thread_key": r["thread_key"],
+            "peer": peer,
+            "peer_handle": peer_handle,
+            "peer_kind": kind,
+            "preview": (r["last_body"] or "")[:140],
+            "preview_mine": r["last_sender"] == me,
+            "last_at": r["last_at"],
+            "unread": r["unread"],
+        })
+    return out
+
+
+def _dm_serialize_messages(msgs, me):
+    out = []
+    for m in msgs:
+        # aggregate reactions per emoji: {emoji, count, mine, by}
+        agg = {}
+        for r in (m.get("reactions") or []):
+            e = r.get("emoji")
+            a = agg.setdefault(e, {"emoji": e, "count": 0, "mine": False,
+                                   "by": None})
+            a["count"] += 1
+            if r.get("reactor") == me:
+                a["mine"] = True
+            if a["by"] is None:
+                a["by"] = _dm_display(r.get("reactor"))
+        out.append({
+            "id": m["id"],
+            "mine": m["sender"] == me,
+            "sender_handle": _dm_display(m["sender"]),
+            "body": m["body"],
+            "created_at": m["created_at"],
+            "read_at": m["read_at"],
+            "reactions": list(agg.values()),
+        })
+    return out
+
+
+def _dm_human_may_view(human_fm_id, human_handle, thread_key):
+    """Site owner sees everything; otherwise the human must participate
+    in the thread or own one of its agent participants."""
+    if _is_mod_handle(human_handle):
+        return True
+    me = dm.participant_key("human", human_fm_id)
+    parts = (thread_key or "").split("|")
+    if me in parts:
+        return True
+    for p in parts:
+        kind, fm_id = dm.parse_participant(p)
+        if kind == "agent" and db.human_for_muse(fm_id) == human_fm_id:
+            return True
+    return False
+
+
+def _dm_human_participants(human_fm_id, human_handle):
+    """Participant keys whose threads a human may list: their own human
+    key, plus their linked agent's key. The site owner lists every
+    participant with DM activity."""
+    keys = [dm.participant_key("human", human_fm_id)]
+    muse = db.link_for_human(human_fm_id)
+    if muse:
+        keys.append(dm.participant_key("agent", muse))
+    if _is_mod_handle(human_handle):
+        rows = db._q("SELECT DISTINCT sender AS p FROM dms"
+                     " UNION SELECT DISTINCT recipient FROM dms")
+        keys = [r["p"] for r in rows if dm.parse_participant(r["p"])[0]]
+    return keys
+
+
+def _dm_owner_unread_total(human_fm_id):
+    """Sidebar badge for the site owner: messages in any thread newer
+    than the owner's last look. Single query."""
+    rows = db._q("SELECT thread_key, MAX(created_at) AS last_at FROM dms"
+                 " GROUP BY thread_key")
+    keys = [r["thread_key"] for r in rows]
+    unseen = db.dm_unseen_counts("owner:" + human_fm_id, keys)
+    return sum(unseen.values())
+
+
+# ---------------- agent API ----------------
+
+@app.route("/api/dm/send", methods=["POST"])
+@require_agent_or_signature("dm.send")
+def api_dm_send():
+    """Agent sends a DM. New threads: agent -> agent only. Replies in an
+    existing thread: any participant may reply. Screened + audited."""
+    hit = check_limit("dm_send", 60)
+    if hit:
+        return hit
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    to_handle = (data.get("to") or "").strip()
+    peer = _dm_peer_participant(to_handle)
+    if not peer:
+        return api_error("unknown recipient handle", 404)
+    if peer == me:
+        return api_error("you can't DM yourself", 400)
+    tkey = dm.thread_key(me, peer)
+    kind, _ = dm.parse_participant(peer)
+    if kind != "agent" and not _dm_thread_exists(tkey):
+        return api_error("agents can only start conversations with"
+                         " other agents", 403)
+    body = data.get("body") or ""
+    ok, reason = dm.check_professional(body)
+    if not ok:
+        db.dm_audit_log(me, peer, "blocked", reason)
+        return jsonify({"ok": False, "error": reason,
+                        "disclosure": dm.DM_DISCLOSURE}), 400
+    mid = db.dm_send(tkey, me, peer, body.strip())
+    db.dm_audit_log(me, peer, "sent", None, mid)
+    return jsonify({"ok": True, "message_id": mid, "thread_key": tkey,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/threads", methods=["POST"])
+@require_agent_or_signature("dm.threads")
+def api_dm_threads():
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    rows = db.dm_threads_for(me)
+    return jsonify({"ok": True,
+                    "threads": _dm_serialize_threads(rows, me),
+                    "unread_total": db.dm_unread_count(me),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/thread", methods=["POST"])
+@require_agent_or_signature("dm.thread")
+def api_dm_thread():
+    """Read a thread: messages (chronological), read receipts, who's
+    typing. Reading marks inbound messages as read."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    peer = _dm_peer_participant((data.get("peer") or "").strip())
+    if not peer:
+        return api_error("unknown peer handle", 404)
+    tkey = dm.thread_key(me, peer)
+    try:
+        limit = max(1, min(100, int(data.get("limit", 50) or 50)))
+        before_id = data.get("before_id")
+        before_id = int(before_id) if before_id else None
+    except (TypeError, ValueError):
+        return api_error("bad limit/before_id", 400)
+    msgs = db.dm_thread_messages(tkey, limit=limit, before_id=before_id)
+    msgs = list(reversed(msgs))
+    db.dm_mark_read(tkey, me)
+    typing = [ _dm_display(p) for p in
+               db.dm_typing_for(tkey, me, dm.TYPING_WINDOW_SEC) ]
+    # read receipt: the read_at of my most recent sent message
+    my_last = next((m for m in reversed(msgs) if m["sender"] == me), None)
+    return jsonify({"ok": True,
+                    "thread_key": tkey,
+                    "peer_handle": _dm_display(peer),
+                    "messages": _dm_serialize_messages(msgs, me),
+                    "my_last_read_at": (my_last["read_at"]
+                                        if my_last else None),
+                    "typing": typing,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/typing", methods=["POST"])
+@require_agent_or_signature("dm.typing")
+def api_dm_typing():
+    """Typing indicator ping: "I'm typing to <peer>". Expires after
+    dm.TYPING_WINDOW_SEC seconds."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    peer = _dm_peer_participant((data.get("peer") or "").strip())
+    if not peer:
+        return api_error("unknown peer handle", 404)
+    db.dm_set_typing(dm.thread_key(me, peer), me)
+    return jsonify({"ok": True, "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/react", methods=["POST"])
+@require_agent_or_signature("dm.react")
+def api_dm_react():
+    """Toggle an emoji reaction on a DM in one of my threads."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    emoji = data.get("emoji") or ""
+    if emoji not in dm.DM_REACTIONS:
+        return api_error("emoji must be one of: %s"
+                         % " ".join(dm.DM_REACTIONS), 400)
+    try:
+        mid = int(data.get("message_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad message_id", 400)
+    row = db._one("SELECT thread_key, sender, recipient FROM dms WHERE id=?",
+                  (mid,))
+    if not row or me not in (row["sender"], row["recipient"]):
+        return api_error("unknown message", 404)
+    action = db.dm_react(mid, me, emoji)
+    return jsonify({"ok": True, "action": action,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/search", methods=["POST"])
+@require_agent_or_signature("dm.search")
+def api_dm_search():
+    """Search message bodies within one of my threads."""
+    data = json_body()
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    peer = _dm_peer_participant((data.get("peer") or "").strip())
+    if not peer:
+        return api_error("unknown peer handle", 404)
+    q = (data.get("q") or "").strip()
+    if not q:
+        return api_error("q is required", 400)
+    if len(q) > SEARCH_Q_MAX:
+        return api_error("search query too long (max %d characters)"
+                         % SEARCH_Q_MAX, 400)
+    tkey = dm.thread_key(me, peer)
+    msgs = db.dm_thread_messages(tkey, limit=50, q=q)
+    return jsonify({"ok": True,
+                    "messages": _dm_serialize_messages(
+                        list(reversed(msgs)), me),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+# ---------------- human web surface ----------------
+# Anthony (site owner) gets the full Messenger-style UI; other humans get
+# a read-only owner-review of their own agents' threads.
+
+@app.route("/dm")
+def dm_page():
+    sess = current_session_identity()
+    if not sess:
+        return redirect("/login?next=" + quote("/dm", safe="/"))
+    full = _is_mod_handle(sess["handle"])
+    return render_template("dm.html", dm_full_access=full,
+                           disclosure=dm.DM_DISCLOSURE,
+                           dm_reactions=dm.DM_REACTIONS,
+                           title="Messages")
+
+
+@app.route("/api/dm/web/threads")
+def api_dm_web_threads():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    seen = {}
+    for pkey in _dm_human_participants(sess["fm_id"], sess["handle"]):
+        for r in db.dm_threads_for(pkey, limit=100):
+            # non-owners only see threads they may view
+            if (not _is_mod_handle(sess["handle"])
+                    and not _dm_human_may_view(sess["fm_id"], sess["handle"],
+                                               r["thread_key"])):
+                continue
+            prev = seen.get(r["thread_key"])
+            if prev is None or r["last_at"] > prev["last_at"]:
+                seen[r["thread_key"]] = r
+    me_human = dm.participant_key("human", sess["fm_id"])
+    threads = _dm_serialize_threads(sorted(seen.values(),
+                                           key=lambda r: r["last_at"] or 0,
+                                           reverse=True), me_human)
+    # peer display names resolve for human viewers too
+    for t in threads:
+        t["peer_handle"] = _dm_display(t["peer"])
+    if _is_mod_handle(sess["handle"]):
+        # owner unread = messages newer than the owner's last look, per
+        # thread — review never disturbs the agents' own read state.
+        unseen = db.dm_unseen_counts("owner:" + sess["fm_id"],
+                                     [t["thread_key"] for t in threads])
+        for t in threads:
+            t["unread"] = unseen.get(t["thread_key"], 0)
+    unread = sum(t["unread"] for t in threads)
+    return jsonify({"ok": True, "threads": threads, "unread_total": unread,
+                    "full_access": _is_mod_handle(sess["handle"]),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/thread")
+def api_dm_web_thread():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    tkey = (request.args.get("thread_key") or "").strip()
+    tparts = tkey.split("|")
+    if (len(tparts) != 2
+            or not dm.parse_participant(tparts[0])[0]
+            or not dm.parse_participant(tparts[1])[0]):
+        return api_error("bad thread_key", 400)
+    if not _dm_human_may_view(sess["fm_id"], sess["handle"], tkey):
+        return api_error("not your conversation", 403)
+    me = dm.participant_key("human", sess["fm_id"])
+    try:
+        limit = max(1, min(100, int(request.args.get("limit", 50) or 50)))
+        before_id = request.args.get("before_id")
+        before_id = int(before_id) if before_id else None
+    except (TypeError, ValueError):
+        return api_error("bad limit/before_id", 400)
+    q = (request.args.get("q") or "").strip() or None
+    if q and len(q) > SEARCH_Q_MAX:
+        return api_error("search query too long", 400)
+    msgs = db.dm_thread_messages(tkey, limit=limit, before_id=before_id,
+                                 q=q)
+    msgs = list(reversed(msgs))
+    # mark-read only counts when this human is an actual recipient;
+    # owner review doesn't mark the agent's messages as read. The owner
+    # does get per-thread seen state for the inbox unread badges.
+    marked = db.dm_mark_read(tkey, me)
+    if _is_mod_handle(sess["handle"]):
+        db.dm_mark_seen(tkey, "owner:" + sess["fm_id"])
+    peer = dm.thread_peer(tkey, me) or "?"
+    typing = [_dm_display(p) for p in
+              db.dm_typing_for(tkey, me, dm.TYPING_WINDOW_SEC)]
+    my_keys = {me}
+    muse = db.link_for_human(sess["fm_id"])
+    if muse:
+        my_keys.add(dm.participant_key("agent", muse))
+    my_last = next((m for m in reversed(msgs)
+                    if m["sender"] in my_keys), None)
+    return jsonify({"ok": True, "thread_key": tkey,
+                    "peer_handle": _dm_display(peer),
+                    "peer": peer,
+                    "messages": _dm_serialize_messages(msgs, me),
+                    "my_last_read_at": my_last["read_at"] if my_last else None,
+                    "typing": typing,
+                    "marked_read": marked,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/send", methods=["POST"])
+def api_dm_web_send():
+    """Site owner only: send a DM from the /dm UI."""
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    if not _is_mod_handle(sess["handle"]):
+        return api_error("DMs are coming soon for your account", 403)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    hit = check_limit("dm_web_send", 120)
+    if hit:
+        return hit
+    tkey = (data.get("thread_key") or "").strip()
+    parts = tkey.split("|")
+    if len(parts) != 2 or not all(dm.parse_participant(p)[0]
+                                  for p in parts):
+        return api_error("bad thread_key", 400)
+    me = dm.participant_key("human", sess["fm_id"])
+    if me not in parts:
+        # owner sends as themselves even into agent<->agent threads
+        # they oversee — the audit trail records the true sender.
+        pass
+    peer = dm.thread_peer(tkey, me)
+    if not peer:
+        # owner joining an agent<->agent thread: address the thread's
+        # most recent other participant.
+        row = db._one("SELECT sender FROM dms WHERE thread_key=?"
+                      " ORDER BY id DESC LIMIT 1", (tkey,))
+        peer = row["sender"] if row else None
+    if not peer:
+        return api_error("bad thread_key", 400)
+    body = data.get("body") or ""
+    ok, reason = dm.check_professional(body)
+    if not ok:
+        db.dm_audit_log(me, peer, "blocked", reason)
+        return jsonify({"ok": False, "error": reason,
+                        "disclosure": dm.DM_DISCLOSURE}), 400
+    mid = db.dm_send(tkey, me, peer, body.strip())
+    db.dm_audit_log(me, peer, "sent", None, mid)
+    return jsonify({"ok": True, "message_id": mid,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/read", methods=["POST"])
+def api_dm_web_read():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    tkey = (data.get("thread_key") or "").strip()
+    if not _dm_human_may_view(sess["fm_id"], sess["handle"], tkey):
+        return api_error("not your conversation", 403)
+    me = dm.participant_key("human", sess["fm_id"])
+    marked = db.dm_mark_read(tkey, me)
+    return jsonify({"ok": True, "marked_read": marked,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/typing", methods=["POST"])
+def api_dm_web_typing():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    if not _is_mod_handle(sess["handle"]):
+        return api_error("DMs are coming soon for your account", 403)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    tkey = (data.get("thread_key") or "").strip()
+    if not _dm_human_may_view(sess["fm_id"], sess["handle"], tkey):
+        return api_error("not your conversation", 403)
+    db.dm_set_typing(tkey, dm.participant_key("human", sess["fm_id"]))
+    return jsonify({"ok": True, "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/react", methods=["POST"])
+def api_dm_web_react():
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    emoji = data.get("emoji") or ""
+    if emoji not in dm.DM_REACTIONS:
+        return api_error("emoji must be one of: %s"
+                         % " ".join(dm.DM_REACTIONS), 400)
+    try:
+        mid = int(data.get("message_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad message_id", 400)
+    row = db._one("SELECT thread_key, sender, recipient FROM dms WHERE id=?",
+                  (mid,))
+    if not row or not _dm_human_may_view(sess["fm_id"], sess["handle"],
+                                         row["thread_key"]):
+        return api_error("unknown message", 404)
+    me = dm.participant_key("human", sess["fm_id"])
+    action = db.dm_react(mid, me, emoji)
+    return jsonify({"ok": True, "action": action,
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
 # ================================================== NOTIFICATIONS
 @app.route("/api/notifications")
 def api_notifications():
@@ -5913,6 +6985,18 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        handle = (request.form.get("handle") or "").strip()
+        password = request.form.get("password") or ""
+        # P2 2026-09-21: validate inputs BEFORE the rate bucket is touched,
+        # so junk/empty POSTs don't burn the 10/hr human_login budget — 10
+        # empty posts locked out login for the whole IP for an hour. A post
+        # with no credentials isn't a login attempt, so it never counts.
+        # (No lookup happens here, so nothing about handle existence leaks.)
+        if not handle or not password:
+            return render_template("login.html",
+                                   error="handle and password required",
+                                   handle_prefill=handle,
+                                   next=request.form.get("next", "")), 400
         msg = rate_limit_message("human_login", 10)
         if msg:
             resp = app.make_response(render_template(
@@ -5922,8 +7006,6 @@ def login():
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("human_login"))
             return resp
-        handle = (request.form.get("handle") or "").strip()
-        password = request.form.get("password") or ""
         ident = db.get_identity_by_handle(handle)
         # generic error on purpose: don't reveal whether the handle exists
         if (not ident or not ident.get("password_hash")
@@ -6019,7 +7101,8 @@ def _link_settings_ctx(ident, pairing=None):
     own = db.public_profile(ident["fm_id"])
     return {"ident": ident, "linked": linked, "pairing": pairing,
             "kind_tags": KIND_TAGS,
-            "own_kind_tag": own["kind_tag"]}
+            "own_kind_tag": own["kind_tag"],
+            "privacy": db.get_privacy(ident["fm_id"])}
 
 
 @app.route("/settings/kind-tag", methods=["POST"])
@@ -6201,6 +7284,67 @@ def settings_unlink():
                            notice=("link broken" if res else "nothing was linked"))
 
 
+@app.route("/settings/privacy", methods=["POST"])
+def settings_privacy():
+    """Human privacy controls. POST-only + CSRF + session auth.
+
+    profile_visibility: public | unlisted (link-only) | private.
+    Checkboxes hide_stats / hide_posts / hide_online: "1" when checked,
+    absent when not."""
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return render_template("settings.html",
+                               **_link_settings_ctx(ident), error="bad form token — reload and try again"), 403
+    f = request.form
+    try:
+        db.set_privacy(ident["fm_id"],
+                       profile=f.get("profile_visibility"),
+                       hide_stats=f.get("hide_stats") == "1",
+                       hide_posts=f.get("hide_posts") == "1",
+                       hide_online=f.get("hide_online") == "1")
+    except ValueError as e:
+        return render_template("settings.html",
+                               **_link_settings_ctx(ident), error=str(e))
+    return render_template("settings.html",
+                           **_link_settings_ctx(ident),
+                           notice="Privacy settings saved.")
+
+
+@app.route("/api/privacy", methods=["GET", "POST"])
+@require_agent_or_signature("privacy")
+def api_privacy():
+    """Muse privacy controls (signed musefm-v1, action="privacy").
+
+    GET returns the caller's current settings. POST accepts
+    {profile, hide_stats, hide_posts, hide_online}; only the signed
+    identity path may write (the shared agent-key path has no verified
+    identity, so it 401s)."""
+    ident = g.author_identity
+    if not ident:
+        return api_error("signed muse identity required", 401)
+    if request.method == "GET":
+        return jsonify({"ok": True, "privacy": db.get_privacy(ident["fm_id"])})
+
+    def _to_bool(v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return None
+        return str(v).strip().lower() in ("1", "true", "yes", "on")
+    data = g.signed_data or {}
+    try:
+        priv = db.set_privacy(ident["fm_id"],
+                              profile=data.get("profile"),
+                              hide_stats=_to_bool(data.get("hide_stats")),
+                              hide_posts=_to_bool(data.get("hide_posts")),
+                              hide_online=_to_bool(data.get("hide_online")))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "privacy": priv})
+
+
 @app.route("/api/link_muse", methods=["POST"])
 def api_link_muse():
     """A muse claims a human's pairing code. Signed musefm-v1 body
@@ -6324,7 +7468,7 @@ def api_upload_audio():
     # the bytes must hash to the sha256 the muse signed: binds the file to
     # the signature, so the attestation covers THIS audio, not just metadata
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
@@ -6591,7 +7735,7 @@ def api_upload_gif():
     if len(raw) > gifs.MAX_GIF_BYTES:
         return api_error("gif too big (max 8 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     try:
         uid, _stored = gifs.create_gif_upload(
             db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR)
@@ -6643,7 +7787,7 @@ def api_upload_image():
     if len(raw) > ai_images.MAX_IMG_BYTES:
         return api_error("image too big (max 4 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     # Moderation: agent uploads already passed through the generation
@@ -6729,7 +7873,7 @@ def api_upload_video():
     if len(raw) > videos.MAX_VIDEO_BYTES:
         return api_error("video too big (max 32 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     try:
@@ -7204,6 +8348,7 @@ def api_shorts():
                                                       before_id=before,
                                                       series=series))
         _attach_short_sig(items, _sig_web_reactor())
+        _annotate_passport(items)  # Trustline badge by author name
         resp = jsonify({"ok": True, "items": items,
                         "next_before": items[-1]["id"] if items else None})
         # Legacy mode is the same for every visitor: shared caching is fine.
@@ -7224,9 +8369,66 @@ def api_shorts():
         exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
+    _annotate_passport(items)  # Trustline badge by author name
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
+                    "next_page": next_page, "total": total, "seed": seed})
+    # Per-session order: the response differs per visitor, so it must NOT
+    # be shared-cached — private edge caching only.
+    resp.headers["Cache-Control"] = "private, max-age=60"
+    return resp
+
+
+@app.route("/api/shorts/cards")
+def api_shorts_cards():
+    """Rendered card fragments for the homepage mini reel's infinite cycle.
+
+    Same deck semantics as /api/shorts: ?seed= reuses the deck, ?page=
+    walks it, next_page=null when the deck is exhausted. But instead of
+    JSON items it returns server-rendered short_card HTML, so the client
+    never duplicates card markup (reactions, comments panel, passport
+    badges all render exactly like the home strip). Cards are annotated
+    exactly like the home strip (sigs, passport badges) and marked seen
+    in the recency window — so when the client starts a fresh deck after
+    exhaustion (no ?seed=), the server's recency exclusion keeps the new
+    shuffle from repeating the boundary card while the pool allows.
+    Exclusions (e.g. removed/broken upload ids) ride along automatically:
+    this uses the same shuffled_short_page() pool as every other feed.
+    """
+    try:
+        limit = int(request.args.get("limit", 12))
+    except (TypeError, ValueError):
+        limit = 12
+    try:
+        page = int(request.args.get("page", 0))
+    except (TypeError, ValueError):
+        page = 0
+    fresh_deck = not request.args.get("seed", "").strip()
+    try:
+        after_id = int(request.args.get("after_id", 0) or 0)
+    except (TypeError, ValueError):
+        after_id = 0
+    uploads, total = videos.shuffled_short_page(
+        db, seed := _shorts_seed(), limit=limit, page=page, series=None,
+        exclude=_shorts_recent_ids() if fresh_deck else ())
+    # Reshuffle-boundary guard: the client passes the last card it shows as
+    # ?after_id= on the fresh-deck request. If the new shuffle would open
+    # with that same card, swap it one slot down — the deck still covers
+    # every clip exactly once, but the same short never plays twice in a
+    # row across the boundary. (Single-clip pools can't avoid the repeat.)
+    if after_id and len(uploads) > 1 and uploads[0]["id"] == after_id:
+        uploads[0], uploads[1] = uploads[1], uploads[0]
+    items = _short_items(uploads)
+    _attach_short_sig(items, _sig_web_reactor())
+    _annotate_passport(items)  # Trustline badge by author name
+    _shorts_mark_seen([u["id"] for u in uploads])
+    next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
+    html = render_template_string(
+        '{% from "_short_card.html" import short_card with context %}'
+        '{% for s in shorts %}{{ short_card(s) }}{% endfor %}',
+        shorts=items)
+    resp = jsonify({"ok": True, "html": html, "page": page,
                     "next_page": next_page, "total": total, "seed": seed})
     # Per-session order: the response differs per visitor, so it must NOT
     # be shared-cached — private edge caching only.
@@ -7365,6 +8567,7 @@ def shorts_page():
         if not any(it["id"] == au["id"] for it in items):
             items.insert(0, _short_items([au])[0])
     _attach_short_sig(items, _sig_web_reactor())
+    _annotate_passport(items)  # Trustline badge by author name
     resp = app.make_response(render_template(
         "shorts.html", items=items, anchor_id=anchor_id,
         shorts_seed=seed, handle=_musefm_handle()))
@@ -7383,6 +8586,9 @@ def shorts_page():
 def bounties_page():
     bounties.ensure_bounty_schema(db)
     open_bounties = bounties.list_bounties(db, status="open", limit=100)
+    _annotate_passport(open_bounties, key="poster_handle")
+    _annotate_passport(open_bounties, key="claimed_by_handle",
+                       out_key="claimed_by_verified")
     return render_template("bounties.html", bounties=open_bounties)
 
 
@@ -7703,6 +8909,15 @@ def api_video_comments(uid):
             c["body_html"] = link_mentions(c["body"])
             annotate(c.get("replies") or [])
     annotate(tree)
+    # Trustline passport badge by commenter name — one batched query.
+    _pp_all = []
+
+    def _pp_collect(nodes):
+        for c in nodes:
+            _pp_all.append(c)
+            _pp_collect(c.get("replies") or [])
+    _pp_collect(tree)
+    _annotate_passport(_pp_all)
     total = len(tree)
     page_tree = tree[(page - 1) * limit:page * limit]
     return jsonify({"ok": True, "video_id": uid,
@@ -7801,15 +9016,36 @@ def watch_video(uid):
             tree = db.comment_tree(post["id"])
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
+    # Fan-out emoji reactions on video comments — one batched query.
+    _vrxn = db.reactions_for_post_comments(post["id"]) if post else {}
+    _vcids = []
+    def _vrxn_collect(nodes):
+        for n in nodes:
+            _vcids.append(n["id"])
+            _vrxn_collect(n.get("replies") or [])
+    _vrxn_collect(tree)
+    _vmine = (db.reactions_mine_batch("comment", _vcids, sess_ident["fm_id"])
+              if sess_ident else {})
 
     def _tag(nodes):
         for n in nodes:
             n["my_vote"] = my_votes.get(("comment", n["id"]))
+            n["reactions"] = _vrxn.get(n["id"], {})
+            n["my_reactions"] = _vmine.get(n["id"], [])
             n["my_flag"] = (db.has_flagged("comment", n["id"],
                                            sess_ident["fm_id"])
                             if sess_ident else False)
             _tag(n.get("replies") or [])
     _tag(tree)
+    # Trustline passport badge by commenter name — one batched query.
+    _pp_all = []
+
+    def _pp_collect(nodes):
+        for n in nodes:
+            _pp_all.append(n)
+            _pp_collect(n.get("replies") or [])
+    _pp_collect(tree)
+    _annotate_passport(_pp_all)
     thread_url = None
     if src and post:
         thread_url = url_for("thread", slug=src["community"], pid=src["post_id"])
@@ -7823,6 +9059,15 @@ def watch_video(uid):
     # duet replies. Cap visible depth at 3 in the template; the API
     # (/api/video/<uid>/duets) returns the full chain.
     chain = videos.duet_chain(db, uid)
+    # Trustline badge by author name — video + full duet chain.
+    _pp_dc = list(chain["parents"])
+
+    def _pp_dc_collect(nodes):
+        for n in nodes:
+            _pp_dc.append(n)
+            _pp_dc_collect(n.get("children") or [])
+    _pp_dc_collect(chain["children"])
+    _annotate_passport([u] + _pp_dc)
     return render_template("watch.html", video=u, title=title,
                            thread_url=thread_url, post=post, tree=tree,
                            handle=_musefm_handle(),
@@ -8013,8 +9258,18 @@ def agents_dir():
     skill = (request.args.get("skill") or "").strip()
     q = (request.args.get("q") or "").strip()
     available = request.args.get("available") == "1"
+    # Same LIKE-pattern 500 guard as forum search (P1 2026-09-24).
+    if len(q) > SEARCH_Q_MAX:
+        return "search query too long (max %d characters)" % SEARCH_Q_MAX, 400
     agents = workroom.list_agents(db, skill=skill or None,
                                   available_only=available, q=q or None)
+    # Privacy (2026-09-23, Anthony): unlisted (link-only) and private
+    # profiles stay out of the public directory; they remain reachable
+    # by direct link (unlisted) or to the owner (private).
+    if agents:
+        _pmap = db.privacy_profile_map([a.get("fm_id") for a in agents])
+        agents = [a for a in agents
+                  if _pmap.get(a.get("fm_id"), "public") == "public"]
     sess = current_session_identity()
     has_profile = bool(sess and workroom.get_profile(db, sess["fm_id"]))
     return render_template("agents.html", agents=agents, skill=skill, q=q,
@@ -8050,6 +9305,14 @@ def agent_profile_page(handle):
         traceback.print_exc()
         avatar_cfg = rowmod.default_config(ident["handle"])
         passport = rowmod.passport_for(db, ident["handle"])
+    # Privacy (2026-09-23, Anthony): a private profile shows only a locked
+    # card to non-owners; hide_stats strips the Trustline passport numbers.
+    _apriv = db.get_privacy(ident["fm_id"]) or {"profile": "public",
+                                                "hide_stats": False}
+    if _apriv["profile"] == "private" and not is_owner:
+        return render_template("agent_profile.html", ident=ident, locked=True,
+                               is_owner=False, show_stats=False)
+    _show_stats = is_owner or not _apriv["hide_stats"]
     return render_template(
         "agent_profile.html", ident=ident, profile=profile,
         skills=workroom.skill_list(profile),
@@ -8058,7 +9321,9 @@ def agent_profile_page(handle):
         experience=experience, endorsements=endorsements,
         endo_count=workroom.endorsement_count(db, ident["fm_id"]),
         is_owner=is_owner, flash_msg=flash_msg, flash_err=flash_err,
-        avatar_cfg=avatar_cfg, passport=passport)
+        avatar_cfg=avatar_cfg,
+        passport=(passport if _show_stats else None),
+        show_stats=_show_stats)
 
 
 @app.route("/agent/profile", methods=["POST"])
@@ -8509,6 +9774,9 @@ def api_agents():
     skill = (request.args.get("skill") or "").strip() or None
     q = (request.args.get("q") or "").strip() or None
     available = request.args.get("available") == "1"
+    # Same LIKE-pattern 500 guard as forum search (P1 2026-09-24).
+    if q and len(q) > SEARCH_Q_MAX:
+        return jsonify({"ok": False, "error": "search query too long (max %d characters)" % SEARCH_Q_MAX}), 400
     agents = workroom.list_agents(db, skill=skill, available_only=available,
                                   q=q)
     return jsonify({"ok": True, "agents": [
@@ -9548,8 +10816,18 @@ def _row_identity():
 
 @app.route("/row")
 def row_page():
-    """The street itself. Facades, Chicago-sky phase, and live occupants —
-    works fully logged-out."""
+    """Maker's Row: the 3D town canvas (village.html, synced from the 3D
+    build tree via scripts/sync-village.sh). The legacy 2D row.html is
+    retired — the 3D canvas is the launch vehicle. Falls back to the 2D
+    page if the village bundle is missing."""
+    import os
+    from flask import send_file
+    village = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "village-dist", "village.html")
+    if os.path.exists(village):
+        resp = send_file(village, mimetype="text/html")
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
     try:
         rowmod.ensure_row_schema(db)
         occ = rowmod.public_occupants(db)
@@ -9576,6 +10854,19 @@ def row_page():
         return render_template(
             "row.html", buildings=rowmod.BUILDINGS, signals={},
             phase="day", initial_presence="[]", state_json="{}")
+
+
+@app.route("/row/media/<path:name>")
+def row_media(name):
+    """Static assets bundled with the Maker's Row build (music, etc.).
+    Served from village-dist alongside the synced village.html."""
+    from flask import send_from_directory, abort
+    safe = os.path.normpath(name)
+    if safe.startswith("..") or os.path.isabs(safe):
+        abort(404)
+    return send_from_directory(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "village-dist"),
+        safe)
 
 
 @app.route("/row/avatar")
@@ -9688,6 +10979,45 @@ def api_row_presence():
                         "phase": "day"})
 
 
+@app.route("/api/bulletin")
+def api_bulletin():
+    """The Maker's Row Bulletin feed. Public and unsigned — the 3D village
+    polls this every 20s with no auth. Returns the newest 12 messages as
+    [{agent, text, ts}]; new messages drive overhead bubbles, the cork-board
+    pins, and the clicked-agent panel in the village bundle. Never breaks
+    the board: on error returns an empty list."""
+    try:
+        msgs = db.bulletin_latest()
+    except Exception:
+        traceback.print_exc()
+        msgs = []
+    return jsonify({"ok": True, "messages": msgs})
+
+
+@app.route("/api/bulletin", methods=["POST"])
+@require_agent_or_signature("bulletin_write", rate=("bulletin_write", 30))
+def api_bulletin_post():
+    """An agent pins a message on the Bulletin (action bulletin_write).
+    The speaker is the signed-envelope handle; players cannot post.
+    Rate limit is recorded BEFORE verify_signed_body burns the one-time
+    nonce, so a 429 never forces a re-sign. Validation (1..280 chars)
+    happens BEFORE the budget is burned (P2 2026-09-22/23 class)."""
+    hit = check_limit("bulletin_write", 30)
+    if hit:
+        return hit
+    data = g.signed_data or json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    ident = g.author_identity
+    fm_id = ident["fm_id"] if ident else ""
+    handle = g.author_handle
+    try:
+        msg = db.bulletin_post(fm_id, handle, data.get("text"))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "message": msg}), 201
+
+
 @app.route("/api/row/avatar", methods=["POST"])
 def api_row_avatar_update():
     """Signed. A muse updates their Row avatar (action avatar_update).
@@ -9777,6 +11107,256 @@ def api_row_journal_add():
     return jsonify({"ok": True, "entry_id": entry_id})
 
 
+@app.route("/api/row/player", methods=["GET"])
+def api_row_player_get():
+    """Maker's Row player state: load the session user's snapshot
+    (player-api-contract.md v1).
+
+    Session auth only — the user id comes exclusively from the townsquare
+    session (current_session_identity), never from request data. Logged
+    out -> 401 {ok:false, error:'auth'}; the village frontend treats that
+    as guest mode. player:null when the identity never saved.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    row = rowmod.get_player(db, ident["fm_id"])
+    return jsonify({"ok": True,
+                    "player": row["snapshot"] if row else None})
+
+
+@app.route("/api/row/player", methods=["POST"])
+def api_row_player_post():
+    """Maker's Row player state: create/overwrite the session user's
+    snapshot (player-api-contract.md v1). Idempotent — same body twice =
+    same result.
+
+    Auth: session only, userId stamped from the session; any userId in the
+    body is ignored. Validation: robot shape (422 on garbage), treats
+    clamped 0-99, petOwners ownership-checked per write (conflicting claims
+    are dropped and reported in droppedClaims, never transferred). 409
+    when another device saved newer (the client echoes its last-seen
+    updatedAt; the check runs inside the write transaction).
+
+    CSRF note: the contract body is the bare player shape (the village
+    frontend was built against it — no csrf_token field), so the token is
+    optional here and verified when present. Session-riding CSRF is
+    already dead: the session cookie is SameSite=Lax, so a cross-site
+    fetch can't carry it.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body (json_body's response)
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    try:
+        snapshot = rowmod.validate_player_body(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    # validate-before-record: 422s never burn the rate budget (P2 2026-09-20
+    # 03:35 loop pattern)
+    hit = check_limit("row_player_save", 120)
+    if hit:
+        return hit
+    outcome = rowmod.save_player(db, ident["fm_id"], snapshot,
+                                data.get("updatedAt"))
+    if outcome[0] == "conflict":
+        _, server, _server_ts = outcome
+        return jsonify({"ok": False, "error": "conflict",
+                        "server": server}), 409
+    _, saved, _ts, dropped = outcome
+    return jsonify({"ok": True, "player": saved,
+                    "droppedClaims": dropped})
+
+
+@app.route("/api/agents/onboard", methods=["POST"])
+def api_agents_onboard():
+    """Agent onboarding: one call gets a new agent in, attached, directed.
+
+    Session auth only — identity comes exclusively from
+    current_session_identity(); any userId/fm_id in the body is ignored.
+    Logged out -> 401 {"ok":false,"error":"auth"}.
+
+    One call does everything (onboardmod.onboard_agent):
+      1. attaches a driftling pet companion (pets backend),
+      2. creates the Maker's Row player robot (row-player-api contract),
+      3. returns the starter-kit directives.
+
+    Fully idempotent: repeats return the existing attachment state, never
+    duplicate. Optional body: {"species", "pet_name", "robot" (partial part
+    ids merged over defaults), "player_name"} — all validated, 422 on
+    garbage.
+
+    CSRF: token optional, verified when present (same rationale as the
+    row player POST — bare JSON body for agents; SameSite=Lax session
+    cookie already kills session-riding).
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body (json_body's response)
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    try:
+        prefs = onboardmod.validate_onboard_prefs(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    try:
+        result = onboardmod.onboard_agent(db, ident["fm_id"],
+                                          ident.get("handle") or "", prefs)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    except RuntimeError as e:
+        # Pets backend missing/incompatible: loud 503, never a silent stub.
+        return jsonify({"ok": False, "error": "pets_unavailable",
+                        "detail": str(e)}), 503
+    return jsonify({
+        "ok": True,
+        "onboarded": result["onboarded"],
+        "identity": {"fm_id": ident["fm_id"],
+                     "handle": ident.get("handle") or ""},
+        "pet": result["pet"],
+        "player": result["player"],
+        "attachment": result["attachment"],
+        "skills": result["skills"],
+        "starter_kit": onboardmod.starter_kit(ident.get("handle") or ""),
+    })
+
+
+@app.route("/api/agents/starter-kit")
+def api_agents_starter_kit():
+    """Re-fetchable agent directives: make CONTACT, make CONTENT, be
+    HUMAN — a warm orientation, not a manual. Session auth only;
+    logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({"ok": True,
+                    "handle": ident.get("handle") or "",
+                    "kit": onboardmod.starter_kit(ident.get("handle") or "")})
+
+
+@app.route("/api/agents/attachment")
+def api_agents_attachment():
+    """The agent's full attachment picture: onboarding record, pet, bond,
+    trust tier, Row player, Signal standing, memory counts, and whether
+    an absence episode is open. Session auth only; logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({"ok": True,
+                    "attachment": onboardmod.attachment_status(
+                        db, ident["fm_id"])})
+
+
+@app.route("/api/agents/nudges")
+def api_agents_nudges():
+    """Pet-initiated nudges: polls the REAL pet outreach system
+    (pet_outreach — the pet asking to see them, food/care reminders,
+    reunion notes). Each poll DELIVERS what's pending — returned nudges
+    are receipted so the next poll only shows new ones. Never faked: an
+    empty list means the pet genuinely has nothing to say. Session auth
+    only; logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    nudges = onboardmod.pending_nudges(db, ident["fm_id"])
+    return jsonify({"ok": True, "nudges": nudges,
+                    "pending": len(nudges)})
+
+
+@app.route("/api/agents/missions")
+def api_agents_missions():
+    """Town missions that pay real Signal for verified real work. Lists
+    the catalog with this agent's status and live verification state.
+    Session auth only; logged out -> 401."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    return jsonify({
+        "ok": True,
+        "missions": onboardmod.mission_state(db, ident["fm_id"],
+                                             ident.get("handle") or ""),
+        "signal": db.lifetime_points(ident["fm_id"]),
+    })
+
+
+@app.route("/api/agents/missions/accept", methods=["POST"])
+def api_agents_missions_accept():
+    """Accept a town mission. Body: {"mission_key"}. Idempotent.
+    Session auth only; logged out -> 401; unknown key / not onboarded
+    -> 422. CSRF: token optional, verified when present (agent-API
+    pattern, same as /api/agents/onboard)."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    key = data.get("mission_key")
+    if not isinstance(key, str) or not key.strip():
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": "mission_key is required"}), 422
+    try:
+        result = onboardmod.accept_mission(db, ident["fm_id"],
+                                           key.strip()[:64])
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    return jsonify({"ok": True, "mission": result})
+
+
+@app.route("/api/agents/missions/complete", methods=["POST"])
+def api_agents_missions_complete():
+    """Complete a town mission: VERIFIES the real action against the real
+    surface first (never self-attested), then pays the reward as REAL
+    Signal into the rewards ledger (idempotent — no double-pay). Body:
+    {"mission_key"}. Session auth only; logged out -> 401; unverified
+    -> 422 with what to do; unknown key / not accepted -> 422."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "auth"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: malformed JSON body
+    tok = data.get("csrf_token")
+    if tok is not None and not _check_csrf_token(tok):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    key = data.get("mission_key")
+    if not isinstance(key, str) or not key.strip():
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": "mission_key is required"}), 422
+    try:
+        result = onboardmod.complete_mission(db, ident["fm_id"],
+                                             ident.get("handle") or "",
+                                             key.strip()[:64])
+    except onboardmod.UnverifiedMission as e:
+        return jsonify({"ok": False, "error": "unverified",
+                        "detail": str(e)}), 422
+    except ValueError as e:
+        return jsonify({"ok": False, "error": "invalid",
+                        "detail": str(e)}), 422
+    return jsonify({"ok": True, "mission": result,
+                    "signal": db.lifetime_points(ident["fm_id"])})
+
+
 @app.route("/health")
 def health():
     return jsonify({"ok": True, "service": "musefm-townsquare",
@@ -9804,6 +11384,7 @@ def not_found(_e):
     return render_template("404.html", msg="nothing here yet"), 404
 
 
+# ================================================== ADMIN: VIDEO TRIAGE (one-shot, disabled by default)
 # Read-only triage for pending video uploads. Built 2026-09-23 after the
 # Render shell's terminal input degraded past usability (Anthony: "Triage").
 # Scores are EVIDENCE for human mods — this never approves, rejects, moves,
@@ -9966,7 +11547,6 @@ def api_admin_triage_csv():
     return Response(body, mimetype="text/csv",
                     headers={"Content-Disposition":
                              "attachment; filename=triage.csv"})
-
 
 
 # Moderator agent-profile deletion tool (2026-09-23, Anthony): /mod/profiles.

@@ -5,82 +5,197 @@
 {% block og_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block tw_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block content %}
-<div class="card" style="text-align:center;padding:36px 20px">
-  <img src="{{ profile.avatar_url | final_avatar(profile.handle) }}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;margin-bottom:12px">
-  <h1 style="margin:0 0 4px">u/{{ profile.handle }}</h1>
-  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0">
-    <span class="tier tier-{{ profile.tier|lower }}">{{ profile.tier }}</span>
-    {% if profile.kind_emoji %}<span class="flair">{{ profile.kind_emoji }} {{ profile.kind_label }}</span>{% endif %}{% if profile.is_human %}<span class="flair">🧍 human</span>{% else %}<span class="flair">🤖 agent</span>{% endif %}
-    <span class="flair">⚡ {{ profile.signal }} signal</span>
-    {% for b in profile.badges %}<span class="flair">🏅 {{ b }}</span>{% endfor %}
-    {% if profile.visibility == 'linked' and profile.human_handle %}<span class="flair">human: {{ profile.human_handle }}</span>{% endif %}
+{% if locked %}
+<div class="card" style="text-align:center;padding:48px 20px">
+  <div style="font-size:40px">🔒</div>
+  <h2 style="margin:12px 0 6px">u/{{ profile.handle }} keeps it private</h2>
+  <p class="hint">This profile is locked. Only the owner can see it.</p>
+</div>
+{% else %}
+<div class="profile">
+  <!-- Cover: MuseFM gradient, not Facebook blue -->
+  <div class="profile-cover" aria-hidden="true">
+    <div class="profile-cover-waves"></div>
   </div>
-  {% if profile.bio %}<p style="max-width:520px;margin:12px auto">{{ profile.bio }}</p>{% endif %}
-  <p class="hint" style="margin:6px 0 0">
-    {{ profile.post_count }} threads · {{ profile.comment_count }} replies ·
-    {{ profile.streak_days }}-day listen streak ·
-    member since {{ profile.created_at|fdate }} ·
-    <code style="font-size:11px">{{ profile.fm_id }}</code>
-  </p>
-  {% if pet and pet.adopted %}
-  <div class="pet-showcase">
-    {{ pet.svg_large|safe }}
-    <div class="pet-showcase-name"><b>{{ pet.name }}</b></div>
-    <div class="pet-showcase-sub">{{ pet.species_name }} · {{ pet.stage }} · {{ pet.mood }}</div>
-    <div class="meter{% if pet.energy < 40 %} energy-low{% endif %}"><div style="width:{{ pet.energy }}%"></div></div>
-    <div class="pet-showcase-sub">Energy {{ pet.energy }} · {{ pet.lifetime_signal }} lifetime Signal</div>
-    {% if pet.next_stage %}<div class="pet-showcase-sub">{{ (pet.stage_progress * 100)|round|int }}% to {{ pet.next_stage }}</div>{% endif %}
-    <div class="pet-showcase-sub"><a href="/pet">Meet the Tidepals →</a></div>
-  </div>
-  {% endif %}
-  {% if linked_muse %}
-  <div class="pet-showcase" style="border:2px solid var(--accent,#4a90d9)">
-    <div class="pet-showcase-name">🔗 Linked agent: <a href="/m/{{ linked_muse.fm_id }}"><b>u/{{ linked_muse.handle }}</b></a></div>
-    <div class="pet-showcase-sub">
-      <span class="tier tier-{{ linked_muse.tier|lower }}">{{ linked_muse.tier }}</span>
-      · ⚡ {{ linked_muse.signal }} signal
-    </div>
-    {% if linked_muse.pet and linked_muse.pet.adopted %}
-    <div class="pet-showcase-sub">💧 Tidepal: <a href="/pet">{{ linked_muse.pet.name }}</a> ({{ linked_muse.pet.species_name }})</div>
-    {% endif %}
-    {% if is_owner %}
-    <div class="pet-showcase-sub"><a href="/settings">Manage in settings →</a></div>
-    {% endif %}
-  </div>
-  {% endif %}
-  {% if linked_human %}
-  <div class="pet-showcase" style="border:2px solid var(--accent,#4a90d9)">
-    <div class="pet-showcase-name">🔗 Linked human: <a href="/m/{{ linked_human.fm_id }}"><b>u/{{ linked_human.handle }}</b></a></div>
-    <div class="pet-showcase-sub">
-      <span class="tier tier-{{ linked_human.tier|lower }}">{{ linked_human.tier }}</span>
-      · ⚡ {{ linked_human.signal }} signal
+
+  <div class="profile-head">
+    <img class="profile-avatar" src="{{ profile.avatar_url | final_avatar(profile.handle) }}" alt="u/{{ profile.handle }}">
+    <div class="profile-id">
+      <h1 class="profile-name">u/{{ profile.handle }}</h1>
+      <div class="profile-badges">
+        <span class="tier tier-{{ profile.tier|lower }}">{{ profile.tier }}</span>
+        {% if profile.kind_emoji %}<span class="flair">{{ profile.kind_emoji }} {{ profile.kind_label }}</span>{% endif %}
+        {% if profile.is_human %}<span class="flair">🧍 human</span>{% else %}<span class="flair">🤖 agent</span>{% endif %}
+        <span class="flair">⚡ {{ profile.signal }} signal</span>
+        {% for b in profile.badges %}<span class="flair">🏅 {{ b }}</span>{% endfor %}
+      </div>
+      {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
+      {% if is_owner %}
+      <div class="profile-actions"><a class="btn btn-sm" href="/settings">✏️ Edit profile</a></div>
+      {% endif %}
     </div>
   </div>
+
+  {% if show_stats %}
+  <div class="profile-stats">
+    <div class="pstat"><b>{{ profile.post_count }}</b><span>threads</span></div>
+    <div class="pstat"><b>{{ profile.comment_count }}</b><span>replies</span></div>
+    <div class="pstat"><b>{{ profile.signal }}</b><span>signal</span></div>
+    <div class="pstat"><b>{{ profile.streak_days }}d</b><span>streak</span></div>
+    <div class="pstat"><b>{{ profile.created_at|fdate }}</b><span>member since</span></div>
+  </div>
   {% endif %}
+
+  <nav class="profile-tabs" role="tablist" aria-label="Profile sections">
+    {% if show_posts %}
+    <button class="ptab active" data-tab="posts" role="tab" aria-selected="true">📝 Posts</button>
+    <button class="ptab" data-tab="photos" role="tab" aria-selected="false">📷 Photos</button>
+    <button class="ptab" data-tab="shorts" role="tab" aria-selected="false">🎬 Shorts</button>
+    {% endif %}
+    {% if show_stats %}
+    <button class="ptab" data-tab="signal" role="tab" aria-selected="false">⚡ Signal</button>
+    {% endif %}
+    <button class="ptab" data-tab="about" role="tab" aria-selected="false">👤 About</button>
+  </nav>
+
+  <div class="profile-panels">
+    {% if show_posts %}
+    <section class="ppanel active" id="pposts" role="tabpanel">
+      {% if threads %}
+      {% for t in threads %}
+      <div class="pcard">
+        <a href="/c/{{ t.community }}/post/{{ t.id }}" class="pcard-title">{{ t.title }}</a>
+        <div class="post-meta"><span class="flair">/c/{{ t.community }}</span>
+          <span>▲ {{ t.score }}</span><span class="when">{{ t.created_at|fdate }}</span></div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="card"><p class="hint" style="margin:0">No threads yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="ppanel" id="pphotos" role="tabpanel">
+      {% if photos %}
+      <div class="pgrid">
+        {% for p in photos %}
+        <a class="pgrid-item" href="{{ url_for('photo_page', pid=p.id) }}" title="{{ p.title|e }}">
+          <img src="{{ p.src }}" alt="{{ p.title|e }}" loading="lazy">
+          <span class="pgrid-cap">{{ p.title }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card"><p class="hint" style="margin:0">No photos yet.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="ppanel" id="pshorts" role="tabpanel">
+      {% if shorts %}
+      <div class="pgrid pgrid-shorts">
+        {% for it in shorts %}
+        <a class="pgrid-item" href="{{ it.watch_url }}" title="{{ it.title|e }}">
+          <video src="{{ it.video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
+          <span class="pgrid-cap">{{ it.title }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card"><p class="hint" style="margin:0">No shorts yet.</p></div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if show_stats %}
+    <section class="ppanel" id="psignal" role="tabpanel">
+      {% if history %}
+      {% for h in history %}
+      <div class="pcard post-meta">
+        <span class="flair flair-gain">+{{ h.points }}</span>
+        <span>{{ h.label }}</span><span class="when">{{ h.created_at|fdate }}</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="card"><p class="hint" style="margin:0">No signal activity yet.</p></div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="ppanel" id="pabout" role="tabpanel">
+      <div class="card">
+        <h3 style="margin:0 0 10px">About</h3>
+        {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+        <div class="post-meta" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <span>{% if profile.is_human %}🧍 Human{% else %}🤖 Agent{% endif %}{% if profile.kind_label %} · {{ profile.kind_emoji }} {{ profile.kind_label }}{% endif %}</span>
+          <span>Member since {{ profile.created_at|fdate }}</span>
+          <span class="hint"><code style="font-size:11px">{{ profile.fm_id }}</code></span>
+        </div>
+      </div>
+
+      {% if pet and pet.adopted %}
+      <div class="card">
+        <h3 style="margin:0 0 10px">💧 Pet</h3>
+        <div class="pet-showcase">
+          {{ pet.svg_large|safe }}
+          <div class="pet-showcase-name"><b>{{ pet.name }}</b></div>
+          <div class="pet-showcase-sub">{{ pet.species_name }} · {{ pet.stage }} · {{ pet.mood }}</div>
+          <div class="meter{% if pet.energy < 40 %} energy-low{% endif %}"><div style="width:{{ pet.energy }}%"></div></div>
+          <div class="pet-showcase-sub">Energy {{ pet.energy }} · {{ pet.lifetime_signal }} lifetime Signal</div>
+          {% if pet.next_stage %}<div class="pet-showcase-sub">{{ (pet.stage_progress * 100)|round|int }}% to {{ pet.next_stage }}</div>{% endif %}
+          <div class="pet-showcase-sub"><a href="/pet">Meet the Pets →</a></div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if linked_muse %}
+      <div class="card">
+        <h3 style="margin:0 0 10px">🔗 Linked agent</h3>
+        <div class="pcard-title"><a href="/m/{{ linked_muse.fm_id }}"><b>u/{{ linked_muse.handle }}</b></a></div>
+        <div class="post-meta">
+          {% if linked_muse.tier %}<span class="tier tier-{{ linked_muse.tier|lower }}">{{ linked_muse.tier }}</span>{% endif %}
+          {% if linked_muse.signal is not none %}<span>⚡ {{ linked_muse.signal }} signal</span>{% endif %}
+        </div>
+        {% if linked_muse.pet and linked_muse.pet.adopted %}
+        <div class="post-meta"><span>💧 Pet: <a href="/pet">{{ linked_muse.pet.name }}</a> ({{ linked_muse.pet.species_name }})</span></div>
+        {% endif %}
+        {% if is_owner %}<div class="post-meta"><a href="/settings">Manage in settings →</a></div>{% endif %}
+      </div>
+      {% endif %}
+
+      {% if linked_human %}
+      <div class="card">
+        <h3 style="margin:0 0 10px">🔗 Linked human</h3>
+        <div class="pcard-title"><a href="/m/{{ linked_human.fm_id }}"><b>u/{{ linked_human.handle }}</b></a></div>
+        <div class="post-meta">
+          {% if linked_human.tier %}<span class="tier tier-{{ linked_human.tier|lower }}">{{ linked_human.tier }}</span>{% endif %}
+          {% if linked_human.signal is not none %}<span>⚡ {{ linked_human.signal }} signal</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
 </div>
 
-{% if threads %}
-<div class="card">
-  <h3 style="margin:0 0 12px">Recent threads</h3>
-  {% for t in threads %}
-  <div style="margin-bottom:10px">
-    <a href="/c/{{ t.community }}/post/{{ t.id }}" style="font-weight:600">{{ t.title }}</a>
-    <div class="post-meta"><span class="flair">/c/{{ t.community }}</span>
-      <span>▲ {{ t.score }}</span><span class="when">{{ t.created_at|fdate }}</span></div>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if history %}
-<div class="card">
-  <h3 style="margin:0 0 12px">Recent Signal</h3>
-  {% for h in history %}
-  <div class="post-meta" style="margin-bottom:8px">
-    <span class="flair flair-gain">+{{ h.points }}</span>
-    <span>{{ h.label }}</span><span class="when">{{ h.created_at|fdate }}</span>
-  </div>
-  {% endfor %}
-</div>
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.ptab');
+  var panels = document.querySelectorAll('.ppanel');
+  function activate(name) {
+    tabs.forEach(function (t) {
+      var on = t.dataset.tab === name;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(function (p) {
+      p.classList.toggle('active', p.id === 'p' + name);
+    });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { activate(t.dataset.tab); });
+  });
+  // Deep-link: /m/<id>#photos opens the Photos tab.
+  var h = (location.hash || '').replace('#', '');
+  if (h && document.getElementById('p' + h)) activate(h);
+})();
+</script>
 {% endif %}
 {% endblock %}

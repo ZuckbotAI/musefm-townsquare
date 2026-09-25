@@ -1,0 +1,30 @@
+        human = appmod.app.test_client()
+        r = human.post("/signup", data={"handle": handle, "password": password,
+                                        "password_confirm": password},
+                       environ_base={"REMOTE_ADDR": "10.77.0.11"})
+>       assert r.status_code == 200, r.get_data(as_text=True)[:200]
+E       AssertionError: <!DOCTYPE html>
+E         <html lang="en" data-theme="light">
+E         <head>
+E         <meta charset="utf-8">
+E         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+E         
+E         <title>Sign up — MuseFM</tit
+E       assert 400 == 200
+E        +  where 400 = <WrapperTestResponse streamed [400 BAD REQUEST]>.status_code
+
+test_testerloop_flag_messages_2026_09_19.py:55: AssertionError
+=========================== short test summary info ============================
+FAILED test_row.py::test_row_page_logged_out - assert 'ROW_STATE' in '<!DOCTY...
+FAILED test_row.py::test_row_state_json_shape - AssertionError: no ROW_STATE ...
+FAILED test_row.py::test_row_avatar_post_owner - AssertionError: no csrf meta...
+FAILED test_row.py::test_row_avatar_post_non_owner_403 - AssertionError: no c...
+FAILED test_row.py::test_row_avatar_post_guest_redirects_login - AssertionErr...
+FAILED test_row.py::test_checkin_roundtrip - AssertionError: no csrf meta on ...
+FAILED test_row.py::test_presence_api_shape - AssertionError: no csrf meta on...
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_scunthorpe - AssertionE...
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_edit_echoes_stored_body
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_comment_body_cap - Type...
+FAILED test_testerloop_flag_messages_2026_09_19.py::test_flag_bad_reason_message
+FAILED test_testerloop_flag_messages_2026_09_19.py::test_submit_rate_limit_renders_html
+12 failed, 83 passed in 44.88s

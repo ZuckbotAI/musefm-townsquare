@@ -10,7 +10,7 @@ client, check() helper). Covers the onboarding beats:
   2. logged-in human without a pet: adopt panel, free/5-min/+25 copy
   3. adopt flow: POST /pet/adopt -> egg panel with hatch countdown hook,
      new-economy copy, no hatch-cost copy
-  4. tidepal-anim.js: served, exposes TidepalAnim, contract selectors,
+  4. pet-anim.js: served, exposes PetAnim, contract selectors,
      reduced-motion handling
   5. pond block regression: untouched pond markup still present in the
      template file
@@ -76,10 +76,10 @@ def t_anon(client):
     body = client.get("/pet").get_data(as_text=True)
     check("anon /pet -> 200", True)
     check("hero adopt CTA present",
-          "Adopt a Tidepal" in body and "adopt your egg" in body.lower())
+          "Adopt a Pet" in body and "adopt your egg" in body.lower())
     check("anon CTA routes to signup",
           'href="/signup"' in body)
-    check("demo egg hook present", 'data-tidepal-demo' in body)
+    check("demo egg hook present", 'data-pet-demo' in body)
     check("demo egg is pixel art (engine-style rects, no smooth paths)",
           'demo-egg-svg' in body and 'shape-rendering="crispEdges"' in body and
           body.count("<rect") > 20)
@@ -100,7 +100,7 @@ def t_anon(client):
                                   "Echo Fusion", "Caretakers",
                                   "Where things live")))
     check("anim engine script included",
-          "js/tidepal-anim.js" in body)
+          "js/pet-anim.js" in body)
 
 
 # --- 2. logged-in human without a pet -------------------------------------------
@@ -132,9 +132,9 @@ def t_adopt_egg(client, me):
     check("adopt -> 200 after redirect", r.status_code == 200, r.status_code)
     body = r.get_data(as_text=True)
     check("just-adopted delight line",
-          "say hi to your new Tidepal" in body)
+          "say hi to your new Pet" in body)
     check("just-adopted hook for the anim engine",
-          "data-tidepal-just-adopted" in body)
+          "data-pet-just-adopted" in body)
     check("egg panel present", "egg-panel" in body)
     check("egg panel: hatching is free",
           "Hatching is <b>free</b>" in body)
@@ -151,7 +151,7 @@ def t_adopt_egg(client, me):
           "needs 50 Signal to hatch" not in body and
           "spendable Signal</b> to begin" not in body)
     check("egg svg carries the anim contract hooks",
-          'data-tidepal="1"' in body and 'class="tp-body"' in body and
+          'data-pet="1"' in body and 'class="tp-body"' in body and
           'class="tp-eyes"' in body)
     # second adopt is rejected — one pet per identity
     r = me.post("/pet/adopt",
@@ -162,18 +162,18 @@ def t_adopt_egg(client, me):
           "already" in r.get_data(as_text=True).lower())
 
 
-# --- 4. tidepal-anim.js ----------------------------------------------------------
+# --- 4. pet-anim.js ----------------------------------------------------------
 def t_anim_js(client):
-    print("== tidepal-anim.js ==")
-    r = client.get("/static/js/tidepal-anim.js")
+    print("== pet-anim.js ==")
+    r = client.get("/static/js/pet-anim.js")
     body = r.get_data(as_text=True)
     check("anim js served (200)", r.status_code == 200, r.status_code)
-    check("exposes window.TidepalAnim",
-          "window.TidepalAnim" in body)
+    check("exposes window.PetAnim",
+          "window.PetAnim" in body)
     for api in ("pat:", "wiggle:", "celebrate:", "feed:", "play:", "rest:"):
-        check(f"TidepalAnim exposes {api[:-1]}", api in body)
+        check(f"PetAnim exposes {api[:-1]}", api in body)
     check("reads the contract hooks",
-          'svg[data-tidepal]' in body and "tp-eyes" in body and
+          'svg[data-pet]' in body and "tp-eyes" in body and
           "tp-body" in body and "data-trait" in body)
     check("trait motion styles",
           all(t in body for t in ("playful", "calm", "mischievous",

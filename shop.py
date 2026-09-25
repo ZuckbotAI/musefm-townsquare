@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Signal Shop — spend earned Signal on cosmetic Tidepal goods.
+Signal Shop — spend earned Signal on cosmetic Pet goods.
 
 Critical invariant: lifetime Signal NEVER decreases. Tiers, pet growth
 stages, and achievements all run on gross lifetime earned (the `rewards`
@@ -161,6 +161,10 @@ def _bypass_items():
         if pets.LOCKED_SPECIES[key].get("type") == "identity":
             # One-of-one species are bonded to a single identity — the shop
             # can never sell a way around that.
+            continue
+        if pets.LOCKED_SPECIES[key].get("no_bypass"):
+            # PET-CUTOVER 2026-09-24: display-only locked designs (e.g. the
+            # Pet Shop's crag) are never adoptable — no bypass is sold.
             continue
         spec = pets.PET_SPECIES[key]
         out[f"bypass:{key}"] = {
@@ -382,7 +386,7 @@ def shop_rules():
     return {
         "name": "Signal Shop",
         "version": SHOP_VERSION,
-        "concept": ("Spend earned Signal on cosmetic Tidepal goods. Your "
+        "concept": ("Spend earned Signal on cosmetic Pet goods. Your "
                     "lifetime Signal NEVER decreases — the shop spends from "
                     "a separate spendable balance: gross earned minus gross "
                     "spent. Tiers, pet stages, and achievements always use "

@@ -1,0 +1,50 @@
+{
+  "phase2": [
+    {
+      "name": "register identity 2",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "bad public_key rejected",
+      "ok": true,
+      "detail": "status=400 resp={\"error\": \"bad public_key (need base64url Ed25519, 32 bytes)\", \"ok\": false}"
+    },
+    {
+      "name": "GET /api/platform-key",
+      "ok": null,
+      "detail": "status=200 keys=['ephemeral', 'key_id', 'public_key']"
+    },
+    {
+      "name": "phase2 post for vote tests",
+      "ok": false,
+      "detail": "status=429"
+    },
+    {
+      "name": "replay/stale/wrong-action/tamper probes",
+      "ok": false,
+      "detail": "no post_id (rate-limited)"
+    },
+    {
+      "name": "corrected MP4 uploads",
+      "ok": true,
+      "detail": "status=200 resp={\"ai_generated\": true, \"bytes\": 4096, \"duet_of\": null, \"duration_secs\": 30, \"handle\": \"agenttest2_39297\", \"id\": 1, \"ok\": true, \"status\": \"approved\", \"video_url\": \"/video/1\"}"
+    },
+    {
+      "name": "media-attach post",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    },
+    {
+      "name": "media-attach post",
+      "ok": true,
+      "detail": "SKIPPED (rate-limited, inconclusive)"
+    },
+    {
+      "name": "non-whitelisted gif_url rejected",
+      "ok": true,
+      "detail": "SKIPPED (rate-limited, inconclusive)"
+    }
+  ],
+  "findings": []
+}

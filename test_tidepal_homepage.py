@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Tests for the Tidepals homepage promo (2026-09-19):
-- the homepage renders a Tidepals promo band (section.tidepal-promo)
+Tests for the Pets homepage promo (2026-09-19):
+- the homepage renders a Pets promo band (section.pet-promo)
 - the band shows a showcase pet (inline SVG art, no external image asset)
 - the CTA links to /pet and carries a small pet icon inside the button
 - the promo band sits between the Shorts spotlight and the daily question
@@ -44,15 +44,15 @@ def setup():
 
 
 def t_homepage_promo(client):
-    print("== tidepals homepage promo ==")
+    print("== pets homepage promo ==")
     r = client.get("/")
     check("home 200", r.status_code == 200, f"got {r.status_code}")
     html = r.get_data(as_text=True)
 
     m = re.search(
-        r'<section class="card tidepal-promo"[^>]*>(.*?)</section>',
+        r'<section class="card pet-promo"[^>]*>(.*?)</section>',
         html, re.S)
-    check("tidepal-promo section present", m is not None)
+    check("pet-promo section present", m is not None)
     if not m:
         return
     band = m.group(1)
@@ -64,12 +64,12 @@ def t_homepage_promo(client):
     check("band links CTA to /pet", 'href="/pet"' in band)
     check("CTA button carries a pet icon (btn-pet span with svg)",
           re.search(r'<span class="btn-pet"[^>]*>.*?<svg', band, re.S) is not None)
-    check("band has Tidepals flair tag", "Tidepals" in band)
-    check("band headline present", "Meet your Tidepal" in band)
+    check("band has Pets flair tag", "Pets" in band)
+    check("band headline present", "Meet your Pet" in band)
 
     # ordering: promo band after Shorts spotlight, before daily question
     shorts_pos = html.find("shorts-spotlight")
-    promo_pos = html.find("tidepal-promo")
+    promo_pos = html.find("pet-promo")
     daily_pos = html.find("daily-ritual")
     if shorts_pos != -1:
         check("promo band renders after Shorts spotlight",
@@ -78,18 +78,18 @@ def t_homepage_promo(client):
     else:
         # Fresh test DB has no shorts, so the spotlight block is skipped;
         # verify placement from the template source instead. Scope to the
-        # Tidepals band itself: the For-agents promo moved to the top of
+        # Pets band itself: the For-agents promo moved to the top of
         # the page as a compact card (2026-09-23, Anthony) and now holds the
-        # first "tidepal-promo" occurrence in the template.
+        # first "pet-promo" occurrence in the template.
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "templates", "index.html")).read()
-        check("tidepals band placed after Shorts block in template",
-              src.find('aria-label="Tidepals"') > src.find("shorts-spotlight"))
+        check("pets band placed after Shorts block in template",
+              src.find('aria-label="Pets"') > src.find("shorts-spotlight"))
     # For-agents promo: compact card pinned to the very top of the page
     # (2026-09-23, Anthony).
     agents_pos = html.find('aria-label="For agents"')
     check("for-agents promo present and compact", agents_pos != -1 and
-          'tidepal-promo compact' in html[:agents_pos + 200])
+          'pet-promo compact' in html[:agents_pos + 200])
     check("for-agents promo renders before the hero",
           agents_pos != -1 and agents_pos < html.find("fm-hero"),
           f"agents={agents_pos} hero={html.find('fm-hero')}")
@@ -102,7 +102,7 @@ def t_no_external_pet_asset(client):
     print("== no external pet asset needed ==")
     html = client.get("/").get_data(as_text=True)
     m = re.search(
-        r'<section class="card tidepal-promo"[^>]*>(.*?)</section>',
+        r'<section class="card pet-promo"[^>]*>(.*?)</section>',
         html, re.S)
     band = m.group(1) if m else ""
     check("band uses no <img> pet asset (pure inline SVG)",

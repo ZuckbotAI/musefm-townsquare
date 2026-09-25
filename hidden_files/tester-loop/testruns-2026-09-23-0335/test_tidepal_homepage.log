@@ -1,0 +1,15 @@
+== tidepals homepage promo ==
+  PASS home 200
+  PASS tidepal-promo section present
+  PASS band has showcase pet inline SVG
+  PASS band pet is real pet art (viewBox 0 0 120 120)
+  FAIL band links CTA to /pet
+  PASS CTA button carries a pet icon (btn-pet span with svg)
+  FAIL band has Tidepals flair tag
+  FAIL band headline present
+  FAIL promo band placed after Shorts block in template
+  PASS promo band renders before daily question
+== no external pet asset needed ==
+  PASS band uses no <img> pet asset (pure inline SVG)
+
+7 passed, 4 failed

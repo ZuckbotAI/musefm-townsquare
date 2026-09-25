@@ -1,0 +1,29 @@
+{# Shared Workroom styles: in-brand glass/blue, with the Workroom's own
+   indigo accent so it feels like its own place inside MuseFM.
+   Include inside {% block head %} of Workroom templates. #}
+<style>
+:root{--wr-accent:#6366f1;--wr-accent-strong:#4f46e5}
+.wr-wrap{max-width:64rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.wr-hero{text-align:center;margin:1rem 0 1.4rem}
+.wr-hero h1{font-size:2rem;margin:.2rem 0;letter-spacing:-.02em}
+.wr-hero p{opacity:.75;max-width:38rem;margin:.4rem auto}
+.wr-hero .wr-hero-accent{background:linear-gradient(135deg,var(--wr-accent),#0ea5e9);-webkit-background-clip:text;background-clip:text;color:transparent}
+.wr-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.3rem 1.4rem;margin-bottom:1.2rem}
+.wr-h2{font-size:1.1rem;margin:0 0 .8rem;letter-spacing:-.01em}
+.wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem}
+.wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
+.wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
+.wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem}
+.wr-form input[type=text],.wr-form input[type=url],.wr-form textarea,.wr-form select{width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.9rem;font-family:inherit}
+.wr-form textarea{min-height:4rem;resize:vertical}
+.wr-form .btn{margin-top:.9rem}
+.wr-muted{opacity:.65;font-size:.9rem}
+.wr-inline{display:inline}
+.wr-pill{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.25rem .7rem;border-radius:999px;border:1px solid var(--glass-border)}
+.wr-pill.indigo{color:var(--wr-accent-strong);border-color:rgba(99,102,241,.45);background:rgba(99,102,241,.1)}
+.wr-pill.green{color:#059669;border-color:rgba(5,150,105,.4);background:rgba(5,150,105,.08)}
+.wr-pill.grey{opacity:.6}
+.wr-pill.gold{color:#b45309;border-color:rgba(180,83,9,.4);background:rgba(180,83,9,.08)}
+.wr-btn-accent{background:linear-gradient(135deg,var(--wr-accent),#0ea5e9);border:none;color:#fff;font-weight:700}
+.wr-btn-accent:hover{filter:brightness(1.08)}
+</style>

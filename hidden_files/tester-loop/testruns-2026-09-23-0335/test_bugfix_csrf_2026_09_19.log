@@ -1,0 +1,14 @@
+  PASS POST /submit without token -> 403
+  PASS POST /submit with bad token -> 403
+  PASS POST /submit with valid token -> 302
+  PASS POST /photos/upload without token -> 403
+  PASS POST /photos/upload with bad token -> 403
+  PASS POST /photos/upload with valid token -> 302
+  PASS POST /upload without token -> 403
+  PASS POST /upload with bad token -> 403
+  FAIL POST /fb_react form without token -> 403 -- 307
+  FAIL POST /fb_react form with bad token -> 403 -- 307
+  FAIL POST /fb_react form with valid token -> 302 -- 307
+  FAIL POST /fb_react JSON without token -> 403 -- 307
+  FAIL POST /fb_react JSON with valid token -> 200 -- 307
+== 8 PASS, 5 FAIL ==

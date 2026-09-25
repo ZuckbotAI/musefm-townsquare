@@ -1,0 +1,56 @@
+=== test_sidebar.py ===
+  PASS no account block when logged out
+  PASS logged-out topbar keeps Log in / Sign up
+
+110 passed, 0 failed
+=== test_vote_stress.py ===
+  PASS /api/shorts page=2 -> 200
+   /api/shorts page fetch: 3.8 ms (warm, local)
+
+9 passed, 0 failed
+=== test_testerloop_vote_value_required_2026_09_20.py ===
+  PASS JSON missing value left vote untouched
+  PASS explicit +1 still works (toggles -1 off then on)
+
+10 passed, 0 failed
+=== test_testerloop_post_body_limit_2026_09_20.py ===
+  PASS signed POST with small body still accepted
+  PASS POST /submit with 200k-char body NOT stored as a post
+
+3 passed, 0 failed
+=== test_testerloop_0046_p2s_2026_09_20.py ===
+  PASS /submit 429 re-renders composer
+  PASS /submit 429 carries Retry-After
+
+29 passed, 0 failed
+=== test_bugfix_double_submit_2026_09_20.py ===
+  PASS identical body after window expiry inserts a new row
+  PASS reply double-submit stores one row
+
+6 passed, 0 failed
+=== test_bugfix_form_ratelimit_burn_2026_09_20.py ===
+  PASS overlong bodies all 400 (nothing stored)
+  PASS valid post after 5 overlong ones is NOT rate-limited
+
+4 passed, 0 failed
+=== test_bugfix_csrf_2026_09_19.py ===
+  PASS POST /fb_react form with valid token -> 302
+  PASS POST /fb_react JSON without token -> 403
+  PASS POST /fb_react JSON with valid token -> 200
+== 13 PASS, 0 FAIL ==
+=== test_bugfix_open_redirects_2026_09_19.py ===
+  PASS login next='javascript:alert(1)' -> on-site ('/')
+  PASS login next='/\\evil.example.com' -> on-site ('/')
+  PASS login next=/c/lobby honored
+== 25 PASS, 0 FAIL ==
+=== test_bugfix_nonce_ratelimit_2026_09_19.py ===
+  identical resend -> 429 {"error":"rate limit hit \u2014 slow down, friend","ok":false}
+
+  same body from fresh IP -> 200 (nonce was never burned)
+PASS: 429 does not burn the nonce
+=== test_bugfix_redirects_2026_09_19.py ===
+  /lobby -> 301 -> /c/lobby
+  /forum -> 301 -> /c/lobby
+  home sidebar Forum control -> href="/c/lobby"
+PASS: redirects + Forum href correct
+ALLDONE

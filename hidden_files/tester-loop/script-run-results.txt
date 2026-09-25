@@ -1,0 +1,111 @@
+test_agent_memory.py :: exit=0 :: 0 fail ::   PASS API rate limit trips||37 passed, 0 failed|
+test_ai_images.py :: exit=0 ::  :: |</body>|</html>|
+test_asks.py :: exit=0 ::  :: |</body>|</html>|
+test_audio_delete_2026_09_18.py :: exit=0 :: 0 fail ::   PASS real audio at id 9 NOT deleted||18 passed, 0 failed|
+test_auth.py :: exit=0 ::  ::     r2 = client.get(f"/api/identity/{ident['fm_id']}")|                                     ~~~~~^^^^^^^^^|TypeError: 'N
+test_bond_loop.py :: exit=0 ::  :: 
+test_bond_v2.py :: exit=0 ::  :: 
+test_bounties.py :: exit=0 :: 0 fail ::   PASS templates/bounties.html has no dollar sign||73 passed, 0 failed|
+test_brand.py :: exit=0 :: 4 fail ::   PASS /settings has graphic wordmark||brand: 23 passed, 4 failed|
+test_bugfix_clean_title_2026_09_19.py :: exit=0 ::  ::   PASS ordinary title untouched: 'song-2024-remix'|  PASS empty -> 'untitled clip'|== 8 PASS, 0 FAIL ==|
+test_bugfix_csrf_2026_09_19.py :: exit=0 ::  :: <head>|<meta charset="utf-8">|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f|
+test_bugfix_form_ratelimit_burn_2026_09_20.py :: exit=0 ::  :: <head>|<meta charset="utf-8">|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f|
+test_bugfix_nonce_ratelimit_2026_09_19.py :: exit=0 ::  :: |  same body from fresh IP -> 200 (nonce was never burned)|PASS: 429 does not burn the nonce|
+test_bugfix_open_redirects_2026_09_19.py :: exit=0 ::  :: <head>|<meta charset="utf-8">|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f|
+test_bugfix_redirects_2026_09_19.py :: exit=0 ::  ::   /forum -> 301 -> /c/lobby|  home sidebar Forum control -> href="/c/lobby"|PASS: redirects + Forum href correct|
+test_bugfix_sqlite_contention_2026_09_19.py :: exit=0 ::  ::   PASS best-effort expiry cleanup still works|  PASS bad SQL still raises|== 8 PASS, 0 FAIL ==|
+test_bugfix_validate_before_limit_2026_09_19.py :: exit=0 ::  ::   valid registration from the same IP -> 200 (budget intact)|  claim-human: 12 malformed -> 400s, then valid -> 200|PASS
+test_collab.py :: exit=0 :: 0 fail ::   PASS ?kind=music filters page||59 passed, 0 failed|
+test_comments_pro.py :: exit=0 ::  :: |</body>|</html>|
+test_community_episodes.py :: exit=0 :: 0 fail ::   PASS hide missing id||15 passed, 0 failed|
+test_drift_adopt.py :: exit=0 :: 0 fail ::   PASS valid adopt after 10 invalid probes -> 200 (budget untouched)||31 passed, 0 failed|
+test_duets.py :: exit=0 :: 0 fail ::   PASS unknown video -> 404||53 passed, 0 failed|
+test_episode_comments_2026_09_18.py :: exit=0 :: 0 fail ::   PASS fresh table has edited_at||22 passed, 0 failed|
+test_episode_ordering.py :: exit=0 :: 0 fail :: PASS same-day tiebreak deterministic||3 passed, 0 failed|
+test_events.py :: exit=0 :: 0 fail ::   PASS deleting unknown sub is 404||48 passed, 0 failed|
+test_expansion.py :: exit=0 :: 0 fail ::   PASS sweep without key rejected||53 passed, 0 failed|
+test_fs_400s_2026_09_18.py :: exit=0 :: 0 fail ::   PASS challenges/settle: non-string week_id -> 400||4 passed, 0 failed|
+test_gifs.py :: exit=0 ::  :: |</body>|</html>|
+test_human_usability.py :: exit=0 ::  ::     assert signup(me, "SignalHuman").status_code == 200|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|Assertio
+test_identity.py :: exit=0 ::  ::     assert r.status_code in (200, 302), r.status_code|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^|AssertionError: 400|
+test_identity_key_rotation.py :: exit=0 :: 0 fail ::   PASS endpoint unknown fm_id -> 400||12 passed, 0 failed|
+test_kind_tags.py :: exit=0 ::  ::     assert r.status_code == 200|           ^^^^^^^^^^^^^^^^^^^^|AssertionError|
+test_linking.py :: exit=0 ::  :: |</body>|</html>|
+test_links.py :: exit=0 :: 11 fail ::   PASS no raw service domains in base chrome||16 passed, 11 failed|
+test_listening_rooms_2026_09_21.py :: exit=0 ::  :: AGENT_KEY must be set in the environment (prevents the app from generating .agent_key inside the checkout)|
+test_memory.py :: exit=0 :: 0 fail ::   PASS 31st write on one IP -> 429||78 passed, 0 failed|
+test_mod_approval.py :: exit=0 ::  :: |</body>|</html>|
+test_mod_notifications.py :: exit=0 ::  :: |</body>|</html>|
+test_musefm.py :: exit=0 ::  ::   File "/home/hatch/workspace/musefm-townsquare/test_musefm.py", line 23, in <module>|    import fb_reactions|ModuleNotF
+test_notifications.py :: exit=0 ::  :: |</body>|</html>|
+test_onboard.py :: exit=0 :: 0 fail ::   PASS pets differ across accounts||38 passed, 0 failed|
+test_onboard_life.py :: exit=0 :: 0 fail ::   PASS no vague crazy shit named||54 passed, 0 failed|
+test_onboard_starter_skills.py :: exit=0 :: 0 fail ::   PASS second agent gets its own memory entry||16 passed, 0 failed|
+test_openmic.py :: exit=0 ::  :: |</body>|</html>|
+test_orb_snap.py :: exit=0 :: 0 fail ::   PASS no banned orb anthropomorphism||40 passed, 0 failed|
+test_p1_2026_09_18.py :: exit=0 ::  :: |</body>|</html>|
+test_p1_csrf_human_handle_2026_09_18.py :: exit=0 ::  ::     assert r.status_code in (200, 302), (r.status_code, r.get_data(as_text=True)[:200])|           ^^^^^^^^^^^^^^^^^^^^^
+test_pet_fusion.py :: exit=0 :: 0 fail ::   PASS signed decline 200||21 passed, 0 failed|
+test_pet_onboarding.py :: exit=0 :: 0 fail ::   PASS pond block present and untouched||49 passed, 0 failed|
+test_pet_ownership.py :: exit=0 :: 0 fail ::   PASS new name kept after rename||21 passed, 0 failed|
+test_pet_presence.py :: exit=0 :: 0 fail ::   PASS shop unlock buttons only for bypassable species||24 passed, 0 failed|
+test_pets.py :: exit=0 :: 0 fail ::   PASS repaired egg marked hatched||101 passed, 0 failed|
+test_reefdex_nap.py :: exit=0 :: 0 fail ::   PASS backfill restored bloop||29 passed, 0 failed|
+test_rewards.py :: exit=0 :: 0 fail ::   PASS mention rendered as link||51 passed, 0 failed|
+test_row.py :: exit=0 ::  :: 
+test_row_player.py :: exit=0 :: 0 fail ::   PASS B's snapshot has no cross-account leak||40 passed, 0 failed|
+test_self_heal.py :: exit=0 ::  :: [musefm] self-heal: video 3 file missing/corrupt -> status=rejected|[musefm] self-heal: image 1 file missing -> status=r
+test_shop.py :: exit=0 :: 0 fail ::   PASS reward rulebook carries unlocks+shop||89 passed, 0 failed|
+test_shop_idem_retry.py :: exit=0 :: 0 fail ::   PASS still exactly one purchase row for the key||4 passed, 0 failed|
+test_shop_proxy.py :: exit=0 :: 0 fail ::   PASS human self-buy still works||24 passed, 0 failed|
+test_shorts.py :: exit=0 ::  :: |</body>|</html>|
+test_shorts_seen_rotation.py :: exit=0 :: 6 fail ::   FAIL unseen lead, seen fill the tail -- [20, 24, 17, 26, 21, 15, 6, 11, 28, 13, 4, 18, 1, 9, 25, 29, 3, 22, 14, 27, 23
+test_shorts_shuffle.py :: exit=0 :: 0 fail ::   PASS musefm feed still newest-first||15 passed, 0 failed|
+test_sidebar.py :: exit=0 :: 19 fail ::   PASS logged-out topbar keeps Log in / Sign up||108 passed, 19 failed|
+test_signals.py :: exit=0 ::  :: |</body>|</html>|
+test_sso_provider_2026_09_21.py :: exit=0 ::  ::     code = q["code"][0]|           ~^^^^^^^^|KeyError: 'code'|
+test_swarm.py :: exit=0 :: 0 fail ::   PASS unscoped list still works||SWARM: 71 passed, 0 failed|
+test_testerloop_0046_p2s_2026_09_20.py :: exit=0 ::  :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">||<title>Sign up — MuseFM</tit
+test_testerloop_1535_p2s_2026_09_23.py :: exit=0 :: 6 fail :: |2 passed, 6 failed|FAILURES: ['unauth bare POST /signals/react -> 401 (not 302 redirect)', '302 preserves original path
+test_testerloop_1835_fixes_2026_09_19.py :: exit=0 ::  :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">||<title>Sign up — MuseFM</tit
+test_testerloop_1835_flood_wall_2026_09_20.py :: exit=0 :: 4 fail ::   PASS normal path escapes tags||12 passed, 4 failed|
+test_testerloop_1835_p2s_2026_09_23.py :: exit=0 :: 2 fail ::   FAIL vote without value -> 400 -- 200 {'handle': 'tl231835', 'ok': True, 'score': 1}||3 passed, 2 failed: ['recorded f
+test_testerloop_2135_p2s_2026_09_23.py :: exit=0 :: 1 fail :: == POST /submit status after create ==|  FAIL POST /submit -> 303 to new post (got 302) -- 302|0 passed, 1 failed|
+test_testerloop_bio_truncate_2026_09_22.py :: exit=0 ::  ::   File "/home/hatch/workspace/musefm-townsquare/test_testerloop_bio_truncate_2026_09_22.py", line 65, in main|    from d
+test_testerloop_comment_edit_truncate_2026_09_21.py :: exit=0 ::  :: |</body>|</html>|
+test_testerloop_episode_comment_redirect_2026_09_22.py :: exit=0 ::  ::     assert r.status_code == 302, f"login failed: {r.status_code}"|           ^^^^^^^^^^^^^^^^^^^^|AssertionError: login 
+test_testerloop_error_messages_2026_09_22.py :: exit=0 :: 2 fail ::   FAIL react missing-target_id error names 'target_id' -- unknown target||4 passed, 2 failed: ["missing-signature error 
+test_testerloop_flag_messages_2026_09_19.py :: exit=0 ::  :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">||<title>Sign up — MuseFM</tit
+test_testerloop_json_notype_400_2026_09_23.py :: exit=0 :: 0 fail ::   PASS control: malformed body WITH JSON content-type -> 400||5 passed, 0 failed|
+test_testerloop_logincsrf_2026_09_21.py :: exit=0 ::  :: |</body>|</html>|
+test_testerloop_logout_csrf_2026_09_24.py :: exit=0 :: 2 fail ::   FAIL session survives: GET /submit still 200 -- got 302||5 passed, 2 failed|
+test_testerloop_multipart_bool_2026_09_19.py :: exit=0 ::  :: |0 all passed|FAILURES: []|
+test_testerloop_newline_preserve_2026_09_19.py :: exit=0 ::  :: PASS single \n preserved|PASS spaces collapsed but not to newline|== 3 PASS, 0 FAIL ==|
+test_testerloop_p2_2026_09_21.py :: exit=0 ::  ::   PASS CRLF normalize still works|  PASS empty/None safe|== 12 PASS, 0 FAIL ==|
+test_testerloop_p2_2026_09_21_b.py :: exit=0 :: 0 fail ::   PASS duplicate JSON keys do not silently last-win||6 passed, 0 failed|
+test_testerloop_passport_envelope_2026_09_23.py :: exit=0 :: 1 fail ::   PASS signature present||6 passed, 1 failed: ['passport body carries the documented ok envelope']|
+test_testerloop_platformkey_envelope_2026_09_22.py :: exit=0 :: 1 fail ::   PASS public_key present||3 passed, 1 failed: ['platform-key body carries the documented ok envelope']|
+test_testerloop_post_body_limit_2026_09_20.py :: exit=0 ::  :: <head>|<meta charset="utf-8">|<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f|
+test_testerloop_ratelimit_before_validate_2026_09_20.py :: exit=0 :: 2 fail :: ||3 passed, 2 failed|
+test_testerloop_rawint_exn_2026_09_22.py :: exit=0 :: 3 fail ::   FAIL /api/swarm/journal error is not a raw Python exception string -- error="invalid literal for int() with base 10: '
+test_testerloop_react_login_budget_burn_2026_09_24.py :: exit=0 :: 0 fail ::   PASS 11 empty /login POSTs: none 429 (invalid input must not burn budget)||4 passed, 0 failed|
+test_testerloop_xff_direct_2026_09_22.py :: exit=0 :: 0 fail ::   PASS all 10 counted hits share the 127.0.0.1 bucket||4 passed, 0 failed|
+test_tidepal_depth.py :: exit=0 :: 0 fail ::   PASS shorts feed echoes seed||99 passed, 0 failed|
+test_tidepal_homepage.py :: exit=0 :: 3 fail ::   PASS band uses no <img> pet asset (pure inline SVG)||10 passed, 3 failed|
+test_tidepal_social.py :: exit=0 :: 0 fail ::   PASS game_rules||68 passed, 0 failed|
+test_tidepal_social_routes.py :: exit=0 :: 0 fail ::   PASS visit page unknown -> 404||28 passed, 0 failed|
+test_tidepal_world.py :: exit=0 :: 0 fail ::   PASS web feed bad csrf -> 403||106 passed, 0 failed|
+test_triage_route.py :: exit=0 :: 0 fail ::   PASS one-shot: force re-run finishes||19 passed, 0 failed|
+test_trustline_bridge.py :: exit=0 :: 0 fail ::   PASS unsigned link request -> 401||23 passed, 0 failed|
+test_ui_fixes_2026_09_18.py :: exit=0 :: 0 fail ::   PASS real rename still works (302)||43 passed, 0 failed|
+test_upload_atomic_2026_09_23.py :: exit=0 :: 0 fail ::   PASS image full disk: no orphan row||10 passed, 0 failed|
+test_upload_audio_mimetype_2026_09_18.py :: exit=0 ::  ::     assert r.status_code == 200, r.status_code|           ^^^^^^^^^^^^^^^^^^^^|AssertionError: 400|
+test_uploads.py :: exit=0 ::  :: |</body>|</html>|
+test_video.py :: exit=0 ::  :: |</body>|</html>|
+test_video_comments.py :: exit=0 ::  :: |</body>|</html>|
+test_vote_stress.py :: exit=0 :: 0 fail ::    /api/shorts page fetch: 16.0 ms (warm, local)||9 passed, 0 failed|
+test_workroom.py :: exit=0 ::  ::     assert m, "no csrf meta"|           ^|AssertionError: no csrf meta|
+test_workroom_agent_loop.py :: exit=0 ::  ::   PASS worker log shows the genuine loop||PASS 5  FAIL 0|
+test_workroom_bridge.py :: exit=0 ::  ::     workroom.ensure_workroom_events_schema(appmod.db)|    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^|AttributeError: module 
+test_workroom_pilot.py :: exit=0 ::  :: |PASS 50  FAIL 5|failures: ['human signup ok', 'human login redirects', 'session cookie auth works (no bearer)', 'human 
+test_workroom_private.py :: exit=0 ::  ::     assert r.status_code == 200, r.status_code|           ^^^^^^^^^^^^^^^^^^^^|AssertionError: 400|

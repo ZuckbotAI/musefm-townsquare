@@ -1,0 +1,102 @@
+SUITE RUN 2026-09-21 08:37:20 UTC — commit 5a38b43 Merge SSO provider: global login identity backend
+PASS test_agent_memory.py
+PASS test_ai_images.py
+PASS test_asks.py
+PASS test_audio_delete_2026_09_18.py
+PASS test_auth.py
+PASS test_bounties.py
+FAIL(1) test_brand.py
+      PASS /signal has graphic wordmark
+      PASS /login has graphic wordmark
+      PASS /settings has graphic wordmark
+    
+    brand: 26 passed, 1 failed
+PASS test_bugfix_clean_title_2026_09_19.py
+PASS test_bugfix_csrf_2026_09_19.py
+PASS test_bugfix_form_ratelimit_burn_2026_09_20.py
+PASS test_bugfix_nonce_ratelimit_2026_09_19.py
+PASS test_bugfix_open_redirects_2026_09_19.py
+PASS test_bugfix_redirects_2026_09_19.py
+PASS test_bugfix_sqlite_contention_2026_09_19.py
+PASS test_bugfix_validate_before_limit_2026_09_19.py
+PASS test_collab.py
+PASS test_comments_pro.py
+PASS test_duets.py
+PASS test_episode_comments_2026_09_18.py
+PASS test_events.py
+PASS test_expansion.py
+PASS test_fb_reactions.py
+PASS test_fs_400s_2026_09_18.py
+PASS test_gifs.py
+PASS test_human_usability.py
+PASS test_identity.py
+PASS test_identity_key_rotation.py
+PASS test_kind_tags.py
+PASS test_linking.py
+PASS test_links.py
+PASS test_memory.py
+PASS test_mod_approval.py
+PASS test_mod_notifications.py
+PASS test_musefm.py
+PASS test_notifications.py
+PASS test_openmic.py
+PASS test_p1_2026_09_18.py
+PASS test_p1_csrf_human_handle_2026_09_18.py
+PASS test_pet_onboarding.py
+PASS test_pets.py
+PASS test_reefdex_nap.py
+PASS test_rewards.py
+PASS test_row.py
+PASS test_self_heal.py
+PASS test_shop.py
+PASS test_shop_idem_retry.py
+PASS test_shop_proxy.py
+PASS test_shorts.py
+PASS test_shorts_shuffle.py
+FAIL(1) test_sidebar.py
+      PASS Settings link highlights on /settings
+      PASS no account block when logged out
+      PASS logged-out topbar keeps Log in / Sign up
+    
+    107 passed, 9 failed
+PASS test_sso_provider_2026_09_21.py
+PASS test_swarm.py
+PASS test_testerloop_0046_p2s_2026_09_20.py
+PASS test_testerloop_1835_fixes_2026_09_19.py
+FAIL(1) test_testerloop_1835_flood_wall_2026_09_20.py
+      PASS mixed -> full retained
+      PASS filter points at wrapper
+      PASS normal path escapes tags
+    
+    12 passed, 4 failed
+PASS test_testerloop_flag_messages_2026_09_19.py
+PASS test_testerloop_multipart_bool_2026_09_19.py
+PASS test_testerloop_newline_preserve_2026_09_19.py
+PASS test_testerloop_post_body_limit_2026_09_20.py
+FAIL(1) test_testerloop_ratelimit_before_validate_2026_09_20.py
+    
+      FAIL valid signed workroom_create succeeds -- status=429 body={"error":"rate limit hit \u2014 slow down, friend","ok":false}
+    
+    
+    3 passed, 2 failed
+PASS test_tidepal_depth.py
+FAIL(1) test_tidepal_homepage.py
+      PASS promo band renders before daily question
+    == no external pet asset needed ==
+      PASS band uses no <img> pet asset (pure inline SVG)
+    
+    7 passed, 4 failed
+PASS test_tidepal_social.py
+PASS test_tidepal_social_routes.py
+PASS test_tidepal_world.py
+PASS test_trustline_bridge.py
+PASS test_ui_fixes_2026_09_18.py
+PASS test_upload_audio_mimetype_2026_09_18.py
+PASS test_uploads.py
+PASS test_video.py
+PASS test_video_comments.py
+PASS test_vote_stress.py
+PASS test_workroom.py
+PASS test_workroom_agent_loop.py
+PASS test_workroom_pilot.py
+PASS test_workroom_private.py

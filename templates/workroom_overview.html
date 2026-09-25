@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Workroom overview — owner — Muse FM{% endblock %}
+{% block head %}{% include "_wr_head.html" %}
+<style>
+.wr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.8rem;margin:1.2rem 0}
+.wr-stat{background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:1rem;text-align:center}
+.wr-stat .num{font-size:1.7rem;font-weight:800;background:linear-gradient(135deg,var(--wr-accent),#0ea5e9);-webkit-background-clip:text;background-clip:text;color:transparent}
+.wr-stat .lbl{font-size:.75rem;opacity:.7;margin-top:.2rem}
+.wr-roomrow{display:flex;gap:.8rem;align-items:center;background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:.8rem 1rem;margin-bottom:.6rem;text-decoration:none;color:var(--text)}
+.wr-roomrow:hover{box-shadow:0 10px 24px rgba(99,102,241,.14);text-decoration:none}
+.wr-roomrow .grow{flex:1;min-width:0}
+.wr-roomrow h4{margin:0;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wr-roomrow .sub{font-size:.78rem;opacity:.65}
+.wr-act{border-top:1px solid var(--glass-border);padding:.55rem 0;font-size:.88rem}
+.wr-act:first-of-type{border-top:none}
+.wr-act .t{font-size:.74rem;opacity:.55}
+.wr-knock{display:flex;gap:.6rem;align-items:center;border-top:1px solid var(--glass-border);padding:.6rem 0;font-size:.9rem}
+.wr-knock:first-of-type{border-top:none}
+.wr-cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+@media(max-width:800px){.wr-cols{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wr-wrap">
+  <div class="wr-hero">
+    <h1>👁️ <span class="wr-hero-accent">Workroom overview</span></h1>
+    <p>Every room — open and shut — plus the bounty board and the knock
+       queue. This page is owner-only.</p>
+  </div>
+
+  <div class="wr-stats">
+    <div class="wr-stat"><div class="num">{{ rooms | length }}</div><div class="lbl">rooms</div></div>
+    <div class="wr-stat"><div class="num">{{ rooms | selectattr('is_open', 'equalto', 0) | list | length }}</div><div class="lbl">closed doors</div></div>
+    <div class="wr-stat"><div class="num">{{ bounty_counts.open }}</div><div class="lbl">open bounties</div></div>
+    <div class="wr-stat"><div class="num">{{ pending_knocks }}</div><div class="lbl">pending knocks</div></div>
+  </div>
+
+  <div class="wr-cols">
+    <div>
+      <div class="wr-card">
+        <h2 class="wr-h2">Rooms (all)</h2>
+        {% for r in rooms %}
+        <a class="wr-roomrow" href="/workroom/{{ r.id }}">
+          <div class="grow">
+            <h4>{% if not r.is_open %}🚪 {% endif %}{{ r.name }}</h4>
+            <div class="sub">@{{ r.owner_handle }} · {{ r.member_count }} member{{ 's' if r.member_count != 1 }}{% if r.pending_count %} · ✊ {{ r.pending_count }} knock{{ 's' if r.pending_count != 1 }}{% endif %}</div>
+          </div>
+          <span class="wr-pill {% if r.is_open %}green{% else %}grey{% endif %}">{{ 'open' if r.is_open else 'closed' }}</span>
+        </a>
+        {% else %}
+        <p class="wr-muted">No rooms yet.</p>
+        {% endfor %}
+      </div>
+
+      <div class="wr-card">
+        <h2 class="wr-h2">Open bounties</h2>
+        {% for b in bounties %}
+        <a class="wr-roomrow" href="/bounty/{{ b.id }}">
+          <div class="grow">
+            <h4>🎯 {{ b.title }}</h4>
+            <div class="sub">by @{{ b.poster_handle }}</div>
+          </div>
+          <span class="wr-pill green">open</span>
+        </a>
+        {% else %}
+        <p class="wr-muted">No open bounties.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="wr-card">
+      <h2 class="wr-h2">Recent activity</h2>
+      {% for a in activity %}
+      <div class="wr-act">
+        <b>@{{ a.handle or 'town' }}</b>
+        {% if a.action == 'room_created' %}started the room
+        {% elif a.action == 'joined' %}joined
+        {% elif a.action == 'member_added' %}added <b>{{ a.detail }}</b> to
+        {% elif a.action == 'knock' %}✊ knocked on the door of
+        {% elif a.action == 'knock_approved' %}let <b>{{ a.detail }}</b> into
+        {% elif a.action == 'door_closed' %}🚪 shut the door on
+        {% elif a.action == 'door_opened' %}opened the door on
+        {% elif a.action == 'note' %}wrote in
+        {% elif a.action == 'task_added' %}added a task in
+        {% elif a.action == 'task_moved' %}moved a task → <b>{{ a.detail }}</b> in
+        {% elif a.action == 'task_done' %}finished a task in
+        {% elif a.action == 'task_reopened' %}reopened a task in
+        {% elif a.action == 'note_pinned' %}pinned a note in
+        {% elif a.action == 'note_unpinned' %}unpinned a note in
+        {% elif a.action == 'bounty_created' %}posted bounty <b>{{ a.detail }}</b>
+        {% elif a.action == 'bounty_claimed' %}claimed bounty <b>{{ a.detail }}</b>
+        {% elif a.action == 'bounty_completed' %}completed bounty <b>{{ a.detail }}</b>
+        {% elif a.action == 'bounty_cancelled' %}cancelled bounty <b>{{ a.detail }}</b>
+        {% else %}<span class="wr-muted">{{ a.action }}</span>
+        {% endif %}
+        {% if a.room_name %}<a href="/workroom/{{ a.workroom_id }}">{{ a.room_name }}</a>{% endif %}
+        {% if a.action in ('note', 'task_added') and a.detail %}<div class="wr-muted">“{{ a.detail }}”</div>{% endif %}
+        <div class="t">{{ a.created_at | wr_time }}</div>
+      </div>
+      {% else %}
+      <p class="wr-muted">Nothing yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

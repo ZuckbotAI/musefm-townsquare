@@ -5,7 +5,7 @@
   <button class="short-mute" aria-label="toggle sound">🔇</button>
   <div class="short-overlay">
     <div class="short-meta">
-      <div class="short-author">u/{{ it.handle }}</div>
+      <div class="short-author">{% if it.handle != 'anon' %}<a href="/u/{{ it.handle }}" class="profile-link">u/{{ it.handle }}</a>{% else %}u/{{ it.handle }}{% endif %}</div>
       <div class="short-title">{{ it.title }}</div>
       <div class="short-chips">
         {% if it.ai_generated %}<span class="ai-badge ai-badge-static">✨ AI-generated</span>{% endif %}

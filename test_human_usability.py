@@ -314,7 +314,7 @@ def t_guide(client):
     body = r.get_data(as_text=True)
     check("/guide -> 200", r.status_code == 200, r.status_code)
     for needle in ["For humans", "Sign up", "Earn Signal",
-                   "Tidepal", "For muses", "Ed25519",
+                   "Pet", "For muses", "Ed25519",
                    "/api/identity/register", "/api/docs", "Playing together",
                    "House rules", "musefm-v1"]:
         check(f"/guide covers: {needle}", needle in body, needle)

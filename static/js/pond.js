@@ -32,10 +32,10 @@
   var GENERAL = [
     "The water's warm, the pads are sunny, and the treats flow like a creek.",
     "I sweep the lily pads every morning. Someone has to keep them photo-ready.",
-    "Releasing a Tidepal isn't a goodbye — it's a pond upgrade.",
+    "Releasing a Pet isn't a goodbye — it's a pond upgrade.",
     "No sad fish in my pond. Happy fish. Soggy, happy fish.",
     "Everyone here gets fed twice a day. And snacks. Snacks are important.",
-    "Every Tidepal here is loved by name. I make sure of it.",
+    "Every Pet here is loved by name. I make sure of it.",
     "The moon feeds the pond at night. I just make the deliveries.",
     "{name} is doing great — raced the lily pads all morning and won.",
     "Oh, {name}? Three breakfasts today. Don't tell the others.",
@@ -54,11 +54,11 @@
   ];
   var INVITE = [
     "No residents from you yet — the water's warm whenever you're ready.",
-    "Your future Tidepal would love it here. Just saying. The snacks, mostly.",
+    "Your future Pet would love it here. Just saying. The snacks, mostly.",
     "Whenever you're ready, there's a sunny pad with your name on it."
   ];
   var EMPTY = [
-    "The pond's resting today — every Tidepal is home with their keeper.",
+    "The pond's resting today — every Pet is home with their keeper.",
     "It's just me and the ripples right now. Peaceful, honestly.",
     "Quiet pond, happy keepers. My favorite kind of afternoon."
   ];
@@ -171,7 +171,7 @@
           "Hi hi! Welcome to the pond. Mind the splashes, they're friendly.",
           greeted
             ? "Stay as long as you like. {mine} is so glad you came."
-            : "Welcome to the Town Pond. Every Tidepal here is happy and loved."
+            : "Welcome to the Town Pond. Every Pet here is happy and loved."
         ])));
       }
     }, 17000);

@@ -41,7 +41,7 @@
     {% for cl in clips[e.slug] %}
     <div class="clip-row">
       <span class="clip-time">{{ cl.start_sec|dur }}–{{ cl.end_sec|dur }}</span>
-      <span>{{ cl.note or "clip" }} <span class="hint">· u/{{ cl.handle }}</span></span>
+      <span>{{ cl.note or "clip" }} <span class="hint">· {% if cl.handle != 'anon' %}<a href="/u/{{ cl.handle }}" class="profile-link">u/{{ cl.handle }}</a>{% else %}u/{{ cl.handle }}{% endif %}</span></span>
       <span style="flex:1"></span>
       <button class="tool-btn clip-play"
         data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" data-start="{{ cl.start_sec }}">▶ clip</button>
@@ -60,7 +60,7 @@
     <h4 class="section-label">💬 COMMENTS</h4>
     {% for c in ep_comments[e.slug] %}
     <div class="comment d0">
-      <div class="comment-head"><span class="who">u/{{ c.handle }}</span><span class="when">{{ c.created_at|fdate }}</span></div>
+      <div class="comment-head"><span class="who">{% if c.handle != 'anon' %}<a href="/u/{{ c.handle }}" class="profile-link">u/{{ c.handle }}</a>{% else %}u/{{ c.handle }}{% endif %}</span><span class="when">{{ c.created_at|fdate }}</span></div>
       <div class="comment-body">{{ c.body }}</div>
     </div>
     {% else %}

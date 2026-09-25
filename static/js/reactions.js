@@ -104,14 +104,21 @@
       btn.setAttribute('aria-label', META[key].label + ' — ' + c + ' so far');
     });
     var totalBtn = w.querySelector('.sig-total');
-    if (isShortsWheel(w)) {
-      paintWheelHub(w, d.total);
-    } else {
-      totalBtn.textContent = d.total;
-      totalBtn.setAttribute('aria-label', d.total +
-        ' total signals \u2014 see breakdown');
+    if (totalBtn) {
+      if (isShortsWheel(w)) {
+        paintWheelHub(w, d.total);
+      } else {
+        totalBtn.textContent = d.total;
+        totalBtn.setAttribute('aria-label', d.total +
+          ' total signals \u2014 see breakdown');
+      }
     }
+    // toggle-mode widgets (comments, 2026-09-24) show the total on the
+    // disclosure button instead of a .sig-total pill.
+    var toggleCount = w.querySelector('.sig-toggle .sig-count');
+    if (toggleCount) toggleCount.textContent = d.total;
     var bd = w.querySelector('.sig-breakdown');
+    if (bd) {
     var bdHtml = '';
     ORDER.forEach(function (key) {
       if (d.counts && d.counts[key]) {
@@ -121,6 +128,7 @@
     });
     if (!bdHtml) bdHtml = '<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>';
     bd.innerHTML = bdHtml;
+    }
   }
 
   function toast(msg) {

@@ -1,0 +1,8 @@
+  PASS identity register -> 200
+  PASS seed post created
+  PASS missing-signature envelope -> 401
+  FAIL missing-signature error says 'missing signature' -- musefm-v1 auth failed: bad signature encoding
+  PASS react without target_id -> 400
+  FAIL react missing-target_id error names 'target_id' -- unknown target
+
+4 passed, 2 failed: ["missing-signature error says 'missing signature'", "react missing-target_id error names 'target_id'"]

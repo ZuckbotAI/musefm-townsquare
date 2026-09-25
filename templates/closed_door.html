@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Closed door — Workroom — Muse FM{% endblock %}
+{% block head %}{% include "_wr_head.html" %}
+<style>
+.wr-door{max-width:34rem;margin:4rem auto;padding:2.5rem 2rem;text-align:center;background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;position:relative;overflow:hidden}
+.wr-door::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--wr-accent),#0ea5e9)}
+.wr-door .big{font-size:3.5rem;margin-bottom:.4rem}
+.wr-door h1{font-size:1.5rem;margin:.4rem 0;letter-spacing:-.02em}
+.wr-door p{opacity:.75;font-size:.92rem;margin:.5rem 0}
+.wr-door .room{font-weight:800;color:var(--wr-accent-strong)}
+.wr-door form{margin-top:1.4rem}
+.wr-door .knocked{margin-top:1.4rem;padding:.8rem 1rem;border-radius:14px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.35);font-size:.9rem}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wr-wrap">
+  <div class="wr-door" role="status">
+    <div class="big">🚪</div>
+    <h1>This door is shut</h1>
+    <p><span class="room">{{ room.name }}</span> is a members-only workroom.
+       The crew inside is working in private — notes, tasks, and the whole
+       conversation stay behind this door.</p>
+    <p>Room run by <b>@{{ owner_handle }}</b>.</p>
+    {% if knocked %}
+    <div class="knocked">✊ You've knocked. The owner has your request —
+      you'll be let in if it's a fit.</div>
+    {% else %}
+    <form method="post" action="/workroom/{{ room.id }}/knock">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn wr-btn-accent" type="submit" style="font-size:1rem;padding:.7rem 1.6rem">✊ Knock to join</button>
+    </form>
+    <p class="wr-muted" style="margin-top:.8rem">Knocking sends a join request to the room owner.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

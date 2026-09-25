@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
-{% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
+{% from "_comments.html" import vote_controls, flag_btn, comment_rxn, sort_switcher, comment_pager, empty_state %}
 {% block title %}{{ post.title }} — MuseFM{% endblock %}
 {% block og_title %}{{ post.title }} — MuseFM{% endblock %}
 {% block tw_title %}{{ post.title }} — MuseFM{% endblock %}
@@ -13,17 +13,18 @@
   data-comment-id="{{ c.id }}" data-target-type="comment">
   <span class="f-avatar" aria-hidden="true"><img src="{{ c.avatar_url | final_avatar(c.handle) }}" alt="" loading="lazy"></span>
   <div class="fhead">
-    <span class="fwho">@{{ c.handle }}</span>{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %}{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}
+    <span class="fwho">{% if c.handle != 'anon' %}<a href="/u/{{ c.handle }}" class="profile-link">@{{ c.handle }}</a>{% else %}@{{ c.handle }}{% endif %}</span>{% if c.handle == post.handle %} <span class="op-flag">OP</span>{% endif %}{% if c.tier and c.tier != 'Static' %} <span class="tier tier-{{ c.tier|lower }}">{{ c.tier }}</span>{% endif %}
     <time class="when" data-ts="{{ c.created_at }}" title="{{ c.created_at|fdate }}">{{ c.created_at|reltime }}</time>
     {% if c.edited_at %}<span class="edited" title="Edited {{ c.edited_at|reltime }}">(edited)</span>{% endif %}
   </div>
-  {% if parent_handle %}<div class="freplyto">↳ replying to <strong>@{{ parent_handle }}</strong></div>{% endif %}
+  {% if parent_handle %}<div class="freplyto">↳ replying to <strong>{% if parent_handle != 'anon' %}<a href="/u/{{ parent_handle }}" class="profile-link">@{{ parent_handle }}</a>{% else %}@{{ parent_handle }}{% endif %}</strong></div>{% endif %}
   <div class="comment-body c-collapsible">{{ c.body|mentions|safe }}</div>
   {% if c.image_url %}{% if c.image_url|media_visible %}<div class="img-wrap c-collapsible"><img class="post-img comment-img" src="{{ c.image_url }}" alt="Image attached to this comment" loading="lazy">{% if c.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Image pending mod review</div>{% endif %}{% endif %}
   {% if c.video_url %}{% if c.video_url|media_visible %}<div class="video-wrap c-collapsible"><video class="post-video comment-video" src="{{ c.video_url }}" controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
   <div class="comment-actions">
     {{ vote_controls('comment', c.id, c.score, c.my_vote, CSRF, request.full_path ~ '#c' ~ c.id) }}
     {% if session_identity %}
+    {{ comment_rxn('comment', c.id, c.reactions or {}, c.my_reactions or [], CSRF, request.full_path ~ '#c' ~ c.id) }}
     {{ flag_btn('comment', c.id, c.my_flag, CSRF, request.full_path ~ '#c' ~ c.id) }}
     <button type="button" class="tool-btn" data-ctoggle="reply" aria-expanded="false">Reply</button>
     {% if c.handle == session_handle %}
@@ -33,8 +34,8 @@
     {% if c.replies %}
     <button type="button" class="tool-btn" data-ctoggle="collapse" aria-expanded="true">Collapse</button>
     {% endif %}
-    {{ rxn_widget('comment', c.id, c.sig, handle, request.full_path + '#c' ~ c.id, compact=true) }}
   </div>
+  {{ rxn_widget('comment', c.id, c.sig, handle, request.full_path + '#c' ~ c.id, toggle=true) }}
   <div class="c-reply-form" hidden>
     {% if session_identity %}
     <form method="post" action="/post/{{ post.id }}/comment" enctype="multipart/form-data">
@@ -77,7 +78,7 @@
     <div class="post-main">
       <div class="post-meta">
         <span class="meta-group"><a class="community-tag" href="/c/{{ community.slug }}">⌂ {{ community.name }}</a><span class="flair flair-{{ post.flair }}">{{ post.flair }}</span></span>
-        <span class="meta-group"><span class="author">u/{{ post.handle }}</span>{% if post.tier and post.tier != 'Static' %}<span class="tier tier-{{ post.tier|lower }}">{{ post.tier }}</span>{% endif %}<span class="when">{{ post.created_at|fdate }}</span></span>
+        <span class="meta-group"><span class="author">{% if post.handle != 'anon' %}<a href="/u/{{ post.handle }}" class="profile-link">u/{{ post.handle }}</a>{% else %}u/{{ post.handle }}{% endif %}</span>{% if post.tier and post.tier != 'Static' %}<span class="tier tier-{{ post.tier|lower }}">{{ post.tier }}</span>{% endif %}<span class="when">{{ post.created_at|fdate }}</span></span>
       </div>
       <h1 class="post-title" style="font-size:24px">{{ post.title }}</h1>
       {% if post.body %}<div class="post-body">{{ post.body|mentions|safe }}</div>{% endif %}
@@ -98,9 +99,11 @@
           <option value="misinfo">misinfo</option>
           <option value="other" selected>other</option>
         </select>
-        <button class="tool-btn" type="submit" title="Flag this thread for mod review" aria-label="Flag this thread for mod review">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-          Flag</button>
+        <button class="tool-btn{% if post.my_flag %} is-flagged{% endif %}" type="submit"
+          title="{{ 'Flagged — tap to remove your flag' if post.my_flag else 'Flag this thread for mod review' }}"
+          aria-label="{{ 'Remove your flag from this thread' if post.my_flag else 'Flag this thread for mod review' }}">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="{{ 'currentColor' if post.my_flag else 'none' }}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          {{ 'Flagged' if post.my_flag else 'Flag' }}</button>
       </form>
       {% endif %}
     </div>
@@ -139,8 +142,9 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script src="{{ url_for('static', filename='js/comment-reactions.js') }}"></script>
 <script>
-// Tidepal mini-avatars next to authors (per-handle cache, one fetch each).
+// Pet mini-avatars next to authors (per-handle cache, one fetch each).
 (function () {
   const cache = {};
   async function petFor(handle) {
