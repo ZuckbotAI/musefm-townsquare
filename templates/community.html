@@ -10,11 +10,12 @@
   <p>{{ community.description }}</p>
 </div>
 
-<div class="tabs">
-  <a href="/c/{{ community.slug }}?sort=hot" class="{% if sort=='hot' %}active{% endif %}">Hot</a>
-  <a href="/c/{{ community.slug }}?sort=new" class="{% if sort=='new' %}active{% endif %}">New</a>
-  <a href="/c/{{ community.slug }}?sort=top" class="{% if sort=='top' %}active{% endif %}">Top</a>
-  <span style="flex:1"></span>
+<div class="feed-bar">
+  <div class="seg-tabs" role="tablist" aria-label="Sort posts">
+    <a href="/c/{{ community.slug }}?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}">Hot</a>
+    <a href="/c/{{ community.slug }}?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}">New</a>
+    <a href="/c/{{ community.slug }}?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}">Top</a>
+  </div>
   <a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a>
 </div>
 
