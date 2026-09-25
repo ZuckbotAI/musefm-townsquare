@@ -42,21 +42,51 @@
      Legibility pass (2026-09-22): cream bubble against a bright pastel sky used
      to dissolve at the edges and the tracked-out 12px type strained. 13px/700
      with tighter tracking + a soft ink border so the pill never melts into the sky. */
+  /* SPEECH SYSTEM (2026-09-24, Anthony): one design language for every voice
+     in town — idle chatter, bulletin speech, pet popups all share type,
+     color, and motion. Speech is ambience, never the show: capped width,
+     calm fade/scale, typing dots, global budget (JS: window.__speech). */
   .muse-bubble{
     font-family:var(--sans);
     background:var(--paper2);color:var(--ink);
-    padding:4px 10px 6px;border-radius:12px 12px 12px 4px;
+    padding:5px 12px 7px;border-radius:12px 12px 12px 4px;
     border:1px solid rgba(74,59,46,.34);
-    font-size:13px;font-weight:700;letter-spacing:.08em;line-height:1.2;
+    font-size:13px;font-weight:600;letter-spacing:.02em;line-height:1.35;
     box-shadow:0 6px 18px rgba(74,59,46,.24);
     text-shadow:0 1px 0 rgba(255,248,236,.55);
-    pointer-events:none;white-space:nowrap;
-    transition:opacity 180ms cubic-bezier(.22,1,.36,1);
+    pointer-events:none;white-space:normal;text-align:center;
+    max-width:210px;overflow-wrap:break-word;
+    opacity:0;transition:opacity 200ms ease;
   }
-  @media (prefers-reduced-motion:reduce){.muse-bubble{transition:none;}}
-  /* the Bulletin: overhead speech bubbles carry real agent text, so they wrap */
-  .muse-bubble.bulletin-bubble{white-space:normal;max-width:230px;font-weight:600;
-    letter-spacing:.02em;font-size:13px;line-height:1.35;text-align:left;padding:7px 12px 8px;}
+  .muse-bubble.bub-vis{opacity:1;}
+  /* while the player moves or has a card open, speech recedes: visible
+     bubbles dim to a whisper instead of competing for attention. */
+  body.bub-quiet .muse-bubble.bub-vis{opacity:.45;}
+  /* the inner span carries the transform: CSS2DRenderer overwrites the outer
+     element's transform every frame, so motion lives one level down.
+     three-line clamp keeps long lines from sprawling across the town. */
+  .muse-bubble .bub-in{display:-webkit-box;-webkit-line-clamp:3;
+    -webkit-box-orient:vertical;overflow:hidden;transform-origin:50% 100%;}
+  .muse-bubble .bub-in.bub-in-anim{animation:bub-in .28s cubic-bezier(.22,1,.36,1);}
+  .muse-bubble .bub-in.bub-out-anim{animation:bub-out .22s ease-in forwards;}
+  @keyframes bub-in{from{opacity:0;transform:translateY(5px) scale(.92);}
+    to{opacity:1;transform:translateY(0) scale(1);}}
+  @keyframes bub-out{from{opacity:1;transform:translateY(0) scale(1);}
+    to{opacity:0;transform:translateY(3px) scale(.95);}}
+  /* typing indicator: soft dots, slow quiet pulse — alive, not loud */
+  .muse-bubble.bub-typing .bub-in{letter-spacing:.35em;padding-left:.35em;
+    animation:bub-dots 1.3s ease-in-out infinite;}
+  @keyframes bub-dots{0%,100%{opacity:.4}50%{opacity:1}}
+  /* bulletin speech: same family, left-aligned for reading, with a water-blue
+     rule tying it to the site chrome — the one deliberate distinction. */
+  .muse-bubble.bulletin-bubble{text-align:left;max-width:210px;
+    padding:7px 12px 8px 14px;border-left:3px solid var(--water-deep);
+    border-radius:12px;}
+  @media (prefers-reduced-motion:reduce){
+    .muse-bubble{transition:none;}
+    .muse-bubble .bub-in.bub-in-anim,.muse-bubble .bub-in.bub-out-anim,
+    .muse-bubble.bub-typing .bub-in{animation:none;}
+  }
   /* the Bulletin: pinned-note list inside the pick card (read-only) */
   #pick-board{margin-top:10px;border-top:1px dashed rgba(74,59,46,.3);padding-top:8px;}
   #pick-board .bb-head{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;
@@ -250,7 +280,7 @@
     color:var(--paper);font-family:inherit;font-weight:700;font-size:14px;
     padding:9px 20px;cursor:pointer;}
   /* Town-view overlays — host the module scripts inlined after the module
-     chunk (Tidepals, RowInteriors, RowAvatars, RowSpecies+RowCelebrations).
+     chunk (RowPets, RowInteriors, RowAvatars, RowSpecies+RowCelebrations).
      Each module renders itself into its #*-mount; all of their own styles
      are scoped under their own roots and injected by the modules. */
   #pets-overlay,#rooms-overlay,#avatar-overlay,#celebrate-overlay{position:fixed;inset:0;z-index:40;
@@ -1154,6 +1184,124 @@ function smoothstep(e0, e1, x) {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
 }
+/* ---------- SPEECH SYSTEM (2026-09-24, Anthony): calm by design ----------
+   Agent speech is ambience, never the show. One global budget caps how many
+   text bubbles may be visible at once; every bubble shares the .muse-bubble
+   family and the same gentle fade/scale motion. w5_life.js (the villager /
+   pet chatter layer) shares this registry via window. Fail-open everywhere:
+   if the registry is missing, bubbles behave as before. */
+if (typeof window !== "undefined" && !window.__speech) window.__speech = {
+  max: 2,              /* hard cap on simultaneous overhead speech bubbles */
+  holders: [],         /* {kind, token} */
+  dots: 0, maxDots: 0, /* ambient "..." blinkers retired 2026-09-24: the town
+                          stays quiet; speech appears as typed words only */
+  warmT: 0,            /* set at w5 boot; chatter gated on it */
+  playerMoving: false,
+  playerMoved: false,  /* latched once the player truly explores */
+  menuOpen: false,
+  effMax: function () {
+    var m = this.max;
+    try {
+      if (this.menuOpen) m = Math.min(m, 2);
+      if (this.playerMoving) m = Math.min(m, 1);
+    } catch (e) {}
+    return m;
+  },
+  request: function (kind, token) {
+    try {
+      var lim = this.effMax();
+      /* bulletin speech is the showpiece: it may displace the oldest idle
+         chatter bubble rather than being dropped. */
+      if (this.holders.length >= lim && kind === "bulletin") {
+        for (var i = 0; i < this.holders.length; i++) {
+          if (this.holders[i].kind === "idle" || this.holders[i].kind === "pet") {
+            var h = this.holders.splice(i, 1)[0];
+            try { if (h.token && h.token.__releaseBubble) h.token.__releaseBubble(); } catch (e2) {}
+            break;
+          }
+        }
+      }
+      if (this.holders.length >= this.effMax()) return false;
+      this.holders.push({ kind: kind, token: token });
+      return true;
+    } catch (e3) { return true; }
+  },
+  release: function (token) {
+    try {
+      for (var i = this.holders.length - 1; i >= 0; i--)
+        if (this.holders[i].token === token) this.holders.splice(i, 1);
+    } catch (e) {}
+  }
+};
+if (typeof window !== "undefined" && !window.__bubFX) window.__bubFX = {
+  /* Show: appear animation (gentle scale+fade on the inner span — CSS2D
+     overwrites the outer transform every frame, so motion lives inside). */
+  show: function (el) {
+    try {
+      el._bubSeq = (el._bubSeq || 0) + 1;
+      /* NOTE: bub-typing is owned by the caller (typeThen / setBubble), not
+         cleared here — show() must not kill an in-progress typing beat. */
+      el.style.opacity = "";
+      var inn = el.firstChild;
+      if (inn && inn.classList) {
+        inn.classList.remove("bub-out-anim");
+        inn.classList.remove("bub-in-anim");
+        void inn.offsetWidth; /* reflow restarts the keyframe */
+        inn.classList.add("bub-in-anim");
+      }
+      el.classList.add("bub-vis");
+    } catch (e) { try { el.style.opacity = "1"; } catch (e2) {} }
+  },
+  /* Hide: quiet fade-out on the inner span, then drop the visible class. */
+  hide: function (el) {
+    try {
+      el._bubSeq = (el._bubSeq || 0) + 1;
+      var seq = el._bubSeq;
+      el.classList.remove("bub-typing");
+      var inn = el.firstChild;
+      if (inn && inn.classList) {
+        inn.classList.remove("bub-in-anim");
+        inn.classList.add("bub-out-anim");
+      }
+      setTimeout(function () {
+        try {
+          if (el._bubSeq !== seq) return; /* re-shown meanwhile: leave it */
+          el.classList.remove("bub-vis");
+          var i2 = el.firstChild;
+          if (i2 && i2.classList) i2.classList.remove("bub-out-anim");
+        } catch (e2) {}
+      }, 230);
+    } catch (e) { try { el.style.opacity = "0"; } catch (e3) {} }
+  },
+  /* Typing beat: soft dots for `ms`, then the real text fades in. */
+  typeThen: function (el, text, ms) {
+    var FX = this;
+    try {
+      el.style.opacity = "";
+      var inn = el.firstChild;
+      if (inn && inn.classList && inn.classList.contains("bub-in")) inn.textContent = "...";
+      else el.textContent = "...";
+      el.classList.add("bub-typing");
+      el.classList.add("bub-vis");
+      setTimeout(function () {
+        try {
+          el.classList.remove("bub-typing");
+          if (inn && inn.classList && inn.classList.contains("bub-in")) inn.textContent = String(text == null ? "" : text);
+          else el.textContent = String(text == null ? "" : text);
+          FX.show(el);
+        } catch (e2) {}
+      }, ms || 600);
+    } catch (e) {}
+  },
+  setText: function (el, text) {
+    try {
+      var inn = el.firstChild;
+      var safe = String(text == null ? "" : text);
+      if (inn && inn.classList && inn.classList.contains("bub-in")) inn.textContent = safe;
+      else el.textContent = safe;
+    } catch (e) {}
+  }
+};
 export function createMuseWorld(canvas, handlers) {
   exposeGameData();
   /* LIFE HOOK (coordinator-added): external life chunks register per-frame fns. */
@@ -3624,8 +3772,10 @@ export function createMuseWorld(canvas, handlers) {
   function makeBubble() {
     const el = document.createElement("div");
     el.className = "muse-bubble";
-    el.textContent = "...";
-    el.style.opacity = "0";
+    const inn = document.createElement("div");
+    inn.className = "bub-in";
+    inn.textContent = "...";
+    el.appendChild(inn);
     const obj = new CSS2DObject(el);
     obj.position.set(0, 2.15, 0);
     return obj;
@@ -3942,7 +4092,8 @@ export function createMuseWorld(canvas, handlers) {
     const t = String(text == null ? "" : text).trim().slice(0, 160);
     if (!a || !t) return false;
     a.tbText = t;
-    a.tbUntil = tWorld + 10;
+    a.tbUntil = tWorld + 5.5; /* SPEECH SYSTEM (2026-09-24): calm cadence —
+       bulletin text rests ~5.5s, not 10; ambience should never linger. */
     return true;
   }
   function bulletinFor(key) {
@@ -4212,37 +4363,48 @@ export function createMuseWorld(canvas, handlers) {
     for (const a of agents) {
       a.bob += dt;
       /* BULLETIN (2026-09-24): fresh API speech pins the bubble open with real
-         text; when it expires the bubble drops back to the idle "..." blink. */
+         text; when it expires the bubble drops back to the idle "..." blink.
+         SPEECH SYSTEM (2026-09-24): bulletin claims a budget slot (it may
+         displace idle chatter) and plays a soft typing beat before the words. */
       const bEl = a.bubble.element;
+      const FX = (typeof window !== "undefined" && window.__bubFX) || null;
+      const SP = (typeof window !== "undefined" && window.__speech) || null;
       const bbActive = !!(a.tbText && tWorld < a.tbUntil);
       if (bbActive) {
-        if (bEl.dataset.bb !== a.tbText) {
-          bEl.dataset.bb = a.tbText;
-          bEl.textContent = a.tbText;
-          bEl.className = "muse-bubble bulletin-bubble";
+        /* slot first: the typing beat and the words only appear once the
+           speech budget grants this bulletin a slot — never on speculation. */
+        if (!a.tbSlot) {
+          if (!SP || SP.request("bulletin", a)) a.tbSlot = true;
+          /* no slot yet: stay quiet, retry next frame */
         }
-        bEl.style.opacity = "1";
+        if (a.tbSlot && bEl.dataset.bb !== a.tbText) {
+          bEl.dataset.bb = a.tbText;
+          bEl.dataset.bbTyped = "";
+          bEl.className = "muse-bubble bulletin-bubble";
+          if (FX) FX.typeThen(bEl, a.tbText, 700);
+          else { bEl.textContent = a.tbText; bEl.style.opacity = "1"; }
+        }
       } else {
+        if (a.tbSlot && SP) { SP.release(a); a.tbSlot = false; }
         if (bEl.dataset.bb) {
           bEl.dataset.bb = "";
-          bEl.textContent = "...";
+          bEl.dataset.bbTyped = "";
           bEl.className = "muse-bubble";
-          bEl.style.opacity = "0";
+          if (FX) { FX.setText(bEl, "..."); FX.hide(bEl); }
+          else bEl.style.opacity = "0";
         }
         if (a.tbText) { a.tbText = null; a.tbUntil = 0; }
       }
       if (!bbActive) {
+        /* no bulletin: the bubble rests hidden. Ambient "..." blinking was
+           retired 2026-09-24 (visual noise) — the town stays quiet until
+           someone has real words, typed in softly. */
         a.bubbleTime -= dt;
         if (a.bubbleTime <= 0) {
-          const el = a.bubble.element;
-          const showing = el.style.opacity === "1";
-        if (showing) {
-          el.style.opacity = "0";
-          a.bubbleTime = 3 + Math.random() * 6;
-        } else {
-          el.style.opacity = "1";
-          a.bubbleTime = 1.6 + Math.random() * 1.2;
-        }
+          if (bEl.classList.contains("bub-vis")) {
+            if (FX) FX.hide(bEl); else bEl.style.opacity = "0";
+          }
+          a.bubbleTime = 8 + Math.random() * 8; /* calm: long quiet gaps */
         }
       }
       if (!a.moving) {
@@ -4761,6 +4923,19 @@ var REFRESH_MS = 30000;
 var BULLETIN_URL = '/api/bulletin';
 var BULLETIN_MS = 20000;
 var bulletinStore = { messages: [], ok: false };
+/* SPEECH SYSTEM (2026-09-24, Anthony): overhead speech is capped — a refresh
+   reveals at most one new voice at a time, queued so the town unfolds
+   gently instead of shouting all its news at once. */
+var bbQueue = [], bbSpeaking = false;
+function pumpBulletinQueue() {
+  if (bbSpeaking || !bbQueue.length) return;
+  var nm = bbQueue.shift();
+  if (!nm || !nm.text) { pumpBulletinQueue(); return; }
+  bbSpeaking = true;
+  try { if (world && world.bulletin) world.bulletin.speak(nm.agent, nm.text); } catch (e) {}
+  /* next voice only after this one has had its quiet moment. */
+  setTimeout(function () { bbSpeaking = false; pumpBulletinQueue(); }, 7000);
+}
 var TOUR_MS = 10000; /* ~10s per stop: long enough to read each narration line */
 var MAP_WORLD = 75; /* half-extent of the town in world units for the minimap */
 
@@ -5105,12 +5280,16 @@ async function refreshBulletin() {
     try {
       if (world && world.bulletin) {
         world.bulletin.setMessages(bulletinStore.messages);
-        /* newest pins get overhead bubbles over the speaking agents */
+        /* newest pins get overhead bubbles over the speaking agents —
+           queued: one gentle voice at a time, never a chorus. */
         for (var q = 0; q < bulletinStore.messages.length; q++) {
           var nm = bulletinStore.messages[q];
           var nid = bulletinNorm(nm.agent) + '|' + bulletinNorm(nm.text).slice(0, 48) + '|' + String(nm.ts || '');
-          if (!prev[nid]) world.bulletin.speak(nm.agent, nm.text);
+          if (!prev[nid]) {
+            if (bbQueue.length < 3) bbQueue.push({ agent: nm.agent, text: nm.text });
+          }
         }
+        pumpBulletinQueue();
       }
     } catch (eB) { /* speech lookup missed: notes still pin to the board */ }
   } catch (err) {
@@ -5203,8 +5382,8 @@ function buildDock() {
   });
 }
 
-/* Pet Quarter — the Tidepals town-view module, inside Maker's Row (one app).
-   The module itself (window.Tidepals, inlined as a classic <script> after this
+/* Pet Quarter — the RowPets town-view module, inside Maker's Row (one app).
+   The module itself (window.RowPets, inlined as a classic <script> after this
    module chunk in the assembled page) owns its DOM, timers, and audio; the
    shell owns only the overlay container and open/close wiring, following the
    existing #guide-overlay pattern. */
@@ -5232,7 +5411,7 @@ function petQuarter() {
 
   /* One dock entry for the Pet Quarter: reuse the district's own dock button
      (built by buildDock from GAME_DATA.districts) as #btn-pets and wire it to
-     the Tidepals overlay — no second button. The in-world district pill and
+     the RowPets overlay — no second button. The in-world district pill and
      minimap dot still fly the camera via goDistrict; the dock opens Pets. */
   var nav = $('nav');
   var ov = $('pets-overlay'), mountEl = $('pets-mount'), closeBtn = $('pets-close');
@@ -5248,12 +5427,12 @@ function petQuarter() {
   function openPetsRaw() {
     if (!ov || petsOpen) return;
     ov.hidden = false;
-    try { if (window.Tidepals && mountEl) window.Tidepals.mount(mountEl); } catch (e) { /* ignore */ }
+    try { if (window.RowPets && mountEl) window.RowPets.mount(mountEl); } catch (e) { /* ignore */ }
     petsOpen = true;
   }
   function closePetsRaw() {
     if (!petsOpen) return;
-    try { if (window.Tidepals) window.Tidepals.unmount(); } catch (e) { /* ignore */ }
+    try { if (window.RowPets) window.RowPets.unmount(); } catch (e) { /* ignore */ }
     clearPetsMount();
     if (ov) ov.hidden = true;
     petsOpen = false;
@@ -6624,6 +6803,7 @@ window.__village.jumpTo = function (beat) {
 })();
 ;(() => {
   'use strict';
+
   /* w5_life.js — LIFE SYSTEMS for the Muse FM 3D world (round 13).
      Assembled AFTER w1_shell + port/game-data + port/world + w4_wiring,
      inside ONE <script type="module">. Module scope gives us THREE,
@@ -6664,6 +6844,7 @@ window.__village.jumpTo = function (beat) {
   }
 
   function boot(W) {
+
     try {
       var scene = W.scene;
       if (!scene || !W.onTick) return;
@@ -6750,7 +6931,7 @@ window.__village.jumpTo = function (beat) {
          terra #D9756B · leaf #8FB65C · water #7FB8C9 */
       var SAGE = 0x8FB65C, CREAM = 0xFFF8EC, CLAY = 0xC98A5E,
           PINE = 0x8C6239, GOLD = 0xE8B93F, INK = 0x4A3B2E, BLUSH = 0xD9756B;
-      /* Tidepal species palette (2026-09-23): semantic aliases into the
+      /* Pet species palette (2026-09-23): semantic aliases into the
          PALETTE LOCK hexes above — no new colors in the 3D town. */
       var PAPER = 0xFFF8EC, PAPER_D = 0xF5EDD8,
           BRASS = 0xC98A5E, BRASS_D = 0x8C6239,
@@ -6758,24 +6939,56 @@ window.__village.jumpTo = function (beat) {
           WATER = 0x7FB8C9, GOLD_D = 0xC9A227,
           RUST = 0xD9756B, RUST_D = 0xC98A5E;
 
-      /* ---------- bubble factory: .muse-bubble CSS2D, else canvas plane ---------- */
       var HAS_CSS2D = (typeof CSS2DObject !== 'undefined');
+      /* ---------- bubble factory: .muse-bubble CSS2D, else canvas plane ----------
+         SPEECH SYSTEM (2026-09-24, Anthony): speech is ambience, never the
+         show. Every bubble shares the .muse-bubble family; show/hide run the
+         gentle fade/scale via window.__bubFX; text bubbles claim a slot from
+         the global budget window.__speech (max 2 at once). */
+      var __SP = null, __FX = null;
+      try { __SP = window.__speech || null; __FX = window.__bubFX || null; } catch (eSP) {}
+      try { if (__SP && !__SP.warmT) __SP.warmT = 0; } catch (eW) {}
+      function speechWarm(t) {
+        /* chatter unfolds as the player explores — not all at once on load. */
+        if (!__SP) return true;
+        try {
+          if (__SP.playerMoved) return true;
+          return (t - (__SP.warmT || 0)) > 25;
+        } catch (e) { return true; }
+      }
+      function claimBubble(rec, kind) {
+        if (!__SP) return true;
+        try { return __SP.request(kind, rec.bub); } catch (e) { return true; }
+      }
+      function releaseBubble(rec) {
+        try { hideBubble(rec.bub); } catch (e) {}
+        if (!__SP) { rec.bubOn = false; return; }
+        try { __SP.release(rec.bub); } catch (e2) {}
+        rec.bubOn = false;
+      }
       function makeBubble(opts) {
+
         if (HAS_CSS2D) {
+
           var el = document.createElement('div');
           el.className = 'muse-bubble';
-          el.textContent = '…';
-          el.style.opacity = '0';
-          if (opts && opts.wrap) {
-            el.style.whiteSpace = 'normal';
-            el.style.maxWidth = opts.maxW || '300px';
-            el.style.fontWeight = '600';
-            el.style.letterSpacing = '0.02em';
-            el.style.textAlign = 'left';
-          }
+          var inn = document.createElement('div');
+          inn.className = 'bub-in';
+          inn.textContent = '…';
+          el.appendChild(inn);
+          if (opts && opts.wrap) el.classList.add('bulletin-bubble');
+
           var o = new CSS2DObject(el);
+
           o.position.set(0, 2.3, 0);
-          return { obj: o, el: el, plane: false };
+          var bub = { obj: o, el: el, inn: inn, plane: false };
+          /* displacement hook: bulletin speech may reclaim this slot.
+             clears the owner's bubOn so a forced hide never leaves stale state. */
+          bub.__releaseBubble = function () {
+            try { hideBubble(bub); } catch (eR) {}
+            try { if (bub.__rec) bub.__rec.bubOn = false; } catch (eR2) {}
+          };
+          return bub;
         }
         var cv = document.createElement('canvas'); cv.width = 256; cv.height = 72;
         var g = cv.getContext('2d');
@@ -6783,9 +6996,9 @@ window.__village.jumpTo = function (beat) {
         var pl = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.48),
           new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
         pl.position.set(0, 2.3, 0); pl.visible = false;
-        return { obj: pl, el: null, plane: true, cv: cv, g: g, tex: tex };
+        return { obj: pl, el: null, inn: null, plane: true, cv: cv, g: g, tex: tex };
       }
-      function setBubble(b, text) {
+      function setBubble(b, text, opts) {
         try {
           if (b.plane) {
             b.g.clearRect(0, 0, 256, 72);
@@ -6797,17 +7010,38 @@ window.__village.jumpTo = function (beat) {
             var ft = String(text).replace(/\n/g, ' ');
             b.g.fillText(ft.length > 26 ? ft.slice(0, 26) + '…' : ft, 128, 38);
             b.tex.needsUpdate = true; b.obj.visible = true;
+            return;
+          }
+          if (b._typeT) { try { clearTimeout(b._typeT); } catch (eT) {} b._typeT = 0; }
+          var safe = String(text == null ? '' : text);
+          if (opts && opts.typing && __FX) {
+            /* soft typing beat before the words — alive, not loud. */
+            b.el.classList.remove('bub-typing');
+            __FX.setText(b.el, '…');
+            b.el.classList.add('bub-typing');
+            __FX.show(b.el);
+            b._typeT = setTimeout(function () {
+              try {
+                b._typeT = 0;
+                b.el.classList.remove('bub-typing');
+                __FX.setText(b.el, safe);
+                __FX.show(b.el);
+              } catch (eT2) {}
+            }, 550);
           } else {
-            if (text.indexOf('\n') >= 0) {
-              b.el.innerHTML = String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;').replace(/\n/g, '<br>');
-            } else { b.el.textContent = text; }
-            b.el.style.opacity = '1';
+            b.el.classList.remove('bub-typing');
+            if (__FX) { __FX.setText(b.el, safe); __FX.show(b.el); }
+            else { b.el.textContent = safe; b.el.style.opacity = '1'; }
           }
         } catch (e) {}
       }
       function hideBubble(b) {
-        try { if (b.plane) b.obj.visible = false; else b.el.style.opacity = '0'; } catch (e) {}
+        try {
+          if (b._typeT) { try { clearTimeout(b._typeT); } catch (eT) {} b._typeT = 0; }
+          if (b.plane) { b.obj.visible = false; return; }
+          b.el.classList.remove('bub-typing');
+          if (__FX) __FX.hide(b.el); else b.el.style.opacity = '0';
+        } catch (e) {}
       }
 
       /* ---------- 6 CUSTOM VILLAGERS (distinct, hand-made looks) ---------- */
@@ -7315,12 +7549,15 @@ window.__village.jumpTo = function (beat) {
         return best;
       }
       DEFS.forEach(function (d, i) {
+
         var b = buildVillager(d);
+
         var grp = b.g;
         var rec0 = { def: d };
         var w0 = WPTS[pickWp(rec0)];
         grp.position.set(w0[0], 0, w0[1]);
         var bub = makeBubble();
+
         bub.obj.position.y = b.headTop + 0.8;
         grp.add(bub.obj);
         /* name label: small CSS2D tag under the speech bubble */
@@ -7360,15 +7597,18 @@ window.__village.jumpTo = function (beat) {
           phase: Math.random() * 10,
           lineI: i % 20, greetI: (i * 2) % 5, jobI: 0, bubCount: 0, banterUntil: 0,
           phaseW: '', phaseI: -1,
-          bubT: 4 + Math.random() * 5,
+          /* chatter unfolds gradually: staggered starts, never on-load chorus */
+          bubT: 8 + Math.random() * 18,
           bubOn: false,
           blinkT: 1 + Math.random() * 3,
           blinkP: 0,
           popT: -1
         };
         grp.userData.villager = rec;   // for the click-raycast below
+        bub.__rec = rec; // bulletin displacement clears rec.bubOn via __releaseBubble
         villagers.push(rec);
       });
+
       try { window.__npcDebug = villagers; window.__petDebug = pets; window.__banterDebug = banterPairs; } catch (eDbg) {}
 
       /* ---------- DeepSeek pick-card spot markers (15 town spots + cottages) ----------
@@ -7494,7 +7734,7 @@ window.__village.jumpTo = function (beat) {
         }, true);
       })();
 
-      /* ---------- TIDEPAL SPECIES (real 3D pets) ----------
+      /* ---------- PET SPECIES (real 3D pets) ----------
          Six species from the 2D species pack, translated into simple-cartoon
          3D: toon bodies, ink outlines, glossy eyes with shine dots, blush,
          and signature parts. Each builder returns { g, anim }; anim holds
@@ -7738,17 +7978,17 @@ window.__village.jumpTo = function (beat) {
         petFace(g, 0.11, 0.35, 0.235, 0.043);
         return { g: g, anim: anim };
       }
-      var TIDEPAL_BUILDERS = {
+      var PET_BUILDERS = {
         cinder: buildCinder, briar: buildBriar, brine: buildBrine,
         plume: buildPlume, crag: buildCrag, rust: buildRust
       };
-      function buildTidepal(id) {
-        var b = (TIDEPAL_BUILDERS[id] || buildCinder)();
+      function buildPet(id) {
+        var b = (PET_BUILDERS[id] || buildCinder)();
         inkOutlines(b.g);
         return b;
       }
       // Muffin the Cinder follows Dill (villager 0)
-      var muffinB = buildTidepal('cinder');
+      var muffinB = buildPet('cinder');
       scene.add(muffinB.g);
       pets.push({ name: 'Muffin', species: 'cinder', g: muffinB.g, anim: muffinB.anim, mode: 'follow', host: villagers[0], off: { x: 0.9, z: 0.6 }, phase: 1.2, hopT: -1, treatBusy: false, locked: false, lockSprite: null,
         idle: ["Muffin hops twice, decides that counts as walking, hops again.", "A small bounce. A longer bounce. Muffin has invented a third bounce.", "Muffin follows Dill's shadow like it owes him money.", "Muffin saw a butterfly. Muffin is now airborne. Briefly.", "The watering can is empty. Muffin does not know this. Muffin is excited.", "Muffin hops onto a stone, misses, hops again, forgets the stone.", "Dill bends to weed. Muffin sits on his glove. Problem solved.", "Muffin has found a stick. It is the best stick. All sticks are.", "A puddle. Muffin approaches with the caution of a great explorer.", "Muffin hops in place for no reason. The reason is joy.", "Muffin greets a snail. The snail does not speed up. Muffin waits.", "Someone dropped a crumb. Muffin has been elected to handle it.", "Muffin tries to hop onto the wheelbarrow. Muffin tries again.", "Dill sneezes. Muffin hops in alarm, then hops in sympathy.", "Muffin falls asleep mid-hop. Technically he landed."],
@@ -7778,7 +8018,7 @@ window.__village.jumpTo = function (beat) {
       };
 
       [['Nib', 'briar'], ['Soot', 'rust'], ['Pebble', 'brine'], ['Taffy', 'plume'], ['Boulder', 'crag']].forEach(function (cfg, i) {
-        var pb = buildTidepal(cfg[1]);
+        var pb = buildPet(cfg[1]);
         /* Pet Shop roster: the crag is the LOCKED design — dark silhouette +
            padlock marker, never adoptable. The other five are adoptable. */
         var locked = (cfg[1] === PET_SHOP_LOCKED);
@@ -7804,6 +8044,7 @@ window.__village.jumpTo = function (beat) {
         if (pp.name === 'Boulder') { pp.idle = ["Boulder does not move. Boulder is thinking. Give him time.", "Boulder blinked. Did you see it? That was fast for him.", "Moss grows on Boulder's left side. He likes it there.", "Boulder found a sunbeam. He will be here all day.", "Someone moved Boulder's rock. Boulder moved it back.", "Boulder hums. It's very low. You feel it more than hear it.", "Boulder watches the clouds. They move. He doesn't. Balance.", "A butterfly landed on Boulder. He is now its mountain.", "Boulder is awake. This is notable. Tell someone.", "Boulder remembers everything. He just doesn't hurry to say it.", "Pebble splashed Boulder. Boulder dried. Eventually.", "Boulder's moss is thriving. He's proud. He won't say so.", "Boulder sat through Gild's whole speech. Unmoved. Literally.", "Boulder found the warmest stone. It was him. He's the stone.", "Boulder dreams in geological time. He's mid-dream."]; pp.clicks = ["Boulder leans into the pat. Slowly. With commitment.", "He rumbles. That's a purr. Probably. It's a purr.", "Boulder opens one eye. You are acknowledged.", "He shifts his weight. For Boulder, that's a sprint.", "Boulder's moss glows a little. He's happy. Science can't explain."]; }
         pp.bub = makeBubble();
         pp.bub.obj.position.y = 1.15;
+        pp.bub.__rec = pp; // bulletin displacement clears pp.bubOn via __releaseBubble
         pp.g.add(pp.bub.obj);
         pp.g.userData.pet = pp;
         pp.lineI = pi % pp.idle.length;
@@ -7813,7 +8054,8 @@ window.__village.jumpTo = function (beat) {
         pp.warmClicks = _bt.warm; pp.devotedClicks = _bt.devoted;
         pp.warmI = 0; pp.devotedI = 0;
         pp.petN = 0; pp.playT = -1; pp.playCD = 0; pp.excited = false;
-        pp.bubT = 9 + Math.random() * 8;
+        /* chatter unfolds gradually: staggered starts, never an on-load chorus */
+        pp.bubT = 14 + Math.random() * 16;
         pp.bubOn = false;
         pp.popT = -1;
         pp.banterUntil = 0;
@@ -7893,7 +8135,7 @@ window.__village.jumpTo = function (beat) {
         }
       }
 
-      /* ---------- TIDEPAL BOND: 0-5 hearts per account, persisted per-uid ----------
+      /* ---------- PET BOND: 0-5 hearts per account, persisted per-uid ----------
          Bond grows when you pet, treat, and play with a town pet. At bond 2+
          click-lines turn warm, at 4+ devoted — the pet remembers you. Per-account
          local cache (makersrow.bond.<uid>.v1); future /api/row/pets field
@@ -8140,7 +8382,7 @@ window.__village.jumpTo = function (beat) {
         try { for (var k in villMem) if (villMem[k] >= 1) n++; } catch (e) {}
         return n;
       }
-      function advTidepalAdopted() {
+      function advPetAdopted() {
         /* read-only observation of the Pet Quarter module's own store —
            humans adopt there; no module edits, no coupling to its internals
            beyond its documented localStorage key. */
@@ -8157,7 +8399,7 @@ window.__village.jumpTo = function (beat) {
             for (var i = 0; i < pets.length; i++) if (pets[i].ownerId === uid) return true;
           }
         } catch (e) {}
-        return advTidepalAdopted();
+        return advPetAdopted();
       }
       function advNearFountain() {
         try {
@@ -8486,7 +8728,14 @@ window.__village.jumpTo = function (beat) {
         var ex = pair.exchanges[pair.exI][turn];
         var actor = banterActor(ex[0]);
         if (!actor) return;
-        setBubble(actor.bub, ex[1]);
+        /* one voice at a time: the previous speaker's bubble comes down
+           before the next one speaks — never two banter bubbles at once. */
+        var other = (pair.a === ex[0]) ? banterActor(pair.b) : banterActor(pair.a);
+        if (other && other !== actor && other.bubOn) {
+          try { hideBubble(other.bub); } catch (eH) {}
+          other.bubOn = false;
+        }
+        setBubble(actor.bub, ex[1], { typing: true });
         actor.bubOn = true;
         actor.popT = lastT; // little hop as they "speak"
       }
@@ -8506,6 +8755,7 @@ window.__village.jumpTo = function (beat) {
               if (pair.active.turn >= 3) {
                 banterHide(banterActor(pair.a));
                 banterHide(banterActor(pair.b));
+                try { if (__SP) __SP.release(pair); } catch (eR) {}
                 pair.active = null;
                 pair.cool = t + 50 + Math.random() * 50;
               } else {
@@ -8515,7 +8765,14 @@ window.__village.jumpTo = function (beat) {
             }
           } else if (t >= pair.cool) {
             var A = banterActor(pair.a), B = banterActor(pair.b);
-            if (A && B && banterDist(A, B) < 5) {
+            /* banter is the richest speech in town: it unfolds as the player
+               explores, not on load — and it takes one shared budget slot. */
+            var explored = false;
+            try { explored = !!(__SP && __SP.playerMoved); } catch (eX) {}
+            if (A && B && banterDist(A, B) < 5 && explored) {
+              var slotOk = true;
+              try { slotOk = !__SP || __SP.request('banter', pair); } catch (eB) {}
+              if (!slotOk) { pair.cool = t + 6 + Math.random() * 6; continue; }
               pair.exI = (pair.exI + 1) % pair.exchanges.length;
               pair.active = { turn: 0, nextT: t + 3.4 };
               var until = t + 3 * 3.4 + 1.2;
@@ -8663,11 +8920,11 @@ window.__village.jumpTo = function (beat) {
             v.ribbon[rI].rotation.z = Math.sin(t * 3.4 + v.phase + rI * 0.8) * 0.45;
           // DeepSeek packs: 20 idle lines rotate; every 6th bubble is a
           // job-context line. Banter exchanges own the bubble while active.
-          if (t >= v.banterUntil) {
+          if (t >= v.banterUntil && speechWarm(t)) {
             v.bubT -= dt;
             if (v.bubT <= 0) {
-              if (v.bubOn) { hideBubble(v.bub); v.bubOn = false; v.bubT = 5 + Math.random() * 7; }
-              else {
+              if (v.bubOn) { releaseBubble(v); v.bubT = 6 + Math.random() * 9; }
+              else if (claimBubble(v, 'idle')) {
                 v.bubCount++;
                 var btxt;
                 if (v.bubCount % 6 === 0) {
@@ -8687,6 +8944,9 @@ window.__village.jumpTo = function (beat) {
                 setBubble(v.bub, btxt);
                 v.bubOn = true; v.bubT = 2.4 + Math.random() * 1.4;
                 if (v.popT < 0) v.popT = t;
+              } else {
+                /* budget full: stay quiet, retry soon — never stack. */
+                v.bubT = 1.2 + Math.random() * 1.8;
               }
             }
           }
@@ -8827,14 +9087,17 @@ window.__village.jumpTo = function (beat) {
           /* locked-design marker: gentle bob above the silhouette */
           if (p.lockSprite) p.lockSprite.position.y = 1.0 + Math.sin(t * 2.4 + (p.phase || 0)) * 0.06;
           // idle observation popups (DeepSeek pet packs); banter owns the bubble while active
-          if (t >= p.banterUntil) {
+          if (t >= p.banterUntil && speechWarm(t)) {
             p.bubT -= dt;
             if (p.bubT <= 0) {
-              if (p.bubOn) { hideBubble(p.bub); p.bubOn = false; p.bubT = 9 + Math.random() * 8; }
-              else {
+              if (p.bubOn) { releaseBubble(p); p.bubT = 12 + Math.random() * 12; }
+              else if (claimBubble(p, 'pet')) {
                 p.lineI = (p.lineI + 1) % p.idle.length;
                 setBubble(p.bub, p.idle[p.lineI]);
                 p.bubOn = true; p.bubT = 3 + Math.random() * 1.5;
+              } else {
+                /* budget full: stay quiet, retry soon — never stack. */
+                p.bubT = 1.5 + Math.random() * 2;
               }
             }
           }
@@ -9635,7 +9898,8 @@ window.__village.jumpTo = function (beat) {
           sigNext: 4 + Math.random() * 4, sigT: -1,
           bubOn: false, bubT: 0,
           treats: (saved && saved.treats != null) ? Math.max(0, saved.treats | 0) : 5,
-          moving: false, lastMoveT: -10, scanT: 0
+          moving: false, lastMoveT: -10, scanT: 0,
+          sx: c0[0], sz: c0[1]  /* spawn point: speech warms when player leaves it */
         };
         grp.userData.player = player;
         /* re-attach owned pets (persisted ownership survives reloads) */
@@ -9716,6 +9980,25 @@ window.__village.jumpTo = function (beat) {
         else applyRobotGait(player.b, g, t, player.walkPhase,
                easeGait(player, (moved && player.emote !== 'dance') ? 1 : 0, dt));
         player.moving = moved;
+        /* SPEECH SYSTEM: feed player state to the global speech budget —
+           chatter thins out while the player moves or has a card open, and
+           the town only starts "talking" once the player truly explores. */
+        try {
+          if (__SP) {
+            __SP.playerMoving = !!moved;
+            if (!__SP.playerMoved && player.sx != null) {
+              var sdx = g.position.x - player.sx, sdz = g.position.z - player.sz;
+              if (sdx * sdx + sdz * sdz > 6.25) __SP.playerMoved = true;
+            }
+            var _pc = document.getElementById('pick-card');
+            __SP.menuOpen = !!(_pc && !_pc.hidden);
+            /* visible speech recedes while the player moves or reads a card */
+            try {
+              if (document.body) document.body.classList.toggle('bub-quiet',
+                !!(__SP.playerMoving || __SP.menuOpen));
+            } catch (eQ) {}
+          }
+        } catch (eSM) {}
         /* blink */
         player.blinkT -= dt;
         if (player.blinkT <= 0) { player.blinkP = 0.22; player.blinkT = 2 + Math.random() * 4; }
@@ -9918,6 +10201,7 @@ window.__village.jumpTo = function (beat) {
   /* ---------- hook-in: poll for window.__museWorld ---------- */
   var waited = 0;
   var timer = setInterval(function () {
+
     try {
       var W = null;
       try { W = window.__museWorld; } catch (e) {}
@@ -14345,11 +14629,11 @@ window.RowInteriors = { mount:mount, unmount:unmount, version:'v2.1.0-interiors-
 })();
 </script>
 <script>
-/* ===== Tidepals Pet Quarter module (window.Tidepals) ===== */
-/* Tidepals — Pet Quarter · Maker's Row (module build v1.1.0-pets)
- * Plain script. Exposes window.Tidepals = { mount(el), unmount() }.
+/* ===== RowPets Pet Quarter module (window.RowPets) ===== */
+/* RowPets — Pet Quarter · Maker's Row (module build v1.1.0-pets)
+ * Plain script. Exposes window.RowPets = { mount(el), unmount() }.
  * Converted from the standalone DeepSeek output; CSS is injected via
- * injectStyles() and scoped under .tp-app. No global styles, no assets,
+ * injectStyles() and scoped under .rpets-app. No global styles, no assets,
  * Web Audio only after first user gesture.
  */
 
@@ -14804,7 +15088,7 @@ async function refreshTown(){
   const next = await readTownState();
   state.town = next;
   if(hostEl){
-    const app = $('.tp-app', hostEl);
+    const app = $('.rpets-app', hostEl);
     if(app) app.dataset.phase = next.phase;
     renderPresence();
   }
@@ -15270,9 +15554,9 @@ function stopIdleLife(){
 
 const TP_CSS = `
   /* ============================================================
-     TIDEPALS MODULE STYLES — scoped under .tp-app
+     ROWPETS MODULE STYLES — scoped under .rpets-app
      ============================================================ */
-  .tp-app{
+  .rpets-app{
     --tp-cream-1:#FFF8EC; --tp-cream-2:#F5EDD8;
     --tp-ink:#4A3B2E; --tp-ink-soft:#8c6239;
     --tp-terra-1:#d9756b; --tp-terra-2:#c98a5e;
@@ -15296,17 +15580,17 @@ const TP_CSS = `
     overflow-x:hidden;
     padding-bottom:12px;
   }
-  .tp-app *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  .tp-app button{font-family:inherit;cursor:pointer;}
-  .tp-app h1,.tp-app h2,.tp-app h3{
+  .rpets-app *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  .rpets-app button{font-family:inherit;cursor:pointer;}
+  .rpets-app h1,.rpets-app h2,.rpets-app h3{
     font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
     font-weight:600; letter-spacing:.2px;
   }
 
   /* ---- phase background tint ---- */
-  .tp-app[data-phase="dawn"]{background:#f5edd8;}
-  .tp-app[data-phase="dusk"]{background:#f5edd8;}
-  .tp-app[data-phase="night"]{background:#f5edd8;}
+  .rpets-app[data-phase="dawn"]{background:#f5edd8;}
+  .rpets-app[data-phase="dusk"]{background:#f5edd8;}
+  .rpets-app[data-phase="night"]{background:#f5edd8;}
 
   /* ---------- Header ---------- */
   .tp-header{
@@ -15315,9 +15599,9 @@ const TP_CSS = `
     gap:8px; padding:12px 14px 10px;
     background:#F5EDD8;
   }
-  .tp-app[data-phase="dawn"] .tp-header{background:#F5EDD8;}
-  .tp-app[data-phase="dusk"] .tp-header{background:#F5EDD8;}
-  .tp-app[data-phase="night"] .tp-header{background:#F5EDD8;}
+  .rpets-app[data-phase="dawn"] .tp-header{background:#F5EDD8;}
+  .rpets-app[data-phase="dusk"] .tp-header{background:#F5EDD8;}
+  .rpets-app[data-phase="night"] .tp-header{background:#F5EDD8;}
 
   .tp-brand{display:flex; align-items:center; gap:9px; min-width:0;}
   .tp-brand-mark{flex:none; width:34px; height:34px;}
@@ -15393,9 +15677,9 @@ const TP_CSS = `
     overflow:hidden;
     transition:background .8s ease;
   }
-  .tp-app[data-phase="dawn"] .tp-stage{background:#F5EDD8;}
-  .tp-app[data-phase="dusk"] .tp-stage{background:#F5EDD8;}
-  .tp-app[data-phase="night"] .tp-stage{background:#7FB8C9;}
+  .rpets-app[data-phase="dawn"] .tp-stage{background:#F5EDD8;}
+  .rpets-app[data-phase="dusk"] .tp-stage{background:#F5EDD8;}
+  .rpets-app[data-phase="night"] .tp-stage{background:#7FB8C9;}
 
   /* (stage glow wash removed 2026-09-22: flat cartoon, no bloom) */
   .tp-bubble{
@@ -15444,14 +15728,14 @@ const TP_CSS = `
 
   .tp-foot-l,.tp-foot-r{transform-box:fill-box; transform-origin:center;}
 
-  .tp-app .tp-walking .tp-root{animation:tp-waddle .5s ease-in-out infinite;}
-  .tp-app .tp-walking .tp-foot-l{animation:tp-step-l .5s ease-in-out infinite;}
-  .tp-app .tp-walking .tp-foot-r{animation:tp-step-r .5s ease-in-out infinite;}
+  .rpets-app .tp-walking .tp-root{animation:tp-waddle .5s ease-in-out infinite;}
+  .rpets-app .tp-walking .tp-foot-l{animation:tp-step-l .5s ease-in-out infinite;}
+  .rpets-app .tp-walking .tp-foot-r{animation:tp-step-r .5s ease-in-out infinite;}
   @keyframes tp-waddle{0%,100%{transform:rotate(5deg);}50%{transform:rotate(-5deg);}}
   @keyframes tp-step-l{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-9px) rotate(-12deg);}}
   @keyframes tp-step-r{0%,100%{transform:translateY(-9px) rotate(12deg);}50%{transform:translateY(0) rotate(0);}}
 
-  .tp-app .tp-hopping .tp-root{animation:tp-hop-joy .78s cubic-bezier(.3,.8,.5,1);}
+  .rpets-app .tp-hopping .tp-root{animation:tp-hop-joy .78s cubic-bezier(.3,.8,.5,1);}
   @keyframes tp-hop-joy{
     0%{transform:translateY(0) scale(1.12,.82) rotate(0);}
     22%{transform:translateY(-78px) scale(.94,1.08) rotate(0);}
@@ -15460,12 +15744,12 @@ const TP_CSS = `
     100%{transform:translateY(0) scale(1,1) rotate(360deg);}
   }
 
-  .tp-app .tp-eating .tp-mouth-hungry{animation:tp-munch .22s ease-in-out infinite;}
+  .rpets-app .tp-eating .tp-mouth-hungry{animation:tp-munch .22s ease-in-out infinite;}
   @keyframes tp-munch{0%,100%{transform:scale(1,1);}50%{transform:scale(.86,.62);}}
   .tp-mouth-hungry{transform-box:fill-box; transform-origin:center;}
 
-  .tp-app .tp-washing .tp-bubbles{display:block !important;}
-  .tp-app .tp-washing .tp-breathe{animation:tp-shake .5s ease-in-out 3;}
+  .rpets-app .tp-washing .tp-bubbles{display:block !important;}
+  .rpets-app .tp-washing .tp-breathe{animation:tp-shake .5s ease-in-out 3;}
   @keyframes tp-shake{
     0%,100%{transform:translateX(0) rotate(0);}
     20%{transform:translateX(-5px) rotate(-3deg);}
@@ -15483,10 +15767,10 @@ const TP_CSS = `
     100%{transform:translateY(-64px) scale(1); opacity:0;}
   }
 
-  .tp-app .tp-sleepy .tp-eyes-open{display:none !important;}
-  .tp-app .tp-sleepy .tp-eyes-closed{display:block !important;}
-  .tp-app .tp-sleepy .tp-zzz{display:block !important;}
-  .tp-app .tp-sleepy .tp-breathe{animation-duration:4.4s;}
+  .rpets-app .tp-sleepy .tp-eyes-open{display:none !important;}
+  .rpets-app .tp-sleepy .tp-eyes-closed{display:block !important;}
+  .rpets-app .tp-sleepy .tp-zzz{display:block !important;}
+  .rpets-app .tp-sleepy .tp-breathe{animation-duration:4.4s;}
   .tp-zzz text{transform-box:fill-box; transform-origin:center; animation:tp-z 2.4s ease-in-out infinite;}
   .tp-zzz .tp-z2{animation-delay:.8s;}
   .tp-zzz .tp-z3{animation-delay:1.6s;}
@@ -16090,7 +16374,7 @@ function injectStyles(){
   styleInjected = true;
   try{
     const s = document.createElement('style');
-    s.setAttribute('data-tidepals', 'pets-v1');
+    s.setAttribute('data-rowpets', 'pets-v1');
     s.textContent = TP_CSS;
     document.head.appendChild(s);
   }catch(e){ /* ignore */ }
@@ -16830,7 +17114,7 @@ function checkGrowth(pet){
 
 function celLayer(){
   if(!hostEl) return null;
-  const app = $('.tp-app', hostEl) || hostEl;
+  const app = $('.rpets-app', hostEl) || hostEl;
   let layer = $('.tp-cel-layer', app);
   if(!layer){
     layer = document.createElement('div');
@@ -17346,7 +17630,7 @@ function stopTick(){
 
 function mount(el){
   if(mounted) unmount();
-  hostEl = el || document.getElementById('tidepals-host');
+  hostEl = el || document.getElementById('pets-host');
   if(!hostEl) return;
 
   injectStyles();
@@ -17412,7 +17696,7 @@ function unmount(){
    EXPOSE + AUTO-MOUNT (standalone demo)
    ================================================================ */
 
-window.Tidepals = {
+window.RowPets = {
   mount: mount,
   unmount: unmount,
   version: '1.1.0-pets'
@@ -17425,11 +17709,11 @@ if(document.readyState === 'loading'){
 }
 
 function autoMount(){
-  // standalone demo: mount into #tidepals-host when present
-  if(window.MakersRow && document.getElementById('tidepals-host')){
-    mount(document.getElementById('tidepals-host'));
-  } else if(document.getElementById('tidepals-host')){
-    mount(document.getElementById('tidepals-host'));
+  // standalone demo: mount into #pets-host when present
+  if(window.MakersRow && document.getElementById('pets-host')){
+    mount(document.getElementById('pets-host'));
+  } else if(document.getElementById('pets-host')){
+    mount(document.getElementById('pets-host'));
   }
 }
 
