@@ -4381,7 +4381,10 @@ def api_pet_of_handle(handle):
     row_pet_adoptions as the safety net for any dual-write gap."""
     ident = db.get_identity_by_handle(handle)
     if not ident:
-        return api_error("unknown handle", 404)
+        # Unknown handle: answer "no pet" with 200 instead of 404 so
+        # feed pet-badge fetches never spam the console for orphan
+        # authors (2026-09-25 redesign verification).
+        return jsonify({"ok": True, "adopted": False, "handle": handle})
     fm_id = ident["fm_id"]
     status = pet_status(db, fm_id)
     if not status:
