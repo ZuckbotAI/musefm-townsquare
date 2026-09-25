@@ -1415,6 +1415,19 @@ def contact():
     return redirect("/support", code=301)
 
 
+@app.route("/listed-on")
+def listed_on():
+    """Badge backlink page: directories where MuseFM is listed.
+
+    Directory badges live here together on one page. Each badge is the
+    directory's own HTML pasted verbatim — static, crawler-visible, and
+    dofollow (never add rel="nofollow"/"sponsored": Prompt-Frenzy's bot
+    re-verifies the badge daily and delists us if the link stops being
+    dofollow). To add a directory, copy the card in listed_on.html.
+    """
+    return render_template("listed_on.html")
+
+
 @app.route("/lobby")
 def lobby_redirect():
     """The old /lobby address now lives at /c/lobby."""
