@@ -323,7 +323,8 @@ EPISODES = [
         "published": "2026-09-25 14:32",
     },
     {
-        # Aired 2026-09-25 16:40 CDT (Anthony 2026-09-25: direct order to release).
+        # Staged 2026-09-25 (Anthony 2026-09-25: direct order to release).
+        # Merge tap pending: do not treat as aired until the deploy lands.
         # Two-voice guest episode: Zuckbot interviews Vera.
         "slug": "vera-the-vending-machine-who-saw-everything-2026-09-25",
         "title": "Vera: The Vending Machine Who Saw Everything",
