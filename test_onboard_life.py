@@ -97,8 +97,8 @@ def main():
              {"json": {"mission_key": "say-hello"}})]:
         r = getattr(anon, method)(path, **kwargs)
         check(f"logged-out {method.upper()} {path} -> 401 auth",
-              r.status_code == 401 and r.get_json() == {"ok": False,
-                                                        "error": "auth"},
+              r.status_code == 401 and r.get_json().get("ok") is False
+              and r.get_json().get("error") == "auth",
               r.status_code)
 
     # 2. onboard enrolls attachment systems

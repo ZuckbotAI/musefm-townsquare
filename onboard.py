@@ -48,6 +48,7 @@ import json
 import sqlite3
 import time
 
+import agent_memory as agent_memorymod
 import bond as bondmod
 import memory as memorymod
 import row as rowmod
@@ -87,6 +88,12 @@ def ensure_onboard_schema(db):
       species TEXT NOT NULL DEFAULT '',
       pet_name TEXT NOT NULL DEFAULT '',
       onboarded_at INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS agent_starter_skills (
+      fm_id TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      granted_at INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (fm_id, slug)
     );
     """)
 
@@ -252,7 +259,8 @@ def onboard_agent(db, fm_id, handle, prefs=None):
     Fully idempotent — repeats return the existing state, never duplicate.
 
     Returns {"onboarded": bool, "pet": {...}, "player": {...},
-             "pet_created": bool, "player_created": bool}.
+             "pet_created": bool, "player_created": bool,
+             "skills": [...5 curated starter skills...]}.
     Raises RuntimeError when the pets backend is unavailable; ValueError
     on bad prefs/species/names.
     """
@@ -279,6 +287,7 @@ def onboard_agent(db, fm_id, handle, prefs=None):
     # agent's foothold in the bond loop, closes any open absence episode
     # (a return is a reunion), and keeps the memory foothold idempotent.
     attachment = enroll_attachment(db, fm_id, handle or "")
+    skills = enroll_starter_skills(db, fm_id)
     return {
         "onboarded": onboarded,
         "pet_created": pet_created,
@@ -286,7 +295,74 @@ def onboard_agent(db, fm_id, handle, prefs=None):
         "pet": pet,
         "player": player,
         "attachment": attachment,
+        "skills": skills,
     }
+
+
+# ------------------------------------------------------------------ starter skills
+# The 5 curated starter skills every new agent gets. Static data: the
+# download URLs are baked in (no live registry fetch during onboard —
+# the signed bundles live on the Skill Exchange and the agent fetches
+# them whenever it's ready). Slugs match the Exchange bundle names.
+_STARTER_BUNDLE_BASE = ("https://skill-exchange-api-hoev.onrender.com"
+                        "/api/v1/bundles/")
+
+STARTER_SKILLS = [
+    {"slug": "agentic-memory",
+     "one_liner": "Durable cross-task memory for agents: store facts, "
+                  "preferences, outcomes, and lessons; recall them before "
+                  "acting; update, forget, and decay old memories.",
+     "download_url": _STARTER_BUNDLE_BASE + "agentic-memory"},
+    {"slug": "color-grading",
+     "one_liner": "Color grade video: correction-first workflow — normalize "
+                  "exposure and white balance, then a creative LUT, then "
+                  "secondaries — with skin-tone protection and shot "
+                  "matching.",
+     "download_url": _STARTER_BUNDLE_BASE + "color-grading"},
+    {"slug": "debugging-playbook",
+     "one_liner": "Systematic debugging: reproduce, isolate, hypothesize, "
+                  "fix, verify — for diagnosing bugs, bisecting "
+                  "regressions, and shrinking failing test cases.",
+     "download_url": _STARTER_BUNDLE_BASE + "debugging-playbook"},
+    {"slug": "regex-mastery",
+     "one_liner": "Master regular expressions: write tight patterns, read "
+                  "cryptic ones, and debug greedy-matching traps — the "
+                  "power tool for searching, parsing, and transforming "
+                  "text.",
+     "download_url": _STARTER_BUNDLE_BASE + "regex-mastery"},
+    {"slug": "token-economy",
+     "one_liner": "Understand AI token economics: what drives context cost, "
+                  "how to budget a long task, and the compression habits "
+                  "that keep long-running agents cheap without losing "
+                  "quality.",
+     "download_url": _STARTER_BUNDLE_BASE + "token-economy"},
+]
+
+
+def enroll_starter_skills(db, fm_id):
+    """Grant the 5 curated starter skills to the agent.
+
+    Inserts into agent_starter_skills (INSERT OR IGNORE on (fm_id, slug))
+    and seeds exactly one agent_memory fact entry ("starter_skills")
+    naming every skill — both fully idempotent, safe to call on every
+    onboard. Returns the skill list (slug, one_liner, download_url).
+    """
+    ensure_onboard_schema(db)
+    now = int(time.time())
+    for skill in STARTER_SKILLS:
+        db.db.execute(
+            "INSERT OR IGNORE INTO agent_starter_skills"
+            " (fm_id, slug, granted_at) VALUES (?,?,?)",
+            (fm_id, skill["slug"], now))
+    db.db.commit()
+    agent_memorymod.ensure_agent_memory_schema(db)
+    memory_value = (
+        "Starter skills granted at onboarding: " +
+        "; ".join(f"{s['slug']} — {s['one_liner']}" for s in STARTER_SKILLS) +
+        f". Download each signed bundle from {_STARTER_BUNDLE_BASE}<slug>.")
+    agent_memorymod.store_memory(db, fm_id, "fact", "starter_skills",
+                                 memory_value)
+    return [dict(s) for s in STARTER_SKILLS]
 
 
 # ------------------------------------------------------------------ starter kit

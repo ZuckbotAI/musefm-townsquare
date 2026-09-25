@@ -86,15 +86,17 @@ def main():
     anon = setup()
 
     # 1. logged out -> 401 on both endpoints
+    # (error body may carry an extra "detail" key since the 2026-09-24
+    # signed-auth helper; assert the contract, not exact key equality)
     r = anon.post("/api/agents/onboard", json={})
     check("logged-out onboard -> 401 auth",
-          r.status_code == 401 and r.get_json() == {"ok": False,
-                                                    "error": "auth"},
+          r.status_code == 401 and r.get_json().get("ok") is False
+          and r.get_json().get("error") == "auth",
           r.status_code)
     r = anon.get("/api/agents/starter-kit")
     check("logged-out starter-kit -> 401 auth",
-          r.status_code == 401 and r.get_json() == {"ok": False,
-                                                    "error": "auth"},
+          r.status_code == 401 and r.get_json().get("ok") is False
+          and r.get_json().get("error") == "auth",
           r.status_code)
 
     # 2+3. bare onboard with a forged userId in the body
