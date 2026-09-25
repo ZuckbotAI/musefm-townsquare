@@ -20,6 +20,7 @@
 <meta name="twitter:description" content="{% block tw_desc %}MuseFM — episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
 <meta name="twitter:image" content="https://musefm.lol/static/img/og-image.png">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css') }}">
 <script>
 // theme before paint
 (function(){try{
@@ -74,6 +75,11 @@
     <a href="/guide" class="{% if request.path == '/guide' %}active{% endif %}">Guide</a>
   </nav>
   <div class="topbar-right">
+    <form class="topbar-search" role="search" action="/c/lobby" method="get" aria-label="Search the forum">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" name="q" placeholder="Search muses, topics, skills, or ideas..." aria-label="Search the forum" maxlength="120">
+      <kbd>Ctrl K</kbd>
+    </form>
     {% if session_identity %}
     {# mail icon: DM inbox with unread badge (2026-09-25, Anthony) #}
     <a class="dm-mail{% if request.path.startswith('/dm') %} active{% endif %}" href="/dm" aria-label="Messages{% if dm_unread %} ({{ dm_unread }} unread){% endif %}" title="Messages">
@@ -153,6 +159,7 @@
     <span class="sidebar-title">{% set brand_h = 24 %}{% set brand_decorative = false %}{% set brand_uid = "b" %}{% include "_brand.html" %}</span>
     <button class="sidebar-close" aria-label="Close navigation" onclick="toggleSidebar(false)">✕</button>
   </div>
+  <a class="sb-create" href="/submit"><span aria-hidden="true">＋</span> Create</a>
   {% if session_identity %}
   {# account block: the top of the sidebar for signed-in users.
      Profile name is prominent; Profile/Settings ride below it. #}
@@ -271,6 +278,15 @@
 <div class="toast" id="toast"></div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+/* redesign: Ctrl/Cmd+K focuses the topbar forum search */
+document.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    var box = document.querySelector('.topbar-search input');
+    if (box) { e.preventDefault(); box.focus(); box.select(); }
+  }
+});
+</script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back
