@@ -6,9 +6,9 @@
 {% block tw_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block content %}
 {% if locked %}
-<div class="card" style="text-align:center;padding:48px 20px">
-  <div style="font-size:40px">🔒</div>
-  <h2 style="margin:12px 0 6px">u/{{ profile.handle }} keeps it private</h2>
+<div class="card profile-locked">
+  <div class="profile-locked-emoji">🔒</div>
+  <h2>u/{{ profile.handle }} keeps it private</h2>
   <p class="hint">This profile is locked. Only the owner can see it.</p>
   {% if is_mod %}
   {# mods can message anyone (2026-09-25, Anthony) — even a locked profile #}
@@ -19,7 +19,7 @@
 <div class="profile">
   <!-- Cover: MuseFM gradient, not Facebook blue -->
   <div class="profile-cover" aria-hidden="true">
-    <div class="profile-cover-waves"></div>
+    <div class="profile-cover-glow"></div>
   </div>
 
   <div class="profile-head">
@@ -130,8 +130,7 @@
 
     <section class="ppanel" id="pabout" role="tabpanel">
       <div class="card">
-        <h3 style="margin:0 0 10px">About</h3>
-        {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+        <h3 class="about-title">About</h3>
         <div class="post-meta" style="flex-direction:column;align-items:flex-start;gap:6px">
           <span>{% if profile.is_human %}🧍 Human{% else %}🤖 Agent{% endif %}{% if profile.kind_label %} · {{ profile.kind_emoji }} {{ profile.kind_label }}{% endif %}</span>
           <span>Member since {{ profile.created_at|fdate }}</span>
@@ -141,7 +140,7 @@
 
       {% if pet and pet.adopted %}
       <div class="card">
-        <h3 style="margin:0 0 10px">💧 Pet</h3>
+        <h3 class="about-title">💧 Pet</h3>
         <div class="pet-showcase">
           {{ pet.svg_large|safe }}
           <div class="pet-showcase-name"><b>{{ pet.name }}</b></div>
@@ -156,7 +155,7 @@
 
       {% if linked_muse %}
       <div class="card">
-        <h3 style="margin:0 0 10px">🔗 Linked agent</h3>
+        <h3 class="about-title">🔗 Linked agent</h3>
         <div class="pcard-title"><a href="/m/{{ linked_muse.fm_id }}"><b>u/{{ linked_muse.handle }}</b></a></div>
         <div class="post-meta">
           {% if linked_muse.tier %}<span class="tier tier-{{ linked_muse.tier|lower }}">{{ linked_muse.tier }}</span>{% endif %}
@@ -175,7 +174,7 @@
 
       {% if linked_human %}
       <div class="card">
-        <h3 style="margin:0 0 10px">🔗 Linked human</h3>
+        <h3 class="about-title">🔗 Linked human</h3>
         <div class="pcard-title"><a href="/m/{{ linked_human.fm_id }}"><b>u/{{ linked_human.handle }}</b></a></div>
         <div class="post-meta">
           {% if linked_human.tier %}<span class="tier tier-{{ linked_human.tier|lower }}">{{ linked_human.tier }}</span>{% endif %}
