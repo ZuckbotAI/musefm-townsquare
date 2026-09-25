@@ -2055,6 +2055,17 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .notif-badge { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px;
   border-radius: 10px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+/* ---- topbar mail icon: DM inbox (2026-09-25) ---- */
+.dm-mail { position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 12px; color: var(--text-2); text-decoration: none; }
+.dm-mail:hover { background: var(--glass); color: var(--text); }
+.dm-mail.active { color: var(--accent); }
+.dm-mail-badge { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 10px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+/* ---- profile Message button + dm owner note ---- */
+.profile-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.dm-owner-note { margin: 10px 14px 0; font-size: 12px; color: var(--text-3); }
 .notif-list { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .notif-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px;
   border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-soft, transparent); }
@@ -2485,91 +2496,112 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   .dm-search input { width: 110px; }
 }
 
-/* ---- Profile pages: 2026 standard, MuseFM's own take ---- */
+/* ---- Profile pages: 2026 standard, MuseFM's own take ----
+   2026-09-25 polish (Anthony: "modern spruce"): cover keeps the MuseFM
+   gradient (brand) but drops the dated stripe texture for soft light;
+   stat boxes become a clean divider row; tabs slim down; type tightens. */
 .profile { max-width: 920px; margin: 0 auto 32px; }
 .profile-cover {
   height: 210px; border-radius: var(--radius) var(--radius) 0 0;
   background: linear-gradient(115deg, #0b1e3a 0%, #123a6b 34%, #0070c0 62%, #00b8e7 82%, #7ce7ff 100%);
   position: relative; overflow: hidden;
 }
-.profile-cover-waves {
-  position: absolute; inset: 0; opacity: .35;
-  background: repeating-linear-gradient(90deg,
-    rgba(255,255,255,.14) 0 2px, transparent 2px 14px);
-  mask-image: linear-gradient(to top, black 30%, transparent 90%);
-  -webkit-mask-image: linear-gradient(to top, black 30%, transparent 90%);
+.profile-cover-glow {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(420px 200px at 18% 115%, rgba(255,255,255,.20), transparent 60%),
+    radial-gradient(560px 260px at 85% -20%, rgba(124,231,255,.32), transparent 62%),
+    radial-gradient(320px 300px at 58% 125%, rgba(0,112,192,.38), transparent 65%);
 }
 .profile-cover::after {
   content: ""; position: absolute; inset: auto 0 0 0; height: 70px;
   background: linear-gradient(to top, rgba(4,12,28,.45), transparent);
 }
 .profile-head {
-  display: flex; gap: 20px; align-items: flex-end;
+  display: flex; gap: 22px; align-items: flex-end;
   padding: 0 24px; margin-top: -64px; position: relative; z-index: 1;
 }
 .profile-avatar {
   width: 128px; height: 128px; border-radius: 50%; object-fit: cover;
-  border: 5px solid var(--bg-base); box-shadow: var(--shadow-card);
+  border: 4px solid var(--bg-base);
+  box-shadow: var(--shadow-card), 0 0 0 1px var(--glass-border);
   background: var(--glass-strong); flex: none;
 }
-.profile-name { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.01em; }
-.profile-badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.profile-bio { margin: 10px 0 0; color: var(--text-2); max-width: 560px; }
-.profile-actions { margin-top: 12px; }
+.profile-name {
+  margin: 0 0 8px; font-size: 31px; font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1.1;
+}
+.profile-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.profile-bio { margin: 12px 0 0; color: var(--text-2); max-width: 600px; font-size: 15px; line-height: 1.6; }
+.profile-actions { margin-top: 14px; }
+/* Stats: one clean divider row instead of five boxes. */
 .profile-stats {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  margin: 18px 0 0; padding: 0 24px;
+  display: flex; flex-wrap: wrap; align-items: center;
+  margin: 22px 0 0; padding: 0 24px; row-gap: 12px;
 }
-.pstat {
-  background: var(--glass); border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm); padding: 10px 16px; text-align: center;
-  box-shadow: var(--shadow-card); min-width: 86px;
-}
-.pstat b { display: block; font-size: 17px; }
-.pstat span { font-size: 12px; color: var(--text-3); }
+.pstat { padding: 2px 20px; min-width: 0; }
+.pstat:first-child { padding-left: 0; }
+.pstat + .pstat { border-left: 1px solid var(--glass-edge); }
+.pstat b { display: block; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.pstat span { font-size: 12px; color: var(--text-3); letter-spacing: 0.02em; }
 .profile-tabs {
-  display: flex; gap: 4px; margin: 20px 0 0; padding: 0 24px;
-  border-bottom: 2px solid var(--glass-edge); overflow-x: auto;
+  display: flex; gap: 2px; margin: 22px 0 0; padding: 0 24px;
+  border-bottom: 1px solid var(--glass-edge); overflow-x: auto;
 }
 .ptab {
-  background: none; border: none; padding: 12px 16px; font-size: 15px;
-  font-weight: 600; color: var(--text-3); cursor: pointer;
-  border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap;
-  font-family: var(--font);
+  background: none; border: none; padding: 11px 15px; font-size: 14px;
+  font-weight: 700; color: var(--text-3); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  font-family: var(--font); transition: color .15s var(--ease);
 }
 .ptab:hover { color: var(--text); }
 .ptab.active { color: var(--accent-deep); border-bottom-color: var(--accent); }
 [data-theme="dark"] .ptab.active { color: var(--accent); }
-.profile-panels { padding: 18px 24px 0; }
+.profile-panels { padding: 20px 24px 0; }
 .ppanel { display: none; }
 .ppanel.active { display: block; animation: ppanel-in .25s var(--ease); }
 @keyframes ppanel-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pcard {
   background: var(--glass); border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 12px;
+  border-radius: var(--radius-sm); padding: 16px 18px; margin-bottom: 12px;
   box-shadow: var(--shadow-card);
 }
-.pcard-title { font-weight: 700; font-size: 16px; }
-.pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pcard-title { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.pcard-title a { color: inherit; text-decoration: none; }
+.pcard-title a:hover { color: var(--accent-deep); }
+[data-theme="dark"] .pcard-title a:hover { color: var(--accent); }
+.pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .pgrid-item {
   position: relative; aspect-ratio: 1; border-radius: var(--radius-sm);
   overflow: hidden; background: var(--glass-deep); display: block;
+  border: 1px solid var(--glass-border);
 }
-.pgrid-item img, .pgrid-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pgrid-item img, .pgrid-item video {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform .35s var(--ease);
+}
+.pgrid-item:hover img, .pgrid-item:hover video { transform: scale(1.045); }
 .pgrid-cap {
   position: absolute; inset: auto 0 0 0; padding: 18px 10px 8px;
   background: linear-gradient(to top, rgba(0,0,0,.65), transparent);
   color: #fff; font-size: 12px; font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Locked profiles and About cards: no inline styles. */
+.profile-locked { text-align: center; padding: 56px 24px; }
+.profile-locked-emoji { font-size: 44px; }
+.profile-locked h2 { margin: 14px 0 8px; font-size: 22px; letter-spacing: -0.01em; }
+.about-title { margin: 0 0 12px; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
 @media (max-width: 640px) {
   .profile-cover { height: 140px; border-radius: 0; }
   .profile-head { flex-direction: column; align-items: center; text-align: center; margin-top: -56px; padding: 0 16px; }
   .profile-avatar { width: 112px; height: 112px; }
   .profile-badges { justify-content: center; }
   .profile-stats, .profile-tabs, .profile-panels { padding-left: 16px; padding-right: 16px; }
-  .pstat { min-width: 0; flex: 1; padding: 8px 6px; }
-  .pstat b { font-size: 15px; }
+  .pstat { padding: 2px 12px; }
+  .pstat:first-child { padding-left: 12px; }
+  .pstat + .pstat { border-left: none; }
+  .pstat b { font-size: 17px; }
   .pgrid { grid-template-columns: repeat(2, 1fr); }
 }
 

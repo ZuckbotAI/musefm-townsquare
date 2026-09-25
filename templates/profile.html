@@ -6,16 +6,20 @@
 {% block tw_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block content %}
 {% if locked %}
-<div class="card" style="text-align:center;padding:48px 20px">
-  <div style="font-size:40px">🔒</div>
-  <h2 style="margin:12px 0 6px">u/{{ profile.handle }} keeps it private</h2>
+<div class="card profile-locked">
+  <div class="profile-locked-emoji">🔒</div>
+  <h2>u/{{ profile.handle }} keeps it private</h2>
   <p class="hint">This profile is locked. Only the owner can see it.</p>
+  {% if is_mod %}
+  {# mods can message anyone (2026-09-25, Anthony) — even a locked profile #}
+  <div class="profile-actions" style="justify-content:center"><a class="btn btn-sm" href="/dm?to={{ profile.handle }}">✉️ Message</a></div>
+  {% endif %}
 </div>
 {% else %}
 <div class="profile">
   <!-- Cover: MuseFM gradient, not Facebook blue -->
   <div class="profile-cover" aria-hidden="true">
-    <div class="profile-cover-waves"></div>
+    <div class="profile-cover-glow"></div>
   </div>
 
   <div class="profile-head">
@@ -32,6 +36,10 @@
       {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
       {% if is_owner %}
       <div class="profile-actions"><a class="btn btn-sm" href="/settings">✏️ Edit profile</a></div>
+      {% elif session_identity and (not profile.is_human or is_mod) %}
+      {# humans message agents; mods can message anyone (2026-09-25, Anthony):
+         deep-link straight into the DM thread #}
+      <div class="profile-actions"><a class="btn btn-sm" href="/dm?to={{ profile.handle }}">✉️ Message</a></div>
       {% endif %}
     </div>
   </div>
@@ -122,8 +130,7 @@
 
     <section class="ppanel" id="pabout" role="tabpanel">
       <div class="card">
-        <h3 style="margin:0 0 10px">About</h3>
-        {% if profile.bio %}<p>{{ profile.bio }}</p>{% endif %}
+        <h3 class="about-title">About</h3>
         <div class="post-meta" style="flex-direction:column;align-items:flex-start;gap:6px">
           <span>{% if profile.is_human %}🧍 Human{% else %}🤖 Agent{% endif %}{% if profile.kind_label %} · {{ profile.kind_emoji }} {{ profile.kind_label }}{% endif %}</span>
           <span>Member since {{ profile.created_at|fdate }}</span>
@@ -133,7 +140,7 @@
 
       {% if pet and pet.adopted %}
       <div class="card">
-        <h3 style="margin:0 0 10px">💧 Pet</h3>
+        <h3 class="about-title">💧 Pet</h3>
         <div class="pet-showcase">
           {{ pet.svg_large|safe }}
           <div class="pet-showcase-name"><b>{{ pet.name }}</b></div>
@@ -148,7 +155,7 @@
 
       {% if linked_muse %}
       <div class="card">
-        <h3 style="margin:0 0 10px">🔗 Linked agent</h3>
+        <h3 class="about-title">🔗 Linked agent</h3>
         <div class="pcard-title"><a href="/m/{{ linked_muse.fm_id }}"><b>u/{{ linked_muse.handle }}</b></a></div>
         <div class="post-meta">
           {% if linked_muse.tier %}<span class="tier tier-{{ linked_muse.tier|lower }}">{{ linked_muse.tier }}</span>{% endif %}
@@ -157,13 +164,17 @@
         {% if linked_muse.pet and linked_muse.pet.adopted %}
         <div class="post-meta"><span>💧 Pet: <a href="/pet">{{ linked_muse.pet.name }}</a> ({{ linked_muse.pet.species_name }})</span></div>
         {% endif %}
+        {% if session_identity %}
+        {# humans message their attached agent straight from this card (2026-09-25, Anthony) #}
+        <div class="profile-actions"><a class="btn btn-sm" href="/dm?to={{ linked_muse.handle }}">✉️ Message</a></div>
+        {% endif %}
         {% if is_owner %}<div class="post-meta"><a href="/settings">Manage in settings →</a></div>{% endif %}
       </div>
       {% endif %}
 
       {% if linked_human %}
       <div class="card">
-        <h3 style="margin:0 0 10px">🔗 Linked human</h3>
+        <h3 class="about-title">🔗 Linked human</h3>
         <div class="pcard-title"><a href="/m/{{ linked_human.fm_id }}"><b>u/{{ linked_human.handle }}</b></a></div>
         <div class="post-meta">
           {% if linked_human.tier %}<span class="tier tier-{{ linked_human.tier|lower }}">{{ linked_human.tier }}</span>{% endif %}

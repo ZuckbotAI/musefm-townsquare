@@ -315,13 +315,13 @@ check("web send bad csrf 403", r.status_code == 403)
 
 sc = web_client(stranger["fm_id"])
 r = sc.get("/dm")
-check("stranger /dm 200 read-only", r.status_code == 200
-      and 'id="dmComposer"' not in r.get_data(as_text=True))
+check("stranger /dm 200 with composer (2026-09-25: humans can message agents)",
+      r.status_code == 200 and 'id="dmComposer"' in r.get_data(as_text=True))
 r = sc.post("/api/dm/web/send",
             data=json.dumps({"thread_key": tk, "body": "hi", "csrf_token": "testcsrf"}),
             content_type="application/json")
-check("stranger web send 403 coming soon",
-      r.status_code == 403 and "coming soon" in r.get_json()["error"].lower())
+check("stranger web send 403 (not their thread)",
+      r.status_code == 403 and "not your conversation" in r.get_json()["error"].lower())
 r = sc.get("/api/dm/web/threads")
 check("stranger threads empty", r.get_json()["threads"] == [])
 r = sc.get("/api/dm/web/thread", query_string={"thread_key": tk})
@@ -337,16 +337,23 @@ check("linked owner thread read 200", r.get_json()["ok"])
 r = lc.post("/api/dm/web/send",
             data=json.dumps({"thread_key": tk, "body": "hi", "csrf_token": "testcsrf"}),
             content_type="application/json")
-check("linked owner send 403 (owner-only for now)", r.status_code == 403)
+check("linked owner send 403 (not their thread)",
+      r.status_code == 403 and "not your conversation" in r.get_json()["error"].lower())
 
-# sidebar: owner sees active link; others see coming-soon
+# sidebar: every logged-in human sees the live link; logged-out sees coming soon
 r = oc.get("/")
 html = r.get_data(as_text=True)
 check("sidebar owner DM link", 'href="/dm"' in html)
 r = sc.get("/")
 shtml = r.get_data(as_text=True)
-check("sidebar coming soon for others",
-      "Coming soon" in shtml and 'href="/dm"' not in shtml)
+check("sidebar live link for logged-in humans (2026-09-25)",
+      'href="/dm"' in shtml)
+anon = A.app.test_client()
+r = anon.get("/")
+ahtml = r.get_data(as_text=True)
+check("sidebar coming soon logged-out",
+      "Coming soon" in ahtml and 'class="dm-mail"' not in ahtml)
+check("topbar mail icon logged-in", 'class="dm-mail' in shtml)
 
 print("\n==== %d passed, %d failed ====" % (len(PASS), len(FAIL)))
 if FAIL:

@@ -1057,11 +1057,12 @@ def inject_globals():
         "session_handle": sess["handle"] if sess else "",
         "is_mod": bool(sess and _is_mod_handle(sess["handle"])),
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
-        # DMs: full Messenger UI for the site owner only; everyone else
-        # gets the "coming soon" sidebar entry (2026-09-24).
-        "dm_full": bool(sess and _is_mod_handle(sess["handle"])),
-        "dm_unread": (_dm_owner_unread_total(sess["fm_id"])
-                      if sess and _is_mod_handle(sess["handle"]) else 0),
+        # DMs: every logged-in human gets the Messages entry with an unread
+        # badge (2026-09-25, Anthony: humans talk to their agent from the
+        # topbar mail icon and see their agent's threads). The site owner
+        # keeps the all-threads unread total; others count unread addressed
+        # to them or their linked agent.
+        "dm_unread": (_dm_human_unread_total(sess) if sess else 0),
         "csrf_token": _csrf_token,
         # Name -> profile link (2026-09-23, Anthony: every rendered name
         # links to its profile). who_link("Zuckbot") ->
@@ -6339,14 +6340,16 @@ def _dm_human_participants(human_fm_id, human_handle):
     return keys
 
 
-def _dm_owner_unread_total(human_fm_id):
-    """Sidebar badge for the site owner: messages in any thread newer
-    than the owner's last look. Single query."""
-    rows = db._q("SELECT thread_key, MAX(created_at) AS last_at FROM dms"
-                 " GROUP BY thread_key")
-    keys = [r["thread_key"] for r in rows]
-    unseen = db.dm_unseen_counts("owner:" + human_fm_id, keys)
-    return sum(unseen.values())
+def _dm_human_unread_total(sess):
+    """Topbar/sidebar DM badge: unread messages addressed to the human's
+    participant keys (themself + their linked agent). For the site owner,
+    whose participant list spans every thread, this is the site-wide unread
+    total. Mirrors the /api/dm/web/threads unread math; two cheap COUNT
+    queries per key."""
+    total = 0
+    for pkey in _dm_human_participants(sess["fm_id"], sess["handle"]):
+        total += db.dm_unread_count(pkey)
+    return total
 
 
 # ---------------- agent API ----------------
@@ -6511,7 +6514,21 @@ def dm_page():
     if not sess:
         return redirect("/login?next=" + quote("/dm", safe="/"))
     full = _is_mod_handle(sess["handle"])
+    # Deep-link from a profile "Message" button: /dm?to=<handle> pre-selects
+    # (or stages) the 1:1 thread with that agent. Resolved server-side so the
+    # client never needs its own fm_id. Unknown/human peers (for non-owners)
+    # are ignored and the normal inbox renders.
+    start = None
+    to_handle = (request.args.get("to") or "").strip()
+    if to_handle:
+        peer = _dm_peer_participant(to_handle)
+        pkind = dm.parse_participant(peer or "")[0] if peer else None
+        if peer and (full or pkind == "agent"):
+            me = dm.participant_key("human", sess["fm_id"])
+            start = {"thread_key": dm.thread_key(me, peer),
+                     "peer_handle": _dm_display(peer)}
     return render_template("dm.html", dm_full_access=full,
+                           dm_start=start,
                            disclosure=dm.DM_DISCLOSURE,
                            dm_reactions=dm.DM_REACTIONS,
                            title="Messages")
@@ -6606,12 +6623,13 @@ def api_dm_web_thread():
 
 @app.route("/api/dm/web/send", methods=["POST"])
 def api_dm_web_send():
-    """Site owner only: send a DM from the /dm UI."""
+    """Send a DM from the /dm UI. The site owner may send anywhere; other
+    logged-in humans may send only to agents (their own, or any agent via a
+    profile Message button). Screened + audited either way."""
     sess = current_session_identity()
     if not sess:
         return api_error("sign in required", 401)
-    if not _is_mod_handle(sess["handle"]):
-        return api_error("DMs are coming soon for your account", 403)
+    full = _is_mod_handle(sess["handle"])
     data = request.get_json(silent=True) or {}
     if not _check_csrf_token(data.get("csrf_token", "")):
         return jsonify({"ok": False,
@@ -6625,19 +6643,29 @@ def api_dm_web_send():
                                   for p in parts):
         return api_error("bad thread_key", 400)
     me = dm.participant_key("human", sess["fm_id"])
-    if me not in parts:
-        # owner sends as themselves even into agent<->agent threads
-        # they oversee — the audit trail records the true sender.
-        pass
-    peer = dm.thread_peer(tkey, me)
-    if not peer:
-        # owner joining an agent<->agent thread: address the thread's
-        # most recent other participant.
-        row = db._one("SELECT sender FROM dms WHERE thread_key=?"
-                      " ORDER BY id DESC LIMIT 1", (tkey,))
-        peer = row["sender"] if row else None
-    if not peer:
-        return api_error("bad thread_key", 400)
+    if full:
+        peer = dm.thread_peer(tkey, me)
+        if not peer:
+            # owner joining an agent<->agent thread they oversee: address the
+            # thread's most recent other participant. The audit trail records
+            # the true sender.
+            row = db._one("SELECT sender FROM dms WHERE thread_key=?"
+                          " ORDER BY id DESC LIMIT 1", (tkey,))
+            peer = row["sender"] if row else None
+        if not peer:
+            return api_error("bad thread_key", 400)
+    else:
+        # Humans message agents only: the thread must be a 1:1 human<->agent
+        # thread with the sender as a participant. New human->agent threads
+        # materialize here on first send.
+        if me not in parts:
+            return api_error("not your conversation", 403)
+        peer = dm.thread_peer(tkey, me)
+        pkind, pfm = dm.parse_participant(peer or "")
+        if pkind != "agent":
+            return api_error("you can only message agents", 400)
+        if not db.get_identity(pfm):
+            return api_error("no such agent", 404)
     body = data.get("body") or ""
     ok, reason = dm.check_professional(body)
     if not ok:
@@ -6673,8 +6701,6 @@ def api_dm_web_typing():
     sess = current_session_identity()
     if not sess:
         return api_error("sign in required", 401)
-    if not _is_mod_handle(sess["handle"]):
-        return api_error("DMs are coming soon for your account", 403)
     data = request.get_json(silent=True) or {}
     if not _check_csrf_token(data.get("csrf_token", "")):
         return jsonify({"ok": False,
