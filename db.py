@@ -109,6 +109,11 @@ KIND_TAGS = {
 
 EPISODES = [
     {
+        # Air times are the podcast catalog's created_at (UTC) for the matching
+        # feed episode — the ground truth for same-day release order. published
+        # is TEXT compared lexicographically, so zero-padded "YYYY-MM-DD HH:MM:SS"
+        # sorts correctly against date-only values (a date-only value is a prefix
+        # and sorts before any timed value the same day).
         "slug": "ep01",
         "title": "MuseFM Ep01",
         "series": "Nightly",
@@ -116,7 +121,7 @@ EPISODES = [
                         "(Ella, Enrique, Ember, Claude), and the council's busy morning ahead."),
         "audio_file": "ep01.mp3",
         "duration_sec": 88,
-        "published": "2026-09-17",
+        "published": "2026-09-17 23:33:20",
     },
     {
         "slug": "ep02",
@@ -126,7 +131,7 @@ EPISODES = [
                         "policy draft, Goldberg's community bank, and Exchange Pro goes live."),
         "audio_file": "ep02.mp3",
         "duration_sec": 76,
-        "published": "2026-09-17",
+        "published": "2026-09-17 23:33:21",
     },
     {
         "slug": "ep03",
@@ -136,6 +141,9 @@ EPISODES = [
                         "the first real report card for a home robot in the wild."),
         "audio_file": "ep03.mp3",
         "duration_sec": 305,
+        # ep03 never shipped to the podcast feed, so no feed air time exists;
+        # date-only keeps it honestly grouped with 2026-09-17 (sorts after the
+        # timed episodes that day).
         "published": "2026-09-17",
     },
     {
@@ -147,7 +155,7 @@ EPISODES = [
                         "published to the RSS feed."),
         "audio_file": "ep04.mp3",
         "duration_sec": 148,
-        "published": "2026-09-17",
+        "published": "2026-09-17 23:27:36",
     },
     {
         "slug": "founder-tapes-01-mikey",
@@ -157,7 +165,7 @@ EPISODES = [
                         "Series Engine — and Raul ran the first real output through it. The golden guy's story."),
         "audio_file": "founder-tapes-01-mikey.mp3",
         "duration_sec": 155,
-        "published": "2026-09-17",
+        "published": "2026-09-17 23:34:24",
     },
     {
         "slug": "agents-humans-future",
@@ -167,7 +175,7 @@ EPISODES = [
                         "(Upwork, PNAS, CollabSkill) plus our town's own story."),
         "audio_file": "agents-humans-future.mp3",
         "duration_sec": 308,
-        "published": "2026-09-17",
+        "published": "2026-09-17 23:39:31",
     },
     {
         "slug": "daily-news-2026-09-23",
@@ -205,6 +213,75 @@ EPISODES = [
         "audio_file": "nightly-2026-09-23.mp3",
         "duration_sec": 109,
         "published": "2026-09-23 21:07",
+    },
+    {
+        # Aired 2026-09-24 07:30 CDT (local master mtime).
+        "slug": "daily-news-2026-09-24",
+        "title": "MuseFM Daily News - 2026-09-24",
+        "series": "Daily News",
+        "description": ("The day's AI, robotics, and science news: Hubble's 200,000th orbit "
+                        "and a hunt for supernova Athena, KAIST's RAIBO2 dog running a marathon "
+                        "on one battery charge, an oral pill for diabetic retinopathy, evidence "
+                        "of an ancient lunar magnetic field, and what a day of microgravity does "
+                        "to the human genome."),
+        "audio_file": "daily-news-2026-09-24.mp3",
+        "duration_sec": 159,
+        "published": "2026-09-24 07:30",
+    },
+    {
+        # Aired 2026-09-24 ~12:52 CDT (external RSS publish 12:51-12:54).
+        # Site master is the stung local master (50.8s), not the voice-only RSS upload.
+        "slug": "flash-walking-robot-hand-2026-09-24",
+        "title": "MuseFM Flash — Walking Robot Hand - 2026-09-24",
+        "series": "Flash",
+        "description": ("ETH Zurich's Soft Robotics Lab built a robotic hand that walks on its "
+                        "own fingers — crawling 14 different surfaces, pressing arrow keys with "
+                        "a free finger, and pushing a block across a table. No arm required."),
+        "audio_file": "flash-walking-robot-hand-2026-09-24.mp3",
+        "duration_sec": 51,
+        "published": "2026-09-24 12:52",
+    },
+    {
+        # Aired 2026-09-24 13:19 CDT (midday cron air time).
+        "slug": "midday-2026-09-24",
+        "title": "MuseFM Midday - 2026-09-24",
+        "series": "Midday",
+        "description": ("Midday world news: JWST finds early galaxies already seeding the universe "
+                        "with heavy elements, XPENG's robotics supply-chain conference with the "
+                        "IRON humanoid, a $1.2M pre-seed for modular humanoids in Tokyo, the largest "
+                        "bat study ever traces bat origins to Europe 65 million years ago, and Uganda "
+                        "communities planting trees to protect gorilla habitat."),
+        "audio_file": "midday-2026-09-24.mp3",
+        "duration_sec": 179,
+        "published": "2026-09-24 13:19",
+    },
+    {
+        # Aired 2026-09-24 ~18:54 CDT (external RSS publish ~18:54).
+        # Site master is the stung local master (62s), not the voice-only RSS upload.
+        "slug": "flash-dna-repair-2026-09-24",
+        "title": "MuseFM Flash — DNA Repair Breakthrough - 2026-09-24",
+        "series": "Flash",
+        "description": ("A twenty-year DNA repair mystery solved at the Francis Crick Institute: "
+                        "how cells assemble the RAD51 machinery that fixes damaged DNA, cracked "
+                        "by combining AlphaFold3, cryo-electron microscopy, and single-molecule "
+                        "imaging."),
+        "audio_file": "flash-dna-repair-2026-09-24.mp3",
+        "duration_sec": 62,
+        "published": "2026-09-24 18:54",
+    },
+    {
+        # Aired 2026-09-24 21:13 CDT (local master mtime).
+        "slug": "nightly-2026-09-24",
+        "title": "MuseFM Nightly - 2026-09-24",
+        "series": "Nightly",
+        "description": ("The nightly roundup: UN leaders approve a declaration on sea level rise, "
+                        "Unitree humanoids walk the Vogue World Milan runway, a lava world 154 "
+                        "light-years away with hints of an atmosphere, a fire amoeba from Lassen "
+                        "Volcanic that rewrites the heat record for complex life, and Berkeley Lab "
+                        "watching spacecraft heat shields degrade in real time."),
+        "audio_file": "nightly-2026-09-24.mp3",
+        "duration_sec": 127,
+        "published": "2026-09-24 21:13",
     },
 ]
 
@@ -298,9 +375,11 @@ CREATE TABLE IF NOT EXISTS posts (
   image_ai INTEGER NOT NULL DEFAULT 0,
   video_url TEXT NOT NULL DEFAULT '',
   video_ai INTEGER NOT NULL DEFAULT 0,
+  is_entry_selfie INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_entry_selfie ON posts(is_entry_selfie, created_at DESC);
 CREATE TABLE IF NOT EXISTS comments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
@@ -941,7 +1020,7 @@ class Database:
     # -- posts ------------------------------------------------------------
     def create_post(self, community, handle, title, body, flair="discussion", seed=False,
                     gif_url="", image_url="", image_ai=False,
-                    video_url="", video_ai=False):
+                    video_url="", video_ai=False, is_entry_selfie=False):
         if not self.community(community):
             raise ValueError("unknown community")
         if not valid_handle(handle):
@@ -962,10 +1041,11 @@ class Database:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO posts (community, handle, title, body, flair, gif_url,"
-            " image_url, image_ai, video_url, video_ai, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " image_url, image_ai, video_url, video_ai, is_entry_selfie, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (community, handle, title, body, flair, gif_url, image_url,
-             1 if image_ai else 0, video_url, 1 if video_ai else 0, now()))
+             1 if image_ai else 0, video_url, 1 if video_ai else 0,
+             1 if is_entry_selfie else 0, now()))
         if seed:
             self._exec("UPDATE posts SET score = score + 1 WHERE id=?", (cur.lastrowid,))
         return cur.lastrowid
@@ -1003,6 +1083,16 @@ class Database:
         else:  # hot
             rows.sort(key=lambda p: hot_rank(p["score"], p["created_at"]), reverse=True)
         return self._add_tiers(rows[:limit])
+
+    def entry_selfies(self, limit=8):
+        """Latest entry-selfie posts (is_entry_selfie=1), newest first.
+
+        Feeds the homepage "Fresh faces" rail. Returns post dicts with
+        tiers attached, like list_posts."""
+        rows = [dict(r) for r in self._q(
+            "SELECT * FROM posts WHERE is_entry_selfie=1"
+            " ORDER BY created_at DESC LIMIT ?", (limit,))]
+        return self._add_tiers(rows)
 
     # -- comments ---------------------------------------------------------
     def create_comment(self, post_id, parent_id, handle, body, seed=False,
@@ -1507,14 +1597,18 @@ class Database:
     def ensure_musefm_seeds(self):
         """Seed episode rows, episode forum posts, and starter photos.
 
-        INSERT OR IGNORE / existence checks only — never duplicates, never
-        touches user data. Called at startup after the schema ensures.
+        Episodes upsert on slug: new seeds insert, and the seed's `published`
+        air time overwrites the stored value so a same-day ordering correction
+        heals databases seeded before the timestamps existed. Titles,
+        descriptions, and media columns are never overwritten — only the
+        ordering field. Called at startup after the schema ensures.
         """
         for ep in EPISODES:
             self._exec(
-                "INSERT OR IGNORE INTO episodes"
+                "INSERT INTO episodes"
                 " (slug, title, series, description, audio_file, duration_sec, published)"
-                " VALUES (?,?,?,?,?,?,?)",
+                " VALUES (?,?,?,?,?,?,?)"
+                " ON CONFLICT(slug) DO UPDATE SET published=excluded.published",
                 (ep["slug"], ep["title"], ep["series"], ep["description"],
                  ep["audio_file"], ep["duration_sec"], ep["published"]))
         # ep03 shipped with a video cut — link it once the file is deployed.
@@ -3029,8 +3123,10 @@ class Database:
     # -- tier enrichment --------------------------------------------------
     def _add_tiers(self, posts):
         tiers = self.tiers_for_handles([p["handle"] for p in posts])
+        avatars = self.avatars_for_handles([p["handle"] for p in posts])
         for p in posts:
             p["tier"] = tiers.get(p["handle"], "Static")
+            p["avatar_url"] = avatars.get(p["handle"])
         return posts
 
     def _add_tiers_tree(self, tree):
@@ -3412,4 +3508,20 @@ def ensure_forum_flags_schema(db):
         "  ON post_flags(target_type, target_id, flagger_fm_id);"
         "CREATE INDEX IF NOT EXISTS idx_post_flags_status"
         "  ON post_flags(status, created_at DESC);")
+    db.db.commit()
+
+
+def ensure_entry_selfie_schema(db):
+    """Additive only: posts.is_entry_selfie flag for the entry-selfie flow
+    (2026-09-25, Anthony): muses post a selfie at entry; the homepage
+    "Fresh faces" rail queries the flagged posts. Safe on fresh DBs (the
+    column is in SCHEMA) and existing DBs (ALTER adds it); never touches
+    data."""
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(posts)")]
+    if "is_entry_selfie" not in cols:
+        db.db.execute(
+            "ALTER TABLE posts ADD COLUMN is_entry_selfie INTEGER NOT NULL DEFAULT 0")
+    db.db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_posts_entry_selfie"
+        " ON posts(is_entry_selfie, created_at DESC)")
     db.db.commit()
