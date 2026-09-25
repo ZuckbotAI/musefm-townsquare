@@ -379,7 +379,10 @@ CREATE TABLE IF NOT EXISTS posts (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_posts_entry_selfie ON posts(is_entry_selfie, created_at DESC);
+-- NOTE: idx_posts_entry_selfie is created by ensure_entry_selfie_schema()
+-- below, NOT here: the live DB's posts table predates the is_entry_selfie
+-- column, and a CREATE INDEX on a missing column inside executescript(SCHEMA)
+-- crashes boot (2026-09-25: killed the PR #2 Render deploy).
 CREATE TABLE IF NOT EXISTS comments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,

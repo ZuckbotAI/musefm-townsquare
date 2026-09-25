@@ -64,7 +64,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
-                ensure_sso_schema,
+                ensure_sso_schema, ensure_entry_selfie_schema,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -276,6 +276,7 @@ def init_db(path):
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
+    ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
