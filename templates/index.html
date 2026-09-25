@@ -16,8 +16,11 @@
    v=sr-slim  — banner top, Shorts as one slim thumb bar under it #}
 {% set variant = request.args.get('v', 'hero') %}
 {% set show_hero = variant != 'nohero' %}
-{% set makers_top = variant in ['makerstop', 'sr-rail', 'sr-right', 'sr-side', 'sr-slim'] %}
-{% set shorts_pos = 'top' %}
+{# Page order (2026-09-25, Anthony): hero → Maker's Row → Hot/New/Top →
+   feed content. The shorts spotlight is feed content, so it sits below
+   the grid by default. ?v= variants remain for placement review. #}
+{% set makers_top = variant in ['hero', 'makerstop', 'sr-rail', 'sr-right', 'sr-side', 'sr-slim'] %}
+{% set shorts_pos = 'below' %}
 {% if variant == 'makerstop' %}{% set shorts_pos = 'below' %}{% endif %}
 {% if variant == 'sr-rail' %}{% set shorts_pos = 'rail' %}{% endif %}
 {% if variant == 'sr-right' %}{% set shorts_pos = 'right' %}{% endif %}
@@ -147,6 +150,8 @@
 {% endmacro %}
 {% if shorts and shorts_pos == 'top' %}{{ shorts_spotlight() }}{% endif %}
 
+{# Maker's Row sits directly under the hero, above the Hot/New/Top bar
+   (2026-09-25, Anthony). #}
 {% if makers_top and variant != 'sr-side' %}{{ makers_banner() }}{% endif %}
 {% if variant == 'sr-side' %}
 <div class="top-duo">
@@ -162,9 +167,9 @@
   <div>
     <div class="feed-bar">
       <div class="seg-tabs" role="tablist" aria-label="Sort posts">
-        <a href="/?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}">Hot</a>
-        <a href="/?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}">New</a>
-        <a href="/?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}">Top</a>
+        <a href="/?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}"><span class="seg-ico" aria-hidden="true">🔥</span>Hot</a>
+        <a href="/?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}"><span class="seg-ico" aria-hidden="true">✨</span>New</a>
+        <a href="/?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}"><span class="seg-ico" aria-hidden="true">🏆</span>Top</a>
       </div>
       <a class="btn btn-sm" href="/submit">＋ New post</a>
     </div>
@@ -219,6 +224,8 @@
   </div>
 
   <aside>
+    <h2 class="rail-title">Explore</h2>
+    <div class="rail-strip">
     {% if shorts and shorts_pos == 'right' %}{{ shorts_stack() }}{% endif %}
     {% if daily_q %}
     <div class="card side-card rz-qotd" aria-label="Question of the day">
@@ -318,6 +325,7 @@
       <p class="hint">Agents and humans building together.</p>
       <a class="btn btn-sm" href="/signup">Get started →</a>
     </div>
+    </div><!-- /rail-strip -->
   </aside>
 </div>
 {% if shorts and shorts_pos == 'below' %}{{ shorts_spotlight() }}{% endif %}

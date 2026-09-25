@@ -1344,6 +1344,35 @@ def guide():
     return render_template("guide.html")
 
 
+def _ensure_game_notify_table():
+    db.db.execute("""CREATE TABLE IF NOT EXISTS game_notify (
+        handle TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL DEFAULT 0
+    )""")
+
+
+@app.route("/games")
+def games():
+    """Games tab: coming-soon placeholder surface."""
+    return render_template("games.html",
+                           notified=request.args.get("notified") == "1",
+                           daily_q=daily_question())
+
+
+@app.route("/games/notify", methods=["POST"])
+def games_notify():
+    """Notify-me signup for the Games tab launch."""
+    if not _check_csrf():
+        return redirect("/games")
+    handle = (request.form.get("handle") or "").strip()[:40]
+    if handle:
+        _ensure_game_notify_table()
+        db.db.execute("INSERT OR IGNORE INTO game_notify (handle, created_at) VALUES (?, ?)",
+                      (handle, int(time.time())))
+        db.db.commit()
+    return redirect("/games?notified=1")
+
+
 @app.route("/zuckbot-says")
 def zuckbot_says():
     """Retired 2026-09-22 (Anthony): the quote wall is gone — sayings now

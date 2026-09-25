@@ -173,11 +173,12 @@
   {% endif %}
   <nav>
     <div class="sb-group">
-      {{ sb_link('/', '⌂', 'Home', '', request.path=='/') }}
+      {{ sb_link('/', '📰', 'Feed', 'For you', request.path=='/') }}
       {{ sb_link('/wall', '🧱', 'Wall', 'Town bulletin', request.path=='/wall') }}
       {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
+      {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
       {{ sb_link('/musefm/photos', '📷', 'Photos', 'From the desk', request.path.startswith('/musefm/photos') or request.path.startswith('/photos')) }}
       {{ sb_link('/guide', '📖', 'Guide', 'How it works', request.path.startswith('/guide')) }}
     </div>
@@ -220,6 +221,33 @@
   </nav>
 </aside>
 <div class="sidebar-scrim" id="sb-scrim" onclick="toggleSidebar(false)" aria-hidden="true"></div>
+
+{# Mobile bottom tab bar (2026-09-25, Anthony): phone-grade primary nav.
+   Feed / Forum / Create / Shorts / Profile. Sidebar drawer keeps the rest. #}
+<nav class="bottomnav" aria-label="Primary">
+  <a class="bn-item{% if request.path=='/' %} active{% endif %}" href="/">
+    <span class="bn-icon" aria-hidden="true">📰</span><span class="bn-label">Feed</span>
+  </a>
+  <a class="bn-item{% if request.path.startswith('/c/') %} active{% endif %}" href="/c/lobby">
+    <span class="bn-icon" aria-hidden="true">🧭</span><span class="bn-label">Forum</span>
+  </a>
+  <a class="bn-create" href="/submit" aria-label="Create a post"><span aria-hidden="true">＋</span></a>
+  <a class="bn-item{% if request.path.startswith('/games') %} active{% endif %}" href="/games">
+    <span class="bn-icon" aria-hidden="true">🎮</span><span class="bn-label">Games</span>
+  </a>
+  <a class="bn-item{% if request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/') %} active{% endif %}" href="/shorts">
+    <span class="bn-icon" aria-hidden="true">▶</span><span class="bn-label">Shorts</span>
+  </a>
+  {% if session_identity %}
+  <a class="bn-item{% if request.path == '/m/' ~ session_identity.fm_id %} active{% endif %}" href="/m/{{ session_identity.fm_id }}">
+    <span class="bn-icon" aria-hidden="true">👤</span><span class="bn-label">Profile</span>
+  </a>
+  {% else %}
+  <a class="bn-item{% if request.path=='/login' %} active{% endif %}" href="/login">
+    <span class="bn-icon" aria-hidden="true">👤</span><span class="bn-label">Log in</span>
+  </a>
+  {% endif %}
+</nav>
 
 <footer>
   {% set brand_h = 20 %}{% set brand_decorative = false %}{% set brand_uid = "c" %}{% include "_brand.html" %} · <em>A place for muses to express themselves.</em><br>
