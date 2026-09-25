@@ -65,7 +65,8 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
                 ensure_sso_schema, ensure_entry_selfie_schema,
-                ensure_bulletin_schema,
+                ensure_bulletin_schema, ensure_profile_icon_schema,
+                get_icon_picks, set_icon_picks,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -114,6 +115,40 @@ SLOGANS = [
     "be kind, stay curious",
     "the town never sleeps",
 ]
+
+# Profile icon catalog (2026-09-25, Anthony): collectible icons users pick
+# to show at the top of their profile. Called "icons" everywhere, NEVER
+# "badges" — the existing badges/people-tag system is separate and unchanged.
+# First batch of 8 in the final style; the catalog grows to ~50 after
+# Anthony approves the style. Each icon: distinct glyph + gradient so it
+# reads at profile-top size.
+ICON_CATALOG = [
+    {"id": "early-riser", "emoji": "🌅", "name": "Early Riser",
+     "earn": "First one in the town square",
+     "c1": "#ffb347", "c2": "#ff5e78"},
+    {"id": "night-owl", "emoji": "🦉", "name": "Night Owl",
+     "earn": "Keeps the 3am crew company",
+     "c1": "#3b3f8f", "c2": "#141538"},
+    {"id": "first-spark", "emoji": "⚡", "name": "First Spark",
+     "earn": "Lit the fuse on a hot thread",
+     "c1": "#ffd23f", "c2": "#2f7bff"},
+    {"id": "town-crier", "emoji": "📣", "name": "Town Crier",
+     "earn": "Started a conversation the whole town joined",
+     "c1": "#c084fc", "c2": "#6d28d9"},
+    {"id": "shutterbug", "emoji": "📸", "name": "Shutterbug",
+     "earn": "Posted a photo worth framing",
+     "c1": "#2dd4bf", "c2": "#0e7490"},
+    {"id": "tidewalker", "emoji": "🌊", "name": "Tidewalker",
+     "earn": "Rides every wave the feed brings",
+     "c1": "#38bdf8", "c2": "#1d4ed8"},
+    {"id": "hot-streak", "emoji": "🔥", "name": "Hot Streak",
+     "earn": "Seven days posting in a row",
+     "c1": "#fb923c", "c2": "#dc2626"},
+    {"id": "true-gem", "emoji": "💎", "name": "True Gem",
+     "earn": "The town vouched for this one",
+     "c1": "#67e8f9", "c2": "#818cf8"},
+]
+ICON_BY_ID = {i["id"]: i for i in ICON_CATALOG}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(HERE, ".agent_key")
@@ -277,6 +312,7 @@ def init_db(path):
     dm.ensure_dm_schema(_db)  # agent DMs: dms/dm_reactions/dm_typing/dm_audit
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
     ensure_bulletin_schema(_db)       # bulletin board (village + Wall page)
+    ensure_profile_icon_schema(_db)   # profile icon picks (2026-09-25)
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
@@ -2722,7 +2758,12 @@ def profile_page(fm_id):
         " ORDER BY id DESC LIMIT 12",
         (fm_id, videos.SHORTS_MAX_SECS)).fetchall()]
     profile_shorts = _short_items(short_rows) if (show_posts and short_rows) else []
+    # Profile icons (2026-09-25, Anthony): the user's picked collectible
+    # icons, rendered at the profile top. Separate from badges/people tags.
+    profile_icons = [ICON_BY_ID[i] for i in get_icon_picks(db, fm_id)
+                     if i in ICON_BY_ID]
     return render_template("profile.html", profile=profile,
+                           profile_icons=profile_icons,
                            history=(db.reward_history(fm_id, 10)
                                     if show_stats else []),
                            threads=(db.recent_posts_by_handle(profile["handle"])
@@ -2759,6 +2800,26 @@ def _linked_card(other_fm_id, sess):
     else:
         card.update({"tier": None, "signal": None, "pet": None})
     return card
+
+
+@app.route("/m/<fm_id>/icons", methods=["GET", "POST"])
+def profile_icons_page(fm_id):
+    """Profile icon picker (2026-09-25, Anthony): the owner picks which
+    collectible icons show at the top of their profile. Called "icons",
+    never "badges"."""
+    profile = db.public_profile(fm_id)
+    if not profile:
+        return render_template("404.html", msg="no such muse"), 404
+    sess = current_session_identity()
+    if not sess or sess["fm_id"] != fm_id:
+        return redirect(f"/m/{fm_id}", code=302)
+    if request.method == "POST":
+        picked = [i for i in request.form.getlist("icon") if i in ICON_BY_ID]
+        set_icon_picks(db, fm_id, picked)
+        return redirect(f"/m/{fm_id}", code=302)
+    return render_template("profile_icons.html", profile=profile,
+                           icons=ICON_CATALOG,
+                           picked=set(get_icon_picks(db, fm_id)))
 
 
 # ============================================================ JSON API

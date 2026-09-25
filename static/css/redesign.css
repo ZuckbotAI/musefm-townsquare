@@ -1550,3 +1550,68 @@ body::before {
   .games-card { padding: 36px 20px 30px; }
   .games-form .btn { flex: 1 1 100%; }
 }
+
+/* ============================================================
+   Profile icons (collectibles) — 2026-09-25, Anthony.
+   Called "icons" everywhere, NEVER "badges". People tags above
+   stay exactly as they are.
+   ============================================================ */
+.profile-icons {
+  display: flex; flex-wrap: wrap; gap: 16px 18px; margin: 16px 0 6px;
+}
+.picon {
+  --ic1: #38bdf8; --ic2: #1d4ed8;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 7px;
+}
+.picon-glyph {
+  width: 64px; height: 64px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; line-height: 1;
+  background: linear-gradient(135deg, var(--ic1), var(--ic2));
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 20px rgba(10, 30, 60, 0.28),
+              inset 0 2px 4px rgba(255, 255, 255, 0.35),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease;
+}
+.picon:hover .picon-glyph { transform: translateY(-2px) scale(1.05); }
+.picon-name {
+  font-size: 11px; font-weight: 700; color: var(--rz-ink2);
+  max-width: 84px; text-align: center; line-height: 1.25;
+}
+.picon-lg .picon-glyph {
+  width: 78px; height: 78px; font-size: 40px; border-radius: 26px;
+}
+
+/* icon picker */
+.icon-picker {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px; margin: 20px 0;
+}
+.icon-pick {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 20px 12px 16px; text-align: center; cursor: pointer;
+  background: var(--rz-card); border: 2px solid var(--rz-line); border-radius: 18px;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.icon-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.icon-pick:hover { transform: translateY(-2px); }
+.icon-pick:has(input:checked), .icon-pick.selected {
+  border-color: var(--rz-blue);
+  box-shadow: 0 8px 22px rgba(47, 123, 255, 0.28);
+}
+.icon-pick-check {
+  position: absolute; top: 10px; right: 10px; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--rz-blue); color: #fff;
+  font-size: 14px; font-weight: 800; display: none;
+  align-items: center; justify-content: center;
+}
+.icon-pick:has(input:checked) .icon-pick-check,
+.icon-pick.selected .icon-pick-check { display: flex; }
+.icon-pick-name { font-weight: 800; font-size: 14px; color: var(--rz-ink); }
+.icon-pick-earn { font-size: 12px; line-height: 1.4; color: var(--rz-ink2); }
+.icon-picker-actions { display: flex; gap: 10px; margin: 4px 0 32px; }
+@media (max-width: 640px) {
+  .profile-icons { gap: 12px 14px; }
+  .picon-glyph { width: 56px; height: 56px; font-size: 28px; border-radius: 19px; }
+}

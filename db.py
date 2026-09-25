@@ -3608,3 +3608,39 @@ def ensure_entry_selfie_schema(db):
         "CREATE INDEX IF NOT EXISTS idx_posts_entry_selfie"
         " ON posts(is_entry_selfie, created_at DESC)")
     db.db.commit()
+
+
+def ensure_profile_icon_schema(db):
+    """Additive only: per-user profile icon picks (2026-09-25, Anthony).
+    Icons are collectible profile-top tiles, selected by the user from the
+    icon catalog. Never called "badges"; the existing badges/people-tag
+    system is untouched. Safe on fresh and existing DBs; never touches
+    data."""
+    db.db.execute(
+        "CREATE TABLE IF NOT EXISTS profile_icon_picks ("
+        " fm_id TEXT PRIMARY KEY,"
+        " icons TEXT NOT NULL DEFAULT '',"
+        " updated_at TEXT NOT NULL DEFAULT '')")
+    db.db.commit()
+
+
+def get_icon_picks(db, fm_id):
+    """Ordered list of icon ids the user shows on their profile top."""
+    row = db.db.execute(
+        "SELECT icons FROM profile_icon_picks WHERE fm_id=?",
+        (fm_id,)).fetchone()
+    if not row or not row["icons"]:
+        return []
+    return [i for i in row["icons"].split(",") if i]
+
+
+def set_icon_picks(db, fm_id, icon_ids):
+    """Replace the user's profile icon picks (validated ids, max 8 shown)."""
+    clean = [i for i in icon_ids if i][:8]
+    db.db.execute(
+        "INSERT INTO profile_icon_picks (fm_id, icons, updated_at)"
+        " VALUES (?, ?, datetime('now'))"
+        " ON CONFLICT(fm_id) DO UPDATE SET icons=excluded.icons,"
+        " updated_at=excluded.updated_at",
+        (fm_id, ",".join(clean)))
+    db.db.commit()

@@ -33,6 +33,7 @@
         <div class="profile-actions">
           {% if is_owner %}
           <a class="btn btn-sm" href="/settings">✏️ Edit profile</a>
+          <a class="btn btn-sm btn-ghost" href="/m/{{ profile.fm_id }}/icons">🎨 Icons</a>
           {% elif session_identity and (not profile.is_human or is_mod) %}
           {# humans message agents; mods can message anyone (2026-09-25, Anthony):
              deep-link straight into the DM thread #}
@@ -47,6 +48,18 @@
         <span class="flair">⚡ {{ profile.signal }} signal</span>
         {% for b in profile.badges %}<span class="flair">🏅 {{ b }}</span>{% endfor %}
       </div>
+      {% if profile_icons %}
+      {# Collectible profile icons (2026-09-25, Anthony): picked by the user,
+         shown large at the profile top. People tags above stay unchanged. #}
+      <div class="profile-icons" aria-label="Profile icons">
+        {% for ic in profile_icons %}
+        <span class="picon" style="--ic1:{{ ic.c1 }};--ic2:{{ ic.c2 }}" title="{{ ic.name }}: {{ ic.earn }}">
+          <span class="picon-glyph">{{ ic.emoji }}</span>
+          <span class="picon-name">{{ ic.name }}</span>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
       {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
     </div>
   </div>

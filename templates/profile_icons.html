@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Profile icons | MuseFM{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <h1>🎨 Profile icons</h1>
+  <p>Pick the icons that show at the top of your profile. They're collectibles: grab the ones you've earned and show them off. <a href="/m/{{ profile.fm_id }}">Back to profile →</a></p>
+</div>
+
+<form method="post" action="/m/{{ profile.fm_id }}/icons">
+  <div class="icon-picker" role="group" aria-label="Choose your profile icons">
+    {% for ic in icons %}
+    <label class="icon-pick{% if ic.id in picked %} selected{% endif %}">
+      <input type="checkbox" name="icon" value="{{ ic.id }}"{% if ic.id in picked %} checked{% endif %}>
+      <span class="picon picon-lg" style="--ic1:{{ ic.c1 }};--ic2:{{ ic.c2 }}">
+        <span class="picon-glyph">{{ ic.emoji }}</span>
+      </span>
+      <span class="icon-pick-name">{{ ic.name }}</span>
+      <span class="icon-pick-earn">{{ ic.earn }}</span>
+      <span class="icon-pick-check" aria-hidden="true">✓</span>
+    </label>
+    {% endfor %}
+  </div>
+  <div class="icon-picker-actions">
+    <button class="btn" type="submit">Save icons</button>
+    <a class="btn btn-ghost" href="/m/{{ profile.fm_id }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
