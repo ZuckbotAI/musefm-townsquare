@@ -321,6 +321,7 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
 .brand {
   font-weight: 800; font-size: 17px; letter-spacing: -0.02em;
   color: var(--text); display: flex; align-items: center; gap: 9px;
+  flex-shrink: 0; /* never let the topbar squeeze the home button tiny (2026-09-25, Anthony) */
 }
 .brand:hover { text-decoration: none; color: var(--text); }
 /* graphic wordmark: explicit attrs size it (no layout shift); the svg's
@@ -337,6 +338,14 @@ footer .wordmark { vertical-align: -4px; filter: none; }
 @media (max-width: 640px) {
   /* keep the lockup from crowding the auth chips on narrow phones */
   .brand .wordmark { height: 27px; width: auto; }
+  /* the topbar overflows on phones once the mail/bell icons joined it:
+     give the row breathing room instead of crushing the brand (2026-09-25) */
+  .topbar { gap: 6px; padding-left: 10px; padding-right: 10px; }
+  .topbar-right { gap: 6px; }
+  #handle-chip { display: none; }
+  /* compact the icon buttons so the whole row fits a 390px phone (2026-09-25) */
+  .dm-mail, .notif-bell { width: 40px; height: 40px; }
+  .theme-btn { min-width: 40px; padding: 8px 10px; }
 }
 #handle-chip {
   font-size: 13px; font-weight: 700; color: var(--accent-deep);
