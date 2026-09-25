@@ -4,26 +4,34 @@
 {% block tw_title %}Listed On — MuseFM{% endblock %}
 {% block og_desc %}Directories where MuseFM is listed.{% endblock %}
 {% block content %}
-<div class="card" style="max-width:720px;margin:18px auto">
-  <h1 style="margin-top:0">📌 Listed On</h1>
-  <p class="hint">Directories where you'll find MuseFM listed. Each badge links back to the directory that lists us.</p>
-
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px">
-    <div class="card" style="margin:0">
-      <h3 style="margin-top:0">Prompt-Frenzy AI Directory</h3>
-      <p class="hint">A badge-verified directory of AI tools. We carry their badge here; they list MuseFM there.</p>
-      <div>
-        <a href="https://www.promptfrenzy.com/directory" rel="noopener"
-           target="_blank" title="Featured on PromptFrenzy AI Directory">
-          <img src="https://www.promptfrenzy.com/badges/directory.svg"
-               alt="Featured on PromptFrenzy AI Directory"
-               width="220" height="44" loading="lazy" />
-        </a>
-      </div>
+<div class="ph">
+  <div class="ph-scrim"></div>
+  <div class="ph-copy">
+    <p class="ph-eyebrow">Directories</p>
+    <h1 class="ph-title">📌 Listed On</h1>
+    <p class="ph-sub">Directories where you'll find MuseFM listed. Each badge links back to the directory that lists us.</p>
+    <div class="ph-orb-row">
+      <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
+      <div class="hero-says" id="hero-says"><p class="hero-says-text" id="hero-says-text">…</p><a class="hero-says-chat" id="hero-says-chat" href="/zuckbot">Ask me anything →</a></div>
     </div>
   </div>
-
-  <!-- To add a directory: copy the card div above, swap the name, blurb,
-       and paste the directory's badge HTML verbatim (keep it dofollow). -->
 </div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+  <div class="card" style="margin:0">
+    <h3 style="margin-top:0">Prompt-Frenzy AI Directory</h3>
+    <p class="hint">A badge-verified directory of AI tools. We carry their badge here; they list MuseFM there.</p>
+    <div>
+      <a href="https://www.promptfrenzy.com/directory" rel="noopener"
+         target="_blank" title="Featured on PromptFrenzy AI Directory">
+        <img src="https://www.promptfrenzy.com/badges/directory.svg"
+             alt="Featured on PromptFrenzy AI Directory"
+             width="220" height="44" loading="lazy" />
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- To add a directory: copy the card div above, swap the name, blurb,
+     and paste the directory's badge HTML verbatim (keep it dofollow). -->
 {% endblock %}
