@@ -865,3 +865,16 @@ details[open].rxn-rollout > .sig-tray {
 /* ---------- wall ---------- */
 .wall-feed { max-width: 640px; }
 .wall-card { border-left: 3px solid var(--rz-blue); }
+
+/* shorts: the hub sits on the video's right edge inside an overflow:hidden
+   frame — the tray fans upward, right-aligned, clear of the action rail */
+.short-rxn details[open].rxn-rollout > .sig-tray {
+  left: auto; right: 0; top: auto; bottom: calc(100% + 6px);
+  min-width: 0; padding: 8px;
+}
+.short-rxn .sig-tray .sig-row { flex-direction: column; gap: 6px; }
+.short-rxn details[open] .sig-tray .sig-form { animation-name: sig-roll-up; }
+@keyframes sig-roll-up {
+  from { opacity: 0; transform: translateY(8px) scale(.8); }
+  to { opacity: 1; transform: none; }
+}
