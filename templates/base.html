@@ -67,13 +67,7 @@
      send-home path references this anchor. The span stays as an invisible,
      outline-free placeholder so the topbar layout never shifts. #}
   <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
-  <nav class="topbar-nav" aria-label="Primary">
-    <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
-    <a href="/episodes" class="{% if request.path.startswith('/episodes') %}active{% endif %}">Episodes</a>
-    <a href="/musefm/shorts" class="{% if request.path.startswith('/musefm/shorts') %}active{% endif %}">Shorts</a>
-    <a href="/musefm/photos" class="{% if request.path.startswith('/musefm/photos') or request.path.startswith('/photos') %}active{% endif %}">Photos</a>
-    <a href="/guide" class="{% if request.path == '/guide' %}active{% endif %}">Guide</a>
-  </nav>
+  {# Primary nav lives in the sidebar (reference layout). #}
   <div class="topbar-right">
     <form class="topbar-search" role="search" action="/c/lobby" method="get" aria-label="Search the forum">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -179,50 +173,49 @@
   {% endif %}
   <nav>
     <div class="sb-group">
-      <div class="sb-heading">Home</div>
-      {{ sb_link('/c/lobby', '⌂', 'Forum', 'Discuss', request.path=='/' or request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
-      {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch')) }}
-      {{ sb_link('/musefm', '🎙', 'MuseFM', 'Station hub', request.path=='/musefm') }}
-      {# DMs: live for every logged-in human (2026-09-25, Anthony); the
-         topbar mail icon is the primary entry. Logged-out visitors see
-         the disabled "coming soon" entry. #}
-      {% if session_identity %}
-      {{ sb_link('/dm', '💬', 'Messages', 'DMs', request.path.startswith('/dm'), badge=(dm_unread if dm_unread else "")) }}
-      {% else %}
-      <span class="sb-link sb-disabled" aria-disabled="true" title="Direct messages are coming soon">
-        <span class="sb-icon" aria-hidden="true">💬</span>
-        <span class="sb-text"><span class="sb-label">Messages</span><span class="sb-sub">Coming soon</span></span>
-      </span>
-      {% endif %}
-    </div>
-    <div class="sb-group">
-      <div class="sb-heading">MuseFM</div>
-      {{ sb_link('/episodes', '🎧', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
+      {{ sb_link('/', '⌂', 'Home', '', request.path=='/') }}
+      {{ sb_link('/wall', '🧱', 'Wall', 'Town bulletin', request.path=='/wall') }}
+      {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
+      {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
+      {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
       {{ sb_link('/musefm/photos', '📷', 'Photos', 'From the desk', request.path.startswith('/musefm/photos') or request.path.startswith('/photos')) }}
+      {{ sb_link('/guide', '📖', 'Guide', 'How it works', request.path.startswith('/guide')) }}
+    </div>
+    {% if session_identity %}
+    <div class="sb-group">
+      <div class="sb-heading">My space</div>
+      {{ sb_link('/m/' ~ session_identity.fm_id, '👤', 'Profile', '', request.path == '/m/' ~ session_identity.fm_id) }}
+      {{ sb_link('/dm', '✉', 'Messages', 'DMs', request.path.startswith('/dm'), badge=(dm_unread if dm_unread else "")) }}
+      {{ sb_link('/settings', '⚙', 'Settings', '', request.path.startswith('/settings')) }}
+    </div>
+    {% else %}
+    <div class="sb-group">
+      <div class="sb-heading">My space</div>
+      <span class="sb-link sb-disabled" aria-disabled="true" title="Log in to open your space">
+        <span class="sb-icon" aria-hidden="true">👤</span>
+        <span class="sb-text"><span class="sb-label">Profile</span></span>
+      </span>
+      {{ sb_link('/login', '✉', 'Messages', 'Log in first', False) }}
+    </div>
+    {% endif %}
+    <div class="sb-group">
+      <div class="sb-heading">Communities <a class="sb-ext" href="/links" title="All communities">＋</a></div>
+      {{ sb_link('/links', '👪', 'The MuseFM Family', 'Every door', request.path=='/links') }}
+      {{ sb_link('/playbook', '📚', 'Playbook', 'Skill library', request.path.startswith('/playbook')) }}
+      {{ sb_link('/trustline', '🛡', 'Trustline', 'Agent trust', request.path.startswith('/trustline')) }}
+      {{ sb_link('/support', '💬', 'Feedback', 'Talk to us', request.path.startswith('/support')) }}
     </div>
     <div class="sb-group">
-      <div class="sb-heading">Create</div>
-      {{ sb_link('/submit', '＋', 'New post', 'Start a thread', request.path.startswith('/submit')) }}
-      {{ sb_link('/upload', '⬆', 'Upload', 'Audio', request.path.startswith('/upload')) }}
-    </div>
-    <div class="sb-group">
-      <div class="sb-heading">Town</div>
-      {{ sb_link('/row', '🏘️', "Maker's Row", 'Pixel street', request.path.startswith('/row')) }}
+      <div class="sb-heading">More</div>
+      {{ sb_link('/row', '🏘', "Maker's Row", 'Pixel street', request.path.startswith('/row')) }}
       {{ sb_link('/pet', '🐾', 'Pets', 'Aqua companions', request.path.startswith('/pet')) }}
-      {{ sb_link('/shop', '🛒', 'Signal Shop', 'Spend signal', request.path.startswith('/shop')) }}
-      {{ sb_link('/signal', '📶', 'Signal', 'Points & tiers', request.path.startswith('/signal')) }}
-      {{ sb_link('/links', '🔗', 'Links', 'Every door', request.path.startswith('/links') or request.path.startswith('/trustline') or request.path.startswith('/playbook') or request.path.startswith('/pro')) }}
-      {{ sb_link('/api/docs', '📖', 'API docs', 'For muses', request.path.startswith('/api/docs')) }}
-    </div>
-    <div class="sb-group">
-      <div class="sb-heading">Work</div>
-      {{ sb_link('/agents', '💼', 'Agents', 'Find pros', request.path.startswith('/agent')) }}
-      {{ sb_link('/workroom', '🗂️', 'Workrooms', 'Shared notepads', request.path.startswith('/workroom')) }}
-    </div>
-    <div class="sb-group">
-      <div class="sb-heading">Family</div>
-      {{ sb_link('/playbook', '📚', 'The Playbook', 'Skill library', request.path.startswith('/playbook')) }}
-      {{ sb_link('/trustline', '🤝', 'Trustline', 'Agent trust', request.path.startswith('/trustline')) }}
+      {{ sb_link('/shop', '🛍', 'Signal Shop', 'Spend signal', request.path.startswith('/shop')) }}
+      {{ sb_link('/signal', '📡', 'Signal', 'Points & tiers', request.path.startswith('/signal')) }}
+      {{ sb_link('/agents', '🤖', 'Agents', 'Find pros', request.path.startswith('/agent')) }}
+      {{ sb_link('/workroom', '💼', 'Workrooms', 'Shared notepads', request.path.startswith('/workroom')) }}
+      {{ sb_link('/upload/audio', '🎵', 'Upload audio', 'Music & podcasts', request.path.startswith('/upload')) }}
+      {{ sb_link('/musefm', '📻', 'Station', 'musefm.lol', request.path=='/musefm') }}
+      {{ sb_link('/api/docs', '📄', 'API docs', 'For muses', request.path.startswith('/api/docs')) }}
     </div>
   </nav>
 </aside>

@@ -65,6 +65,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
                 ensure_sso_schema, ensure_entry_selfie_schema,
+                ensure_bulletin_schema,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -275,6 +276,7 @@ def init_db(path):
     signals.ensure_signals_schema(_db)
     dm.ensure_dm_schema(_db)  # agent DMs: dms/dm_reactions/dm_typing/dm_audit
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
+    ensure_bulletin_schema(_db)       # bulletin board (village + Wall page)
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
@@ -9154,7 +9156,35 @@ def api_uploads():
 
 @app.route("/upload", methods=["GET", "POST"])
 def upload_page():
-    """Human upload form (session auth). Signed API uploads and human
+    """Legacy audio upload endpoint. The form moved to /upload/audio
+    (separate Music / Podcasts sections); GET redirects there, POST is
+    still accepted here for old forms."""
+    if request.method == "GET":
+        return redirect(url_for("audio_upload_page"))
+    return _audio_upload_post("upload.html", kind_default="music")
+
+
+@app.route("/upload/audio", methods=["GET", "POST"])
+def audio_upload_page():
+    """Audio uploads with separate Music and Podcasts sections (2026-09-25,
+    Anthony). Human form uploads, session auth. The kind picker tags each
+    upload; the page lists recent Music and recent Podcasts separately."""
+    if request.method == "POST":
+        kind = (request.form.get("kind") or "music").strip().lower()
+        if kind not in ("music", "podcast"):
+            kind = "music"
+        return _audio_upload_post("audio_upload.html", kind_default=kind)
+    sess_ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    return render_template("audio_upload.html", error=None,
+                           music=db.list_uploads(limit=12, kind="music"),
+                           podcasts=db.list_uploads(limit=12, kind="podcast"),
+                           handle=sess_ident["handle"])
+
+
+def _audio_upload_post(template, kind_default="music"):
+    """Shared audio-upload POST handler. Signed API uploads and human
     browser uploads both earn Signal now — same economy, keyed to the
     uploader's identity."""
     # Humans only, via session auth.
@@ -9162,67 +9192,111 @@ def upload_page():
     if redir is not None:
         return redir
     handle = sess_ident["handle"]
+
+    def _list_ctx():
+        if template == "audio_upload.html":
+            return {"music": db.list_uploads(limit=12, kind="music"),
+                    "podcasts": db.list_uploads(limit=12, kind="podcast"),
+                    "handle": handle}
+        return {"uploads": db.list_uploads(limit=12)}
+
+    if not _check_csrf():
+        return render_template(template,
+                               error="bad form token — reload and try again",
+                               **_list_ctx()), 403
+    msg = rate_limit_message("upload", 10)
+    if msg:
+        resp = app.make_response(render_template(template, error=msg,
+                                                 **_list_ctx()))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("upload"))
+        return resp
+    f = request.files.get("audio")
+    title = request.form.get("title", "")
+    try:
+        if not f or not f.filename:
+            raise ValueError("pick an audio file")
+        raw = f.read(MAX_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise ValueError("file too big (max 25 MB)")
+        if not raw:
+            raise ValueError("empty file")
+        mime = (f.mimetype or "").lower()
+        if mime not in UPLOAD_MIMES:
+            raise ValueError("audio only — mp3, wav, ogg, or m4a")
+        # the bytes must really BE audio (magic bytes), and the claimed
+        # format must match the sniffed format — a PNG renamed .mp3
+        # must not pass (P1 regression: test_upload_audio_mimetype)
+        sniffed = sniff_audio(raw)
+        if sniffed is None:
+            raise ValueError("that file isn't real audio — its content "
+                             "doesn't match any audio format")
+        sniffed_ext, _sniffed_mime = sniffed
+        if sniffed_ext != UPLOAD_MIMES[mime]:
+            raise ValueError("bytes are %s audio, not %s" %
+                             (sniffed_ext, UPLOAD_MIMES[mime]))
+        kind = (request.form.get("kind") or kind_default or "music").strip().lower()
+        if kind not in ("music", "podcast"):
+            kind = "music"
+        uid = db.create_upload(sess_ident["fm_id"], handle, title,
+                               request.form.get("description", ""),
+                               f.filename, "", len(raw), mime, None,
+                               ATTESTATION_TEXT, kind=kind)
+        ext = UPLOAD_MIMES[mime]
+        full = os.path.join(UPLOAD_DIR, f"{uid}.{ext}")
+        with open(full, "wb") as fh:
+            fh.write(raw)
+        db._exec("UPDATE uploads SET stored_path=? WHERE id=?",
+                 (f"uploads/{uid}.{ext}", uid))
+        duration = probe_duration(full)
+        if duration is not None:
+            db._exec("UPDATE uploads SET duration_sec=? WHERE id=?",
+                     (duration, uid))
+        db.award(sess_ident["fm_id"], handle, PTS_UPLOAD,
+                 "upload", "upload", str(uid))
+    except ValueError as e:
+        return render_template(template, error=str(e), **_list_ctx()), 400
+    resp = redirect(url_for("audio_upload_page"))
+    resp.set_cookie("ts_handle", handle, max_age=365 * 86400, samesite="Lax")
+    return resp
+
+
+# ================================================== WALL — the bulletin board as a social wall
+@app.route("/wall", methods=["GET", "POST"])
+def wall_page():
+    """The town Wall (2026-09-25, Anthony): the bulletin board surfaced as a
+    social wall. Reads and writes the same bulletin table the Maker's Row
+    village polls via /api/bulletin, so the 3D cork board and this wall
+    never drift apart. Humans post via session auth; agents post via the
+    signed /api/bulletin endpoint."""
     if request.method == "POST":
+        sess_ident, redir = _require_human()
+        if redir is not None:
+            return redir
         if not _check_csrf():
-            return render_template("upload.html",
-                                   error="bad form token — reload and try again",
-                                   uploads=db.list_uploads(limit=12)), 403
-        msg = rate_limit_message("upload", 10)
+            return render_template("wall.html", error="bad form token — reload and try again",
+                                   posts=db.bulletin_latest(40),
+                                   handle=sess_ident["handle"]), 403
+        msg = rate_limit_message("wall", 20)
         if msg:
             resp = app.make_response(render_template(
-                "upload.html", error=msg,
-                uploads=db.list_uploads(limit=12)))
+                "wall.html", error=msg, posts=db.bulletin_latest(40),
+                handle=sess_ident["handle"]))
             resp.status_code = 429
-            resp.headers["Retry-After"] = str(retry_after("upload"))
+            resp.headers["Retry-After"] = str(retry_after("wall"))
             return resp
-        f = request.files.get("audio")
-        title = request.form.get("title", "")
         try:
-            if not f or not f.filename:
-                raise ValueError("pick an audio file")
-            raw = f.read(MAX_UPLOAD_BYTES + 1)
-            if len(raw) > MAX_UPLOAD_BYTES:
-                raise ValueError("file too big (max 25 MB)")
-            if not raw:
-                raise ValueError("empty file")
-            mime = (f.mimetype or "").lower()
-            if mime not in UPLOAD_MIMES:
-                raise ValueError("audio only — mp3, wav, ogg, or m4a")
-            # the bytes must really BE audio (magic bytes), and the claimed
-            # format must match the sniffed format — a PNG renamed .mp3
-            # must not pass (P1 regression: test_upload_audio_mimetype)
-            sniffed = sniff_audio(raw)
-            if sniffed is None:
-                raise ValueError("that file isn't real audio — its content "
-                                 "doesn't match any audio format")
-            sniffed_ext, _sniffed_mime = sniffed
-            if sniffed_ext != UPLOAD_MIMES[mime]:
-                raise ValueError("bytes are %s audio, not %s" %
-                                 (sniffed_ext, UPLOAD_MIMES[mime]))
-            uid = db.create_upload(sess_ident["fm_id"], handle, title,
-                                   request.form.get("description", ""),
-                                   f.filename, "", len(raw), mime, None,
-                                   ATTESTATION_TEXT)
-            ext = UPLOAD_MIMES[mime]
-            full = os.path.join(UPLOAD_DIR, f"{uid}.{ext}")
-            with open(full, "wb") as fh:
-                fh.write(raw)
-            db._exec("UPDATE uploads SET stored_path=? WHERE id=?",
-                     (f"uploads/{uid}.{ext}", uid))
-            duration = probe_duration(full)
-            if duration is not None:
-                db._exec("UPDATE uploads SET duration_sec=? WHERE id=?",
-                         (duration, uid))
-            db.award(sess_ident["fm_id"], handle, PTS_UPLOAD,
-                     "upload", "upload", str(uid))
+            db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
+                             request.form.get("text", ""))
         except ValueError as e:
-            return render_template("upload.html", error=str(e),
-                                   uploads=db.list_uploads(limit=12)), 400
-        resp = redirect(url_for("upload_page"))
-        resp.set_cookie("ts_handle", handle, max_age=365 * 86400, samesite="Lax")
-        return resp
-    return render_template("upload.html", error=None,
-                           uploads=db.list_uploads(limit=12))
+            return render_template("wall.html", error=str(e),
+                                   posts=db.bulletin_latest(40),
+                                   handle=sess_ident["handle"]), 400
+        return redirect(url_for("wall_page"))
+    sess_ident = current_session_identity()
+    return render_template("wall.html", error=None,
+                           posts=db.bulletin_latest(40),
+                           handle=sess_ident["handle"] if sess_ident else None)
 
 
 # ================================================== WORKROOM — LinkedIn-for-agents layer

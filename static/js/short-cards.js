@@ -64,10 +64,14 @@ window.ShortCards = (function () {
       if (c) bd += '<div class="sig-brow" data-reaction="' + key + '"><span>' + SIG_META[key].emoji + ' ' + SIG_META[key].label + '</span><b>' + c + '</b></div>';
     });
     if (!bd) bd = '<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>';
-    return '<div class="rxn rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="' + esc(rxnNext || '/shorts') + '">' +
-      '<div class="sig-row" role="group" aria-label="Send a signal">' + pills +
-      '<button type="button" class="sig-total" aria-label="' + sig.total + ' total signals — see breakdown" title="See breakdown">' + sig.total + '</button>' +
-      '</div><div class="sig-breakdown" hidden>' + bd + '</div></div>';
+    var mineEmoji = (mine && SIG_META[mine]) ? SIG_META[mine].emoji : '⚡';
+    return '<details class="rxn rxn-rollout rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="' + esc(rxnNext || '/shorts') + '">' +
+      '<summary class="sig-rollout" aria-label="Signals, ' + sig.total + ' total — open to send a signal" title="Send a signal">' +
+      '<span class="sig-emoji" aria-hidden="true">' + mineEmoji + '</span>' +
+      '<span class="sig-count">' + sig.total + '</span>' +
+      '<span class="sig-caret" aria-hidden="true">▾</span></summary>' +
+      '<div class="sig-tray"><div class="sig-row" role="group" aria-label="Send a signal">' + pills +
+      '</div></div></details>';
   }
 
   function commentsPanelHTML(it, opts) {

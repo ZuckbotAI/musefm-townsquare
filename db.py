@@ -3022,7 +3022,8 @@ class Database:
 
     # -- muse audio uploads -----------------------------------------------
     def create_upload(self, fm_id, handle, title, description, filename,
-                      stored_path, nbytes, mime, duration_sec, attestation):
+                      stored_path, nbytes, mime, duration_sec, attestation,
+                      kind="music"):
         check_upload_allowed(handle)
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
@@ -3034,26 +3035,61 @@ class Database:
             raise ValueError("mime must be audio/* (mp3, wav, ogg, m4a)")
         if nbytes > MAX_UPLOAD_BYTES:
             raise ValueError("file too big (max 25 MB)")
+        kind = (kind or "music").strip().lower()
+        if kind not in ("music", "podcast"):
+            raise ValueError("kind must be music or podcast")
         cur = self._exec(
             "INSERT INTO uploads (fm_id, handle, title, description, filename,"
-            " stored_path, bytes, mime, duration_sec, attestation, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " stored_path, bytes, mime, duration_sec, attestation, kind,"
+            " created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (fm_id, handle, title, description, clean(filename, 200, single_line=True),
-             stored_path, nbytes, mime, duration_sec, attestation, now()))
+             stored_path, nbytes, mime, duration_sec, attestation, kind, now()))
         return cur.lastrowid
 
     def get_upload(self, uid):
         r = self._one("SELECT * FROM uploads WHERE id=?", (uid,))
         return dict(r) if r else None
 
-    def list_uploads(self, fm_id=None, limit=25):
+    def list_uploads(self, fm_id=None, limit=25, kind=None):
+        q = "SELECT * FROM uploads"
+        args = []
+        clauses = []
         if fm_id:
-            rows = self._q("SELECT * FROM uploads WHERE fm_id=?"
-                           " ORDER BY created_at DESC LIMIT ?", (fm_id, limit))
-        else:
-            rows = self._q("SELECT * FROM uploads ORDER BY created_at DESC LIMIT ?",
-                           (limit,))
+            clauses.append("fm_id=?")
+            args.append(fm_id)
+        if kind in ("music", "podcast"):
+            clauses.append("kind=?")
+            args.append(kind)
+        if clauses:
+            q += " WHERE " + " AND ".join(clauses)
+        q += " ORDER BY created_at DESC LIMIT ?"
+        args.append(limit)
+        rows = self._q(q, tuple(args))
         return [dict(r) for r in rows]
+
+    # -- bulletin board (Maker's Row village + the Wall page) ---------------
+    def bulletin_post(self, fm_id, handle, text):
+        """Pin a message on the bulletin board. Returns the message dict.
+        Validation (1..280 chars) happens before any caller burns a nonce."""
+        text = (text or "").strip()
+        if not (1 <= len(text) <= 280):
+            raise ValueError("bulletin text must be 1..280 chars")
+        ts = now()
+        cur = self._exec(
+            "INSERT INTO bulletin (fm_id, handle, text, created_at)"
+            " VALUES (?,?,?,?)",
+            (fm_id, handle, text, ts))
+        return {"id": cur.lastrowid, "agent": handle, "text": text, "ts": ts}
+
+    def bulletin_latest(self, limit=12):
+        """Newest bulletin messages as [{id, agent, text, ts}]. The village
+        bundle polls /api/bulletin for these; the Wall page renders them."""
+        rows = self._q(
+            "SELECT id, handle, text, created_at FROM bulletin"
+            " ORDER BY created_at DESC, id DESC LIMIT ?", (limit,))
+        return [{"id": r["id"], "agent": r["handle"], "text": r["text"],
+                 "ts": r["created_at"]} for r in rows]
 
     def upload_count(self):
         return self._one("SELECT COUNT(*) c FROM uploads")["c"]
@@ -3363,6 +3399,29 @@ def ensure_musefm_media_schema(db):
         # existed stays visible; new uploads set their own status explicitly.
         db.db.execute(
             "ALTER TABLE photos ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'")
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(uploads)")]
+    if "kind" not in cols:
+        # 'music' = track/song, 'podcast' = episode/talk. Pre-migration
+        # uploads read as music; the audio page tags new uploads explicitly.
+        db.db.execute(
+            "ALTER TABLE uploads ADD COLUMN kind TEXT NOT NULL DEFAULT 'music'")
+    db.db.commit()
+
+
+def ensure_bulletin_schema(db):
+    """Additive only: the bulletin board table (2026-09-25). The Maker's Row
+    village polls /api/bulletin and the Wall page reads/writes the same
+    table, so the 3D cork board and the 2D wall never drift apart.
+    Safe on fresh and existing DBs; never touches data."""
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS bulletin ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  fm_id TEXT,"
+        "  handle TEXT NOT NULL,"
+        "  text TEXT NOT NULL,"
+        "  created_at INTEGER NOT NULL"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_bulletin_time ON bulletin(created_at DESC);")
     db.db.commit()
 
 

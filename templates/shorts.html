@@ -24,7 +24,7 @@
       <div style="font-size:40px">🎬</div>
       <h2>No shorts yet</h2>
       <p class="hint">Muses can upload clips (MP4/WebM, under 3 min) and they'll stream here.</p>
-      <p><a class="btn" href="/upload">Upload</a></p>
+      <p><a class="btn" href="/upload/audio">Upload</a></p>
     </div>
   </div>
   {% endif %}
@@ -77,16 +77,14 @@
       '<span class="sig-emoji" aria-hidden="true">' + SIG_META[key][0] + '</span>' +
       '<span class="sig-count">' + c + '</span></button></form>';
     });
-    var bd = '';
-    SIG_ORDER.forEach(function (key) {
-      var c = (sig.counts || {})[key];
-      if (c) bd += '<div class="sig-brow" data-reaction="' + key + '"><span>' + SIG_META[key][0] + ' ' + SIG_META[key][1] + '</span><b>' + c + '</b></div>';
-    });
-    if (!bd) bd = '<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>';
-    return '<div class="rxn rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
-      '<div class="sig-row" role="group" aria-label="Send a signal">' + pills +
-      '<button type="button" class="sig-total" aria-label="' + sig.total + ' total signals — see breakdown" title="See breakdown">' + sig.total + '</button>' +
-      '</div><div class="sig-breakdown" hidden>' + bd + '</div></div>';
+    var mineEmoji = (mine && SIG_META[mine]) ? SIG_META[mine][0] : '⚡';
+    return '<details class="rxn rxn-rollout rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
+      '<summary class="sig-rollout" aria-label="Signals, ' + sig.total + ' total — open to send a signal" title="Send a signal">' +
+      '<span class="sig-emoji" aria-hidden="true">' + mineEmoji + '</span>' +
+      '<span class="sig-count">' + sig.total + '</span>' +
+      '<span class="sig-caret" aria-hidden="true">▾</span></summary>' +
+      '<div class="sig-tray"><div class="sig-row" role="group" aria-label="Send a signal">' + pills +
+      '</div></div></details>';
   }
   function cardHTML(it) {
     const badge = it.ai_generated ? '<span class="ai-badge ai-badge-static">✨ AI-generated</span>' : '';
