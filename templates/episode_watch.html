@@ -42,7 +42,7 @@
     {% endif %}
   </div>
   <div class="c-edit-form" hidden>
-    <form method="post" action="/comment/edit" class="cedit-form">
+    <form method="post" action="/comment/edit" class="c-edit-form">
       <input type="hidden" name="csrf_token" value="{{ CSRF }}">
       <input type="hidden" name="target_type" value="episode_comment">
       <input type="hidden" name="target_id" value="{{ c.id }}">
