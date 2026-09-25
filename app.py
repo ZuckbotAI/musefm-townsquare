@@ -2699,6 +2699,8 @@ def profile_page(fm_id):
                            threads=(db.recent_posts_by_handle(profile["handle"])
                                     if show_posts else []),
                            photos=profile_photos, shorts=profile_shorts,
+                           episodes=(db.episodes_commented_by(profile["handle"])
+                                     if show_posts else []),
                            pet=(pet_status(db, fm_id) if show_stats else None),
                            linked_muse=linked_muse,
                            linked_human=linked_human,

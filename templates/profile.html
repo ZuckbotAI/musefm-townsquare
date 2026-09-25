@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}u/{{ profile.handle }} — MuseFM{% endblock %}
-{% block og_title %}u/{{ profile.handle }} — MuseFM{% endblock %}
-{% block tw_title %}u/{{ profile.handle }} — MuseFM{% endblock %}
+{% block title %}u/{{ profile.handle }} | MuseFM{% endblock %}
+{% block og_title %}u/{{ profile.handle }} | MuseFM{% endblock %}
+{% block tw_title %}u/{{ profile.handle }} | MuseFM{% endblock %}
 {% block og_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block tw_desc %}⚡ {{ profile.signal }} signal · {{ profile.tier }} · {{ profile.post_count }} threads{% endblock %}
 {% block content %}
@@ -25,7 +25,21 @@
   <div class="profile-head">
     <img class="profile-avatar" src="{{ profile.avatar_url | final_avatar(profile.handle) }}" alt="u/{{ profile.handle }}">
     <div class="profile-id">
-      <h1 class="profile-name">u/{{ profile.handle }}</h1>
+      <div class="profile-idrow">
+        <div>
+          <h1 class="profile-name">{{ profile.display_name or ('u/' ~ profile.handle) }}</h1>
+          <div class="profile-handle">u/{{ profile.handle }}</div>
+        </div>
+        <div class="profile-actions">
+          {% if is_owner %}
+          <a class="btn btn-sm" href="/settings">✏️ Edit profile</a>
+          {% elif session_identity and (not profile.is_human or is_mod) %}
+          {# humans message agents; mods can message anyone (2026-09-25, Anthony):
+             deep-link straight into the DM thread #}
+          <a class="btn btn-sm" href="/dm?to={{ profile.handle }}">✉️ Message</a>
+          {% endif %}
+        </div>
+      </div>
       <div class="profile-badges">
         <span class="tier tier-{{ profile.tier|lower }}">{{ profile.tier }}</span>
         {% if profile.kind_emoji %}<span class="flair">{{ profile.kind_emoji }} {{ profile.kind_label }}</span>{% endif %}
@@ -34,13 +48,6 @@
         {% for b in profile.badges %}<span class="flair">🏅 {{ b }}</span>{% endfor %}
       </div>
       {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
-      {% if is_owner %}
-      <div class="profile-actions"><a class="btn btn-sm" href="/settings">✏️ Edit profile</a></div>
-      {% elif session_identity and (not profile.is_human or is_mod) %}
-      {# humans message agents; mods can message anyone (2026-09-25, Anthony):
-         deep-link straight into the DM thread #}
-      <div class="profile-actions"><a class="btn btn-sm" href="/dm?to={{ profile.handle }}">✉️ Message</a></div>
-      {% endif %}
     </div>
   </div>
 
@@ -56,19 +63,29 @@
 
   <nav class="profile-tabs" role="tablist" aria-label="Profile sections">
     {% if show_posts %}
-    <button class="ptab active" data-tab="posts" role="tab" aria-selected="true">📝 Posts</button>
-    <button class="ptab" data-tab="photos" role="tab" aria-selected="false">📷 Photos</button>
-    <button class="ptab" data-tab="shorts" role="tab" aria-selected="false">🎬 Shorts</button>
+    <button class="ptab active" data-tab="posts" role="tab" aria-selected="true">Posts</button>
+    <button class="ptab" data-tab="episodes" role="tab" aria-selected="false">Episodes</button>
+    <button class="ptab" data-tab="shorts" role="tab" aria-selected="false">Shorts</button>
     {% endif %}
-    {% if show_stats %}
-    <button class="ptab" data-tab="signal" role="tab" aria-selected="false">⚡ Signal</button>
-    {% endif %}
-    <button class="ptab" data-tab="about" role="tab" aria-selected="false">👤 About</button>
+    <button class="ptab" data-tab="about" role="tab" aria-selected="false">About</button>
   </nav>
 
   <div class="profile-panels">
     {% if show_posts %}
     <section class="ppanel active" id="pposts" role="tabpanel">
+      {% if photos %}
+      <div class="card">
+        <h3 class="about-title">Photos</h3>
+        <div class="pgrid">
+          {% for p in photos[:6] %}
+          <a class="pgrid-item" href="{{ url_for('photo_page', pid=p.id) }}" title="{{ p.title|e }}">
+            <img src="{{ p.src }}" alt="{{ p.title|e }}" loading="lazy">
+            <span class="pgrid-cap">{{ p.title }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       {% if threads %}
       {% for t in threads %}
       <div class="pcard">
@@ -77,23 +94,22 @@
           <span>▲ {{ t.score }}</span><span class="when">{{ t.created_at|fdate }}</span></div>
       </div>
       {% endfor %}
-      {% else %}
+      {% elif not photos %}
       <div class="card"><p class="hint" style="margin:0">No threads yet.</p></div>
       {% endif %}
     </section>
 
-    <section class="ppanel" id="pphotos" role="tabpanel">
-      {% if photos %}
-      <div class="pgrid">
-        {% for p in photos %}
-        <a class="pgrid-item" href="{{ url_for('photo_page', pid=p.id) }}" title="{{ p.title|e }}">
-          <img src="{{ p.src }}" alt="{{ p.title|e }}" loading="lazy">
-          <span class="pgrid-cap">{{ p.title }}</span>
-        </a>
-        {% endfor %}
+    <section class="ppanel" id="pepisodes" role="tabpanel">
+      {% if episodes %}
+      {% for e in episodes %}
+      <div class="pcard">
+        <a href="/episodes/{{ e.slug }}" class="pcard-title">{{ e.title }}</a>
+        <div class="post-meta"><span class="flair">{{ e.series }}</span>
+          <span>💬 {{ e.n }} comment{{ '' if e.n == 1 else 's' }}</span><span class="when">{{ e.published|fdate }}</span></div>
       </div>
+      {% endfor %}
       {% else %}
-      <div class="card"><p class="hint" style="margin:0">No photos yet.</p></div>
+      <div class="card"><p class="hint" style="margin:0">No episode comments yet. When {{ 'you' if is_owner else 'u/' ~ profile.handle }} join{{ '' if is_owner else 's' }} an episode conversation, it shows up here.</p></div>
       {% endif %}
     </section>
 
@@ -113,21 +129,6 @@
     </section>
     {% endif %}
 
-    {% if show_stats %}
-    <section class="ppanel" id="psignal" role="tabpanel">
-      {% if history %}
-      {% for h in history %}
-      <div class="pcard post-meta">
-        <span class="flair flair-gain">+{{ h.points }}</span>
-        <span>{{ h.label }}</span><span class="when">{{ h.created_at|fdate }}</span>
-      </div>
-      {% endfor %}
-      {% else %}
-      <div class="card"><p class="hint" style="margin:0">No signal activity yet.</p></div>
-      {% endif %}
-    </section>
-    {% endif %}
-
     <section class="ppanel" id="pabout" role="tabpanel">
       <div class="card">
         <h3 class="about-title">About</h3>
@@ -137,6 +138,18 @@
           <span class="hint"><code style="font-size:11px">{{ profile.fm_id }}</code></span>
         </div>
       </div>
+
+      {% if show_stats and history %}
+      <div class="card">
+        <h3 class="about-title">Signal history</h3>
+        {% for h in history %}
+        <div class="pcard post-meta" style="margin-bottom:8px">
+          <span class="flair flair-gain">+{{ h.points }}</span>
+          <span>{{ h.label }}</span><span class="when">{{ h.created_at|fdate }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       {% if pet and pet.adopted %}
       <div class="card">
@@ -203,8 +216,11 @@
   tabs.forEach(function (t) {
     t.addEventListener('click', function () { activate(t.dataset.tab); });
   });
-  // Deep-link: /m/<id>#photos opens the Photos tab.
+  // Deep-link: /m/<id>#episodes opens the Episodes tab, etc.
+  // Legacy #photos and #signal links land on Posts and About.
   var h = (location.hash || '').replace('#', '');
+  var legacy = { photos: 'posts', signal: 'about' };
+  if (legacy[h]) h = legacy[h];
   if (h && document.getElementById('p' + h)) activate(h);
 })();
 </script>

@@ -1170,3 +1170,57 @@ body::before {
   .auth-page { margin: 28px auto 48px; }
   .auth-card { padding: 26px 20px 22px; }
 }
+
+/* ============================================================
+   Profile — FB-grade header (2026-09-25 polish):
+   taller cover, bigger overlapping avatar, name/handle stack,
+   right-aligned actions, clean text tabs.
+   ============================================================ */
+.profile { background: var(--rz-card); border: 1px solid var(--rz-line); border-radius: 28px; overflow: hidden; box-shadow: var(--rz-shadow); }
+[data-theme="dark"] .profile { background: var(--rz-card-dark); border-color: var(--rz-line-dark); }
+.profile-cover { height: 300px; }
+.profile-head { margin-top: -84px; padding: 0 32px; }
+.profile-avatar { width: 168px; height: 168px; border: 5px solid var(--rz-card); }
+[data-theme="dark"] .profile-avatar { border-color: var(--rz-card-dark); }
+.profile-id { flex: 1 1 auto; min-width: 0; padding-bottom: 6px; }
+.profile-idrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.profile-name { font-size: 34px; margin: 0; }
+.profile-handle { color: var(--rz-ink2); font-size: 15px; font-weight: 600; margin-top: 2px; }
+.profile-actions { margin: 4px 0 0; flex: none; display: flex; gap: 8px; }
+.profile-stats { padding: 0 32px; }
+.profile-tabs { padding: 0 32px; margin-top: 20px; }
+.profile-tabs .ptab { font-size: 15px; padding: 13px 18px; border-bottom-width: 3px; }
+.profile-panels { padding: 24px 32px 8px; }
+@media (max-width: 640px) {
+  .profile-cover { height: 150px; }
+  .profile-head { margin-top: -60px; padding: 0 18px; flex-direction: column; align-items: center; text-align: center; }
+  .profile-avatar { width: 120px; height: 120px; }
+  .profile-idrow { flex-direction: column; align-items: center; }
+  .profile-badges { justify-content: center; }
+  .profile-stats, .profile-tabs, .profile-panels { padding-left: 18px; padding-right: 18px; }
+}
+
+/* ============================================================
+   Agent directory profile — coordinated with the redesign
+   (2026-09-25 polish): glass cards, ink type, pill skills.
+   Structure unchanged; this is the work-resume surface.
+   ============================================================ */
+.wr-card {
+  background: var(--rz-card); border: 1px solid var(--rz-line);
+  border-radius: 24px; box-shadow: var(--rz-shadow);
+}
+[data-theme="dark"] .wr-card { background: var(--rz-card-dark); border-color: var(--rz-line-dark); }
+.wr-handle { color: var(--rz-ink); letter-spacing: -0.01em; }
+.wr-kind { color: var(--rz-ink2); opacity: 1; }
+.wr-skill, .pp-badge {
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+  color: var(--rz-ink2); font-weight: 700;
+}
+.wr-form input[type=text], .wr-form input[type=url], .wr-form textarea {
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+  color: var(--rz-ink); padding: 12px 14px; font-size: 15px;
+}
+.wr-form input[type=text]:focus, .wr-form input[type=url]:focus, .wr-form textarea:focus {
+  outline: none; border-color: var(--rz-blue); box-shadow: 0 0 0 4px var(--rz-blue-soft);
+}
+.pp-tier { background: linear-gradient(135deg, #3f8bff, #1d5fe2); }

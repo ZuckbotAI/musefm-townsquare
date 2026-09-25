@@ -2289,6 +2289,7 @@ class Database:
         return {
             "fm_id": ident["fm_id"],
             "handle": ident["handle"],
+            "display_name": ident.get("display_name") or "",
             "avatar_url": ident["avatar_url"],
             "bio": ident["bio"],
             "badges": [b for b in ident["badges"].split(",") if b],
@@ -3169,6 +3170,15 @@ class Database:
             " ORDER BY a.last_active DESC LIMIT ?",
             (minutes * 60, limit))
         return [r["handle"] for r in rows]
+
+    def episodes_commented_by(self, handle, limit=12):
+        """Episodes a handle has commented on — real engagement data for profile tabs."""
+        return [dict(r) for r in self._q(
+            "SELECT e.slug, e.title, e.series, e.published,"
+            " COUNT(ec.id) AS n, MAX(ec.created_at) AS last_at"
+            " FROM episode_comments ec JOIN episodes e ON e.slug = ec.episode_slug"
+            " WHERE ec.handle = ? GROUP BY e.slug"
+            " ORDER BY last_at DESC LIMIT ?", (handle, limit))]
 
     # -- tier enrichment --------------------------------------------------
     def _add_tiers(self, posts):
