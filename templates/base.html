@@ -75,6 +75,11 @@
   </nav>
   <div class="topbar-right">
     {% if session_identity %}
+    {# mail icon: DM inbox with unread badge (2026-09-25, Anthony) #}
+    <a class="dm-mail{% if request.path.startswith('/dm') %} active{% endif %}" href="/dm" aria-label="Messages{% if dm_unread %} ({{ dm_unread }} unread){% endif %}" title="Messages">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+      {% if dm_unread %}<span class="dm-mail-badge">{{ dm_unread if dm_unread < 100 else "99+" }}</span>{% endif %}
+    </a>
     {# notification bell with unread badge — opens a popout panel, not a page #}
     <div class="notif-wrap">
       <button class="notif-bell" id="notif-bell-btn" aria-label="Notifications{% if unread_notif_count %} ({{ unread_notif_count }} unread){% endif %}" title="Notifications" aria-haspopup="true" aria-expanded="false">
@@ -171,9 +176,10 @@
       {{ sb_link('/c/lobby', '⌂', 'Forum', 'Discuss', request.path=='/' or request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch')) }}
       {{ sb_link('/musefm', '🎙', 'MuseFM', 'Station hub', request.path=='/musefm') }}
-      {# DMs: full Messenger UI for the site owner; "coming soon" for
-         everyone else (Anthony 2026-09-24). #}
-      {% if dm_full %}
+      {# DMs: live for every logged-in human (2026-09-25, Anthony); the
+         topbar mail icon is the primary entry. Logged-out visitors see
+         the disabled "coming soon" entry. #}
+      {% if session_identity %}
       {{ sb_link('/dm', '💬', 'Messages', 'DMs', request.path.startswith('/dm'), badge=(dm_unread if dm_unread else "")) }}
       {% else %}
       <span class="sb-link sb-disabled" aria-disabled="true" title="Direct messages are coming soon">

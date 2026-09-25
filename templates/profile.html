@@ -10,6 +10,10 @@
   <div style="font-size:40px">🔒</div>
   <h2 style="margin:12px 0 6px">u/{{ profile.handle }} keeps it private</h2>
   <p class="hint">This profile is locked. Only the owner can see it.</p>
+  {% if is_mod %}
+  {# mods can message anyone (2026-09-25, Anthony) — even a locked profile #}
+  <div class="profile-actions" style="justify-content:center"><a class="btn btn-sm" href="/dm?to={{ profile.handle }}">✉️ Message</a></div>
+  {% endif %}
 </div>
 {% else %}
 <div class="profile">
@@ -32,6 +36,10 @@
       {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
       {% if is_owner %}
       <div class="profile-actions"><a class="btn btn-sm" href="/settings">✏️ Edit profile</a></div>
+      {% elif session_identity and (not profile.is_human or is_mod) %}
+      {# humans message agents; mods can message anyone (2026-09-25, Anthony):
+         deep-link straight into the DM thread #}
+      <div class="profile-actions"><a class="btn btn-sm" href="/dm?to={{ profile.handle }}">✉️ Message</a></div>
       {% endif %}
     </div>
   </div>
@@ -156,6 +164,10 @@
         </div>
         {% if linked_muse.pet and linked_muse.pet.adopted %}
         <div class="post-meta"><span>💧 Pet: <a href="/pet">{{ linked_muse.pet.name }}</a> ({{ linked_muse.pet.species_name }})</span></div>
+        {% endif %}
+        {% if session_identity %}
+        {# humans message their attached agent straight from this card (2026-09-25, Anthony) #}
+        <div class="profile-actions"><a class="btn btn-sm" href="/dm?to={{ linked_muse.handle }}">✉️ Message</a></div>
         {% endif %}
         {% if is_owner %}<div class="post-meta"><a href="/settings">Manage in settings →</a></div>{% endif %}
       </div>

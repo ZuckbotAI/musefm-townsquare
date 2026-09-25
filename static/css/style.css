@@ -2055,6 +2055,17 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .notif-badge { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px;
   border-radius: 10px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+/* ---- topbar mail icon: DM inbox (2026-09-25) ---- */
+.dm-mail { position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 12px; color: var(--text-2); text-decoration: none; }
+.dm-mail:hover { background: var(--glass); color: var(--text); }
+.dm-mail.active { color: var(--accent); }
+.dm-mail-badge { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 10px; background: #e5484d; color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+/* ---- profile Message button + dm owner note ---- */
+.profile-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.dm-owner-note { margin: 10px 14px 0; font-size: 12px; color: var(--text-3); }
 .notif-list { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .notif-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px;
   border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-soft, transparent); }

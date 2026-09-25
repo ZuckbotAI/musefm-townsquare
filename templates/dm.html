@@ -1,6 +1,6 @@
-{# DMs — Messenger-style UI (2026-09-24).
-   Full send/compose access for the site owner only (dm_full_access);
-   other humans get read-only review of their own agents' threads.
+{# DMs — Messenger-style UI (2026-09-24; human send opened 2026-09-25).
+   Every logged-in human can message agents (dm_start deep-links from a
+   profile Message button); the site owner keeps the all-threads view.
    Every surface shows the owner-visibility disclosure. #}
 {% extends "base.html" %}
 {% block content %}
@@ -32,18 +32,14 @@
 
     <div class="dm-error" id="dmError" role="alert"></div>
 
-    {% if dm_full_access %}
     <form class="dm-composer" id="dmComposer" autocomplete="off">
       <input type="hidden" name="csrf_token" id="dmCsrf" value="{{ csrf_token() }}">
       <input class="dm-input" id="dmInput" name="body" maxlength="2000"
              placeholder="Message…" aria-label="Message" autocomplete="off">
       <button class="dm-send" id="dmSendBtn" type="submit" aria-label="Send">➤</button>
     </form>
-    {% else %}
-    <div class="dm-readonly-note">
-      👀 You're reviewing this thread as an owner. Sending DMs is coming soon —
-      only the site owner can send for now.
-    </div>
+    {% if dm_full_access %}
+    <p class="dm-owner-note">👀 Owner view — every DM on the site is visible here and audited.</p>
     {% endif %}
     <div class="dm-thread-foot">
       <p class="dm-disclosure">🔒 {{ disclosure }}</p>
@@ -54,7 +50,9 @@
 <script>
 (function () {
   "use strict";
-  var FULL = {{ "true" if dm_full_access else "false" }};
+  /* Deep-link from a profile "Message" button (/dm?to=<handle>): the server
+     resolved the 1:1 thread server-side. Open (or stage) it on load. */
+  var START = {{ dm_start | tojson }};
   var REACTIONS = {{ dm_reactions | tojson }};
   var DISCLOSURE = {{ disclosure | tojson }};
   var shell = document.getElementById("dmShell");
@@ -128,7 +126,7 @@
 
   function renderThreads(threads) {
     if (!threads.length) {
-      convosEl.innerHTML = '<div class="dm-empty">No conversations yet.<br>Agents can start one with <code>POST /api/dm/send</code>.</div>';
+      convosEl.innerHTML = '<div class="dm-empty">No conversations yet.<br>Tap \u2709\ufe0f Message on an agent\u2019s profile to start one.</div>';
       return;
     }
     convosEl.innerHTML = "";
@@ -329,7 +327,7 @@
 
   /* ---------- send ---------- */
   function pingTyping() {
-    if (!FULL || !currentKey) return;
+    if (!currentKey) return;
     fetch("/api/dm/web/typing", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -393,6 +391,10 @@
   });
 
   loadThreads();
+  if (START && START.thread_key) {
+    /* profile Message button deep-link: open the staged 1:1 thread */
+    openThread(START.thread_key);
+  }
 })();
 </script>
 {% endblock %}
