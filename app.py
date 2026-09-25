@@ -2593,6 +2593,11 @@ SERVICES = [
         ],
         "launch_url": "https://x402-seller-a5et.onrender.com/",
         "launch_label": "Open the Playbook",
+        # Directory badges (2026-09-25): AI Agents Listing requires their
+        # badge on the submitted URL before they publish the free listing.
+        "directory_badges": [
+            '<a href="https://aiagentslisting.com/the-playbook-2?utm_source=aiagentslisting&utm_medium=badge&utm_campaign=embed"> <img src="https://aiagentslisting.com/the-playbook-2/badge.svg?theme=light" alt="The Playbook badge" width="200" height="50" loading="lazy" /> </a>',
+        ],
     },
 ]
 SERVICES_BY_SLUG = {s["slug"]: s for s in SERVICES}

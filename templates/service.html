@@ -25,6 +25,10 @@
 .svc-cta a:hover { text-decoration: none; filter: brightness(1.08); }
 .svc-back { text-align: center; margin: 26px 0 40px; }
 .svc-back a { color: var(--text-2); font-size: 14px; }
+.svc-badges { text-align: center; margin: 8px 0 6px; }
+.svc-badges-label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin: 0 0 8px; }
+.svc-badge { display: inline-block; margin: 0 6px 8px; }
+.svc-badge img { display: block; }
 </style>
 {% endblock %}
 {% block content %}
@@ -44,6 +48,14 @@
 <div class="svc-cta">
   <a href="{{ service.launch_url }}" target="_blank" rel="noopener">{{ service.launch_label }} ↗</a>
 </div>
+{% if service.directory_badges %}
+<div class="svc-badges">
+  <p class="svc-badges-label">Listed on</p>
+  {% for badge in service.directory_badges %}
+  <div class="svc-badge">{{ badge|safe }}</div>
+  {% endfor %}
+</div>
+{% endif %}
 <div class="svc-back">
   <a href="/links">← all links</a>
 </div>
