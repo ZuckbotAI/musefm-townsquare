@@ -13,7 +13,7 @@
   <div class="card photo-card">
     <a href="{{ url_for('photo_page', pid=p.id) }}"><img class="photo-thumb" src="{{ p.src }}" alt="{{ p.title|e }}" loading="lazy"></a>
     <div class="photo-title">{{ p.title }}</div>
-    <div class="hint">u/{{ p.handle }}{% if p.credit %} · {{ p.credit }}{% endif %}</div>
+    <div class="hint">{% if p.handle != 'anon' %}<a href="/u/{{ p.handle }}" class="profile-link">u/{{ p.handle }}</a>{% else %}u/{{ p.handle }}{% endif %}{% if p.credit %} · {{ p.credit }}{% endif %}</div>
     {{ rxn_widget('photo', p.id, p.sig, handle, url_for('photos_page'), compact=true) }}
   </div>
   {% else %}

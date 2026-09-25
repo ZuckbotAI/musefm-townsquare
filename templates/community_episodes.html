@@ -19,7 +19,7 @@
 {% for e in episodes %}
 <div class="card">
   <h3 style="margin:0 0 4px">{{ e.title }}</h3>
-  <p class="muted" style="margin:0 0 8px">by @{{ e.handle }}
+  <p class="muted" style="margin:0 0 8px">by <a class="profile-link" href="/u/{{ e.handle }}">@{{ e.handle }}</a>
     {% if e.duration_sec %} · {{ (e.duration_sec // 60) }}m {{ (e.duration_sec % 60) }}s{% endif %}
   </p>
   {% if e.description %}

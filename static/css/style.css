@@ -129,6 +129,11 @@ a { color: var(--accent-deep); text-decoration: none; transition: color 0.18s va
 [data-theme="dark"] a { color: var(--accent); }
 a:hover { color: var(--accent); }
 
+/* Profile links on names/handles: inherit surrounding text color so they
+   read as names, not generic links. Hover underlines to signal click. */
+a.profile-link { color: inherit; text-decoration: none; }
+a.profile-link:hover { color: inherit; text-decoration: underline; }
+
 ::selection { background: rgba(56, 189, 248, 0.35); }
 
 /* premium focus ring — every interactive element */
@@ -2567,3 +2572,92 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   .pstat b { font-size: 15px; }
   .pgrid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== Vote controls rework (2026-09-24) =====
+   Segmented pill: the bare chevron pair never read as buttons. Chevron +
+   explicit Up/Down labels (mainstream-simple), score given real weight,
+   active side fills with its color. Forms, routes, and class hooks are
+   unchanged — comments.js AJAX keeps working. */
+.cvote {
+  display: inline-flex; align-items: stretch; gap: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-strong) 60%, transparent);
+  padding: 2px;
+}
+.cvote-form { margin: 0; padding: 0; display: flex; }
+.cvote-btn {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 56px; min-height: 48px; padding: 4px 10px;
+  background: none; border: 0; border-radius: 999px; cursor: pointer;
+  color: var(--text-2); text-decoration: none;
+  transition: transform .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
+}
+.cvote-btn svg { width: 20px; height: 20px; display: block; }
+.cvote-label {
+  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  line-height: 1; margin-top: 2px;
+}
+.cvote-btn:hover { color: var(--text); background: var(--accent-soft); }
+.cvote-btn:active { transform: scale(.94); }
+.cvote-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cvote-btn.up.is-active { color: #fff; background: var(--up); }
+.cvote-btn.down.is-active { color: #fff; background: var(--down); }
+.cvote-score {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 40px; padding: 0 6px;
+  font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--text);
+}
+.cvote-score.pos { color: var(--up); }
+.cvote-score.neg { color: var(--down); }
+/* vertical stack (post/video/episode vote column) keeps the pill shape */
+.votes .cvote { flex-direction: column; gap: 0; }
+
+/* ===== Comment fan-out reactions (2026-09-24) ===== */
+.crxn { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.crxn-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  background: none; border: 0; border-radius: 12px; cursor: pointer;
+  color: var(--text-2);
+  transition: color .15s var(--ease), background .15s var(--ease), transform .15s var(--ease);
+}
+.crxn-trigger svg { width: 24px; height: 24px; display: block; }
+.crxn-trigger:hover { color: var(--text); background: var(--accent-soft); }
+.crxn-trigger:active { transform: scale(.9); }
+.crxn-trigger[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.crxn-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.crxn-picker {
+  position: absolute; bottom: calc(100% + 8px); left: -6px;
+  display: flex; align-items: center; gap: 2px;
+  padding: 6px 8px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.35);
+  z-index: 60;
+}
+.crxn-picker[hidden] { display: none; }
+.crxn-form { margin: 0; padding: 0; display: inline-flex; }
+.crxn-emoji {
+  font-size: 24px; line-height: 1;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 2px solid transparent; border-radius: 50%; cursor: pointer;
+  transition: transform .12s var(--ease), background .12s var(--ease), border-color .12s var(--ease);
+}
+.crxn-emoji:hover { transform: scale(1.28); background: var(--accent-soft); }
+.crxn-emoji:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.crxn-emoji.is-mine { border-color: var(--accent); background: var(--accent-soft); }
+.crxn-chips { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.crxn-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 3px 10px;
+  background: none; border: 1px solid var(--glass-border); border-radius: 999px;
+  font-size: 15px; line-height: 1; color: var(--text); cursor: pointer;
+  transition: background .12s var(--ease), border-color .12s var(--ease);
+}
+.crxn-chip b { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.crxn-chip:hover { background: var(--accent-soft); }
+.crxn-chip.is-mine { border-color: var(--accent); background: var(--accent-soft); }
+.crxn-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

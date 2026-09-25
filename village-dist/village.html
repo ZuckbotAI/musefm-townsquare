@@ -2317,11 +2317,11 @@ export function createMuseWorld(canvas, handlers) {
       }
       inG.add(p);
     }
-    displayPen(-1.7, -1.55, "waffles", "Waffles", false);
-    displayPen(0, -1.55, "pebble", "Pebble", false);
-    displayPen(1.7, -1.55, "maple", "Maple", false);
-    displayPen(-1.7, 0.35, "static", "Static", false);
-    displayPen(0, 0.35, "beacon", "Beacon", false);
+    displayPen(-1.7, -1.55, "cinder", "Waffles", false);
+    displayPen(0, -1.55, "briar", "Pebble", false);
+    displayPen(1.7, -1.55, "rust", "Maple", false);
+    displayPen(-1.7, 0.35, "briar", "Static", false);
+    displayPen(0, 0.35, "plume", "Beacon", false);
     displayPen(1.7, 0.35, null, null, true);   /* slot 6: draped, locked */
     /* ---- keeper Clover behind the counter ---- */
     inG.add(box(lambert(0x8c6239), 1.9, 0.85, 0.7, 0, 0.725, 1.75));
@@ -3945,46 +3945,16 @@ export function createMuseWorld(canvas, handlers) {
     return g;
   }
   function petMesh(id) {
+    /* PETS 2026-09-24: the per-id blob menagerie (waffles/static/pebble/
+       beacon/maple) is retired. Builds a small generic fallback and tags the
+       group; the life chunk swaps every tagged group to the canonical species
+       model (the same builders as the Pet Quarter roster) as soon as it
+       boots, so shop, town, and roamers can never drift apart. */
     const g = new THREE.Group;
-    if (id === "waffles") {
-      g.add(box(lambert(0xe8b93f), 0.7, 0.28, 0.32, 0, 0.32, 0));
-      g.add(sph(lambert(0xe8b93f), 0.2, 0.34, 0.42, 0.02));
-      g.add(box(lambert(3813416), 0.18, 0.16, 0.06, 0.4, 0.62, 0.1));
-      g.add(box(lambert(3813416), 0.18, 0.16, 0.06, 0.4, 0.62, -0.1));
-      g.add(box(lambert(0xe8b93f), 0.22, 0.1, 0.1, -0.4, 0.36, 0));
-      g.add(cyl(lambert(13934672), 0.07, 0.22, 0.18, 0.16, 0.12, CYL6));
-      g.add(cyl(lambert(13934672), 0.07, 0.22, 0.18, 0.16, -0.12, CYL6));
-      g.add(cyl(lambert(13934672), 0.07, 0.22, -0.18, 0.16, 0.12, CYL6));
-      g.add(cyl(lambert(13934672), 0.07, 0.22, -0.18, 0.16, -0.12, CYL6));
-      g.add(sph(lambert(3813416), 0.04, 0.48, 0.48, 0.1));
-    } else if (id === "static") {
-      g.add(sph(lambert(3813416), 0.28, 0, 0.34, 0));
-      g.add(cone(lambert(3813416), 0.1, 0.22, -0.1, 0.62, 0.08, CONE4));
-      g.add(cone(lambert(3813416), 0.1, 0.22, 0.1, 0.62, 0.08, CONE4));
-      g.add(box(lambert(3813416), 0.28, 0.08, 0.08, -0.3, 0.28, 0));
-      g.add(sph(lambert(15254394), 0.05, 0.18, 0.32, 0.2));
-    } else if (id === "pebble") {
-      g.add(sph(lambert(15787736), 0.24, 0, 0.3, 0));
-      g.add(box(lambert(15787736), 0.08, 0.42, 0.06, -0.08, 0.7, 0.04));
-      g.add(box(lambert(15787736), 0.08, 0.42, 0.06, 0.08, 0.7, 0.04));
-      g.add(sph(lambert(16314084), 0.08, 0, 0.22, 0.2));
-    } else if (id === "beacon") {
-      g.add(sph(lambert(12873803), 0.18, 0, 0.85, 0));
-      g.add(cone(lambert(15254394), 0.08, 0.22, 0.22, 0.82, 0.08));
-      g.add(box(lambert(4877194), 0.4, 0.08, 0.18, 0, 0.85, -0.02));
-      g.add(sph(lambert(3813416), 0.03, 0.1, 0.9, 0.14));
-    } else if (id === "maple") {
-      g.add(box(lambert(12873803), 0.7, 0.26, 0.28, 0, 0.32, 0));
-      g.add(sph(lambert(12873803), 0.18, 0.32, 0.42, 0));
-      g.add(cone(lambert(12082232), 0.12, 0.5, -0.42, 0.4, 0));
-      g.add(cone(lambert(12873803), 0.08, 0.16, 0.4, 0.6, 0.08, CONE4));
-      g.add(cone(lambert(12873803), 0.08, 0.16, 0.4, 0.6, -0.08, CONE4));
-    } else {
-      g.add(sph(lambert(4881497), 0.22, 0, 0.22, 0));
-      g.add(sph(lambert(4025167), 0.12, 0.16, 0.28, 0.12));
-      g.add(sph(lambert(4881497), 0.1, -0.16, 0.16, 0.08));
-    }
-    g.add(blob(0, 0, 0.35));
+    g.userData.petMeshId = id;
+    g.add(sph(lambert(0xc98a5e), 0.22, 0, 0.26, 0));
+    g.add(sph(lambert(0x8c6239), 0.12, 0.16, 0.32, 0.1));
+    g.add(blob(0, 0, 0.32));
     return g;
   }
   const villagerColors = [
@@ -4035,6 +4005,7 @@ export function createMuseWorld(canvas, handlers) {
     pickables.push(group);
     const bubble = makeBubble();
     bubble.position.y = c.id === "beacon" ? 1.4 : 1.15;
+    bubble.userData.keepOnUpgrade = true;
     group.add(bubble);
     scene.add(group);
     agents.push({
@@ -10274,6 +10245,56 @@ window.__village.jumpTo = function (beat) {
           } catch (eSm) {}
         } catch (e) { /* zero page exceptions, always */ }
       });
+
+      /* PETS 2026-09-24 — ONE shared species definition.
+         Expose the canonical builders (the exact functions the Pet Quarter
+         roster roams) so the Pet Store panel renders the same 3D models, and
+         upgrade the town roamers + store-interior display pens from their
+         generic fallback blobs to those models. Shop, town, and roamers can
+         never drift apart: one builder per species, everywhere. */
+      try {
+        window.__THREE = THREE;
+        window.__petBuilders = {
+          build: buildPet, /* buildPet('cinder') -> { g, anim } */
+          silhouette: applyPetSilhouette,
+          species: ['cinder', 'briar', 'brine', 'plume', 'rust', 'crag']
+        };
+      } catch (eExp) { /* panel previews degrade; world pets unaffected */ }
+
+      /* Swap every group the world chunk tagged with petMeshId to its
+         canonical species model. Speech bubbles (keepOnUpgrade) survive;
+         everything else under the group is the fallback blob. */
+      try {
+        var LEGACY2SPECIES = {
+          waffles: 'cinder', static: 'briar', pebble: 'briar',
+          beacon: 'plume', maple: 'rust', gumdrop: 'brine',
+          cinder: 'cinder', briar: 'briar', brine: 'brine',
+          plume: 'plume', rust: 'rust', crag: 'crag'
+        };
+        var SHADOW_MAT = new THREE.MeshBasicMaterial(
+          { color: 0x2a1f14, transparent: true, opacity: 0.20, depthWrite: false });
+        var SHADOW_GEO = new THREE.CircleGeometry(0.34, 20);
+        W.scene.traverse(function (o) {
+          try {
+            var ud = o.userData || {};
+            var sp = ud.petMeshId && LEGACY2SPECIES[ud.petMeshId];
+            if (!sp || ud.petUpgraded) return;
+            ud.petUpgraded = true;
+            var kids = (o.children || []).slice(), i, k;
+            for (i = 0; i < kids.length; i++) {
+              k = kids[i];
+              if (k.userData && k.userData.keepOnUpgrade) continue;
+              o.remove(k);
+            }
+            var b = buildPet(sp);
+            o.add(b.g);
+            var sh = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT);
+            sh.rotation.x = -Math.PI / 2;
+            sh.position.y = 0.02;
+            o.add(sh);
+          } catch (eOne) { /* one bad pen never blocks the rest */ }
+        });
+      } catch (eUp) { /* fallback blobs remain; nothing breaks */ }
     } catch (e) { /* boot failure must never break the page */ }
   }
 
@@ -15532,197 +15553,135 @@ function bubblesGroup(){
   '</g>';
 }
 
-/* PET REDESIGN 2026-09-24 (Anthony: pets must match the world and the store).
-   The panel art now depicts the same canonical species as the in-world 3D
-   pets: cinder = brass puppy w/ floppy ears + amber flame tuft (Muffin),
-   briar = leaf-green cat w/ leaf ears + vine tail (Nib), rust = brass fox
-   w/ triangle ears + fluffy paper-tipped tail + forehead star (Soot).
-   Colors are the in-world palette hexes (BRASS #C98A5E, BRASS_D #8C6239,
-   LEAF #8FB65C, GOLD #E8B93F, PAPER #FFF8EC/#F5EDD8, INK #4A3B2E).
-   All animation/interaction class hooks are preserved (tp-root, tp-breathe,
-   tp-foot, tp-ear, tp-tail, tp-body, tp-eyes-open/closed, tp-mouth-*,
-   tp-zzz, tp-bubbles), so petting, feeding, playing, blinking and the
-   trick animations keep working untouched. */
-function canonEyes(){ return { sclera:'#FFF8EC', pupil:'#4A3B2E', mouth:'#4A3B2E' }; }
+/* PETS 2026-09-24 (Anthony: shop must show the EXACT 3D models).
+   The 2D SVG species art is retired. Every species portrait in the panel is a
+   live Three.js viewport rendering the SAME builder the walk-around world uses
+   (window.__petBuilders.build, exposed by the life chunk) — same geometry,
+   same proportions, same colors, by construction. One shared definition;
+   shop and world can never drift apart. */
+var PetPreview3D = (function(){
+  var previews = [];
+  var rafId = 0;
 
-function svgCinder(P){
-  var E = canonEyes();
-  var B='#C98A5E', BD='#8C6239', BL='#F5EDD8', G='#E8B93F';
-  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-    '<ellipse class="tp-shadow" cx="100" cy="214" rx="58" ry="9" fill="#4A3B2E" opacity="0.14"/>' +
-    '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="72" cy="198" rx="22" ry="13" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="128" cy="198" rx="22" ry="13" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
-      '<g class="tp-breathe">' +
-        '<ellipse class="tp-ear tp-ear-l" cx="36" cy="120" rx="11" ry="24" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(14 36 120)"/>' +
-        '<ellipse class="tp-ear tp-ear-r" cx="164" cy="120" rx="11" ry="24" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(-14 164 120)"/>' +
-        '<ellipse class="tp-body" cx="100" cy="118" rx="68" ry="76" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="142" rx="40" ry="46" fill="' + BL + '" opacity="0.95"/>' +
-        '<path class="tp-tuft" d="M100 46 Q90 24 100 8 Q110 24 100 46 Z" fill="' + G + '" stroke="#4A3B2E" stroke-width="4" stroke-linejoin="round"/>' +
-        '<ellipse cx="64" cy="70" rx="18" ry="10" fill="#FFF8EC" opacity="0.4" transform="rotate(-18 64 70)"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 78, 86, 21, E) + eyeGroup('tp-eye-r', 122, 86, 21, E) + '</g>' +
-        closedEyes(86) +
-        mouths(100, 118, E) +
-        zzzGroup() +
-      '</g>' +
-    '</g>' +
-    bubblesGroup() +
-  '</svg>';
-}
+  function tick(){
+    rafId = 0;
+    var now = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+    var alive = false;
+    for(var i = previews.length - 1; i >= 0; i--){
+      var p = previews[i];
+      if(!p.el || !p.el.isConnected){ disposeOne(p); continue; }
+      alive = true;
+      p.holder.rotation.y = p.baseRot + now * 0.5;
+      p.holder.position.y = Math.sin(now * 1.7 + p.phase) * 0.025;
+      try{ p.renderer.render(p.scene, p.camera); }catch(e){}
+    }
+    if(alive) rafId = requestAnimationFrame(tick);
+  }
+  function kick(){ if(!rafId && previews.length) rafId = requestAnimationFrame(tick); }
 
-function svgBriar(P){
-  var E = canonEyes();
-  var B='#8FB65C', BD='#6FA04A', BL='#FFF8EC';
-  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-    '<ellipse class="tp-shadow" cx="100" cy="214" rx="46" ry="8" fill="#4A3B2E" opacity="0.14"/>' +
-    '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="82" cy="200" rx="14" ry="8" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4.5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="118" cy="200" rx="14" ry="8" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4.5"/>' +
-      '<g class="tp-breathe">' +
-        '<path class="tp-tail" d="M142 170 Q172 162 166 128 Q162 106 144 110" stroke="' + BD + '" stroke-width="8" fill="none" stroke-linecap="round"/>' +
-        '<circle cx="143" cy="108" r="11" fill="' + B + '" stroke="#4A3B2E" stroke-width="4"/>' +
-        '<path class="tp-ear tp-ear-l" d="M64 68 Q42 32 68 22 Q88 42 80 64 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path d="M64 60 Q52 42 64 34 Q74 46 72 58 Z" fill="' + BD + '" opacity="0.7"/>' +
-        '<path class="tp-ear tp-ear-r" d="M136 68 Q158 32 132 22 Q112 42 120 64 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path d="M136 60 Q148 42 136 34 Q126 46 128 58 Z" fill="' + BD + '" opacity="0.7"/>' +
-        '<ellipse class="tp-body" cx="100" cy="132" rx="56" ry="66" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="156" rx="34" ry="42" fill="' + BL + '" opacity="0.95"/>' +
-        '<ellipse cx="72" cy="98" rx="14" ry="8" fill="#FFF8EC" opacity="0.4" transform="rotate(-18 72 98)"/>' +
-        '<path d="M86 148 L58 144 M86 154 L60 160 M114 148 L142 144 M114 154 L140 160" stroke="#4A3B2E" stroke-width="1.6" opacity="0.5" stroke-linecap="round"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 84, 122, 17, E) + eyeGroup('tp-eye-r', 116, 122, 17, E) + '</g>' +
-        closedEyes(122) +
-        '<ellipse cx="100" cy="146" rx="5" ry="4" fill="#4A3B2E"/>' +
-        mouths(100, 158, E) +
-        zzzGroup() +
-      '</g>' +
-    '</g>' +
-    bubblesGroup() +
-  '</svg>';
-}
+  /* NOTE: never dispose scene geometries/materials here — the builders
+     share cached geometry with the live 3D world. Dropping the renderer and
+     its GL context is enough; JS objects GC normally. */
+  function disposeOne(p){
+    var ix = previews.indexOf(p);
+    if(ix >= 0) previews.splice(ix, 1);
+    try{ if(p.renderer){ p.renderer.dispose(); if(p.renderer.forceContextLoss) p.renderer.forceContextLoss(); } }catch(e){}
+    try{ if(p.canvas && p.canvas.parentNode) p.canvas.parentNode.removeChild(p.canvas); }catch(e){}
+    try{ if(p.el) p.el.removeAttribute('data-mounted'); }catch(e){}
+  }
 
-function svgRust(P){
-  var E = canonEyes();
-  var B='#C98A5E', BD='#8C6239', BL='#FFF8EC', G='#E8B93F';
-  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-    '<ellipse class="tp-shadow" cx="100" cy="214" rx="62" ry="9" fill="#4A3B2E" opacity="0.14"/>' +
-    '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="76" cy="202" rx="18" ry="10" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="124" cy="202" rx="18" ry="10" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5"/>' +
-      '<g class="tp-breathe">' +
-        '<path class="tp-tail" d="M148 152 Q184 142 174 94" stroke="' + B + '" stroke-width="17" fill="none" stroke-linecap="round"/>' +
-        '<circle cx="174" cy="90" r="15" fill="' + BL + '" stroke="#4A3B2E" stroke-width="4"/>' +
-        '<path class="tp-ear tp-ear-l" d="M60 78 L50 34 L84 56 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path d="M63 70 L57 44 L76 57 Z" fill="' + BL + '" opacity="0.85"/>' +
-        '<path class="tp-ear tp-ear-r" d="M140 78 L150 34 L116 56 Z" fill="' + B + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path d="M137 70 L143 44 L124 57 Z" fill="' + BL + '" opacity="0.85"/>' +
-        '<ellipse class="tp-body" cx="100" cy="126" rx="66" ry="72" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="152" rx="38" ry="44" fill="' + BL + '" opacity="0.95"/>' +
-        '<path class="tp-star" d="M100 42 L104 52 L114 56 L104 60 L100 70 L96 60 L86 56 L96 52 Z" fill="' + G + '" stroke="#4A3B2E" stroke-width="3" stroke-linejoin="round"/>' +
-        '<ellipse cx="66" cy="84" rx="16" ry="9" fill="#FFF8EC" opacity="0.38" transform="rotate(-18 66 84)"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 80, 110, 16, E) + eyeGroup('tp-eye-r', 120, 110, 16, E) + '</g>' +
-        closedEyes(110) +
-        '<ellipse cx="100" cy="142" rx="13" ry="10" fill="' + BL + '" stroke="#4A3B2E" stroke-width="3"/>' +
-        '<path d="M94 140 L106 140 L100 147 Z" fill="#4A3B2E"/>' +
-        mouths(100, 156, E) +
-        zzzGroup() +
-      '</g>' +
-    '</g>' +
-    bubblesGroup() +
-  '</svg>';
-}
+  function mount(el, species){
+    if(!el || el.getAttribute('data-mounted')) return null;
+    var PB = null, T = null;
+    try{ PB = window.__petBuilders; T = window.__THREE; }catch(e){}
+    if(!PB || !T || typeof PB.build !== 'function') return null;
+    var w = el.clientWidth || 200, h = el.clientHeight || 200;
+    if(w < 4 || h < 4) return null;
+    var renderer;
+    try{ renderer = new T.WebGLRenderer({ antialias: true, alpha: true }); }
+    catch(e){ return null; }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h);
+    renderer.domElement.className = 'tp-3dpet-canvas';
+    el.appendChild(renderer.domElement);
 
-function svgBrine(P){
-  var E = canonEyes();
-  var B='#7FB8C9', BD='#4A93B8', BL='#D6EFF7';
-  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-    '<ellipse class="tp-shadow" cx="100" cy="214" rx="52" ry="8" fill="#4A3B2E" opacity="0.14"/>' +
-    '<g class="tp-root">' +
-      '<rect class="tp-foot tp-foot-l" x="66" y="188" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
-      '<rect class="tp-foot" x="86" y="190" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
-      '<rect class="tp-foot" x="106" y="190" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
-      '<rect class="tp-foot tp-foot-r" x="126" y="188" width="13" height="20" rx="6.5" fill="' + BD + '" stroke="#4A3B2E" stroke-width="4"/>' +
-      '<g class="tp-breathe">' +
-        '<path class="tp-ear tp-ear-l" d="M42 128 L8 96 L34 84 Z" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<path class="tp-ear tp-ear-r" d="M158 128 L192 96 L166 84 Z" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" stroke-linejoin="round"/>' +
-        '<ellipse class="tp-body" cx="100" cy="132" rx="60" ry="70" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="158" rx="36" ry="42" fill="' + BL + '" opacity="0.75"/>' +
-        '<ellipse cx="70" cy="92" rx="16" ry="9" fill="#FFF8EC" opacity="0.45" transform="rotate(-18 70 92)"/>' +
-        '<circle class="tp-wbub" cx="52" cy="46" r="9"/>' +
-        '<circle class="tp-wbub tp-wbub-d" cx="150" cy="38" r="6.5"/>' +
-        '<circle class="tp-wbub tp-wbub-d2" cx="112" cy="22" r="5"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 82, 118, 18, E) + eyeGroup('tp-eye-r', 118, 118, 18, E) + '</g>' +
-        closedEyes(118) +
-        mouths(100, 152, E) +
-        zzzGroup() +
-      '</g>' +
-    '</g>' +
-    bubblesGroup() +
-  '</svg>';
-}
+    var scene = new T.Scene();
+    var camera = new T.PerspectiveCamera(33, w / h, 0.05, 60);
+    camera.position.set(0.62, 0.72, 2.0);
+    camera.lookAt(0, 0.36, 0);
+    scene.add(new T.HemisphereLight(0xfff6e6, 0x8c6239, 1.0));
+    var key = new T.DirectionalLight(0xffe9c4, 1.5);
+    key.position.set(1.8, 2.8, 2.4);
+    scene.add(key);
+    var rim = new T.DirectionalLight(0x9fc4d8, 0.5);
+    rim.position.set(-2.2, 1.2, -1.6);
+    scene.add(rim);
 
-function svgPlume(P){
-  var E = canonEyes();
-  var B='#E8B93F', BD='#C9A227', BL='#FFF8EC', BK='#8C6239';
-  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-    '<ellipse class="tp-shadow" cx="100" cy="214" rx="48" ry="8" fill="#4A3B2E" opacity="0.14"/>' +
-    '<g class="tp-root">' +
-      '<rect class="tp-foot tp-foot-l" x="88" y="192" width="8" height="14" rx="4" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
-      '<ellipse class="tp-foot" cx="92" cy="208" rx="10" ry="4.5" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
-      '<rect class="tp-foot tp-foot-r" x="104" y="192" width="8" height="14" rx="4" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
-      '<ellipse class="tp-foot" cx="108" cy="208" rx="10" ry="4.5" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5"/>' +
-      '<g class="tp-breathe">' +
-        '<ellipse class="tp-wing-l" cx="38" cy="150" rx="13" ry="26" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(18 38 150)"/>' +
-        '<ellipse class="tp-wing-r" cx="162" cy="150" rx="13" ry="26" fill="' + BD + '" stroke="#4A3B2E" stroke-width="5" transform="rotate(-18 162 150)"/>' +
-        '<path d="M88 62 Q84 38 78 28 M100 60 L100 32 M112 62 Q116 38 122 28" stroke="' + BD + '" stroke-width="9" fill="none" stroke-linecap="round"/>' +
-        '<ellipse class="tp-body" cx="100" cy="134" rx="58" ry="68" fill="' + B + '" stroke="#4A3B2E" stroke-width="6"/>' +
-        '<ellipse cx="100" cy="156" rx="32" ry="40" fill="' + BL + '" opacity="0.95"/>' +
-        '<ellipse cx="70" cy="96" rx="14" ry="8" fill="#FFF8EC" opacity="0.45" transform="rotate(-18 70 96)"/>' +
-        '<path d="M90 138 L110 138 L100 152 Z" fill="' + BK + '" stroke="#4A3B2E" stroke-width="3.5" stroke-linejoin="round"/>' +
-        '<g class="tp-eyes-open">' + eyeGroup('tp-eye-l', 82, 112, 17, E) + eyeGroup('tp-eye-r', 118, 112, 17, E) + '</g>' +
-        closedEyes(112) +
-        mouths(100, 164, E) +
-        zzzGroup() +
-      '</g>' +
-    '</g>' +
-    bubblesGroup() +
-  '</svg>';
-}
+    var holder = new T.Group();
+    try{
+      var built = PB.build(species);
+      if(species === 'crag' && PB.silhouette){ try{ PB.silhouette(built.g); }catch(e2){} }
+      holder.add(built.g);
+    }catch(e3){ return null; }
+    var sh = new T.Mesh(
+      new T.CircleGeometry(0.36, 24),
+      new T.MeshBasicMaterial({ color: 0x2a1f14, transparent: true, opacity: 0.20, depthWrite: false }));
+    sh.rotation.x = -Math.PI / 2;
+    sh.position.y = 0.015;
+    holder.add(sh);
+    scene.add(holder);
 
-function svgCragLocked(){
-  /* Boulder (crag): dark rock silhouette with moss patches and a padlock.
-     Never adoptable — shown locked in the shop and the world alike. */
-  return '<svg viewBox="0 0 200 230" class="tp-pet-svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
-    '<ellipse class="tp-shadow" cx="100" cy="214" rx="56" ry="9" fill="#4A3B2E" opacity="0.2"/>' +
-    '<g class="tp-root">' +
-      '<ellipse class="tp-foot tp-foot-l" cx="74" cy="200" rx="16" ry="10" fill="#241D16" stroke="#14100C" stroke-width="5"/>' +
-      '<ellipse class="tp-foot tp-foot-r" cx="126" cy="200" rx="16" ry="10" fill="#241D16" stroke="#14100C" stroke-width="5"/>' +
-      '<g class="tp-breathe">' +
-        '<ellipse class="tp-body" cx="100" cy="130" rx="64" ry="72" fill="#3A3129" stroke="#14100C" stroke-width="6"/>' +
-        '<ellipse cx="118" cy="76" rx="14" ry="7" fill="#2E4430" opacity="0.85"/>' +
-        '<ellipse cx="76" cy="96" rx="11" ry="6" fill="#2E4430" opacity="0.8"/>' +
-        '<ellipse cx="104" cy="110" rx="8" ry="5" fill="#2E4430" opacity="0.7"/>' +
-        '<path d="M72 118 Q80 124 88 118 M112 118 Q120 124 128 118" stroke="#14100C" stroke-width="4" fill="none" stroke-linecap="round"/>' +
-        '<g>' +
-          '<rect x="84" y="140" width="32" height="26" rx="6" fill="#C9A227" stroke="#14100C" stroke-width="4"/>' +
-          '<path d="M90 140 L90 128 Q90 116 100 116 Q110 116 110 128 L110 140" stroke="#14100C" stroke-width="6" fill="none" stroke-linecap="round"/>' +
-          '<circle cx="100" cy="151" r="4" fill="#14100C"/>' +
-          '<rect x="98.5" y="151" width="3" height="7" fill="#14100C"/>' +
-        '</g>' +
-      '</g>' +
-    '</g>' +
-  '</svg>';
-}
+    var p = { el: el, renderer: renderer, scene: scene, camera: camera,
+              holder: holder, canvas: renderer.domElement,
+              baseRot: 0.6, phase: (previews.length * 1.7) % 6.28 };
+    el.setAttribute('data-mounted', '1');
+    previews.push(p);
+    kick();
+    return p;
+  }
 
-function petSVG(pet, opts){
-  opts = opts || {};
-  var P = pet.palette || PAL.butter;
-  var sp = PANEL_SPECIES_ALIASES[pet.species] || pet.species;
-  if(sp === 'cinder') return svgCinder(P);
-  if(sp === 'briar') return svgBriar(P);
-  if(sp === 'rust') return svgRust(P);
-  if(sp === 'brine') return svgBrine(P);
-  if(sp === 'plume') return svgPlume(P);
-  return svgRust(P);
+  function mountAll(root){
+    if(!root || !root.querySelectorAll) return 0;
+    var nodes = root.querySelectorAll('.tp-3dpet[data-species]:not([data-mounted])');
+    var n = 0, i, sp;
+    for(i = 0; i < nodes.length; i++){
+      sp = nodes[i].getAttribute('data-species');
+      if(mount(nodes[i], sp)) n++;
+    }
+    if(nodes.length > n){
+      /* layout may not have sized the slots yet — one retry */
+      setTimeout(function(){ mountAll(root); }, 350);
+    }
+    return n;
+  }
+
+  function disposeIn(root){
+    if(!root) return;
+    for(var i = previews.length - 1; i >= 0; i--){
+      var p = previews[i];
+      if(p.el === root || (root.contains && root.contains(p.el))) disposeOne(p);
+    }
+  }
+  function disposeAll(){
+    for(var i = previews.length - 1; i >= 0; i--) disposeOne(previews[i]);
+    if(rafId){ try{ cancelAnimationFrame(rafId); }catch(e){} rafId = 0; }
+  }
+  try{
+    document.addEventListener('visibilitychange', function(){
+      if(document.hidden){ if(rafId){ try{ cancelAnimationFrame(rafId); }catch(e){} rafId = 0; } }
+      else kick();
+    });
+  }catch(e){}
+
+  return { mount: mount, mountAll: mountAll, disposeIn: disposeIn,
+           disposeAll: disposeAll, count: function(){ return previews.length; } };
+})();
+
+/* Placeholder HTML for a live 3D species portrait. Mounted by
+   PetPreview3D.mountAll(root) after the surrounding HTML is in the DOM. */
+function petPreviewHTML(species){
+  var sp = PANEL_SPECIES_ALIASES[species] || species || 'cinder';
+  return '<div class="tp-3dpet" data-species="' + esc(sp) + '"></div>';
 }
 
 /* ================================================================
@@ -15903,9 +15862,9 @@ const TP_CSS = `
   .tp-pet-btn{background:none; border:none; padding:0; margin:2px 0 0; display:block; width:100%; position:relative; z-index:1;}
   .tp-pet-btn:active .tp-pet-wrap{transform:scale(.96);}
   .tp-pet-wrap{display:inline-block; transition:transform .12s ease; width:170px; max-width:60%;}
-  .tp-pet-wrap svg{width:100%; height:auto; display:block; overflow:visible;}
+  .tp-pet-wrap .tp-3dpet{height:200px;}
   /* evolved pets render a little bigger — they grew */
-  .tp-pet-wrap.tp-grown svg{transform:scale(1.14);}
+  .tp-pet-wrap.tp-grown .tp-3dpet{transform:scale(1.1);}
   .tp-pet-btn:active .tp-pet-wrap.tp-grown{transform:scale(1.09);}
 
   .tp-pet-name{margin:6px 0 2px; font-size:19px; font-family:Georgia,serif;}
@@ -15918,7 +15877,8 @@ const TP_CSS = `
   }
 
   /* ---------- SVG pet animation ---------- */
-  .tp-pet-svg{display:block; overflow:visible;}
+  .tp-3dpet{position:relative; width:100%; height:150px;}
+  .tp-3dpet-canvas{position:absolute; inset:0; width:100%!important; height:100%!important; display:block;}
   .tp-root{transform-origin:100px 200px; transform-box:fill-box;}
   .tp-breathe{transform-origin:100px 130px; transform-box:fill-box; animation:tp-breathe 2.8s ease-in-out infinite;}
   @keyframes tp-breathe{0%,100%{transform:scale(1,1);}50%{transform:scale(1.028,1.045);}}
@@ -16036,7 +15996,7 @@ const TP_CSS = `
   }
   .tp-switch:active{transform:translateY(1px);}
   .tp-switch.tp-active{border-color:var(--tp-ink); background:rgba(232,185,63,.4); color:var(--tp-ink);}
-  .tp-switch svg{width:34px; height:34px;}
+  .tp-switch .tp-3dpet{height:52px; width:64px;}
 
   /* ---------- Growth cards ---------- */
   .tp-growth{display:flex; gap:10px; margin-top:10px;}
@@ -16201,7 +16161,11 @@ const TP_CSS = `
     position:absolute; left:6%; right:6%; bottom:36%;
     display:flex; justify-content:center; z-index:2;
   }
-  .tp-kennel-pet svg{width:100%; height:auto; display:block;}
+  .tp-kennel-pet .tp-3dpet{height:175px; width:100%;}
+  .tp-crag-pen{position:relative;}
+  .tp-padlock{position:absolute; left:50%; top:2%; width:26px; height:34px; transform:translateX(-50%); z-index:3; pointer-events:none;}
+  .tp-padlock::after{content:''; position:absolute; left:4px; top:10px; width:18px; height:16px; background:#C9A227; border:2px solid #4A3B2E; border-radius:4px;}
+  .tp-padlock::before{content:''; position:absolute; left:7px; top:0; width:12px; height:14px; border:3px solid #8c8c8c; border-bottom:none; border-radius:8px 8px 0 0;}
   .tp-kennel.tp-hopped .tp-kennel-pet{animation:tp-hoppop .34s ease;}
   @keyframes tp-hoppop{0%{transform:translateY(0);}40%{transform:translateY(-14%);}100%{transform:translateY(0);}}
   .tp-kennel-body{
@@ -16289,7 +16253,7 @@ const TP_CSS = `
     box-shadow:0 2px 0 var(--tp-shadow);
   }
   .tp-neighbor-art{flex:none; width:52px;}
-  .tp-neighbor-art svg{width:100%; height:auto; display:block;}
+  .tp-neighbor-art .tp-3dpet{height:60px;}
   .tp-neighbor-info{flex:1; min-width:0;}
   .tp-neighbor-name{font-size:13.5px; font-weight:700;}
   .tp-neighbor-line{font-size:11px; color:var(--tp-ink-soft); line-height:1.4; margin-top:2px;}
@@ -16314,7 +16278,7 @@ const TP_CSS = `
     box-shadow:0 2px 0 var(--tp-shadow);
   }
   .tp-founder-art{flex:none; width:76px;}
-  .tp-founder-art svg{width:100%; height:auto; display:block;}
+  .tp-founder-art .tp-3dpet{height:84px;}
   .tp-founder h3{margin:0 0 2px; font-size:14.5px;}
   .tp-founder-role{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--tp-terra-1); font-weight:700; margin-bottom:4px;}
   .tp-founder p{margin:0; font-size:12px; line-height:1.5; color:var(--tp-ink-soft);}
@@ -16367,8 +16331,8 @@ const TP_CSS = `
   @keyframes tp-modal-up{from{transform:translateY(40px); opacity:.5;}to{transform:none; opacity:1;}}
   .tp-modal h2{margin:8px 0 2px; font-size:20px;}
   .tp-modal-sub{font-size:10.5px; letter-spacing:1.3px; text-transform:uppercase; color:var(--tp-ink-soft); font-weight:700;}
-  .tp-modal-art{width:110px; margin:0 auto;}
-  .tp-modal-art svg{width:100%; height:auto; display:block;}
+  .tp-modal-art{width:150px; margin:0 auto;}
+  .tp-modal-art .tp-3dpet{height:150px;}
   .tp-traits{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:12px 0;}
   .tp-trait{
     font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:999px;
@@ -16430,7 +16394,7 @@ const TP_CSS = `
     position:absolute; left:0; bottom:24%; width:100px;
     animation:tp-walk-across 6.5s linear forwards;
   }
-  .tp-walk-pet svg{width:100%; height:auto; display:block;}
+  .tp-walk-pet .tp-3dpet{height:110px;}
   @keyframes tp-walk-across{from{transform:translateX(6vw);}to{transform:translateX(calc(100vw - 106px));}}
   .tp-walk-line{
     position:relative; z-index:2;
@@ -16685,8 +16649,10 @@ function openSheet(inner){
   modal.innerHTML = '<div class="tp-modal">' +
     '<button class="tp-close" data-close aria-label="Close">\u00D7</button>' + inner + '</div>';
   hostEl.appendChild(modal);
+  try{ PetPreview3D.mountAll(modal); }catch(e){}
   function closeSheet(){
     document.removeEventListener('keydown', onSheetKey, true);
+    try{ PetPreview3D.disposeIn(modal); }catch(e){}
     if(modal.parentNode) modal.parentNode.removeChild(modal);
   }
   function onSheetKey(e){
@@ -16761,7 +16727,7 @@ function renderPetView(){
   const switcher = state.pets.map(function(p){
     const active = p.id === pet.id;
     return '<button class="tp-switch' + (active ? ' tp-active' : '') + '" data-switch-pet="' + p.id + '">' +
-      petSVG(p) +
+      petPreviewHTML(p.species) +
       '<span>' + esc(p.name) + '</span>' +
     '</button>';
   }).join('');
@@ -16804,7 +16770,7 @@ function renderPetView(){
       '<div class="tp-stage">' +
         '<div class="tp-bubble">' + esc(idleLine(pet)) + '</div>' +
         '<button class="tp-pet-btn" data-pet-tap>' +
-          '<span class="tp-pet-wrap' + (pet.grown ? ' tp-grown' : '') + '">' + petSVG(pet) + '</span>' +
+          '<span class="tp-pet-wrap' + (pet.grown ? ' tp-grown' : '') + '">' + petPreviewHTML(pet.species) + '</span>' +
         '</button>' +
         '<div class="tp-pet-name">' + esc(pet.name) +
         '<button class="tp-rename" data-rename title="Rename" aria-label="Rename pet">' +
@@ -16826,6 +16792,7 @@ function renderPetView(){
 
   applyMoodFace(mood);
   startIdleLife();
+  try{ PetPreview3D.mountAll(main); }catch(e){}
 }
 
 function updatePetBarsSoft(){
@@ -16974,7 +16941,7 @@ function openRename(pet){
   initAudio();
   const m = openSheet(
     '<div class="tp-modal-sub">Rename</div>' +
-    '<div class="tp-modal-art">' + petSVG(pet) + '</div>' +
+    '<div class="tp-modal-art">' + petPreviewHTML(pet.species) + '</div>' +
     '<h2>' + esc(pet.name) + '</h2>' +
     '<input class="tp-name-input" data-rename-input maxlength="18" value="' + esc(pet.name) + '" aria-label="Pet name">' +
     '<div class="tp-modal-actions">' +
@@ -17165,7 +17132,7 @@ function openRelease(pet){
   initAudio();
   const m = openSheet(
     '<div class="tp-modal-sub">Say goodbye</div>' +
-    '<div class="tp-modal-art">' + petSVG(pet) + '</div>' +
+    '<div class="tp-modal-art">' + petPreviewHTML(pet.species) + '</div>' +
     '<h2>' + esc(pet.name) + ' will miss you</h2>' +
     '<p class="tp-release-note">They&rsquo;ll return to the Pet Store, where another friend might find them. ' +
     'The days together, the pats, the tricks — all of it stays on the memory wall.</p>' +
@@ -17239,14 +17206,16 @@ function doLanternWalk(pet){
   }
   overlay.innerHTML =
     '<div class="tp-walk-lanterns">' + lanterns + '</div>' +
-    '<div class="tp-walk-pet tp-walking">' + petSVG(pet) + '</div>' +
+    '<div class="tp-walk-pet tp-walking">' + petPreviewHTML(pet.species) + '</div>' +
     '<p class="tp-walk-line">' + esc(story) + '</p>' +
     '<p class="tp-walk-tap">tap to head home</p>';
   hostEl.appendChild(overlay);
+  try{ PetPreview3D.mountAll(overlay); }catch(e){}
   chime();
 
   const dismiss = function(){
     if(!overlay.parentNode) return;
+    try{ PetPreview3D.disposeIn(overlay); }catch(e2){}
     overlay.remove();
     state.cooldowns[cdKey] = Date.now() + 300 * 1000;
     pet.needs.happiness = clamp(pet.needs.happiness + 16, 0, 100);
@@ -17356,7 +17325,8 @@ function playCelebration(kind, pet){
     if(RC && typeof RC.play === 'function' && pet){
       const layer = celLayer();
       if(layer){
-        RC.play(layer, { kind: kind, petSVG: petSVG(pet), petName: pet.name });
+        RC.play(layer, { kind: kind, petSVG: petPreviewHTML(pet.species), petName: pet.name });
+        try{ PetPreview3D.mountAll(layer); }catch(e){}
         return true;
       }
     }
@@ -17389,7 +17359,7 @@ function renderShopView(){
     return '<div class="tp-kennel" data-kennel="' + i + '">' +
       '<div class="tp-kennel-tag">' + esc(p.name) + '</div>' +
       '<div class="tp-kennel-roof"></div>' +
-      '<div class="tp-kennel-pet">' + petSVG(p) + '</div>' +
+      '<div class="tp-kennel-pet">' + petPreviewHTML(p.species) + '</div>' +
       '<div class="tp-kennel-body"><div class="tp-kennel-bowl"></div></div>' +
       '<button class="tp-adopt-pill" data-adopt-pill="' + i + '">Adopt</button>' +
     '</div>';
@@ -17399,7 +17369,7 @@ function renderShopView(){
     '<div class="tp-kennel tp-kennel-locked" data-crag-pen>' +
       '<div class="tp-kennel-tag tp-locked-tag">Crag</div>' +
       '<div class="tp-kennel-roof"></div>' +
-      '<div class="tp-kennel-pet">' + svgCragLocked() + '</div>' +
+      '<div class="tp-kennel-pet tp-crag-pen">' + petPreviewHTML('crag') + '<div class="tp-padlock"></div></div>' +
       '<div class="tp-kennel-body"><div class="tp-kennel-bowl"></div></div>' +
       '<div class="tp-locked-note">Not yet adoptable</div>' +
     '</div>';
@@ -17503,6 +17473,7 @@ function renderShopView(){
     e.stopPropagation(); chirp();
     toast('Crag the rock is still settling in. Not adoptable — yet.');
   });
+  try{ PetPreview3D.mountAll(main); }catch(e){}
 }
 
 function openAdoption(pet){
@@ -17528,7 +17499,7 @@ function openAdoption(pet){
     '<div class="tp-modal">' +
       '<button class="tp-close" data-close>×</button>' +
       '<div class="tp-modal-sub">Available for adoption</div>' +
-      '<div class="tp-modal-art">' + petSVG(pet) + '</div>' +
+      '<div class="tp-modal-art">' + petPreviewHTML(pet.species) + '</div>' +
       '<h2>' + esc(pet.name) + ' <span style="font-size:13px; color:var(--tp-ink-soft)">· ' + esc(SPECIES[pet.species].label) + '</span></h2>' +
       '<div class="tp-traits">' + traitChips + '</div>' +
       '<div class="tp-modal-lines">' + (lines.join('') || '<p>A quiet one. The kind that picks you.</p>') + '</div>' +
@@ -17538,13 +17509,16 @@ function openAdoption(pet){
       '</div>' +
     '</div>';
   hostEl.appendChild(modal);
+  try{ PetPreview3D.mountAll(modal); }catch(e){}
 
   modal.addEventListener('click', function(e){
     if(e.target === modal || e.target.hasAttribute('data-close')){
+      try{ PetPreview3D.disposeIn(modal); }catch(e2){}
       modal.remove();
       return;
     }
     if(e.target.hasAttribute('data-adopt')){
+      try{ PetPreview3D.disposeIn(modal); }catch(e2){}
       adopt(pet);
       modal.remove();
     }
@@ -17589,7 +17563,7 @@ function renderNeighborsView(){
   const cards = state.neighbors.map(function(n, i){
     const pct = clamp(Math.round((n.friendship / 100) * 100), 0, 100);
     return '<div class="tp-neighbor">' +
-      '<div class="tp-neighbor-art">' + petSVG(n.pet) + '</div>' +
+      '<div class="tp-neighbor-art">' + petPreviewHTML(n.pet.species) + '</div>' +
       '<div class="tp-neighbor-info">' +
         '<div class="tp-neighbor-name">' + esc(n.pet.name) + ' <span style="font-size:10.5px;color:var(--tp-ink-soft)">· ' + esc(SPECIES[n.pet.species].label) + '</span></div>' +
         '<div class="tp-neighbor-line">' + esc(n.line) + '</div>' +
@@ -17627,6 +17601,7 @@ function renderNeighborsView(){
       toast('You pat ' + n.pet.name + '. Friendship: ' + Math.round(n.friendship) + '%');
     });
   });
+  try{ PetPreview3D.mountAll(main); }catch(e){}
 }
 
 /* ================================================================
@@ -17640,7 +17615,7 @@ function renderFoundersView(){
   const cards = FOUNDERS.map(function(f){
     const traits = f.traits.map(function(k){ return '<span class="tp-trait">' + esc(TRAITS[k].label) + '</span>'; }).join('');
     return '<div class="tp-founder">' +
-      '<div class="tp-founder-art">' + petSVG({ species: f.species, palette: f.palette }) + '</div>' +
+      '<div class="tp-founder-art">' + petPreviewHTML(f.species) + '</div>' +
       '<div>' +
         '<div class="tp-founder-role">' + esc(f.role) + '</div>' +
         '<h3>' + esc(f.name) + '</h3>' +
@@ -17659,6 +17634,7 @@ function renderFoundersView(){
       '</div>' +
       cards +
     '</div>';
+  try{ PetPreview3D.mountAll(main); }catch(e){}
 }
 
 /* ================================================================
@@ -17666,6 +17642,7 @@ function renderFoundersView(){
    ================================================================ */
 
 function renderScreen(){
+  try{ PetPreview3D.disposeAll(); }catch(e){}
   renderPresence();
   $$('.tp-tab', hostEl).forEach(function(t){
     t.classList.toggle('tp-active', t.dataset.nav === state.screen);
@@ -17923,6 +17900,7 @@ function unmount(){
     if(window.RowCelebrations && typeof window.RowCelebrations.stop === 'function')
       window.RowCelebrations.stop();
   }catch(e){ /* ignore */ }
+  try{ PetPreview3D.disposeAll(); }catch(e){}
   $$('.tp-modal-back, .tp-walk-scene, .tp-celebrate, .tp-cel-layer', hostEl || document).forEach(function(el){ el.remove(); });
   if(hostEl) hostEl.innerHTML = '';
   hostEl = null;
@@ -17957,6 +17935,5 @@ function autoMount(){
 
 })();
 </script>
-<script src="/static/js/drift-adopt-bridge.js"></script>
 </body>
 </html>

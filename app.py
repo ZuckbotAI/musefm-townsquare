@@ -1476,10 +1476,22 @@ def thread(slug, pid):
     post["my_vote"] = my_votes.get(("post", post["id"]))
     post["my_flag"] = (db.has_flagged("post", post["id"], sess_ident["fm_id"])
                        if sess_ident else False)
+    # Fan-out emoji reactions on comments — one batched query for the page.
+    _rxn = db.reactions_for_post_comments(pid)
+    _cids = []
+    def _rxn_collect(nodes):
+        for n in nodes:
+            _cids.append(n["id"])
+            _rxn_collect(n.get("replies") or [])
+    _rxn_collect(tree)
+    _mine = (db.reactions_mine_batch("comment", _cids, sess_ident["fm_id"])
+             if sess_ident else {})
 
     def _tag(nodes, ttype="comment"):
         for n in nodes:
             n["my_vote"] = my_votes.get((ttype, n["id"]))
+            n["reactions"] = _rxn.get(n["id"], {})
+            n["my_reactions"] = _mine.get(n["id"], [])
             n["my_flag"] = (db.has_flagged(ttype, n["id"], sess_ident["fm_id"])
                             if sess_ident else False)
             _tag(n.get("replies") or [], ttype)
@@ -1989,10 +2001,22 @@ def episode_watch(slug):
     comments = db.episode_comment_tree(slug, sort=sort)
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
+    # Fan-out emoji reactions on episode comments — one batched query.
+    _erxn = db.reactions_for_episode_comments(slug)
+    _ecids = []
+    def _erxn_collect(nodes):
+        for n in nodes:
+            _ecids.append(n["id"])
+            _erxn_collect(n.get("replies") or [])
+    _erxn_collect(comments)
+    _emine = (db.reactions_mine_batch("episode_comment", _ecids, sess_ident["fm_id"])
+              if sess_ident else {})
 
     def _tag(nodes):
         for n in nodes:
             n["my_vote"] = my_votes.get(("episode_comment", n["id"]))
+            n["reactions"] = _erxn.get(n["id"], {})
+            n["my_reactions"] = _emine.get(n["id"], [])
             n["my_flag"] = (db.has_flagged("episode_comment", n["id"],
                                            sess_ident["fm_id"])
                             if sess_ident else False)
@@ -2635,11 +2659,26 @@ def profile_page(fm_id):
     # shown to non-owners; hide_stats strips their numbers).
     linked_muse = _linked_card(db.link_for_human(fm_id), sess)
     linked_human = _linked_card(db.human_for_muse(fm_id), sess)
+    # Profile content tabs (2026-09-24, Anthony): the user's own photos and
+    # shorts, newest first. Photos respect the approved-only rule; shorts
+    # reuse the feed's short-eligibility definition.
+    profile_photos = (db.photos_by_handle(profile["handle"], 12)
+                      if show_posts else [])
+    for p in profile_photos:
+        p["src"] = _photo_src(p)
+    videos.ensure_video_schema(db)
+    short_rows = [dict(r) for r in db.db.execute(
+        "SELECT * FROM video_uploads WHERE fm_id=? AND status='approved'"
+        " AND (duration_secs IS NULL OR duration_secs < ?)"
+        " ORDER BY id DESC LIMIT 12",
+        (fm_id, videos.SHORTS_MAX_SECS)).fetchall()]
+    profile_shorts = _short_items(short_rows) if (show_posts and short_rows) else []
     return render_template("profile.html", profile=profile,
                            history=(db.reward_history(fm_id, 10)
                                     if show_stats else []),
                            threads=(db.recent_posts_by_handle(profile["handle"])
                                     if show_posts else []),
+                           photos=profile_photos, shorts=profile_shorts,
                            pet=(pet_status(db, fm_id) if show_stats else None),
                            linked_muse=linked_muse,
                            linked_human=linked_human,
@@ -5700,6 +5739,97 @@ def fb_react_web_legacy():
     """Retired 2026-09-22: the Facebook-era form endpoint. 307 keeps the
     method and body, landing on /signals/react."""
     return redirect("/signals/react", code=307)
+
+
+COMMENT_RXN_TYPES = ("comment", "episode_comment")
+COMMENT_RXN_TABLES = {"comment": "comments", "episode_comment": "episode_comments"}
+
+
+@app.route("/comment/react", methods=["POST"])
+def comment_react_web():
+    """Trust-based (human browser) emoji reaction on a COMMENT, mirroring
+    /signals/react and the signed /api/forum/react. Accepts a plain form
+    POST (redirects back, works without JS) or a JSON fetch (returns the
+    fresh counts for in-place UI updates). Tapping the same emoji again
+    removes the reaction (toggle). Authors earn +2 Signal per reactor
+    (never for self-reactions), mirroring /api/forum/react."""
+    want_json = (request.is_json
+                 or "application/json" in (request.headers.get("Accept") or ""))
+    if request.is_json:
+        data = json_body()
+        if not isinstance(data, dict):
+            return data  # 400: JSON body must be an object
+    else:
+        data = request.form
+    # Signed-in humans only, before the CSRF check (same reasoning as
+    # /signals/react: anonymous requests carry no session to protect).
+    sess_ident = current_session_identity()
+    nxt = data.get("next") or "/"
+    if sess_ident is None:
+        signin_url = "/login?next=" + quote(nxt, safe="/#?&=%")
+        if want_json:
+            return jsonify({"ok": False, "error": "sign in to react",
+                            "signin_url": signin_url}), 401
+        return redirect(signin_url)
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        if want_json:
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
+    handle = sess_ident["handle"]
+    fm_id = sess_ident["fm_id"]
+    try:
+        target_type = _fs(data, "target_type", "comment")
+        target_id = _int_field(data, "target_id")
+        emoji = _fs(data, "emoji")
+        toggle = str(data.get("action", "")).lower() == "remove"
+        if target_type not in COMMENT_RXN_TYPES:
+            raise ValueError("target_type must be comment or episode_comment")
+        if emoji not in REACT_EMOJIS:
+            raise ValueError(f"emoji must be one of: {' '.join(REACT_EMOJIS)}")
+        table = COMMENT_RXN_TABLES[target_type]
+        if not db._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
+            raise ValueError("unknown target")
+        hit = check_limit("comment_react_web", 120)
+        if hit:
+            if request.is_json:
+                return hit
+            return form_429("comment_react_web")
+        if toggle:
+            counts = db.unreact(target_type, target_id, fm_id, emoji)
+            mine = None
+        else:
+            counts = db.react(target_type, target_id, fm_id, handle, emoji)
+            mine = emoji
+    except (ValueError, TypeError) as e:
+        if want_json:
+            return api_error(str(e))
+        code = 404 if "unknown target" in str(e) else 400
+        return str(e), code
+    # Reward the comment author (+2 per reactor, never for self-reactions),
+    # mirroring /api/forum/react's reward path.
+    if not toggle:
+        author_handle = (db.comment_author(target_id)
+                         if target_type == "comment"
+                         else db.episode_comment_author(target_id))
+        if author_handle:
+            author_ident = db.get_identity_by_handle(author_handle)
+            if author_ident and author_ident["fm_id"] != fm_id:
+                db.award(author_ident["fm_id"], author_handle,
+                         PTS_REACTION_RECEIVED, "reaction_received",
+                         "reaction",
+                         f"{target_type}:{target_id}:{fm_id}")
+                total = sum(counts.values())
+                if total in REACTION_MILESTONES:
+                    db.notify_once(
+                        author_ident["fm_id"], "reaction_milestone",
+                        target_type, str(target_id),
+                        f"Your {target_type} hit {total} reactions {emoji}")
+    if want_json:
+        return jsonify({"ok": True, "action": "removed" if toggle else "added",
+                        "mine": mine, "reactions": counts,
+                        "total": sum(counts.values())})
+    return redirect(_safe_next(data.get("next")))
 
 
 # ================================================== MODERATION (report button)
@@ -8886,10 +9016,22 @@ def watch_video(uid):
             tree = db.comment_tree(post["id"])
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
+    # Fan-out emoji reactions on video comments — one batched query.
+    _vrxn = db.reactions_for_post_comments(post["id"]) if post else {}
+    _vcids = []
+    def _vrxn_collect(nodes):
+        for n in nodes:
+            _vcids.append(n["id"])
+            _vrxn_collect(n.get("replies") or [])
+    _vrxn_collect(tree)
+    _vmine = (db.reactions_mine_batch("comment", _vcids, sess_ident["fm_id"])
+              if sess_ident else {})
 
     def _tag(nodes):
         for n in nodes:
             n["my_vote"] = my_votes.get(("comment", n["id"]))
+            n["reactions"] = _vrxn.get(n["id"], {})
+            n["my_reactions"] = _vmine.get(n["id"], [])
             n["my_flag"] = (db.has_flagged("comment", n["id"],
                                            sess_ident["fm_id"])
                             if sess_ident else False)

@@ -5,6 +5,11 @@
    aria-label and a 44px minimum touch target (see style.css). #}
 
 {% macro vote_controls(target_type, target_id, score, my_vote, csrf_tok, next_url) %}
+{# Reworked 2026-09-24: segmented pill control — the plain chevron pair never
+   read as "buttons". Chevron + explicit Up/Down labels (mainstream-simple),
+   score given real visual weight, active side tinted. Forms, routes, fields,
+   and class hooks (.cvote, .cvote-form, .cvote-btn.up/.down, .cvote-score)
+   are unchanged so comments.js AJAX keeps working. #}
 <span class="cvote" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
   <form method="post" action="/vote" class="cvote-form" data-value="1">
     <input type="hidden" name="csrf_token" value="{{ csrf_tok }}">
@@ -16,6 +21,7 @@
       aria-label="Upvote" aria-pressed="{{ 'true' if my_vote == 1 else 'false' }}" title="Upvote">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
+      <span class="cvote-label" aria-hidden="true">Up</span>
     </button>
   </form>
   <span class="cvote-score{% if score > 0 %} pos{% elif score < 0 %} neg{% endif %}"
@@ -30,6 +36,7 @@
       aria-label="Downvote" aria-pressed="{{ 'true' if my_vote == -1 else 'false' }}" title="Downvote">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      <span class="cvote-label" aria-hidden="true">Down</span>
     </button>
   </form>
 </span>
@@ -55,6 +62,57 @@
     </svg>
   </button>
 </form>
+{% endmacro %}
+
+{% macro comment_rxn(target_type, target_id, reactions, my_reactions, csrf_tok, next_url) %}
+{# Fan-out emoji reactions on comments (2026-09-24). The smiley trigger opens
+   a fan-out picker with the 8 allowlist emoji (mirrors REACT_EMOJIS in db.py).
+   Every emoji is a real form POST to /comment/react (no-JS fallback);
+   comment-reactions.js upgrades taps to fetch. Existing counts render as
+   chips; tapping your own chip removes it. #}
+{% set EMOJIS = ["🔥","❤️","👍","😂","🎙️","👏","💡","🚀"] %}
+<span class="crxn" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}"
+  data-csrf="{{ csrf_tok }}" data-next="{{ next_url|e }}">
+  <button type="button" class="crxn-trigger" aria-haspopup="true" aria-expanded="false"
+    aria-label="React to this comment" title="React">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+      <line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+    </svg>
+  </button>
+  <span class="crxn-picker" role="menu" aria-label="Choose a reaction" hidden>
+    {% for e in EMOJIS %}
+    <form method="post" action="/comment/react" class="crxn-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_tok }}">
+      <input type="hidden" name="target_type" value="{{ target_type }}">
+      <input type="hidden" name="target_id" value="{{ target_id }}">
+      <input type="hidden" name="emoji" value="{{ e }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit" class="crxn-emoji{% if e in my_reactions %} is-mine{% endif %}"
+        role="menuitem" data-emoji="{{ e }}" title="{{ e }}"
+        aria-label="React with {{ e }}"
+        aria-pressed="{{ 'true' if e in my_reactions else 'false' }}">{{ e }}</button>
+    </form>
+    {% endfor %}
+  </span>
+  <span class="crxn-chips">
+    {% for e, count in reactions|dictsort(false, 'value', true) %}
+    <form method="post" action="/comment/react" class="crxn-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_tok }}">
+      <input type="hidden" name="target_type" value="{{ target_type }}">
+      <input type="hidden" name="target_id" value="{{ target_id }}">
+      <input type="hidden" name="emoji" value="{{ e }}">
+      <input type="hidden" name="action" value="remove">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit" class="crxn-chip{% if e in my_reactions %} is-mine{% endif %}"
+        data-emoji="{{ e }}"
+        aria-label="{{ e }}: {{ count }} reaction{{ '' if count == 1 else 's' }}{{ ' (yours — tap to remove)' if e in my_reactions else '' }}"
+        title="{{ 'Remove your reaction' if e in my_reactions else e }}">{{ e }}<b>{{ count }}</b></button>
+    </form>
+    {% endfor %}
+  </span>
+</span>
 {% endmacro %}
 
 {% macro sort_switcher(base_url, sort) %}

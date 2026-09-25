@@ -1040,6 +1040,10 @@ class Database:
         r = self._one("SELECT handle FROM comments WHERE id=?", (cid,))
         return r["handle"] if r else None
 
+    def episode_comment_author(self, cid):
+        r = self._one("SELECT handle FROM episode_comments WHERE id=?", (cid,))
+        return r["handle"] if r else None
+
     def comment_tree(self, post_id, sort="top"):
         rows = [dict(r) for r in self._q(
             "SELECT * FROM comments WHERE post_id=? ORDER BY created_at", (post_id,))]
@@ -1383,7 +1387,13 @@ class Database:
 
     # -- episodes ---------------------------------------------------------
     def episodes(self):
-        return [dict(r) for r in self._q("SELECT * FROM episodes ORDER BY published DESC, slug DESC")]
+        # Newest-first by published date; ties break by rowid DESC because
+        # episodes are INSERTed in upload order (seed list appends / publish
+        # flow), so rowid DESC == upload order, newest first. (2026-09-24:
+        # slug DESC tiebreak misordered same-day episodes — e.g. the 9/17
+        # batch showed Founder Tapes first and Agents & Humans last, the
+        # reverse of their upload sequence.)
+        return [dict(r) for r in self._q("SELECT * FROM episodes ORDER BY published DESC, rowid DESC")]
 
     def episode(self, slug):
         r = self._one("SELECT * FROM episodes WHERE slug=?", (slug,))
@@ -1459,6 +1469,14 @@ class Database:
             "SELECT * FROM photos WHERE status='approved'"
             " ORDER BY created_at DESC, id DESC LIMIT ?",
             (int(limit),))]
+
+    def photos_by_handle(self, handle, limit=12):
+        """Approved photos by one handle, newest first (profile Photos tab)."""
+        self._ensure_photo_status_col()
+        return [dict(r) for r in self._q(
+            "SELECT * FROM photos WHERE status='approved' AND handle=?"
+            " ORDER BY created_at DESC, id DESC LIMIT ?",
+            (handle, int(limit)))]
 
     def list_pending_photos(self, limit=50, offset=0):
         """Photos waiting on mod approval, oldest first."""
@@ -2110,6 +2128,53 @@ class Database:
         return self._q("SELECT id, community, title, created_at, score"
                        " FROM posts WHERE handle=? ORDER BY id DESC LIMIT ?",
                        (handle, limit))
+
+    # -- privacy ------------------------------------------------------------
+    def _ensure_privacy_table(self):
+        self._exec("CREATE TABLE IF NOT EXISTS privacy ("
+                   " fm_id TEXT PRIMARY KEY,"
+                   " profile TEXT NOT NULL DEFAULT 'public',"
+                   " hide_stats INTEGER NOT NULL DEFAULT 0,"
+                   " hide_posts INTEGER NOT NULL DEFAULT 0,"
+                   " hide_online INTEGER NOT NULL DEFAULT 0)")
+
+    def get_privacy(self, fm_id):
+        """Privacy settings dict for an identity, or None if never set."""
+        self._ensure_privacy_table()
+        rows = self._q("SELECT profile, hide_stats, hide_posts, hide_online"
+                       " FROM privacy WHERE fm_id=?", (fm_id,))
+        if not rows:
+            return None
+        r = rows[0]
+        return {"profile": r["profile"],
+                "hide_stats": bool(r["hide_stats"]),
+                "hide_posts": bool(r["hide_posts"]),
+                "hide_online": bool(r["hide_online"])}
+
+    def set_privacy(self, fm_id, profile=None, hide_stats=None,
+                    hide_posts=None, hide_online=None):
+        """Upsert privacy settings. profile: public|unlisted|private."""
+        self._ensure_privacy_table()
+        cur = self.get_privacy(fm_id) or {"profile": "public",
+                                          "hide_stats": False,
+                                          "hide_posts": False,
+                                          "hide_online": False}
+        if profile is not None:
+            if profile not in ("public", "unlisted", "private"):
+                raise ValueError("bad profile visibility")
+            cur["profile"] = profile
+        for k, v in (("hide_stats", hide_stats), ("hide_posts", hide_posts),
+                     ("hide_online", hide_online)):
+            if v is not None:
+                cur[k] = bool(v)
+        self._exec("INSERT INTO privacy (fm_id, profile, hide_stats,"
+                   " hide_posts, hide_online) VALUES (?,?,?,?,?)"
+                   " ON CONFLICT(fm_id) DO UPDATE SET profile=excluded.profile,"
+                   " hide_stats=excluded.hide_stats, hide_posts=excluded.hide_posts,"
+                   " hide_online=excluded.hide_online",
+                   (fm_id, cur["profile"], int(cur["hide_stats"]),
+                    int(cur["hide_posts"]), int(cur["hide_online"])))
+        return cur
 
     def public_profile(self, fm_id):
         ident = self.get_identity(fm_id)
@@ -2790,15 +2855,29 @@ class Database:
 
     # -- reactions --------------------------------------------------------
     def react(self, target_type, target_id, reactor, handle, emoji):
-        if target_type not in ("post", "comment"):
-            raise ValueError("target_type must be post or comment")
+        if target_type not in ("post", "comment", "episode_comment"):
+            raise ValueError("target_type must be post, comment, or episode_comment")
         if emoji not in REACT_EMOJIS:
             raise ValueError(f"emoji must be one of: {' '.join(REACT_EMOJIS)}")
-        table = "posts" if target_type == "post" else "comments"
+        table = {"post": "posts", "comment": "comments",
+                 "episode_comment": "episode_comments"}[target_type]
         if not self._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
             raise ValueError("unknown target")
         self._exec("INSERT OR IGNORE INTO reactions VALUES (?,?,?,?,?,?)",
                    (target_type, target_id, reactor, handle, emoji, now()))
+        return self.reaction_counts(target_type, target_id)
+
+    def unreact(self, target_type, target_id, reactor, emoji=None):
+        """Remove a reactor's reaction(s) from a target; pass emoji to
+        remove only that one. Returns fresh counts."""
+        if target_type not in ("post", "comment", "episode_comment"):
+            raise ValueError("target_type must be post, comment, or episode_comment")
+        if emoji:
+            self._exec("DELETE FROM reactions WHERE target_type=? AND target_id=? AND reactor=? AND emoji=?",
+                       (target_type, target_id, reactor, emoji))
+        else:
+            self._exec("DELETE FROM reactions WHERE target_type=? AND target_id=? AND reactor=?",
+                       (target_type, target_id, reactor))
         return self.reaction_counts(target_type, target_id)
 
     def reaction_counts(self, target_type, target_id):
@@ -2813,6 +2892,31 @@ class Database:
             """SELECT c.id cid, r.emoji, COUNT(*) c FROM comments c
                LEFT JOIN reactions r ON r.target_type='comment' AND r.target_id=c.id
                WHERE c.post_id=? GROUP BY c.id, r.emoji""", (post_id,))
+        out = {}
+        for r in rows:
+            if r["emoji"]:
+                out.setdefault(r["cid"], {})[r["emoji"]] = r["c"]
+        return out
+
+    def reactions_mine_batch(self, target_type, ids, reactor):
+        """{target_id: [emoji...]} the reactor has on each target. One query."""
+        if not ids or not reactor:
+            return {}
+        ids = list(dict.fromkeys(ids))
+        q = ("SELECT target_id, emoji FROM reactions WHERE target_type=? AND reactor=? "
+             "AND target_id IN (%s)" % ",".join("?" * len(ids)))
+        out = {}
+        for r in self._q(q, (target_type, reactor, *ids)):
+            out.setdefault(r["target_id"], []).append(r["emoji"])
+        return out
+
+    def reactions_for_episode_comments(self, slug):
+        """{comment_id: {emoji: count}} for every comment on an episode. One query."""
+        """{comment_id: {emoji: count}} for every comment on an episode. One query."""
+        rows = self._q(
+            """SELECT c.id cid, r.emoji, COUNT(*) c FROM episode_comments c
+               LEFT JOIN reactions r ON r.target_type='episode_comment' AND r.target_id=c.id
+               WHERE c.episode_slug=? GROUP BY c.id, r.emoji""", (slug,))
         out = {}
         for r in rows:
             if r["emoji"]:

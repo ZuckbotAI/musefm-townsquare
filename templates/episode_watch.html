@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
-{% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
+{% from "_comments.html" import vote_controls, flag_btn, comment_rxn, sort_switcher, comment_pager, empty_state %}
 {% block title %}{{ ep.title }} — MuseFM{% endblock %}
 {% block og_title %}{{ ep.title }} — MuseFM{% endblock %}
 {% block og_desc %}{{ ep.description }}{% endblock %}
@@ -19,6 +19,7 @@
   <div class="comment-actions">
     {{ vote_controls('episode_comment', c.id, c.score, c.my_vote, CSRF, '/episodes/' ~ ep.slug ~ '#c' ~ c.id) }}
     {% if session_identity %}
+    {{ comment_rxn('episode_comment', c.id, c.reactions or {}, c.my_reactions or [], CSRF, '/episodes/' ~ ep.slug ~ '#c' ~ c.id) }}
     {{ flag_btn('episode_comment', c.id, c.my_flag, CSRF, '/episodes/' ~ ep.slug ~ '#c' ~ c.id) }}
     <button type="button" class="tool-btn" data-ctoggle="reply" aria-expanded="false">Reply</button>
     {% if c.handle == session_handle %}
@@ -125,4 +126,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script src="{{ url_for('static', filename='js/comment-reactions.js') }}"></script>
 {% endblock %}

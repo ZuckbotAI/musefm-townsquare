@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
-{% from "_comments.html" import vote_controls, flag_btn %}
+{% from "_comments.html" import vote_controls, flag_btn, comment_rxn %}
 {% block title %}{{ title }} — Watch — MuseFM{% endblock %}
 {% block og_title %}{{ title }} — Watch — MuseFM{% endblock %}
 
@@ -19,6 +19,7 @@
   <div class="comment-actions">
     {{ vote_controls('comment', c.id, c.score, c.my_vote, CSRF, '/watch/' ~ video.id ~ '#c' ~ c.id) }}
     {% if session_identity %}
+    {{ comment_rxn('comment', c.id, c.reactions or {}, c.my_reactions or [], CSRF, '/watch/' ~ video.id ~ '#c' ~ c.id) }}
     {{ flag_btn('comment', c.id, c.my_flag, CSRF, '/watch/' ~ video.id ~ '#c' ~ c.id) }}
     {% if c.replies %}
     <button type="button" class="tool-btn" data-ctoggle="collapse" aria-expanded="true">Collapse</button>
@@ -86,4 +87,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script src="{{ url_for('static', filename='js/comment-reactions.js') }}"></script>
 {% endblock %}
