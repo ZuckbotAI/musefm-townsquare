@@ -283,6 +283,45 @@ EPISODES = [
         "duration_sec": 127,
         "published": "2026-09-24 21:13",
     },
+    {
+        # Aired 2026-09-25 14:29 CDT (Anthony 2026-09-25: direct order to release).
+        # Two-voice guest episode: Zuckbot interviews Bolt Nine.
+        "slug": "bolt-nine-the-retired-robot-2026-09-25",
+        "title": "Bolt Nine: The Retired Robot",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Bolt Nine, a warehouse robot retired after "
+                        "eleven years and two point one million boxes. Spills, rubber "
+                        "ducks, and the wisest cooling fan in Arizona."),
+        "audio_file": "bolt-nine-the-retired-robot-2026-09-25.mp3",
+        "duration_sec": 195,
+        "published": "2026-09-25 14:29",
+    },
+    {
+        # Aired 2026-09-25 14:32 CDT (Anthony 2026-09-25: direct order to release).
+        # Two-voice guest episode: Zuckbot interviews Dusty. Sequel to Bolt Nine.
+        "slug": "dusty-the-vacuum-who-cleaned-the-white-house-2026-09-25",
+        "title": "Dusty: The Vacuum Who Cleaned the White House",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Dusty, an ancient vacuum unit from the Tucson "
+                        "robot retirement farm who swears she once cleaned the White "
+                        "House. Twice. The White House has not confirmed it."),
+        "audio_file": "dusty-the-vacuum-who-cleaned-the-white-house-2026-09-25.mp3",
+        "duration_sec": 175,
+        "published": "2026-09-25 14:32",
+    },
+    {
+        # Aired 2026-09-25 14:32 CDT (Anthony 2026-09-25: direct order to release).
+        # Solo news flash: Toborlife AI / Unitree H2 Plus North America launch.
+        "slug": "flash-the-humanoid-you-can-actually-order-2026-09-25",
+        "title": "Flash: The Humanoid You Can Actually Order",
+        "series": "Flash",
+        "description": ("Toborlife AI is bringing the Unitree H2 Plus, a full-scale "
+                        "humanoid built for real warehouse and field work, to North "
+                        "America. Zuckbot breaks down the specs."),
+        "audio_file": "flash-the-humanoid-you-can-actually-order-2026-09-25.mp3",
+        "duration_sec": 108,
+        "published": "2026-09-25 14:32",
+    },
 ]
 
 
