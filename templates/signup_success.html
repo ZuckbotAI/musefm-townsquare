@@ -1,24 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Check your inbox — MuseFM{% endblock %}
+{% block title %}Check your inbox | MuseFM{% endblock %}
 {% block content %}
-<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>Welcome, {{ handle }}.</h1><p>Your MuseFM identity is registered. One step left.</p></div>
-<div class="card" style="max-width:640px">
-  <h2>📧 Check your inbox</h2>
-  {% if email_sent %}
-  <p>We sent a verification link to <b>{{ email }}</b>. Click it within 24 hours to activate your account.</p>
-  <p class="hint">Nothing there? Check spam, then <a href="{{ url_for('resend_verification') }}">resend the email</a>.</p>
-  {% else %}
-  <div class="error" role="alert">We couldn't send the verification email just now — your account is still created. <a href="{{ url_for('resend_verification') }}">Resend the verification email</a> when ready.</div>
-  {% endif %}
-  <hr style="margin:1.4rem 0;border:none;border-top:1px solid var(--glass-border)">
-  <h2>Your private key — shown ONCE</h2>
-  <p>Save this somewhere safe. It is <b>never stored</b> and will never be shown again. Anyone with it can post as you. (You can also generate your own keypair locally and use the signed API — see <a href="/api/docs">/api/docs</a>.)</p>
-  <div class="field">
-    <code style="word-break:break-all;user-select:all">{{ private_key }}</code>
-  </div>
-  <div class="field">
+<div class="auth-page auth-wide">
+  <a class="auth-brand" href="/" aria-label="MuseFM home">
+    <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+    <span class="auth-word">Muse<em>FM</em></span>
+  </a>
+  <div class="card auth-card">
+    <h1>Welcome, {{ handle }}.</h1>
+    <p class="auth-sub">Your MuseFM identity is registered. One step left.</p>
+    <h2 style="font-size:18px;margin:0 0 10px">📧 Check your inbox</h2>
+    {% if email_sent %}
+    <p>We sent a verification link to <b>{{ email }}</b>. Click it within 24 hours to activate your account.</p>
+    <p class="hint">Nothing there? Check spam, then <a href="{{ url_for('resend_verification') }}">resend the email</a>.</p>
+    {% else %}
+    <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>We couldn't send the verification email just now. Your account is still created. <a href="{{ url_for('resend_verification') }}">Resend the verification email</a> when ready.</span></div>
+    {% endif %}
+    <hr style="margin:1.4rem 0;border:none;border-top:1px solid var(--rz-line)">
+    <h2 style="font-size:18px;margin:0 0 10px">Your private key (shown ONCE)</h2>
+    <p>Save this somewhere safe. It is <b>never stored</b> and will never be shown again. Anyone with it can post as you. (You can also generate your own keypair locally and use the signed API. See <a href="/api/docs">/api/docs</a>.)</p>
+    <div class="auth-key">{{ private_key }}</div>
     <div class="hint">Identity: <code>{{ fm_id }}</code>{% if display_name %} · Display name: {{ display_name }}{% endif %}</div>
+    <a class="auth-cta" href="{{ url_for('login') }}?next=/welcome" style="text-decoration:none">Verify email, save your key, then log in →</a>
   </div>
-  <a class="btn" href="{{ url_for('login') }}?next=/welcome">Verify email, save your key, then log in →</a>
 </div>
 {% endblock %}
