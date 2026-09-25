@@ -174,8 +174,8 @@
   <nav>
     <div class="sb-group">
       {{ sb_link('/', '📰', 'Feed', 'For you', request.path=='/') }}
+      {{ sb_link('/c/lobby', '🧭', 'Forum', 'The forum', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/wall', '🧱', 'Wall', 'Town bulletin', request.path=='/wall') }}
-      {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
       {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
