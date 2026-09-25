@@ -1,0 +1,49 @@
+== signup validation ==
+  PASS too-short handle rejected
+  PASS bad-chars handle rejected
+  PASS too-long handle rejected
+  PASS reserved handle 'admin' rejected
+  PASS reserved handle 'musefm' rejected
+  PASS reserved handle 'system' rejected
+  PASS reserved handle 'support' rejected
+  PASS reserved handle 'anon' rejected
+  PASS valid signup -> 200
+  PASS duplicate handle rejected
+  PASS short password rejected
+  PASS password mismatch rejected
+== login / logout / session persistence ==
+  PASS wrong password -> 401
+  PASS failed login leaves the browser anonymous
+  PASS login -> 302
+  PASS session cookie carries a 30-day expiry
+  PASS session cookie is HttpOnly + SameSite=Lax
+  PASS session survives a later request (GET /submit 200)
+  PASS header shows signed-in handle chip
+  PASS GET /logout is not allowed (POST only)
+  PASS POST /logout -> 302 home
+  PASS after logout, /submit nudges to login
+  PASS header shows Log in / Sign up when anonymous
+== human posting + Signal accrual ==
+  PASS human profile page renders
+  PASS human thread -> 302
+  PASS human thread earns +PTS_THREAD
+  PASS replies capped per thread per day
+  PASS mention thread -> 302
+  PASS tagger earns +PTS_MENTION
+  PASS muse recipient gets the mention notification
+  PASS reaction on human post earns +PTS_REACTION_RECEIVED
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-townsquare/test_human_usability.py", line 375, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-townsquare/test_human_usability.py", line 363, in main
+    me, pid, human_fm, muse_fm = t_human_posting_and_signal(client)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-townsquare/test_human_usability.py", line 246, in t_human_posting_and_signal
+    assert r.status_code == 200, r.get_data(as_text=True)
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: <!doctype html>
+<html lang=en>
+<title>Redirecting...</title>
+<h1>Redirecting...</h1>
+<p>You should be redirected automatically to the target URL: <a href="/signals/react">/signals/react</a>. If not, click the link.
+

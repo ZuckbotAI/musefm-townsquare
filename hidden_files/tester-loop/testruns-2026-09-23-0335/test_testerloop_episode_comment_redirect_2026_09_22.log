@@ -1,0 +1,6 @@
+  PASS episode page renders a CSRF token for the comment form
+  PASS POST /episodes/ep01/comment redirects (302)
+  FAIL redirect lands back on the episode page, not the episodes index -- Location='/episodes#ep01' (expected .../episodes/ep01)
+  PASS comment was persisted
+
+3 passed, 1 failed

@@ -1,0 +1,378 @@
+=== test_agent_memory.py ===
+  PASS API unauth 401
+  PASS API rate limit trips
+
+37 passed, 0 failed
+=== test_ai_images.py ===
+  PASS form comment with image -> redirect
+  PASS form comment stored with image + flag
+
+48 passed, 0 failed
+=== test_asks.py ===
+  PASS ask_posted event logged
+  PASS ask_claimed event logged with ref_type=ask
+
+52 passed, 0 failed
+=== test_audio_delete_2026_09_18.py ===
+  PASS cleanup status recorded
+  PASS real audio at id 9 NOT deleted
+
+18 passed, 0 failed
+=== test_auth.py ===
+  PASS session secret stable across restarts
+  PASS SESSION_SECRET env override wins
+
+62 passed, 0 failed
+=== test_bounties.py ===
+  PASS templates/bounties.html has no 'price'
+  PASS templates/bounties.html has no dollar sign
+
+73 passed, 0 failed
+=== test_brand.py ===
+  PASS /login has graphic wordmark
+  PASS /settings has graphic wordmark
+
+brand: 27 passed, 0 failed
+=== test_bugfix_clean_title_2026_09_19.py ===
+  PASS ordinary title untouched: 'My vacation video'
+  PASS ordinary title untouched: 'song-2024-remix'
+  PASS empty -> 'untitled clip'
+== 8 PASS, 0 FAIL ==
+=== test_bugfix_csrf_2026_09_19.py ===
+  PASS POST /fb_react form with valid token -> 302
+  PASS POST /fb_react JSON without token -> 403
+  PASS POST /fb_react JSON with valid token -> 200
+== 13 PASS, 0 FAIL ==
+=== test_bugfix_form_ratelimit_burn_2026_09_20.py ===
+  PASS overlong bodies all 400 (nothing stored)
+  PASS valid post after 5 overlong ones is NOT rate-limited
+
+4 passed, 0 failed
+=== test_bugfix_nonce_ratelimit_2026_09_19.py ===
+  identical resend -> 429 {"error":"rate limit hit \u2014 slow down, friend","ok":false}
+
+  same body from fresh IP -> 200 (nonce was never burned)
+PASS: 429 does not burn the nonce
+=== test_bugfix_open_redirects_2026_09_19.py ===
+  PASS login next='javascript:alert(1)' -> on-site ('/')
+  PASS login next='/\\evil.example.com' -> on-site ('/')
+  PASS login next=/c/lobby honored
+== 25 PASS, 0 FAIL ==
+=== test_bugfix_redirects_2026_09_19.py ===
+  /lobby -> 301 -> /c/lobby
+  /forum -> 301 -> /c/lobby
+  home sidebar Forum control -> href="/c/lobby"
+PASS: redirects + Forum href correct
+=== test_bugfix_sqlite_contention_2026_09_19.py ===
+  PASS nonce replay still detected
+  PASS best-effort expiry cleanup still works
+  PASS bad SQL still raises
+== 8 PASS, 0 FAIL ==
+=== test_bugfix_validate_before_limit_2026_09_19.py ===
+  30 malformed POSTs -> all 400, statuses seen: {400}
+  valid registration from the same IP -> 200 (budget intact)
+  claim-human: 12 malformed -> 400s, then valid -> 200
+PASS: malformed requests never touch the rate budget
+=== test_collab.py ===
+  PASS create form present
+  PASS ?kind=music filters page
+
+59 passed, 0 failed
+=== test_comments_pro.py ===
+  PASS home 200
+  PASS watch page 200
+
+60 passed, 0 failed
+=== test_duets.py ===
+  PASS parent chain lists the child
+  PASS unknown video -> 404
+
+53 passed, 0 failed
+=== test_episode_comments_2026_09_18.py ===
+  PASS fresh table has score
+  PASS fresh table has edited_at
+
+22 passed, 0 failed
+=== test_events.py ===
+  PASS list empty after delete
+  PASS deleting unknown sub is 404
+
+48 passed, 0 failed
+=== test_expansion.py ===
+  PASS unsigned nudges rejected
+  PASS sweep without key rejected
+
+53 passed, 0 failed
+=== test_fb_reactions.py ===
+  PASS legacy DB gains fb_reactions
+  PASS legacy post row intact
+
+41 passed, 0 failed
+=== test_fs_400s_2026_09_18.py ===
+  PASS fb_react: non-string reaction -> 400
+  PASS challenges/settle: non-string week_id -> 400
+
+4 passed, 0 failed
+=== test_gifs.py ===
+  PASS index shows gif thumbnail
+  PASS xss in gif_url impossible (whitelist)
+
+48 passed, 0 failed
+=== test_human_usability.py ===
+  PASS comeback history row labeled, not verbatim
+  PASS profile history has no 'comeback' wording
+
+64 passed, 0 failed
+=== test_identity.py ===
+  PASS docs page renders
+  PASS home page renders
+
+41 passed, 0 failed
+=== test_identity_key_rotation.py ===
+  PASS endpoint bad public_key -> 400
+  PASS endpoint unknown fm_id -> 400
+
+12 passed, 0 failed
+=== test_kind_tags.py ===
+  PASS tag unchanged (still dog)
+  PASS bad target -> 400
+
+33 passed, 0 failed
+=== test_linking.py ===
+  PASS no code-bearing links rendered
+  PASS freshly minted code appears only in the one-time display
+
+39 passed, 0 failed
+=== test_links.py ===
+  PASS sidebar Family uses internal links
+  PASS no raw service domains in base chrome
+
+27 passed, 0 failed
+=== test_memory.py ===
+  PASS /memory page renders
+  PASS 31st write on one IP -> 429
+
+78 passed, 0 failed
+=== test_memory_seats.py ===
+  PASS recover 401 unsigned
+  PASS claim 401 unsigned
+
+56 passed, 0 failed
+=== test_mod_approval.py ===
+  PASS mod flags page renders with video_comment context
+  PASS approval queue link shown on flags page
+
+PASS 56  FAIL 0
+=== test_mod_notifications.py ===
+  PASS notifications page renders for mod
+  PASS page mentions mod alerts
+
+11 passed, 0 failed
+=== test_musefm.py ===
+  PASS muse-fm-title-card.png present
+  PASS og-image.png present
+
+77 passed, 0 failed
+=== test_notifications.py ===
+  PASS dangling ref text renders
+  PASS dangling ref has no dead link
+
+22 passed, 0 failed
+=== test_openmic.py ===
+  PASS tonight queue holds the 3 approved
+  PASS cap frees after airing
+
+34 passed, 0 failed
+=== test_p1_2026_09_18.py ===
+  PASS typed handle ignored: attributed to session identity
+  PASS muse signed API still works
+
+42 passed, 0 failed
+=== test_p1_csrf_human_handle_2026_09_18.py ===
+  PASS unlink clears the muse's stored human_handle
+  PASS post-unlink self-assertion is REJECTED
+
+20 passed, 0 failed
+=== test_pet_onboarding.py ===
+== pond block regression ==
+  PASS pond block present and untouched
+
+49 passed, 0 failed
+=== test_pets.py ===
+  PASS repaired egg hatches via real path
+  PASS repaired egg marked hatched
+
+101 passed, 0 failed
+=== test_reefdex_nap.py ===
+  PASS backfill restored driplet
+  PASS backfill restored bloop
+
+29 passed, 0 failed
+=== test_rewards.py ===
+  PASS profile page renders
+  PASS mention rendered as link
+
+51 passed, 0 failed
+=== test_row.py ===
+
+=== test_self_heal.py ===
+[musefm] self-heal: video 2 file missing/corrupt -> status=rejected
+[musefm] self-heal: video 3 file missing/corrupt -> status=rejected
+[musefm] self-heal: image 1 file missing -> status=rejected
+SELF-HEAL OK: good stays approved; corrupt/missing -> rejected; pending untouched; idempotent
+=== test_shop.py ===
+  PASS pet_rules has shop section
+  PASS reward rulebook carries unlocks+shop
+
+89 passed, 0 failed
+=== test_shop_idem_retry.py ===
+  PASS retry with same key is idempotent no-op (not insufficient)
+  PASS still exactly one purchase row for the key
+
+4 passed, 0 failed
+=== test_shop_proxy.py ===
+  PASS proxy_history lists 2 buys
+  PASS human self-buy still works
+
+24 passed, 0 failed
+=== test_shorts.py ===
+  PASS non-musefm clip not anchored into musefm feed
+  PASS musefm hub strip opens anchored feed
+
+78 passed, 0 failed
+=== test_shorts_shuffle.py ===
+== /musefm/shorts unchanged (newest-first) ==
+  PASS musefm feed still newest-first
+
+15 passed, 0 failed
+=== test_sidebar.py ===
+  PASS no account block when logged out
+  PASS logged-out topbar keeps Log in / Sign up
+
+105 passed, 9 failed
+=== test_swarm.py ===
+  PASS unscoped task has project_id 0
+  PASS unscoped list still works
+
+SWARM: 71 passed, 0 failed
+=== test_testerloop_0046_p2s_2026_09_20.py ===
+  PASS /submit 429 re-renders composer
+  PASS /submit 429 carries Retry-After
+
+29 passed, 0 failed
+=== test_testerloop_1835_fixes_2026_09_19.py ===
+  PASS 6 malformed posts all 400
+  PASS valid post after 6 malformed -> 200 (budget intact)
+  PASS next 4 valid 200 then 429 (limit enforced)
+== 25 PASS, 0 FAIL ==
+=== test_testerloop_1835_flood_wall_2026_09_20.py ===
+  PASS filter points at wrapper
+  PASS normal path escapes tags
+
+16 passed, 0 failed
+=== test_testerloop_flag_messages_2026_09_19.py ===
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f
+  PASS 6th /submit -> 429
+  PASS 429 on form /submit renders HTML, not JSON
+== 4 PASS, 0 FAIL ==
+=== test_testerloop_multipart_bool_2026_09_19.py ===
+PASS json bool control
+
+0 all passed
+FAILURES: []
+=== test_testerloop_newline_preserve_2026_09_19.py ===
+PASS newlines preserved in clean()
+PASS single \n preserved
+PASS spaces collapsed but not to newline
+== 3 PASS, 0 FAIL ==
+=== test_testerloop_post_body_limit_2026_09_20.py ===
+  PASS signed POST with small body still accepted
+  PASS POST /submit with 200k-char body NOT stored as a post
+
+3 passed, 0 failed
+=== test_testerloop_ratelimit_before_validate_2026_09_20.py ===
+  PASS valid signed workroom_create not rate-limited by junk
+  PASS valid signed workroom_create succeeds
+
+5 passed, 0 failed
+=== test_tidepal_depth.py ===
+  PASS shorts page carries seed
+  PASS shorts feed echoes seed
+
+99 passed, 0 failed
+=== test_tidepal_homepage.py ===
+== no external pet asset needed ==
+  PASS band uses no <img> pet asset (pure inline SVG)
+
+7 passed, 4 failed
+=== test_tidepal_social.py ===
+  PASS social_rules
+  PASS game_rules
+
+68 passed, 0 failed
+=== test_tidepal_social_routes.py ===
+  PASS visit page shows pet
+  PASS visit page unknown -> 404
+
+28 passed, 0 failed
+=== test_tidepal_world.py ===
+  PASS web feed cooldown flashes
+  PASS web feed bad csrf -> 403
+
+106 passed, 0 failed
+=== test_trustline_bridge.py ===
+  PASS passport surfaces external link
+  PASS unsigned link request -> 401
+
+23 passed, 0 failed
+=== test_ui_fixes_2026_09_18.py ===
+  PASS no token spent on same-name
+  PASS real rename still works (302)
+
+43 passed, 0 failed
+=== test_upload_audio_mimetype_2026_09_18.py ===
+  PASS PNG bytes labeled audio/mpeg are REJECTED (400)
+  PASS real WAV upload still accepted
+
+2 passed, 0 failed
+=== test_uploads.py ===
+  PASS anon GET /upload -> login
+  PASS anon POST /upload -> login
+
+24 passed, 0 failed
+=== test_video.py ===
+  PASS clean title falls back to filename when title empty
+  PASS clean title empty -> untitled clip
+
+69 passed, 0 failed
+=== test_video_comments.py ===
+  PASS anchor card carries count badge
+  PASS bad video id ignored silently
+
+43 passed, 0 failed
+=== test_vote_stress.py ===
+  PASS /api/shorts page=2 -> 200
+   /api/shorts page fetch: 22.8 ms (warm, local)
+
+9 passed, 0 failed
+=== test_workroom.py ===
+  PASS 13 skills rejected 400
+  PASS long tagline rejected 400
+
+43 passed, 0 failed
+=== test_workroom_agent_loop.py ===
+  PASS task 2 still open (worker does one task per --once)
+  PASS worker log shows the genuine loop
+
+PASS 5  FAIL 0
+=== test_workroom_pilot.py ===
+  PASS GET /api/agents still 200
+  PASS GET /api/latest.json still 200
+
+PASS 55  FAIL 0
+=== test_workroom_private.py ===
+  PASS non-owner remove 403
+  PASS anon remove blocked
+
+71 passed, 0 failed
+DONE rc=0

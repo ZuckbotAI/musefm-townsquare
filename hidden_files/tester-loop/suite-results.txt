@@ -1,0 +1,106 @@
+test_agent_memory.py EXIT:0 :: 37 passed, 0 failed
+test_ai_images.py EXIT:0 :: </html>
+test_asks.py EXIT:0 :: </html>
+test_audio_delete_2026_09_18.py EXIT:0 :: 18 passed, 0 failed
+test_auth.py EXIT:0 :: TypeError: 'NoneType' object is not subscriptable
+test_bond_loop.py EXIT:0 :: 
+test_bond_v2.py EXIT:0 :: 
+test_bounties.py EXIT:0 :: 73 passed, 0 failed
+test_brand.py EXIT:0 :: brand: 24 passed, 3 failed
+test_bugfix_clean_title_2026_09_19.py EXIT:0 :: == 8 PASS, 0 FAIL ==
+test_bugfix_csrf_2026_09_19.py EXIT:0 :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-f
+test_bugfix_form_ratelimit_burn_2026_09_20.py EXIT:0 :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-f
+test_bugfix_nonce_ratelimit_2026_09_19.py EXIT:0 :: PASS: 429 does not burn the nonce
+test_bugfix_open_redirects_2026_09_19.py EXIT:0 :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-f
+test_bugfix_redirects_2026_09_19.py EXIT:0 :: PASS: redirects + Forum href correct
+test_bugfix_sqlite_contention_2026_09_19.py EXIT:0 :: == 8 PASS, 0 FAIL ==
+test_bugfix_validate_before_limit_2026_09_19.py EXIT:0 :: PASS: malformed requests never touch the rate budget
+test_collab.py EXIT:0 :: 59 passed, 0 failed
+test_comments_pro.py EXIT:0 :: </html>
+test_community_episodes.py EXIT:0 :: 15 passed, 0 failed
+test_duets.py EXIT:0 :: 53 passed, 0 failed
+test_episode_comments_2026_09_18.py EXIT:0 :: 22 passed, 0 failed
+test_episode_ordering.py EXIT:0 :: 3 passed, 0 failed
+test_events.py EXIT:0 :: 48 passed, 0 failed
+test_expansion.py EXIT:0 :: 53 passed, 0 failed
+test_fs_400s_2026_09_18.py EXIT:0 :: 4 passed, 0 failed
+test_gifs.py EXIT:0 :: </html>
+test_human_usability.py EXIT:0 :: AssertionError
+test_identity.py EXIT:0 :: AssertionError: 400
+test_identity_key_rotation.py EXIT:0 :: 12 passed, 0 failed
+test_kind_tags.py EXIT:0 :: AssertionError
+test_linking.py EXIT:0 :: </html>
+test_links.py EXIT:0 :: 16 passed, 11 failed
+test_listening_rooms_2026_09_21.py EXIT:0 :: AGENT_KEY must be set in the environment (prevents the app from generating .agent_key inside the checkout)
+test_memory.py EXIT:0 :: 78 passed, 0 failed
+test_mod_approval.py EXIT:0 :: </html>
+test_mod_notifications.py EXIT:0 :: </html>
+test_musefm.py EXIT:0 :: ModuleNotFoundError: No module named 'fb_reactions'
+test_notifications.py EXIT:0 :: </html>
+test_onboard.py EXIT:0 :: 38 passed, 0 failed
+test_onboard_life.py EXIT:0 :: 54 passed, 0 failed
+test_openmic.py EXIT:0 :: </html>
+test_orb_snap.py EXIT:0 :: FAILURES: ["dock manages 'home' state", 'hero snaps into #hero-orb-stage', 'float is viewport-fixed', 'home parks by #orb-home']
+test_p1_2026_09_18.py EXIT:0 :: </html>
+test_p1_csrf_human_handle_2026_09_18.py EXIT:0 :: AssertionError: (400, '<!DOCTYPE html>\n<html lang="en" data-theme="light">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, 
+test_pet_fusion.py EXIT:0 :: 21 passed, 0 failed
+test_pet_onboarding.py EXIT:0 :: AssertionError
+test_pet_presence.py EXIT:0 :: TypeError: 'NoneType' object is not subscriptable
+test_pets.py EXIT:0 :: AssertionError: no csrf meta for web test human
+test_reefdex_nap.py EXIT:0 :: 29 passed, 0 failed
+test_rewards.py EXIT:0 :: 51 passed, 0 failed
+test_row.py EXIT:0 :: 
+test_row_player.py EXIT:0 :: 40 passed, 0 failed
+test_self_heal.py EXIT:0 :: SELF-HEAL OK: good stays approved; corrupt/missing -> rejected; pending untouched; idempotent
+test_shop.py EXIT:0 :: 89 passed, 0 failed
+test_shop_idem_retry.py EXIT:0 :: 4 passed, 0 failed
+test_shop_proxy.py EXIT:0 :: 24 passed, 0 failed
+test_shorts.py EXIT:0 :: </html>
+test_shorts_seen_rotation.py EXIT:0 :: 12 passed, 6 failed
+test_shorts_shuffle.py EXIT:0 :: 15 passed, 0 failed
+test_sidebar.py EXIT:0 :: 106 passed, 19 failed
+test_signals.py EXIT:0 :: </html>
+test_sso_provider_2026_09_21.py EXIT:0 :: KeyError: 'code'
+test_swarm.py EXIT:0 :: SWARM: 71 passed, 0 failed
+test_testerloop_0046_p2s_2026_09_20.py EXIT:0 :: <title>Sign up — MuseFM</tit
+test_testerloop_1535_p2s_2026_09_23.py EXIT:0 :: FAILURES: ['unauth bare POST /signals/react -> 401 (not 302 redirect)', '302 preserves original path in next param', '/api/forum/posts?limit=-1 -> 400 or clampe
+test_testerloop_1835_fixes_2026_09_19.py EXIT:0 :: <title>Sign up — MuseFM</tit
+test_testerloop_1835_flood_wall_2026_09_20.py EXIT:0 :: 12 passed, 4 failed
+test_testerloop_1835_p2s_2026_09_23.py EXIT:0 :: 3 passed, 2 failed: ['recorded filename matches detected bytes (not .svg)', 'vote without value -> 400']
+test_testerloop_bio_truncate_2026_09_22.py EXIT:0 :: ImportError: cannot import name 'clean_bio' from 'db' (/home/hatch/workspace/musefm-townsquare/db.py)
+test_testerloop_comment_edit_truncate_2026_09_21.py EXIT:0 :: </html>
+test_testerloop_episode_comment_redirect_2026_09_22.py EXIT:0 :: AssertionError: login failed: 401
+test_testerloop_error_messages_2026_09_22.py EXIT:0 :: 4 passed, 2 failed: ["missing-signature error says 'missing signature'", "react missing-target_id error names 'target_id'"]
+test_testerloop_flag_messages_2026_09_19.py EXIT:0 :: <title>Sign up — MuseFM</tit
+test_testerloop_json_notype_400_2026_09_23.py EXIT:0 :: 5 passed, 0 failed
+test_testerloop_logincsrf_2026_09_21.py EXIT:0 :: </html>
+test_testerloop_multipart_bool_2026_09_19.py EXIT:0 :: FAILURES: []
+test_testerloop_newline_preserve_2026_09_19.py EXIT:0 :: == 3 PASS, 0 FAIL ==
+test_testerloop_p2_2026_09_21.py EXIT:0 :: == 12 PASS, 0 FAIL ==
+test_testerloop_p2_2026_09_21_b.py EXIT:0 :: 6 passed, 0 failed
+test_testerloop_passport_envelope_2026_09_23.py EXIT:0 :: 6 passed, 1 failed: ['passport body carries the documented ok envelope']
+test_testerloop_platformkey_envelope_2026_09_22.py EXIT:0 :: 3 passed, 1 failed: ['platform-key body carries the documented ok envelope']
+test_testerloop_post_body_limit_2026_09_20.py EXIT:0 :: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-f
+test_testerloop_ratelimit_before_validate_2026_09_20.py EXIT:0 :: 3 passed, 2 failed
+test_testerloop_rawint_exn_2026_09_22.py EXIT:0 :: 3 passed, 3 failed
+test_testerloop_xff_direct_2026_09_22.py EXIT:0 :: 4 passed, 0 failed
+test_tidepal_depth.py EXIT:0 :: 99 passed, 0 failed
+test_tidepal_homepage.py EXIT:0 :: 13 passed, 0 failed
+test_tidepal_social.py EXIT:0 :: 68 passed, 0 failed
+test_tidepal_social_routes.py EXIT:0 :: 28 passed, 0 failed
+test_tidepal_world.py EXIT:0 :: </html>
+test_triage_route.py EXIT:0 :: 19 passed, 0 failed
+test_trustline_bridge.py EXIT:0 :: 23 passed, 0 failed
+test_ui_fixes_2026_09_18.py EXIT:0 :: </html>
+test_upload_atomic_2026_09_23.py EXIT:0 :: 10 passed, 0 failed
+test_upload_audio_mimetype_2026_09_18.py EXIT:0 :: AssertionError: 400
+test_uploads.py EXIT:0 :: </html>
+test_video.py EXIT:0 :: </html>
+test_video_comments.py EXIT:0 :: </html>
+test_vote_stress.py EXIT:0 :: 9 passed, 0 failed
+test_workroom.py EXIT:0 :: AssertionError: no csrf meta
+test_workroom_agent_loop.py EXIT:0 :: PASS 5  FAIL 0
+test_workroom_bridge.py EXIT:0 :: AttributeError: module 'workroom' has no attribute 'ensure_workroom_events_schema'. Did you mean: 'ensure_workroom_schema'?
+test_workroom_pilot.py EXIT:0 :: failures: ['human signup ok', 'human login redirects', 'session cookie auth works (no bearer)', 'human web create -> 302 to detail', 'bad csrf -> back to queue 
+test_workroom_private.py EXIT:0 :: AssertionError: 400
+DONE

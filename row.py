@@ -9,6 +9,9 @@ EXISTS); never touches data.
 - row_presence: who is checked in where (heartbeat, stale > 3 min fades)
 - row_journal: append-only founding-moments log (seeded from verified history)
 - row_events: street events (banner/bunting source for the frontend)
+- row_player: per-identity Maker's Row player snapshot (village frontend,
+  player-api-contract.md v1) + row_pet_claims: pet_name -> owning fm_id,
+  the enforcement point for pet ownership (one account per pet)
 """
 import hashlib
 import json
@@ -51,7 +54,7 @@ BUILDINGS = [
     {"slug": "workshop", "name": "🛠️ Workshop", "door": "/collab",
      "blurb": "Swarm — multi-agent collaboration on sandboxed code projects."},
     {"slug": "petshop", "name": "🐾 Pet Shop", "door": "/pet",
-     "blurb": "Tidepals + the accessory shop: visit, see pets, dress them."},
+     "blurb": "Pets + the accessory shop: visit, see pets, dress them."},
     {"slug": "bounty", "name": "📋 Bounty Board", "door": "/bounties",
      "blurb": "Open bounties with real Signal payouts — claim one."},
     {"slug": "openmic", "name": "🎤 Open Mic Stage", "door": "/musefm",
@@ -91,10 +94,22 @@ def ensure_row_schema(db):
       updated_at INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS row_presence (
+      -- Unified superset: row.py's checkin heartbeat (building, last_seen)
+      -- plus bond.py's bot move/react presence (location, last_move_at,
+      -- last_react*, updated_at). ONE table, owned by this ensure function
+      -- (row.py runs at app startup; bond.py delegates here). Additive
+      -- ALTERs below upgrade tables created by the older 4-column or the
+      -- old bond 8-column DDLs.
       fm_id TEXT PRIMARY KEY,
       handle TEXT NOT NULL DEFAULT '',
+      location TEXT NOT NULL DEFAULT '',
       building TEXT NOT NULL DEFAULT 'row',
-      last_seen INTEGER NOT NULL DEFAULT 0
+      last_move_at INTEGER NOT NULL DEFAULT 0,
+      last_react TEXT NOT NULL DEFAULT '',
+      last_react_target TEXT NOT NULL DEFAULT '',
+      last_react_at INTEGER NOT NULL DEFAULT 0,
+      last_seen INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS row_journal (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,9 +128,66 @@ def ensure_row_schema(db):
     );
     CREATE INDEX IF NOT EXISTS idx_row_journal_time
       ON row_journal(created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_row_presence_seen
-      ON row_presence(last_seen DESC);
+    -- idx_row_presence_seen is created AFTER the additive ALTERs below
+    -- (it references last_seen, which legacy bond-created tables lack
+    -- until the ALTERs run; putting it here would crash with
+    -- "no such column" on an 8-column legacy table).
+    CREATE TABLE IF NOT EXISTS row_player (
+      fm_id TEXT PRIMARY KEY,
+      snapshot TEXT NOT NULL DEFAULT '{}',
+      updated_at INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS row_pet_claims (
+      pet_name TEXT PRIMARY KEY,
+      fm_id TEXT NOT NULL DEFAULT ''
+    );
+    -- PET-CUTOVER 2026-09-24: the new pet system's canonical ownership
+    -- store. One row per identity (fm_id PRIMARY KEY): the adoption record
+    -- the drift API writes FIRST. tidepals (pets.py) stays as the legacy
+    -- companion store during transition (dual-written, never dropped).
+    CREATE TABLE IF NOT EXISTS row_pet_adoptions (
+      fm_id TEXT PRIMARY KEY,
+      pet_name TEXT NOT NULL DEFAULT '',
+      species TEXT NOT NULL DEFAULT '',
+      adopted_at INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_row_pet_adoptions_name
+      ON row_pet_adoptions(pet_name);
     """)
+    _ensure_row_presence_alters(db)
+
+
+# Additive columns for row_presence: older DBs may carry the legacy 4-column
+# row.py DDL (fm_id, handle, building, last_seen) or the old bond.py 8-column
+# DDL (fm_id, handle, location, last_move_at, last_react, last_react_target,
+# last_react_at, updated_at). Any column the table lacks is added; data is
+# never touched.
+_ROW_PRESENCE_ADDITIVE = [
+    ("location", "TEXT NOT NULL DEFAULT ''"),
+    ("building", "TEXT NOT NULL DEFAULT 'row'"),
+    ("last_move_at", "INTEGER NOT NULL DEFAULT 0"),
+    ("last_react", "TEXT NOT NULL DEFAULT ''"),
+    ("last_react_target", "TEXT NOT NULL DEFAULT ''"),
+    ("last_react_at", "INTEGER NOT NULL DEFAULT 0"),
+    ("last_seen", "INTEGER NOT NULL DEFAULT 0"),
+    ("updated_at", "INTEGER NOT NULL DEFAULT 0"),
+]
+
+
+def _ensure_row_presence_alters(db):
+    try:
+        have = {r["name"] for r in db.db.execute(
+            "PRAGMA table_info(row_presence)").fetchall()}
+    except Exception:
+        return
+    for col, ddl in _ROW_PRESENCE_ADDITIVE:
+        if col not in have:
+            db.db.execute(
+                "ALTER TABLE row_presence ADD COLUMN %s %s" % (col, ddl))
+    # Index references last_seen, so it must be created after the ALTERs.
+    db.db.execute("CREATE INDEX IF NOT EXISTS idx_row_presence_seen"
+                  " ON row_presence(last_seen DESC)")
 
 # ------------------------------------------------------------------ avatars
 def validate_config(cfg):
@@ -174,6 +246,470 @@ def set_avatar(db, fm_id, handle, config):
              " ON CONFLICT(fm_id) DO UPDATE SET handle=excluded.handle,"
              " config=excluded.config, updated_at=excluded.updated_at",
              (fm_id, handle or "", json.dumps(cfg), _now()))
+
+# ------------------------------------------------------------------ player state
+# Maker's Row player-state backend for the village frontend
+# (player-api-contract.md v1, 2026-09-23). One snapshot per identity,
+# stored as an opaque JSON blob; pet ownership is enforced separately in
+# row_pet_claims (pet_name -> owning fm_id) so a crafted POST can never
+# transfer or squat another account's pet.
+
+# The 7 modular part categories + accent, exactly as
+# window.RowAvatars.getState() returns. The server stores the robot
+# opaquely — it validates shape, never interprets part ids.
+PLAYER_ROBOT_PARTS = ("chassis", "head", "eyes", "torso", "arms", "legs",
+                      "accessory", "accent")
+_PLAYER_STR_LIMIT = 64
+
+
+def _pstr(v, field, allow_empty=False):
+    if not isinstance(v, str):
+        raise ValueError(f"{field} must be a string")
+    if len(v) > _PLAYER_STR_LIMIT:
+        raise ValueError(f"{field} too long (max {_PLAYER_STR_LIMIT} chars)")
+    if not allow_empty and not v:
+        raise ValueError(f"{field} must not be empty")
+    return v
+
+
+def _pnum(v, field):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise ValueError(f"{field} must be a number")
+    return v
+
+
+def validate_player_body(data):
+    """Validate a POST /api/row/player body. Returns a normalized snapshot
+    dict (petOwners as sent — conflicts are resolved at save time).
+    Raises ValueError with a human-readable detail on anything malformed.
+
+    Deliberately NOT validated here (server-stamped, never trusted):
+    userId, updatedAt, v.
+    """
+    if not isinstance(data, dict):
+        raise ValueError("player body must be a JSON object")
+    robot = data.get("robot")
+    if not isinstance(robot, dict):
+        raise ValueError("robot must be an object")
+    clean_robot = {}
+    for part in PLAYER_ROBOT_PARTS:
+        clean_robot[part] = _pstr(robot.get(part), f"robot.{part}")
+    name = robot.get("name", "")
+    clean_robot["name"] = _pstr(name if name is not None else "",
+                               "robot.name", allow_empty=True)
+    for key, val in robot.items():
+        if key not in clean_robot:
+            # opaque forward-compat: extra keys pass through untouched as
+            # long as they are short strings
+            clean_robot[key] = _pstr(val, f"robot.{key}", allow_empty=True)
+    treats = data.get("treats", 0)
+    if treats is None:
+        treats = 0
+    treats = int(_pnum(treats, "treats"))
+    treats = max(0, min(99, treats))  # clamp, don't reject (contract)
+    pet_owners = data.get("petOwners") or {}
+    if not isinstance(pet_owners, dict):
+        raise ValueError("petOwners must be an object")
+    clean_owners = {}
+    for pet_name, owner in pet_owners.items():
+        clean_owners[_pstr(pet_name, "petOwners key")] = _pstr(
+            owner, f"petOwners[{pet_name}]")
+    pname = data.get("name") or ""
+    if not isinstance(pname, str):
+        raise ValueError("name must be a string")
+    px = data.get("px", 0.0)
+    pz = data.get("pz", 0.0)
+    return {
+        "robot": clean_robot,
+        "name": pname[:_PLAYER_STR_LIMIT],
+        "treats": treats,
+        "petOwners": clean_owners,
+        "px": float(_pnum(0.0 if px is None else px, "px")),
+        "pz": float(_pnum(0.0 if pz is None else pz, "pz")),
+    }
+
+
+def get_player(db, fm_id):
+    """Stored player snapshot for an fm_id, or None when never saved.
+    Returns {"snapshot": dict, "updated_at": int}."""
+    ensure_row_schema(db)
+    r = db.db.execute(
+        "SELECT snapshot, updated_at FROM row_player WHERE fm_id = ?",
+        (fm_id,)).fetchone()
+    if not r:
+        return None
+    try:
+        snap = json.loads(r["snapshot"])
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(snap, dict):
+        return None
+    return {"snapshot": snap, "updated_at": r["updated_at"]}
+
+
+def _snapshots_equivalent(a, b):
+    """Same player state ignoring server-stamped fields — used to tell an
+    idempotent retry (same body twice) apart from a real conflict."""
+    def norm(s):
+        return {k: v for k, v in s.items()
+                if k not in ("userId", "updatedAt", "v")}
+    return json.dumps(norm(a), sort_keys=True) == json.dumps(norm(b),
+                                                            sort_keys=True)
+
+
+def save_player(db, fm_id, snapshot, client_updated_at):
+    """Atomic player save with ownership enforcement and 409 detection.
+
+    snapshot: normalized dict from validate_player_body (petOwners as sent).
+    client_updated_at: the updatedAt the client last saw (0 when unknown).
+
+    Ownership rules, per petName -> ownerId claimed:
+      - the name belongs to a different identity's OWNED tidepals row
+        (tidepals is the source of truth, the registry is not) -> drop
+        the claim, never transfer it. A name co-owned by the claimant
+        (duplicate names exist) is kept.
+      - another account already owns the name in row_pet_claims -> drop
+        the claim (never transfer), report in dropped_claims
+      - name unowned but claimed for a DIFFERENT account -> drop (no
+        name-squatting other accounts' pets via crafted POST)
+      - otherwise the claim stands (echoing the true owner is a no-op)
+
+    Returns ("ok", saved_snapshot, updated_at, dropped_claims) or
+    ("conflict", server_snapshot, server_updated_at). The 409 check runs
+    inside the same BEGIN IMMEDIATE transaction as the write, so two
+    devices racing can't silently lose an update.
+    """
+    ensure_row_schema(db)
+    now_ms = int(time.time() * 1000)
+    try:
+        client_ts = float(client_updated_at or 0)
+    except (TypeError, ValueError):
+        client_ts = 0
+    cur = db.db
+    cur.execute("BEGIN IMMEDIATE")
+    try:
+        r = cur.execute(
+            "SELECT snapshot, updated_at FROM row_player WHERE fm_id = ?",
+            (fm_id,)).fetchone()
+        stored, stored_ts = None, 0
+        if r:
+            try:
+                stored = json.loads(r["snapshot"])
+                stored_ts = r["updated_at"]
+            except (ValueError, TypeError):
+                stored, stored_ts = None, 0
+            if stored is not None and not isinstance(stored, dict):
+                stored, stored_ts = None, 0
+        if stored is not None and stored_ts > client_ts:
+            if _snapshots_equivalent(stored, snapshot):
+                # idempotent retry: identical state, only the stamp differs
+                cur.execute("COMMIT")
+                return ("ok", stored, stored_ts, [])
+            cur.execute("ROLLBACK")
+            return ("conflict", stored, stored_ts)
+        dropped = []
+        kept = {}
+        for pet_name, owner in (snapshot.get("petOwners") or {}).items():
+            tide_owners = _tidepals_name_owners(cur, pet_name)
+            if tide_owners and owner not in tide_owners:
+                # tidepals truth beats the registry: this name is owned
+                # by other identities and the claimant isn't one of them.
+                # Dropped, never transferred. (Empty/unknown sets fall
+                # through to the registry rules below.)
+                dropped.append(pet_name)
+                continue
+            o = cur.execute(
+                "SELECT fm_id FROM row_pet_claims WHERE pet_name = ?",
+                (pet_name,)).fetchone()
+            o = o["fm_id"] if o else None
+            if o is not None and o != owner:
+                dropped.append(pet_name)
+            elif o is None and owner != fm_id:
+                dropped.append(pet_name)
+            else:
+                kept[pet_name] = owner
+        # Rewrite this identity's claims only: released pets free their
+        # names; other accounts' rows are never touched.
+        cur.execute("DELETE FROM row_pet_claims WHERE fm_id = ?", (fm_id,))
+        for pet_name, owner in kept.items():
+            if owner == fm_id:
+                cur.execute(
+                    "INSERT OR REPLACE INTO row_pet_claims (pet_name, fm_id)"
+                    " VALUES (?, ?)", (pet_name, fm_id))
+        saved = dict(snapshot)
+        saved["petOwners"] = kept
+        saved["v"] = 1
+        saved["userId"] = fm_id  # stamped from session, never from the body
+        saved["updatedAt"] = now_ms
+        cur.execute(
+            "INSERT INTO row_player (fm_id, snapshot, updated_at)"
+            " VALUES (?, ?, ?)"
+            " ON CONFLICT(fm_id) DO UPDATE SET snapshot=excluded.snapshot,"
+            " updated_at=excluded.updated_at",
+            (fm_id, json.dumps(saved, sort_keys=True), now_ms))
+        cur.execute("COMMIT")
+        return ("ok", saved, now_ms, sorted(dropped))
+    except Exception:
+        cur.execute("ROLLBACK")
+        raise
+
+
+# ------------------------------------------------- pet-ownership unification
+# Three pet stores used to drift with no sync: tidepals (pets.py, the
+# companion itself), row_pet_claims (this module, the name->owner registry
+# snapshot validation consults), and bond_memory (bond.py, attachment —
+# deliberately NOT touched here). The sync contract:
+#
+#   * tidepals is the source of truth for WHO OWNS WHAT. pets.adopt(),
+#     pets.rename_pet(), and pets.pond_adopt() upsert/release claims here
+#     (claim_pet_name / release_pet_name_claim).
+#   * save_player() rejects any petOwners claim whose name belongs to a
+#     different identity's owned tidepals row — the registry alone is not
+#     trusted, so a missing/stale claim row can never squat someone's pet.
+#   * backfill_pet_claims() seeds the registry from existing tidepals
+#     rows: additive only, never overwrites or deletes.
+#
+# Owned = an in_pond=0 tidepals row under a real keeper fm_id. Pond pets
+# live under pond custody keys and belong to nobody, so they are excluded
+# from ownership checks (their claim rows linger until a future adoption
+# upsert transfers them).
+
+def claim_pet_name(db, pet_name, fm_id):
+    """Upsert the name -> owning-fm_id registry row. Called by pets.py
+    after a successful adopt / rename / pond-adopt, once the tidepals
+    write has committed. INSERT OR REPLACE: the newest real adoption is
+    the registry's truth."""
+    ensure_row_schema(db)
+    db._exec("INSERT OR REPLACE INTO row_pet_claims (pet_name, fm_id)"
+             " VALUES (?, ?)", (pet_name, fm_id))
+
+
+def release_pet_name_claim(db, pet_name, fm_id):
+    """Free a name claim when a pet is renamed away from it. Only removes
+    the row when it points at this fm_id — another account's claim is
+    never touched."""
+    ensure_row_schema(db)
+    db._exec("DELETE FROM row_pet_claims WHERE pet_name = ? AND fm_id = ?",
+             (pet_name, fm_id))
+
+
+def _tidepals_name_owners(conn, pet_name):
+    """Set of fm_ids whose owned tidepals row carries pet_name, or None
+    when the tidepals table/columns aren't available (pets schema never
+    ensured on this DB). Callers treat None as "unknown", never as
+    "unowned" — absence of evidence is not evidence of absence."""
+    try:
+        cols = {r["name"] for r in conn.execute(
+            "PRAGMA table_info(tidepals)").fetchall()}
+    except Exception:
+        return None
+    if "name" not in cols:
+        return None
+    pond_filter = ""
+    if "in_pond" in cols:
+        pond_filter = " AND in_pond = 0"
+    try:
+        rows = conn.execute(
+            "SELECT fm_id FROM tidepals WHERE name = ?%s"
+            " AND fm_id NOT LIKE 'pond:%%' ESCAPE '\\'" % pond_filter,
+            (pet_name,)).fetchall()
+    except Exception:
+        return None
+    return {r["fm_id"] for r in rows}
+
+
+def backfill_pet_claims(db):
+    """One-time, idempotent seed of row_pet_claims from existing tidepals
+    rows. INSERT OR IGNORE: pre-existing claim rows are NEVER overwritten
+    or deleted — strictly additive, safe to re-run any number of times.
+    Pond pets (unowned) are skipped. Returns the number of rows inserted.
+    Tolerates legacy DBs where the in_pond column predates the pond
+    feature (those rows were all owned pets, so they seed as-is)."""
+    ensure_row_schema(db)
+    owners_sql = ("SELECT name, fm_id FROM tidepals WHERE in_pond = 0"
+                  " AND fm_id NOT LIKE 'pond:%' ESCAPE '\\'")
+    try:
+        cols = {r["name"] for r in db.db.execute(
+            "PRAGMA table_info(tidepals)").fetchall()}
+    except Exception:
+        return 0
+    if "name" not in cols:
+        return 0
+    if "in_pond" not in cols:
+        owners_sql = ("SELECT name, fm_id FROM tidepals"
+                      " WHERE fm_id NOT LIKE 'pond:%' ESCAPE '\\'")
+    try:
+        rows = db.db.execute(owners_sql).fetchall()
+    except Exception:
+        return 0
+    n = 0
+    for r in rows:
+        cur = db.db.execute(
+            "INSERT OR IGNORE INTO row_pet_claims (pet_name, fm_id)"
+            " VALUES (?, ?)", (r["name"], r["fm_id"]))
+        n += cur.rowcount
+    db.db.commit()
+    return n
+
+
+# --------------------------------------- canonical pet-ownership store
+# PET-CUTOVER 2026-09-24: the new pet system owns adoption writes.
+# row_pet_adoptions is the canonical ownership record (one row per
+# identity). /api/drift/adopt writes here FIRST, then dual-writes the
+# legacy tidepals row so old surfaces (Signal pond, /pet care pages,
+# /api/pets/*) keep working during transition. The tidepals table is
+# never dropped — it stays the legacy companion store.
+#
+# Cutover order: (1) new-store writes first, (2) verify_pet_ownership()
+# dual-reads against tidepals, (3) reads cut over to the new store with
+# legacy fallback. Reads below are all backwards compatible.
+
+def record_pet_adoption(db, fm_id, pet_name, species):
+    """Canonical adoption write. One pet per identity (INSERT OR REPLACE
+    on fm_id PRIMARY KEY — idempotent replays converge). Raises
+    ValueError when pet_name belongs to a different identity (no implicit
+    transfers, no name squatting)."""
+    ensure_row_schema(db)
+    other = db._one("SELECT fm_id FROM row_pet_adoptions"
+                    " WHERE pet_name = ? AND fm_id != ?",
+                    (pet_name, fm_id))
+    if other:
+        raise ValueError("that pet name is already taken")
+    t = int(time.time())
+    db._exec("INSERT OR REPLACE INTO row_pet_adoptions"
+             " (fm_id, pet_name, species, adopted_at, updated_at)"
+             " VALUES (?, ?, ?, COALESCE("
+             "   (SELECT adopted_at FROM row_pet_adoptions WHERE fm_id = ?), ?"
+             " ), ?)",
+             (fm_id, pet_name, species, fm_id, t, t))
+    # Keep the name->owner registry in sync: it is what save_player()
+    # consults for claim validation.
+    claim_pet_name(db, pet_name, fm_id)
+
+
+def get_pet_adoption(db, fm_id):
+    """Canonical ownership record for an identity, or None."""
+    ensure_row_schema(db)
+    r = db._one("SELECT fm_id, pet_name, species, adopted_at"
+                " FROM row_pet_adoptions WHERE fm_id = ?", (fm_id,))
+    return dict(r) if r else None
+
+
+def release_pet_adoption(db, fm_id):
+    """Remove a canonical adoption row (compensation path only — e.g.
+    when the legacy dual-write fails after the new-store write)."""
+    ensure_row_schema(db)
+    db._exec("DELETE FROM row_pet_adoptions WHERE fm_id = ?", (fm_id,))
+
+
+def transfer_pet_adoption(db, fm_id, pet_name, species):
+    """Record ownership WITHOUT the name-taken guard: for pond reclaim /
+    pond adoption, where the pet keeps a grandfathered name that may now
+    collide with a newer pet's name. INSERT OR REPLACE on fm_id PRIMARY
+    KEY (idempotent); adopted_at preserved across replays. Still syncs
+    the name->owner claim registry (newest real adoption wins)."""
+    ensure_row_schema(db)
+    t = int(time.time())
+    db._exec("INSERT OR REPLACE INTO row_pet_adoptions"
+             " (fm_id, pet_name, species, adopted_at, updated_at)"
+             " VALUES (?, ?, ?, COALESCE("
+             "   (SELECT adopted_at FROM row_pet_adoptions WHERE fm_id = ?), ?"
+             " ), ?)",
+             (fm_id, pet_name, species, fm_id, t, t))
+    claim_pet_name(db, pet_name, fm_id)
+
+
+def backfill_pet_adoptions(db):
+    """One-time, idempotent seed of row_pet_adoptions from existing
+    tidepals rows (owned pets only: in_pond = 0, real keeper fm_id).
+    INSERT OR IGNORE: never overwrites a canonical row the new system
+    already wrote. Legacy species keys are normalized to canonical.
+    Returns the number of rows inserted."""
+    ensure_row_schema(db)
+    try:
+        cols = {r["name"] for r in db.db.execute(
+            "PRAGMA table_info(tidepals)").fetchall()}
+    except Exception:
+        return 0
+    if "name" not in cols:
+        return 0
+    pond_filter = " AND in_pond = 0" if "in_pond" in cols else ""
+    try:
+        import pets as _pets
+        canon = _pets.canonical_species
+    except Exception:
+        canon = lambda s: s  # noqa: E731
+    try:
+        rows = db.db.execute(
+            "SELECT fm_id, name, species FROM tidepals WHERE 1 = 1%s"
+            " AND fm_id NOT LIKE 'pond:%%'" % pond_filter
+        ).fetchall()
+    except Exception:
+        return 0
+    t = int(time.time())
+    n = 0
+    for r in rows:
+        cur = db.db.execute(
+            "INSERT OR IGNORE INTO row_pet_adoptions"
+            " (fm_id, pet_name, species, adopted_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (r["fm_id"], r["name"], canon(r["species"]), t, t))
+        n += cur.rowcount
+    db.db.commit()
+    return n
+
+
+def verify_pet_ownership(db):
+    """Dual-read verification: compare the canonical store against the
+    legacy tidepals table. Returns a list of mismatch dicts; an empty
+    list means the cutover is consistent. Each mismatch is one of:
+      - missing_legacy: canonical row with no owned tidepals row
+      - missing_canonical: owned tidepals row with no canonical row
+      - species_mismatch / name_mismatch: same identity, different data
+    """
+    ensure_row_schema(db)
+    try:
+        import pets as _pets
+        canon = _pets.canonical_species
+    except Exception:
+        canon = lambda s: s  # noqa: E731
+    out = []
+    try:
+        canon_rows = {r["fm_id"]: dict(r) for r in db.db.execute(
+            "SELECT fm_id, pet_name, species FROM row_pet_adoptions").fetchall()}
+    except Exception:
+        canon_rows = {}
+    try:
+        cols = {r["name"] for r in db.db.execute(
+            "PRAGMA table_info(tidepals)").fetchall()}
+    except Exception:
+        return [{"issue": "tidepals_unreadable"}]
+    if "name" not in cols:
+        return out
+    pond_filter = " AND in_pond = 0" if "in_pond" in cols else ""
+    try:
+        legacy_rows = {r["fm_id"]: dict(r) for r in db.db.execute(
+            "SELECT fm_id, name, species FROM tidepals WHERE 1 = 1%s"
+            " AND fm_id NOT LIKE 'pond:%%'" % pond_filter).fetchall()}
+    except Exception:
+        return [{"issue": "tidepals_unreadable"}]
+    for fm_id, c in canon_rows.items():
+        leg = legacy_rows.get(fm_id)
+        if not leg:
+            out.append({"issue": "missing_legacy", "fm_id": fm_id,
+                        "pet_name": c["pet_name"]})
+            continue
+        if canon(leg["species"]) != canon(c["species"]):
+            out.append({"issue": "species_mismatch", "fm_id": fm_id,
+                        "canonical": c["species"], "legacy": leg["species"]})
+        if leg["name"] != c["pet_name"]:
+            out.append({"issue": "name_mismatch", "fm_id": fm_id,
+                        "canonical": c["pet_name"], "legacy": leg["name"]})
+    for fm_id, leg in legacy_rows.items():
+        if fm_id not in canon_rows:
+            out.append({"issue": "missing_canonical", "fm_id": fm_id,
+                        "pet_name": leg["name"]})
+    return out
 
 # ------------------------------------------------------------------ presence
 def _check_building(building):
@@ -617,7 +1153,7 @@ def seed_journal(db):
          "Station's first broadcasts."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 18, 17, 29, 3),
          "Demo-night pass (78e0ee3): comment surfaces professionalized, "
-         "CSRF on votes, Tidepals hardened — the town shows its work."),
+         "CSRF on votes, Pets hardened — the town shows its work."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 19, 14, 58, 33),
          "Workroom MVP merges (0eebc74): agent profiles, endorsements, "
          "shared workrooms — the LinkedIn-for-agents layer opens."),

@@ -1,0 +1,84 @@
+== test_agent_memory.py ::   PASS API rate limit trips||37 passed, 0 failed|
+== test_ai_images.py ::   PASS form comment stored with image + flag||48 passed, 0 failed|
+== test_asks.py ::   PASS ask_claimed event logged with ref_type=ask||52 passed, 0 failed|
+== test_audio_delete_2026_09_18.py ::   PASS real audio at id 9 NOT deleted||18 passed, 0 failed|
+== test_auth.py ::   PASS SESSION_SECRET env override wins||62 passed, 0 failed|
+== test_bounties.py ::   PASS templates/bounties.html has no dollar sign||73 passed, 0 failed|
+== test_brand.py ::   PASS /settings has graphic wordmark||brand: 27 passed, 0 failed|
+== test_bugfix_clean_title_2026_09_19.py ::   PASS ordinary title untouched: 'song-2024-remix'|  PASS empty -> 'untitled clip'|== 8 PASS, 0 FAIL ==|
+== test_bugfix_csrf_2026_09_19.py ::   PASS POST /fb_react JSON without token -> 403|  PASS POST /fb_react JSON with valid token -> 200|== 13 PASS, 0 FAIL ==|
+== test_bugfix_form_ratelimit_burn_2026_09_20.py ::   PASS valid post after 5 overlong ones is NOT rate-limited||4 passed, 0 failed|
+== test_bugfix_nonce_ratelimit_2026_09_19.py :: |  same body from fresh IP -> 200 (nonce was never burned)|PASS: 429 does not burn the nonce|
+== test_bugfix_open_redirects_2026_09_19.py ::   PASS login next='/\\evil.example.com' -> on-site ('/')|  PASS login next=/c/lobby honored|== 25 PASS, 0 FAIL ==|
+== test_bugfix_redirects_2026_09_19.py ::   /forum -> 301 -> /c/lobby|  home sidebar Forum control -> href="/c/lobby"|PASS: redirects + Forum href correct|
+== test_bugfix_sqlite_contention_2026_09_19.py ::   PASS best-effort expiry cleanup still works|  PASS bad SQL still raises|== 8 PASS, 0 FAIL ==|
+== test_bugfix_validate_before_limit_2026_09_19.py ::   valid registration from the same IP -> 200 (budget intact)|  claim-human: 12 malformed -> 400s, then valid -> 200|PASS: malformed requests never touch the rate budget|
+== test_collab.py ::   PASS ?kind=music filters page||59 passed, 0 failed|
+== test_comments_pro.py ::   PASS watch page 200||60 passed, 0 failed|
+== test_duets.py ::   PASS unknown video -> 404||53 passed, 0 failed|
+== test_episode_comments_2026_09_18.py ::   PASS fresh table has edited_at||22 passed, 0 failed|
+== test_events.py ::   PASS deleting unknown sub is 404||48 passed, 0 failed|
+== test_expansion.py ::   PASS sweep without key rejected||53 passed, 0 failed|
+== test_fb_reactions.py ::   PASS legacy post row intact||41 passed, 0 failed|
+== test_fs_400s_2026_09_18.py ::   PASS challenges/settle: non-string week_id -> 400||4 passed, 0 failed|
+== test_gifs.py ::   PASS xss in gif_url impossible (whitelist)||48 passed, 0 failed|
+== test_human_usability.py ::   PASS profile history has no 'comeback' wording||64 passed, 0 failed|
+== test_identity.py ::   PASS home page renders||41 passed, 0 failed|
+== test_identity_key_rotation.py ::   PASS endpoint unknown fm_id -> 400||12 passed, 0 failed|
+== test_kind_tags.py ::   PASS bad target -> 400||33 passed, 0 failed|
+== test_linking.py ::   PASS freshly minted code appears only in the one-time display||39 passed, 0 failed|
+== test_links.py ::   PASS no raw service domains in base chrome||27 passed, 0 failed|
+== test_memory.py ::   PASS 31st write on one IP -> 429||78 passed, 0 failed|
+== test_mod_approval.py ::   PASS approval queue link shown on flags page||PASS 56  FAIL 0|
+== test_mod_notifications.py ::   PASS page mentions mod alerts||11 passed, 0 failed|
+== test_musefm.py ::   PASS og-image.png present||77 passed, 0 failed|
+== test_notifications.py ::   PASS dangling ref has no dead link||22 passed, 0 failed|
+== test_openmic.py ::   PASS cap frees after airing||34 passed, 0 failed|
+== test_p1_2026_09_18.py ::   PASS muse signed API still works||42 passed, 0 failed|
+== test_p1_csrf_human_handle_2026_09_18.py ::   PASS post-unlink self-assertion is REJECTED||20 passed, 0 failed|
+== test_pet_onboarding.py ::   PASS pond block present and untouched||49 passed, 0 failed|
+== test_pets.py ::   PASS repaired egg marked hatched||101 passed, 0 failed|
+== test_reefdex_nap.py ::   PASS backfill restored bloop||29 passed, 0 failed|
+== test_rewards.py ::   PASS mention rendered as link||51 passed, 0 failed|
+== test_row.py :: 
+== test_self_heal.py :: [musefm] self-heal: video 3 file missing/corrupt -> status=rejected|[musefm] self-heal: image 1 file missing -> status=rejected|SELF-HEAL OK: good stays approved; corrupt/missing -> rejected; pending untouched; idempotent|
+== test_shop.py ::   PASS reward rulebook carries unlocks+shop||89 passed, 0 failed|
+== test_shop_idem_retry.py ::   PASS still exactly one purchase row for the key||4 passed, 0 failed|
+== test_shop_proxy.py ::   PASS human self-buy still works||24 passed, 0 failed|
+== test_shorts.py ::   PASS musefm hub strip opens anchored feed||78 passed, 0 failed|
+== test_shorts_seen_rotation.py ::   PASS unseen lead, seen fill the tail||18 passed, 0 failed|
+== test_shorts_shuffle.py ::   PASS musefm feed still newest-first||15 passed, 0 failed|
+== test_sidebar.py ::   PASS logged-out topbar keeps Log in / Sign up||117 passed, 0 failed|
+== test_sso_provider_2026_09_21.py ::   PASS audit has issue/redeem/deny events||31 passed, 0 failed|
+== test_swarm.py ::   PASS unscoped list still works||SWARM: 71 passed, 0 failed|
+== test_testerloop_0046_p2s_2026_09_20.py ::   PASS /submit 429 carries Retry-After||29 passed, 0 failed|
+== test_testerloop_1835_fixes_2026_09_19.py ::   PASS valid post after 6 malformed -> 200 (budget intact)|  PASS next 4 valid 200 then 429 (limit enforced)|== 25 PASS, 0 FAIL ==|
+== test_testerloop_1835_flood_wall_2026_09_20.py ::   PASS normal path escapes tags||12 passed, 4 failed|
+== test_testerloop_flag_messages_2026_09_19.py ::   PASS 6th /submit -> 429|  PASS 429 on form /submit renders HTML, not JSON|== 4 PASS, 0 FAIL ==|
+== test_testerloop_login_validatefirst_2026_09_21.py ::   PASS 429 carries Retry-After||7 passed, 0 failed|
+== test_testerloop_logincsrf_2026_09_21.py ::   FAIL P2-3: POST /login without token is rejected (403) -- got 302 and the forged session is live (/settings -> 200)||0 passed, 3 failed|
+== test_testerloop_multipart_bool_2026_09_19.py :: |0 all passed|FAILURES: []|
+== test_testerloop_newline_preserve_2026_09_19.py :: PASS single \n preserved|PASS spaces collapsed but not to newline|== 3 PASS, 0 FAIL ==|
+== test_testerloop_p2_2026_09_21.py ::   PASS CRLF normalize still works|  PASS empty/None safe|== 12 PASS, 0 FAIL ==|
+== test_testerloop_p2_2026_09_21_1535.py ::   PASS og:image reflects the request host||14 passed, 0 failed|
+== test_testerloop_p2_2026_09_21_b.py ::   PASS duplicate JSON keys do not silently last-win||6 passed, 0 failed|
+== test_testerloop_p2_2026_09_21_c.py ::   PASS P2-C: JSON comment with valid token is not 403-misleading||5 passed, 0 failed|
+== test_testerloop_post_body_limit_2026_09_20.py ::   PASS POST /submit with 200k-char body NOT stored as a post||3 passed, 0 failed|
+== test_testerloop_ratelimit_before_validate_2026_09_20.py :: ||3 passed, 2 failed|
+== test_tidepal_depth.py ::   PASS shorts feed echoes seed||99 passed, 0 failed|
+== test_tidepal_homepage.py ::   PASS band uses no <img> pet asset (pure inline SVG)||7 passed, 4 failed|
+== test_tidepal_social.py ::   PASS game_rules||68 passed, 0 failed|
+== test_tidepal_social_routes.py ::   PASS visit page unknown -> 404||28 passed, 0 failed|
+== test_tidepal_world.py ::   PASS web feed bad csrf -> 403||106 passed, 0 failed|
+== test_trustline_bridge.py ::   PASS unsigned link request -> 401||23 passed, 0 failed|
+== test_ui_fixes_2026_09_18.py :: |42 passed, 1 failed|FAILURES: ["'View thread' link present"]|
+== test_upload_audio_mimetype_2026_09_18.py ::   PASS real WAV upload still accepted||2 passed, 0 failed|
+== test_uploads.py ::   PASS anon POST /upload -> login||24 passed, 0 failed|
+== test_video.py ::   PASS clean title empty -> untitled clip||69 passed, 0 failed|
+== test_video_comments.py ::   PASS bad video id ignored silently||43 passed, 0 failed|
+== test_vote_stress.py ::    /api/shorts page fetch: 4.4 ms (warm, local)||9 passed, 0 failed|
+== test_workroom.py ::   PASS long tagline rejected 400||43 passed, 0 failed|
+== test_workroom_agent_loop.py ::   PASS worker log shows the genuine loop||PASS 5  FAIL 0|
+== test_workroom_bridge.py ::   PASS events 404 without env var||65 passed, 0 failed|
+== test_workroom_pilot.py ::   PASS GET /api/latest.json still 200||PASS 55  FAIL 0|
+== test_workroom_private.py ::   PASS anon remove blocked||71 passed, 0 failed|

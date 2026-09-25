@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-townsquare/test_testerloop_bio_truncate_2026_09_22.py", line 156, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-townsquare/test_testerloop_bio_truncate_2026_09_22.py", line 65, in main
+    from db import Database, ensure_human_auth_schema, clean_bio, clean_comment_body, MAX_BIO
+ImportError: cannot import name 'clean_bio' from 'db' (/home/hatch/workspace/musefm-townsquare/db.py)

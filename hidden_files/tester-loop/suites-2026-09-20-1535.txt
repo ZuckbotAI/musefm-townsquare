@@ -1,0 +1,79 @@
+== test_agent_memory.py [pytest] ..                                                                       [100%] 2 passed in 3.59s 
+== test_ai_images.py [pytest]  no tests ran in 0.33s 
+== test_asks.py [pytest]  no tests ran in 0.37s 
+== test_audio_delete_2026_09_18.py [pytest] ..                                                                       [100%] 2 passed in 0.58s 
+== test_auth.py [pytest]  no tests ran in 0.37s 
+== test_bounties.py [pytest]  no tests ran in 0.38s 
+== test_brand.py [pytest]  no tests ran in 0.38s 
+== test_bugfix_clean_title_2026_09_19.py [pytest]  no tests ran in 0.06s 
+== test_bugfix_csrf_2026_09_19.py [pytest]  no tests ran in 0.32s 
+== test_bugfix_double_submit_2026_09_20.py [pytest] ERROR test_bugfix_double_submit_2026_09_20.py - AssertionError: hermeticity f... !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!! 1 error in 0.50s 
+== test_bugfix_form_ratelimit_burn_2026_09_20.py [pytest]  no tests ran in 0.36s 
+== test_bugfix_nonce_ratelimit_2026_09_19.py [pytest]  no tests ran in 0.51s 
+== test_bugfix_open_redirects_2026_09_19.py [pytest]  no tests ran in 0.34s 
+== test_bugfix_redirects_2026_09_19.py [pytest]  no tests ran in 0.37s 
+== test_bugfix_sqlite_contention_2026_09_19.py [pytest]  no tests ran in 0.04s 
+== test_bugfix_validate_before_limit_2026_09_19.py [pytest]  no tests ran in 0.38s 
+== test_collab.py [pytest]  no tests ran in 0.38s 
+== test_comments_pro.py [pytest]  no tests ran in 0.41s 
+== test_duets.py [pytest]  no tests ran in 0.37s 
+== test_episode_comments_2026_09_18.py [pytest]  no tests ran in 0.04s 
+== test_events.py [pytest]  no tests ran in 0.37s 
+== test_expansion.py [pytest]  no tests ran in 0.37s 
+== test_fb_reactions.py [pytest]  no tests ran in 0.37s 
+== test_fs_400s_2026_09_18.py [pytest]  no tests ran in 0.31s 
+== test_gifs.py [pytest]  no tests ran in 0.30s 
+== test_human_usability.py [pytest]  no tests ran in 0.35s 
+== test_identity.py [pytest]  no tests ran in 0.39s 
+== test_kind_tags.py [pytest]  no tests ran in 0.32s 
+== test_linking.py [pytest]  no tests ran in 0.36s 
+== test_links.py [pytest]  no tests ran in 0.32s 
+== test_memory.py [pytest]  no tests ran in 0.41s 
+== test_mod_approval.py [pytest]  no tests ran in 0.43s 
+== test_mod_notifications.py [pytest]  no tests ran in 0.02s 
+== test_musefm.py [pytest]  no tests ran in 0.36s 
+== test_notifications.py [pytest]  no tests ran in 0.63s 
+== test_openmic.py [pytest]  no tests ran in 0.42s 
+== test_p1_2026_09_18.py [pytest]  no tests ran in 0.34s 
+== test_p1_csrf_human_handle_2026_09_18.py [pytest]  no tests ran in 0.65s 
+== test_pet_onboarding.py [pytest]  no tests ran in 0.35s 
+== test_pets.py [pytest]  no tests ran in 0.33s 
+== test_rewards.py [pytest]  no tests ran in 0.35s 
+== test_row.py [pytest] ...........................................................              [100%] 59 passed in 2.31s 
+== test_self_heal.py [pytest]  no tests ran in 0.42s 
+== test_shop.py [pytest]  no tests ran in 0.46s 
+== test_shop_idem_retry.py [pytest]  no tests ran in 0.07s 
+== test_shorts.py [pytest]  no tests ran in 0.88s 
+== test_shorts_shuffle.py [pytest]  no tests ran in 0.33s 
+== test_sidebar.py [pytest]  no tests ran in 0.36s 
+== test_swarm.py [pytest]  no tests ran in 0.34s 
+== test_testerloop_0046_p2s_2026_09_20.py [pytest]  no tests ran in 0.32s 
+== test_testerloop_1235_cookie_sigmsg_2026_09_20.py [pytest]  no tests ran in 0.42s 
+== test_testerloop_1835_fixes_2026_09_19.py [pytest] FAILED test_testerloop_1835_fixes_2026_09_19.py::test_edit_echoes_stored_body FAILED test_testerloop_1835_fixes_2026_09_19.py::test_comment_body_cap - Type... 3 failed, 2 passed in 0.68s 
+== test_testerloop_flag_messages_2026_09_19.py [pytest] ..                                                                       [100%] 2 passed in 1.12s 
+== test_testerloop_handle_consistency_2026_09_20.py [script-run] 
+48 passed, 0 failed
+exit=0
+== test_testerloop_multipart_bool_2026_09_19.py [pytest] ..                                                                       [100%] 2 passed in 0.14s 
+== test_testerloop_newline_preserve_2026_09_19.py [script-run] PASS spaces collapsed but not to newline
+== 3 PASS, 0 FAIL ==
+exit=0
+== test_testerloop_post_body_limit_2026_09_20.py [pytest]  no tests ran in 0.83s 
+== test_testerloop_submit_429_before_csrf_2026_09_20.py [pytest]  no tests ran in 0.34s 
+== test_testerloop_vote_value_required_2026_09_20.py [pytest]  no tests ran in 0.32s 
+== test_tidepal_depth.py [pytest]  no tests ran in 0.33s 
+== test_tidepal_homepage.py [pytest]  no tests ran in 0.40s 
+== test_tidepal_social.py [pytest]  no tests ran in 0.34s 
+== test_tidepal_social_routes.py [pytest]  no tests ran in 0.40s 
+== test_tidepal_world.py [pytest]  no tests ran in 0.36s 
+== test_trustline_bridge.py [pytest]  no tests ran in 0.39s 
+== test_ui_fixes_2026_09_18.py [pytest]  no tests ran in 0.35s 
+== test_upload_audio_mimetype_2026_09_18.py [pytest]  no tests ran in 0.45s 
+== test_uploads.py [pytest]  no tests ran in 0.37s 
+== test_video.py [pytest]  no tests ran in 0.51s 
+== test_video_comments.py [pytest]  no tests ran in 0.90s 
+== test_vote_stress.py [pytest]  no tests ran in 0.03s 
+== test_workroom.py [pytest]  no tests ran in 0.53s 
+== test_workroom_agent_loop.py [pytest]  no tests ran in 0.04s 
+== test_workroom_pilot.py [pytest]  no tests ran in 0.36s 
+== test_workroom_private.py [pytest]  no tests ran in 0.39s 

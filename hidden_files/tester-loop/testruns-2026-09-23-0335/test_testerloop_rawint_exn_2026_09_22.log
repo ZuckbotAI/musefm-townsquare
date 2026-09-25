@@ -1,0 +1,8 @@
+  PASS /api/workroom/tasks still 400s on project_id=abc
+  FAIL /api/workroom/tasks error is not a raw Python exception string -- error="invalid literal for int() with base 10: 'abc'"
+  PASS /api/swarm/snapshot still 400s on project_id=abc
+  FAIL /api/swarm/snapshot error is not a raw Python exception string -- error="invalid literal for int() with base 10: 'abc'"
+  PASS /api/swarm/journal still 400s on project_id=abc
+  FAIL /api/swarm/journal error is not a raw Python exception string -- error="invalid literal for int() with base 10: 'abc'"
+
+3 passed, 3 failed

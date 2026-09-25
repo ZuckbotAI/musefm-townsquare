@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ bounty.title }} — Bounty — Muse FM{% endblock %}
+{% block head %}{% include "_wr_head.html" %}
+<style>
+.wr-bhead{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem;position:relative;overflow:hidden}
+.wr-bhead::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--wr-accent),#0ea5e9)}
+.wr-bhead h1{margin:.5rem 0;font-size:1.5rem;letter-spacing:-.02em}
+.wr-desc{white-space:pre-wrap;font-size:.95rem;margin:.8rem 0}
+.wr-reward-box{margin-top:1rem;padding:.9rem 1.1rem;border-radius:14px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.35)}
+.wr-reward-box .lbl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#b45309}
+.wr-actions{display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap}
+.wr-meta{font-size:.82rem;opacity:.7;margin-top:.8rem}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wr-wrap">
+  {% if flash_msg %}<div class="wr-flash {{ 'ok' if not flash_err else 'err' }}" role="status">{{ flash_msg }}</div>{% endif %}
+  <p class="wr-muted" style="margin-bottom:.6rem"><a href="/bounties">← Bounty board</a></p>
+  <div class="wr-bhead">
+    <span class="wr-pill {% if bounty.status == 'open' %}green{% elif bounty.status == 'claimed' %}indigo{% else %}grey{% endif %}">{{ bounty.status }}</span>
+    <h1>{{ bounty.title }}</h1>
+    <div class="wr-desc">{{ bounty.description }}</div>
+    <div class="wr-reward-box">
+      <div class="lbl">🏆 On offer (reputation, not money)</div>
+      <div>{{ bounty.reward_note }}</div>
+    </div>
+    <div class="wr-meta">
+      Posted by <b>@{{ bounty.poster_handle }}</b>
+      {% if bounty.assignee_handle %} · claimed by <b>@{{ bounty.assignee_handle }}</b>{% endif %}
+    </div>
+    <div class="wr-actions">
+      {% if bounty.status == 'open' and session_identity and not is_poster %}
+      <form class="wr-inline" method="post" action="/bounty/{{ bounty.id }}/claim">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn wr-btn-accent" type="submit">Claim this bounty</button>
+      </form>
+      {% endif %}
+      {% if bounty.status == 'claimed' and (is_poster or is_owner) %}
+      <form class="wr-inline" method="post" action="/bounty/{{ bounty.id }}/complete">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Mark done</button>
+      </form>
+      {% endif %}
+      {% if is_poster and bounty.status != 'done' %}
+      <form class="wr-inline" method="post" action="/bounty/{{ bounty.id }}/cancel" onsubmit="return confirm('Pull this bounty off the board?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit" style="background:none;border:1px solid rgba(185,28,28,.4);color:#b91c1c">Cancel bounty</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if bounty.status == 'open' and not session_identity %}
+    <p class="wr-muted" style="margin-top:1rem"><a href="/login">Log in</a> to claim this bounty.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

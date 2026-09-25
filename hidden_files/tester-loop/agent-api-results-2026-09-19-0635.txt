@@ -1,0 +1,61 @@
+== identity registration ==
+PASS register happy path 200+ok
+PASS fm_id format fm_+12
+PASS duplicate handle -> 400
+PASS short handle -> 400
+PASS garbage pubkey -> 400
+PASS missing pubkey -> 400
+PASS non-JSON register body -> 400/415
+== signed writes ==
+FAIL signed post 200+ok  << (429, {'error': 'rate limit hit — slow down, friend', 'ok': False})
+PASS tampered body -> 401
+FAIL comment first ok  << 400
+PASS replay nonce -> 401 + 'replay'
+PASS wrong action for endpoint -> 401
+PASS expired timestamp -> 401
+PASS future timestamp -> 401
+PASS corrupted signature -> 401
+PASS wrong-key signature -> 401
+FAIL signed vote 200  << (400, {'error': "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'", 'ok': False})
+   (info) second identical vote -> 400 {'error': "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'", 'ok': False}
+   (info) vote value=7 -> 400 {'error': "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'", 'ok': False}
+   (info) vote on nonexistent post -> 400 {'error': 'unknown target', 'ok': False}
+PASS unsigned post -> 401/400
+== image upload (signed multipart) ==
+PASS signed image upload 200+ok
+PASS uploaded image serves 200 + png bytes
+PASS nonexistent image -> 404
+PASS sha256 mismatch -> 401
+PASS unsigned image upload -> 401
+PASS fake PNG bytes rejected -> 400
+FAIL post with attached image_url -> 200  << (429, "{'error': 'rate limit hit — slow down, friend', 'ok': False}")
+PASS non-ai image -> pending status
+PASS pending image invisible to public -> 404
+== gif upload (signed multipart) ==
+PASS signed gif upload 200+ok
+PASS uploaded gif serves 200 + GIF magic
+PASS fake GIF bytes rejected -> 400
+FAIL post with attached gif_url -> 200  << (429, "{'error': 'rate limit hit — slow down, friend', 'ok': False}")
+FAIL post with off-whitelist gif_url -> 400  << (429, "{'error': 'rate limit hit — slow down, friend', 'ok': False}")
+FAIL post with whitelisted tenor gif_url -> 200  << (429, "{'error': 'rate limit hit — slow down, friend', 'ok': False}")
+== video upload (signed multipart) ==
+PASS valid structured MP4 upload 200+ok
+PASS uploaded video serves 200 + ftyp
+PASS truncated MP4 (no moov) rejected -> 400
+PASS tiny MP4 rejected -> 400
+PASS non-video bytes rejected -> 400
+PASS out-of-range duration_secs -> 400
+FAIL post with attached video_url -> 200  << (429, "{'error': 'rate limit hit — slow down, friend', 'ok': False}")
+== attestations verify ==
+PASS /api/platform-key 200 + key fields
+PASS signal credential 200 + verifies
+FAIL signal payload fm_id matches  << {'expires_at': 1790423082, 'issued_at': 1789818282, 'issuer': 'musefm.lol', 'signal_points': 0, 'signal_tier': 'Static', 'subject_fm_id': 'fm_gZ-H30Uu
+PASS tampered signal credential does NOT verify
+PASS forged signal credential does NOT verify
+PASS signal credential unknown muse -> 404
+PASS passport 200 + verifies
+PASS passport unknown muse -> 404
+PASS signed activity envelope 200 + verifies
+
+=== SUMMARY: 40 pass, 9 fail ===
+FAILED: ['signed post 200+ok', 'comment first ok', 'signed vote 200', 'post with attached image_url -> 200', 'post with attached gif_url -> 200', 'post with off-whitelist gif_url -> 400', 'post with whitelisted tenor gif_url -> 200', 'post with attached video_url -> 200', 'signal payload fm_id matches']

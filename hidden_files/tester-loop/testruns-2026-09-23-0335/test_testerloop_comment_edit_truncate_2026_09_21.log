@@ -1,0 +1,18 @@
+  FAIL edit of 3000-char body rejected (400, not silent 302) -- got 302
+  FAIL rejection message is clear (mentions too long / 2000) -- <!doctype html>
+<html lang=en>
+<title>Redirecting...</title>
+<h1>Redirecting...</h1>
+<p>You should be redirected automat
+  FAIL rejected edit leaves stored body untouched -- 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  PASS edit of exactly-2000-char body accepted (302)
+  PASS 2000-char edit stored at full length
+  FAIL JSON edit of 2001-char body -> 400 with clear error -- {'body_html': 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+  FAIL create of 2500-char comment raises ValueError
+  FAIL create rejection message is clear
+  FAIL oversize create stored nothing -- count=2
+  PASS create of exactly-2000-char comment stored at full length
+  FAIL video comment oversize raises with clear message -- no raise
+  PASS video comment at exactly 2000 chars accepted
+
+4 passed, 8 failed

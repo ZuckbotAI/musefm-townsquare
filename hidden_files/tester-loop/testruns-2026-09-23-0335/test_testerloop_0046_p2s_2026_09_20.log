@@ -1,0 +1,18 @@
+== P2.3: HTML /vote bad input -> 400/404, not silent 302 ==
+  PASS vote value=999 -> 400
+  PASS vote value=999 body names the error
+  PASS vote value=999 stored nothing
+  PASS vote unknown target -> 404
+  PASS vote unknown target names it
+  PASS valid vote still 302
+  PASS valid vote counted
+  PASS JSON vote bad value still 400 json
+== P2.4: HTML /fb_react invalid reaction -> 400, not silent 302 ==
+  FAIL react 'lmaooo' -> 400 -- 307
+  FAIL react 'lmaooo' body names valid reactions -- 307
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-townsquare/test_testerloop_0046_p2s_2026_09_20.py", line 225, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-townsquare/test_testerloop_0046_p2s_2026_09_20.py", line 118, in main
+    import fb_reactions
+ModuleNotFoundError: No module named 'fb_reactions'

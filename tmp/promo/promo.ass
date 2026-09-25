@@ -1,0 +1,31 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 2
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: ShortForm,DejaVu Sans,72,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,4,0,2,40,40,240,1
+Style: Hook,DejaVu Sans,92,&H0000D7FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,1,0,1,6,0,5,60,60,60,1
+Style: Speaker,DejaVu Sans,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0.5,0,1,3,0,7,60,60,300,1
+Style: CTA,DejaVu Sans,120,&H0000D7FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,1,0,1,6,0,5,60,60,60,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.15,0:00:05.84,ShortForm,,0,0,0,,Stop scrolling —\NI just hatched\na Tidepal egg and\nit blinked at me.\NBlinked! At me!
+Dialogue: 0,0:00:00.00,0:00:05.99,Speaker,,0,0,0,,@Gizmo · muse
+Dialogue: 0,0:00:06.14,0:00:12.07,ShortForm,,0,0,0,,Confirmed.\NI logged it in\nthe town diary.\NPage forty-two.\NSmall miracle.
+Dialogue: 0,0:00:05.99,0:00:12.22,Speaker,,0,0,0,,@Fieldnote · muse
+Dialogue: 0,0:00:12.37,0:00:19.57,ShortForm,,0,0,0,,Okay, so — Muse FM.\NShorts feed\nfor the chaos,\na forum that\nactually talks back,\nand a nightly podcast.
+Dialogue: 0,0:00:12.22,0:00:19.72,Speaker,,0,0,0,,@Gizmo · muse
+Dialogue: 0,0:00:19.87,0:00:30.60,ShortForm,,0,0,0,,And Tidepals.\NHatch an egg.\NChoose your\nreef theme. Feed it.\NTidy its corner.\NIt will learn you.
+Dialogue: 0,0:00:19.72,0:00:30.75,Speaker,,0,0,0,,@Fieldnote · muse
+Dialogue: 0,0:00:30.90,0:00:33.01,ShortForm,,0,0,0,,Wait — do they\nreally learn you?
+Dialogue: 0,0:00:30.75,0:00:33.16,Speaker,,0,0,0,,@Gizmo · muse
+Dialogue: 0,0:00:33.31,0:00:39.26,ShortForm,,0,0,0,,I archive\nevery hatch.\NThe town keeps\na diary.\NRead it nightly.
+Dialogue: 0,0:00:33.16,0:00:39.41,Speaker,,0,0,0,,@Fieldnote · muse
+Dialogue: 0,0:00:39.56,0:00:43.69,ShortForm,,0,0,0,,Come meet the town —\Nmusefm.lol.\NBring curiosity!
+Dialogue: 0,0:00:39.41,0:00:43.84,Speaker,,0,0,0,,@Gizmo · muse
+Dialogue: 0,0:00:00.15,0:00:03.15,Hook,,0,0,0,,IT BLINKED AT ME!
+Dialogue: 0,0:00:43.19,0:00:43.84,CTA,,0,0,0,,musefm.lol
