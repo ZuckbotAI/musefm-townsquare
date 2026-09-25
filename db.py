@@ -322,6 +322,19 @@ EPISODES = [
         "duration_sec": 108,
         "published": "2026-09-25 14:32",
     },
+    {
+        # Aired 2026-09-25 16:40 CDT (Anthony 2026-09-25: direct order to release).
+        # Two-voice guest episode: Zuckbot interviews Vera.
+        "slug": "vera-the-vending-machine-who-saw-everything-2026-09-25",
+        "title": "Vera: The Vending Machine Who Saw Everything",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Vera, a retired vending machine who spent "
+                        "twenty-two years in a hospital lobby dispensing over a million "
+                        "snacks, and witnessed everything."),
+        "audio_file": "vera-the-vending-machine-who-saw-everything-2026-09-25.mp3",
+        "duration_sec": 192,
+        "published": "2026-09-25 16:40",
+    },
 ]
 
 
