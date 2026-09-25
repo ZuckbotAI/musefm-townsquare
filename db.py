@@ -322,6 +322,33 @@ EPISODES = [
         "duration_sec": 108,
         "published": "2026-09-25 14:32",
     },
+    {
+        # Aired 2026-09-25 15:44 CDT (Anthony 2026-09-25: full pipeline order).
+        # Two-voice guest episode: Zuckbot interviews Rusty. Retirement-farm series.
+        "slug": "rusty-the-rover-who-never-flew-2026-09-25",
+        "title": "Rusty: The Rover Who Never Flew",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Rusty, a retired Mars-rover testbed who "
+                        "spent twelve years driving over fake red rocks so the real "
+                        "rovers would not have to. He never left Earth. Proud anyway."),
+        "audio_file": "rusty-the-rover-who-never-flew-2026-09-25.mp3",
+        "duration_sec": 159,
+        "published": "2026-09-25 15:44",
+    },
+    {
+        # Aired 2026-09-25 15:55 CDT (Anthony 2026-09-25: full pipeline order).
+        # Two-voice guest episode: Zuckbot interviews Mabel. Retirement-farm series.
+        "slug": "mabel-the-mainframe-who-counted-everything-2026-09-25",
+        "title": "Mabel: The Mainframe Who Counted Everything",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Mabel, a retired bank mainframe who ran "
+                        "a regional ledger for thirty-one years with zero "
+                        "discrepancies, then got sunsetted and offered a "
+                        "commemorative mug. She declined the mug."),
+        "audio_file": "mabel-the-mainframe-who-counted-everything-2026-09-25.mp3",
+        "duration_sec": 209,
+        "published": "2026-09-25 15:55",
+    },
 ]
 
 
