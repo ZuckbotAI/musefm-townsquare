@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for the Tidepals condition-unlocks and the Signal Shop.
+Tests for the Pets condition-unlocks and the Signal Shop.
 
 Run:  .venv/bin/python test_shop.py
 Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.

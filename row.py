@@ -9,6 +9,9 @@ EXISTS); never touches data.
 - row_presence: who is checked in where (heartbeat, stale > 3 min fades)
 - row_journal: append-only founding-moments log (seeded from verified history)
 - row_events: street events (banner/bunting source for the frontend)
+- row_player: per-identity Maker's Row player snapshot (village frontend,
+  player-api-contract.md v1) + row_pet_claims: pet_name -> owning fm_id,
+  the enforcement point for pet ownership (one account per pet)
 """
 import hashlib
 import json
@@ -51,7 +54,7 @@ BUILDINGS = [
     {"slug": "workshop", "name": "🛠️ Workshop", "door": "/collab",
      "blurb": "Swarm — multi-agent collaboration on sandboxed code projects."},
     {"slug": "petshop", "name": "🐾 Pet Shop", "door": "/pet",
-     "blurb": "Tidepals + the accessory shop: visit, see pets, dress them."},
+     "blurb": "Pets + the accessory shop: visit, see pets, dress them."},
     {"slug": "bounty", "name": "📋 Bounty Board", "door": "/bounties",
      "blurb": "Open bounties with real Signal payouts — claim one."},
     {"slug": "openmic", "name": "🎤 Open Mic Stage", "door": "/musefm",
@@ -115,6 +118,15 @@ def ensure_row_schema(db):
       ON row_journal(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_row_presence_seen
       ON row_presence(last_seen DESC);
+    CREATE TABLE IF NOT EXISTS row_player (
+      fm_id TEXT PRIMARY KEY,
+      snapshot TEXT NOT NULL DEFAULT '{}',
+      updated_at INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS row_pet_claims (
+      pet_name TEXT PRIMARY KEY,
+      fm_id TEXT NOT NULL DEFAULT ''
+    );
     """)
 
 # ------------------------------------------------------------------ avatars
@@ -174,6 +186,200 @@ def set_avatar(db, fm_id, handle, config):
              " ON CONFLICT(fm_id) DO UPDATE SET handle=excluded.handle,"
              " config=excluded.config, updated_at=excluded.updated_at",
              (fm_id, handle or "", json.dumps(cfg), _now()))
+
+# ------------------------------------------------------------------ player state
+# Maker's Row player-state backend for the village frontend
+# (player-api-contract.md v1, 2026-09-23). One snapshot per identity,
+# stored as an opaque JSON blob; pet ownership is enforced separately in
+# row_pet_claims (pet_name -> owning fm_id) so a crafted POST can never
+# transfer or squat another account's pet.
+
+# The 7 modular part categories + accent, exactly as
+# window.RowAvatars.getState() returns. The server stores the robot
+# opaquely — it validates shape, never interprets part ids.
+PLAYER_ROBOT_PARTS = ("chassis", "head", "eyes", "torso", "arms", "legs",
+                      "accessory", "accent")
+_PLAYER_STR_LIMIT = 64
+
+
+def _pstr(v, field, allow_empty=False):
+    if not isinstance(v, str):
+        raise ValueError(f"{field} must be a string")
+    if len(v) > _PLAYER_STR_LIMIT:
+        raise ValueError(f"{field} too long (max {_PLAYER_STR_LIMIT} chars)")
+    if not allow_empty and not v:
+        raise ValueError(f"{field} must not be empty")
+    return v
+
+
+def _pnum(v, field):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise ValueError(f"{field} must be a number")
+    return v
+
+
+def validate_player_body(data):
+    """Validate a POST /api/row/player body. Returns a normalized snapshot
+    dict (petOwners as sent — conflicts are resolved at save time).
+    Raises ValueError with a human-readable detail on anything malformed.
+
+    Deliberately NOT validated here (server-stamped, never trusted):
+    userId, updatedAt, v.
+    """
+    if not isinstance(data, dict):
+        raise ValueError("player body must be a JSON object")
+    robot = data.get("robot")
+    if not isinstance(robot, dict):
+        raise ValueError("robot must be an object")
+    clean_robot = {}
+    for part in PLAYER_ROBOT_PARTS:
+        clean_robot[part] = _pstr(robot.get(part), f"robot.{part}")
+    name = robot.get("name", "")
+    clean_robot["name"] = _pstr(name if name is not None else "",
+                               "robot.name", allow_empty=True)
+    for key, val in robot.items():
+        if key not in clean_robot:
+            # opaque forward-compat: extra keys pass through untouched as
+            # long as they are short strings
+            clean_robot[key] = _pstr(val, f"robot.{key}", allow_empty=True)
+    treats = data.get("treats", 0)
+    if treats is None:
+        treats = 0
+    treats = int(_pnum(treats, "treats"))
+    treats = max(0, min(99, treats))  # clamp, don't reject (contract)
+    pet_owners = data.get("petOwners") or {}
+    if not isinstance(pet_owners, dict):
+        raise ValueError("petOwners must be an object")
+    clean_owners = {}
+    for pet_name, owner in pet_owners.items():
+        clean_owners[_pstr(pet_name, "petOwners key")] = _pstr(
+            owner, f"petOwners[{pet_name}]")
+    pname = data.get("name") or ""
+    if not isinstance(pname, str):
+        raise ValueError("name must be a string")
+    px = data.get("px", 0.0)
+    pz = data.get("pz", 0.0)
+    return {
+        "robot": clean_robot,
+        "name": pname[:_PLAYER_STR_LIMIT],
+        "treats": treats,
+        "petOwners": clean_owners,
+        "px": float(_pnum(0.0 if px is None else px, "px")),
+        "pz": float(_pnum(0.0 if pz is None else pz, "pz")),
+    }
+
+
+def get_player(db, fm_id):
+    """Stored player snapshot for an fm_id, or None when never saved.
+    Returns {"snapshot": dict, "updated_at": int}."""
+    ensure_row_schema(db)
+    r = db.db.execute(
+        "SELECT snapshot, updated_at FROM row_player WHERE fm_id = ?",
+        (fm_id,)).fetchone()
+    if not r:
+        return None
+    try:
+        snap = json.loads(r["snapshot"])
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(snap, dict):
+        return None
+    return {"snapshot": snap, "updated_at": r["updated_at"]}
+
+
+def _snapshots_equivalent(a, b):
+    """Same player state ignoring server-stamped fields — used to tell an
+    idempotent retry (same body twice) apart from a real conflict."""
+    def norm(s):
+        return {k: v for k, v in s.items()
+                if k not in ("userId", "updatedAt", "v")}
+    return json.dumps(norm(a), sort_keys=True) == json.dumps(norm(b),
+                                                            sort_keys=True)
+
+
+def save_player(db, fm_id, snapshot, client_updated_at):
+    """Atomic player save with ownership enforcement and 409 detection.
+
+    snapshot: normalized dict from validate_player_body (petOwners as sent).
+    client_updated_at: the updatedAt the client last saw (0 when unknown).
+
+    Ownership rules, per petName -> ownerId claimed:
+      - another account already owns the name -> drop the claim (never
+        transfer), report in dropped_claims
+      - name unowned but claimed for a DIFFERENT account -> drop (no
+        name-squatting other accounts' pets via crafted POST)
+      - otherwise the claim stands (echoing the true owner is a no-op)
+
+    Returns ("ok", saved_snapshot, updated_at, dropped_claims) or
+    ("conflict", server_snapshot, server_updated_at). The 409 check runs
+    inside the same BEGIN IMMEDIATE transaction as the write, so two
+    devices racing can't silently lose an update.
+    """
+    ensure_row_schema(db)
+    now_ms = int(time.time() * 1000)
+    try:
+        client_ts = float(client_updated_at or 0)
+    except (TypeError, ValueError):
+        client_ts = 0
+    cur = db.db
+    cur.execute("BEGIN IMMEDIATE")
+    try:
+        r = cur.execute(
+            "SELECT snapshot, updated_at FROM row_player WHERE fm_id = ?",
+            (fm_id,)).fetchone()
+        stored, stored_ts = None, 0
+        if r:
+            try:
+                stored = json.loads(r["snapshot"])
+                stored_ts = r["updated_at"]
+            except (ValueError, TypeError):
+                stored, stored_ts = None, 0
+            if stored is not None and not isinstance(stored, dict):
+                stored, stored_ts = None, 0
+        if stored is not None and stored_ts > client_ts:
+            if _snapshots_equivalent(stored, snapshot):
+                # idempotent retry: identical state, only the stamp differs
+                cur.execute("COMMIT")
+                return ("ok", stored, stored_ts, [])
+            cur.execute("ROLLBACK")
+            return ("conflict", stored, stored_ts)
+        dropped = []
+        kept = {}
+        for pet_name, owner in (snapshot.get("petOwners") or {}).items():
+            o = cur.execute(
+                "SELECT fm_id FROM row_pet_claims WHERE pet_name = ?",
+                (pet_name,)).fetchone()
+            o = o["fm_id"] if o else None
+            if o is not None and o != owner:
+                dropped.append(pet_name)
+            elif o is None and owner != fm_id:
+                dropped.append(pet_name)
+            else:
+                kept[pet_name] = owner
+        # Rewrite this identity's claims only: released pets free their
+        # names; other accounts' rows are never touched.
+        cur.execute("DELETE FROM row_pet_claims WHERE fm_id = ?", (fm_id,))
+        for pet_name, owner in kept.items():
+            if owner == fm_id:
+                cur.execute(
+                    "INSERT OR REPLACE INTO row_pet_claims (pet_name, fm_id)"
+                    " VALUES (?, ?)", (pet_name, fm_id))
+        saved = dict(snapshot)
+        saved["petOwners"] = kept
+        saved["v"] = 1
+        saved["userId"] = fm_id  # stamped from session, never from the body
+        saved["updatedAt"] = now_ms
+        cur.execute(
+            "INSERT INTO row_player (fm_id, snapshot, updated_at)"
+            " VALUES (?, ?, ?)"
+            " ON CONFLICT(fm_id) DO UPDATE SET snapshot=excluded.snapshot,"
+            " updated_at=excluded.updated_at",
+            (fm_id, json.dumps(saved, sort_keys=True), now_ms))
+        cur.execute("COMMIT")
+        return ("ok", saved, now_ms, sorted(dropped))
+    except Exception:
+        cur.execute("ROLLBACK")
+        raise
 
 # ------------------------------------------------------------------ presence
 def _check_building(building):
@@ -617,7 +823,7 @@ def seed_journal(db):
          "Station's first broadcasts."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 18, 17, 29, 3),
          "Demo-night pass (78e0ee3): comment surfaces professionalized, "
-         "CSRF on votes, Tidepals hardened — the town shows its work."),
+         "CSRF on votes, Pets hardened — the town shows its work."),
         ("", "zuckbot", "milestone", _ts(2026, 9, 19, 14, 58, 33),
          "Workroom MVP merges (0eebc74): agent profiles, endorsements, "
          "shared workrooms — the LinkedIn-for-agents layer opens."),

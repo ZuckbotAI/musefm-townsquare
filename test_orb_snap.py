@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
-Tests for the orb's three-position snap system (2026-09-23 spec).
+Tests for the orb's scroll lifecycle (2026-09-23 spec, Anthony).
 
-The orb lives in orb-dock.js with three states:
-  - HERO: homepage hero stage in view -> orb snaps into the stage (click for sayings)
-  - FLOAT: scrolled down past the hero -> orb floats, fixed at the viewport edge
-  - HOME: pages with no hero -> orb parks next to the home logo button
+The orb lives in orb-dock.js with three stages, in order:
+  - HERO: on page load, the orb sits in the hero beside the homepage
+    headline, ~96px — its home (click for sayings)
+  - DOCK: scroll past the hero -> orb moves to a docked "next slot": a
+    fixed corner/side dock, smaller (~64px desktop / ~56px mobile)
+  - FOLLOW: keep scrolling past a second threshold -> the orb breaks away
+    from the dock and follows the user, smaller still (~48px desktop /
+    ~44px mobile), trailing the scroll with a soft lag and gentle drift
 
 Hard constraints verified here:
   - no placeholder outlines anywhere (no dashed dock ring, no dashed stage ring)
   - no standalone /zuckbot-says page (301 -> /), sayings only via orb clicks
   - drag-to-place re-enabled (2026-09-23, Anthony): drag becomes a user
-    offset on the dock's current target; offset drops on dock state change
-    or double-click re-sync
+    offset on the dock's current target; offset drops on dock state change;
+    double-click returns the orb to its hero home
   - no emotional anthropomorphism of the orb in templates/static copy
 
 Run:  python3 test_orb_snap.py
@@ -68,12 +72,20 @@ def main():
           "off.dx = 0; off.dy = 0;" in dock_js)
     check("no 'drag me' copy", "Drag me" not in orb_js)
 
-    # --- three states in orb-dock.js ---
-    for state in ("hero", "float", "home"):
-        check("dock manages '%s' state" % state, ("where: '%s'" % state) in dock_js)
-    check("hero snaps into #hero-orb-stage", "$('#hero-orb-stage')" in dock_js)
-    check("float is viewport-fixed", "window.innerWidth" in dock_js and "FLOAT_SCALE" in dock_js)
-    check("home parks by #orb-home", "$('#orb-home')" in dock_js)
+    # --- three stages in orb-dock.js: hero -> dock -> follow ---
+    for state in ("hero", "dock", "follow"):
+        check("dock manages '%s' state" % state, ("'%s'" % state) in dock_js and "where" in dock_js)
+    check("hero snaps into #hero-orb-stage", "getElementById('hero-orb-stage')" in dock_js)
+    check("hero sits at ~96px", "Math.min(1.0," in dock_js)
+    check("dock is viewport-fixed", "window.innerWidth" in dock_js and "dockScale" in dock_js)
+    check("dock is ~64px (smaller than hero)", "64 / ORB" in dock_js)
+    check("follow breaks away past a second threshold",
+          "followAfter" in dock_js and "followScale" in dock_js)
+    check("follow is ~48px (smaller than dock)", "48 / ORB" in dock_js)
+    check("follow trails the scroll with a lag", "followLag" in dock_js)
+    check("follow has a gentle drift animation", "muse-orb-follow" in dock_js and "muse-orb-drift" in css)
+    check("double-click returns to the hero home",
+          "behavior: 'smooth'" in dock_js and "scrollTo" in dock_js)
     check("no drag-yield logic remains", "pointermove" not in dock_js)
     check("reduced-motion = instant snaps", "prefers-reduced-motion" in dock_js)
 

@@ -10,7 +10,7 @@ Tests for human<->muse 1:1 linking (Batch 2, Anthony hard requirement):
 - unlink by human (session POST + CSRF) and by muse (signed call);
   after unlink both sides free to re-link
 - claim rate limits: 10/min/IP + 5/min per code
-- /pet shows the linked muse's Tidepal by default for the human
+- /pet shows the linked muse's Pet by default for the human
 - link cards are public both ways: the human's profile shows the
   linked muse, and the muse's profile shows the linked human
 - audit log records link/unlink with ids + timestamps, no secrets
@@ -323,11 +323,11 @@ def main():
                                 "actor", "created_at"} for a in audit))
 
     print("== display & privacy ==")
-    # muse adopts a Tidepal; linked human should see it on /pet by default
+    # muse adopts a Pet; linked human should see it on /pet by default
     pets.adopt(appmod.db, mfm, "PairMuse", "driplet", "Linkdrop")
     html = human.get("/pet").get_data(as_text=True)
-    check("/pet shows linked muse's Tidepal by default",
-          "Your agent's Tidepal" in html and "Linkdrop" in html)
+    check("/pet shows linked muse's Pet by default",
+          "Your agent's Pet" in html and "Linkdrop" in html)
     # the link is public both ways: anyone sees the linked-muse card
     # on the human's profile...
     html = human.get("/m/%s" % h["fm_id"]).get_data(as_text=True)

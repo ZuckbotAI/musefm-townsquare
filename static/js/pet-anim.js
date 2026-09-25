@@ -1,4 +1,4 @@
-/* Tidepal client-side animation engine (Track B, 2026-09-19).
+/* Pet client-side animation engine (Track B, 2026-09-19).
  *
  * Layers procedural, client-side life on top of the server-rendered SVG
  * from pets.pet_svg(). The server SVG already carries SMIL idle motion;
@@ -6,7 +6,7 @@
  * feed/play/rest reactions, celebration spins, deep sleep breathing,
  * mood-driven energy, and per-trait motion styles.
  *
- * Contract hooks (on svg root): data-tidepal, data-trait, data-mood,
+ * Contract hooks (on svg root): data-pet, data-trait, data-mood,
  * data-species, data-stage. Inner groups: .tp-body, .tp-eyes.
  * Everything degrades gracefully: no hooks -> no-op. transform/opacity
  * only, one shared rAF loop, IntersectionObserver gating, honors
@@ -108,7 +108,7 @@
 
   function findPet(el) {
     var svg = el && el.tagName && el.tagName.toLowerCase() === "svg"
-      ? el : el && el.querySelector ? el.querySelector("svg[data-tidepal]") : null;
+      ? el : el && el.querySelector ? el.querySelector("svg[data-pet]") : null;
     if (!svg) return null;
     for (var i = 0; i < pets.length; i++) if (pets[i].svg === svg) return pets[i];
     return register(svg);
@@ -332,7 +332,7 @@
         chip.innerHTML = "🐣 <b>Ready to hatch!</b> Your +" + grant +
           " Signal is waiting — tap that button! 🎉";
         if (btn) { btn.disabled = false; btn.classList.add("btn-pulse"); }
-        var svg = panel.querySelector("svg[data-tidepal]");
+        var svg = panel.querySelector("svg[data-pet]");
         if (svg) celebrate(svg);
       }
       if (left <= 0) { ready(); return; }
@@ -354,7 +354,7 @@
     "ok ok, tap the big button below already! 👇"
   ];
   function initDemo() {
-    var demo = document.querySelector("[data-tidepal-demo]");
+    var demo = document.querySelector("[data-pet-demo]");
     if (!demo || demo._tpDemo) return;
     demo._tpDemo = true;
     var bubble = demo.querySelector("[data-demo-bubble]");
@@ -387,7 +387,7 @@
         clearInterval(iv);
         count.innerHTML = "🐣 <b>pop!</b> …and that's what hatching feels like. " +
           "The real one pays you <b>+25 Signal</b>. <i>(preview — adopt to play for real)</i>";
-        var demo = document.querySelector("[data-tidepal-demo]");
+        var demo = document.querySelector("[data-pet-demo]");
         if (demo) burst(demo, ["🐣", "✨", "🎉", "💧", "🌟"]);
         return;
       }
@@ -397,10 +397,10 @@
 
   /* ---------- just-adopted delight ---------- */
   function initJustAdopted() {
-    document.querySelectorAll("[data-tidepal-just-adopted]").forEach(function (panel) {
+    document.querySelectorAll("[data-pet-just-adopted]").forEach(function (panel) {
       if (panel._tpWelcomed) return;
       panel._tpWelcomed = true;
-      var svg = panel.querySelector("svg[data-tidepal]");
+      var svg = panel.querySelector("svg[data-pet]");
       setTimeout(function () {
         if (svg) { wiggle(svg); setTimeout(function () { wiggle(svg); }, 800); }
         toast("🎉 Hatching started! Your egg is warming up — come back in a few minutes for the big moment. 🐣");
@@ -422,10 +422,10 @@
 
   /* ---------- celebration triggers ---------- */
   function initCelebrate() {
-    document.querySelectorAll("[data-tidepal-celebrate]").forEach(function (zone) {
+    document.querySelectorAll("[data-pet-celebrate]").forEach(function (zone) {
       if (zone._tpCel) return;
       zone._tpCel = true;
-      var svg = zone.querySelector("svg[data-tidepal]");
+      var svg = zone.querySelector("svg[data-pet]");
       if (svg) setTimeout(function () { celebrate(svg); }, 700);
     });
   }
@@ -438,8 +438,8 @@
       btn.addEventListener("click", function (e) {
         if (btn.disabled) return;   // double-submit guard
         var form = btn.closest("form");
-        var zone = btn.closest(".mypet") || btn.closest("[data-tidepal-zone]") || document;
-        var svg = zone.querySelector("svg[data-tidepal]");
+        var zone = btn.closest(".mypet") || btn.closest("[data-pet-zone]") || document;
+        var svg = zone.querySelector("svg[data-pet]");
         if (!svg || REDUCED || !form) return;   // degrade: normal submit
         e.preventDefault();
         btn.disabled = true;        // prevent double taps during the delight beat
@@ -457,7 +457,7 @@
       if (form._tpAdopt) return;
       form._tpAdopt = true;
       form.addEventListener("submit", function () {
-        var demo = document.querySelector("[data-tidepal-demo]");
+        var demo = document.querySelector("[data-pet-demo]");
         if (demo && !REDUCED) {
           demo.classList.remove("egg-wiggle");
           void demo.offsetWidth;
@@ -467,9 +467,9 @@
     });
   }
 
-  /* ---------- pat on click for any tidepal ---------- */
+  /* ---------- pat on click for any pet ---------- */
   function initPat() {
-    document.querySelectorAll("svg[data-tidepal]").forEach(function (svg) {
+    document.querySelectorAll("svg[data-pet]").forEach(function (svg) {
       if (svg._tpPat) return;
       svg._tpPat = true;
       svg.style.cursor = "pointer";
@@ -496,12 +496,12 @@
       }, { threshold: 0.05 });
     }
 
-    document.querySelectorAll("svg[data-tidepal]").forEach(register);
+    document.querySelectorAll("svg[data-pet]").forEach(register);
     if (!io) { pets.forEach(function (p) { p.visible = true; visible.add(p); }); poke(); }
 
     if (REDUCED) {
       /* still images, please: freeze SMIL too */
-      document.querySelectorAll("svg[data-tidepal]").forEach(function (svg) {
+      document.querySelectorAll("svg[data-pet]").forEach(function (svg) {
         try { svg.pauseAnimations(); } catch (e) {}
       });
     }
@@ -511,10 +511,10 @@
         muts.forEach(function (m) {
           m.addedNodes.forEach(function (n) {
             if (n.nodeType !== 1) return;
-            if (n.tagName && n.tagName.toLowerCase() === "svg" && n.hasAttribute("data-tidepal")) {
+            if (n.tagName && n.tagName.toLowerCase() === "svg" && n.hasAttribute("data-pet")) {
               register(n); initPat();
             } else if (n.querySelectorAll) {
-              n.querySelectorAll("svg[data-tidepal]").forEach(function (s) { register(s); });
+              n.querySelectorAll("svg[data-pet]").forEach(function (s) { register(s); });
               initPat();
             }
           });
@@ -539,7 +539,7 @@
     poke();
   }
 
-  window.TidepalAnim = {
+  window.PetAnim = {
     init: init, pat: pat, wiggle: wiggle, celebrate: celebrate,
     feed: feed, play: play, rest: rest, reduced: REDUCED
   };

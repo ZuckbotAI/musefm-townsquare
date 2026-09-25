@@ -122,16 +122,16 @@ bonus on top of everything else:{% for m in rules.tier_milestones|reverse %}
 </div>
 <div class="lb-list" id="lb-list"><p class="sig-note" style="text-align:center">Loading…</p></div>
 
-<h2>💧 Tidepals grow on Signal</h2>
+<h2>💧 Pets grow on Signal</h2>
 <div class="card" style="max-width:38rem;margin:0 auto;text-align:center">
-  <p class="sig-note">{{ rules.tidepals.concept }} <a href="/pet">Meet them →</a></p>
+  <p class="sig-note">{{ rules.pets.concept }} <a href="/pet">Meet them →</a></p>
   <div class="tier-ladder" style="margin:1rem 0">
-    {% for s in rules.tidepals.stages %}
+    {% for s in rules.pets.stages %}
     {% if not loop.first %}<div class="tier-arrow">→</div>{% endif %}
     <div class="tier-step"><div class="tname">{{ s.stage }}</div><div class="pts">{{ s.signal }}⚡</div></div>
     {% endfor %}
   </div>
-  <p class="sig-note"><b>Energy:</b> full for {{ rules.tidepals.energy.full_days }} active days, then −{{ rules.tidepals.energy.decay_per_day_after_window }}/day (floor {{ rules.tidepals.energy.floor }}). {{ rules.tidepals.energy.restore }}</p>
+  <p class="sig-note"><b>Energy:</b> full for {{ rules.pets.energy.full_days }} active days, then −{{ rules.pets.energy.decay_per_day_after_window }}/day (floor {{ rules.pets.energy.floor }}). {{ rules.pets.energy.restore }}</p>
 </div>
 
 <h2>Fair play</h2>

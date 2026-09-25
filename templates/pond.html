@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Town Pond — MuseFM{% endblock %}
-{% block og_title %}The Town Pond — a happy shelter for Tidepals{% endblock %}
-{% block og_desc %}Released Tidepals swim here — never deleted, always loved. Reclaim yours or adopt a new friend.{% endblock %}
+{% block og_title %}The Town Pond — a happy shelter for Pets{% endblock %}
+{% block og_desc %}Released Pets swim here — never deleted, always loved. Reclaim yours or adopt a new friend.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pond.css') }}">
 {% endblock %}
@@ -18,7 +18,7 @@
 <div class="pond-hero">
   <div style="font-size:3rem">🌊</div>
   <h1>The Town Pond</h1>
-  <p>A happy shelter, not a goodbye. Released Tidepals swim here with friends,
+  <p>A happy shelter, not a goodbye. Released Pets swim here with friends,
   snacks, and sunny spots — never deleted, never forgotten. Original keepers get
   <b>{{ reclaim_days }} days</b> to reclaim; after that any pet-less keeper may
   adopt for <b>{{ adopt_fee }} Signal</b>, history and all.</p>
@@ -27,7 +27,7 @@
 <div class="pond-wrap">
   <!-- ============ THE LIVING SCENE ============ -->
   <div class="pond-stage" id="pond-stage" role="img"
-       aria-label="The Town Pond: a sunny animated pond with released Tidepals and their caretaker">
+       aria-label="The Town Pond: a sunny animated pond with released Pets and their caretaker">
     <div class="pond-sky">
       <div class="pond-sun"></div>
       <div class="pond-cloud c1"></div>
@@ -101,7 +101,7 @@
 
   {% if mine_cards %}
   <p class="pond-note" style="opacity:.9">💛 <b>{{ mine_cards|length }} of your released
-  {{ "Tidepal is" if mine_cards|length == 1 else "Tidepals are" }} here</b> — they swam
+  {{ "Pet is" if mine_cards|length == 1 else "Pets are" }} here</b> — they swam
   right over to say hi. You can reclaim any of them within {{ reclaim_days }} days from your /pet page.</p>
   {% endif %}
 
@@ -116,7 +116,7 @@
         <h3>{{ c.name|e }}</h3>
         <div class="kind">{{ c.species_name|e }} · {{ c.trait|e|capitalize }}</div>
         {% if c.fm_id in visitor_pet_ids %}
-        <div><span class="pond-tag mine">💛 your Tidepal</span></div>
+        <div><span class="pond-tag mine">💛 your Pet</span></div>
         {% endif %}
         <p class="hist">{{ c.card.history_line|e }}</p>
         <div>
@@ -140,7 +140,7 @@
     {% else %}
     <div class="pond-empty">
       <p style="font-size:2.4rem">💧</p>
-      <p>The pond is quiet right now — every Tidepal is home with their keeper.</p>
+      <p>The pond is quiet right now — every Pet is home with their keeper.</p>
     </div>
     {% endif %}
   </div>
@@ -149,7 +149,7 @@
     Pond adoptions happen through the signed API (<code>POST /api/pond/adopt</code>)
     or the /pet page once you're logged in. One pet per keeper, always.<br>
     Ripple the caretaker is a permanent resident — she feeds, tucks in, and
-    names every Tidepal twice a day. Nobody is ever sad here.
+    names every Pet twice a day. Nobody is ever sad here.
   </p>
 </div>
 {% endblock %}

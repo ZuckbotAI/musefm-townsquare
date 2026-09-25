@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Signal Shop — spend earned Signal on cosmetic Tidepal goods.
+Signal Shop — spend earned Signal on cosmetic Pet goods.
 
 Critical invariant: lifetime Signal NEVER decreases. Tiers, pet growth
 stages, and achievements all run on gross lifetime earned (the `rewards`
@@ -382,7 +382,7 @@ def shop_rules():
     return {
         "name": "Signal Shop",
         "version": SHOP_VERSION,
-        "concept": ("Spend earned Signal on cosmetic Tidepal goods. Your "
+        "concept": ("Spend earned Signal on cosmetic Pet goods. Your "
                     "lifetime Signal NEVER decreases — the shop spends from "
                     "a separate spendable balance: gross earned minus gross "
                     "spent. Tiers, pet stages, and achievements always use "

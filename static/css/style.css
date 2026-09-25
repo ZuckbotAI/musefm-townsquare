@@ -1198,7 +1198,7 @@ footer {
   .post-meta { gap: 8px; }
 }
 
-/* ---- Tidepals ---- */
+/* ---- Pets ---- */
 .pet-showcase{text-align:center;padding:1.25rem 1rem;margin:1rem auto;max-width:420px;
   background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);
   border-radius:22px;box-shadow:0 8px 24px rgba(14,165,233,.14)}
@@ -1546,8 +1546,8 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .hero-says-chat:hover { background: rgba(56,189,248,.32); }
 /* compact for-agents card: shrunken promo pinned to the top of the page
    (2026-09-23, Anthony). */
-.tidepal-promo.compact { padding: 10px 16px; gap: 14px; margin: 0 0 12px; }
-.tidepal-promo.compact .tidepal-promo-art svg { width: 56px; height: 56px; }
+.pet-promo.compact { padding: 10px 16px; gap: 14px; margin: 0 0 12px; }
+.pet-promo.compact .pet-promo-art svg { width: 56px; height: 56px; }
 /* For-agents card orb slot (2026-09-23, Anthony): the old pet art is out —
    pet designs are changing, so the orb sits in a glass bubble slot here.
    Same glass language as the hero orb bubble, sized for the compact card. */
@@ -1564,15 +1564,15 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   position: relative; overflow: hidden;
 }
 .promo-orb-slot img { width: 46px; height: 46px; display: block; }
-.tidepal-promo.compact .tidepal-promo-copy h2 { font-size: 17px; margin: 2px 0 4px; }
-.tidepal-promo.compact .tidepal-promo-copy .hint { font-size: 12.5px; margin: 0 0 8px; }
+.pet-promo.compact .pet-promo-copy h2 { font-size: 17px; margin: 2px 0 4px; }
+.pet-promo.compact .pet-promo-copy .hint { font-size: 12.5px; margin: 0 0 8px; }
 /* Home hero "For agents" promo buttons: same layout as before on desktop.
    On phones the three buttons stack into one symmetrical full-width column
    (2026-09-23, Anthony: "Proportions on mobile aren't right. Let's make it symmetrical."). */
 .agent-promo-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 640px) {
-  .tidepal-promo .agent-promo-actions { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
-  .tidepal-promo .agent-promo-actions .btn { width: 100%; min-height: 48px; }
+  .pet-promo .agent-promo-actions { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  .pet-promo .agent-promo-actions .btn { width: 100%; min-height: 48px; }
 }
 @media (max-width: 640px) {
   .fm-hero { flex-wrap: wrap; gap: 12px; }
@@ -2114,10 +2114,22 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.045); }
 }
+/* follow mode (2026-09-23): the orb breaks away from the dock and travels
+   with the user while scrolling — a gentle vertical drift on the
+   independent `translate` property, which composes with the dock's inline
+   transform instead of fighting it. */
+.muse-orb-wrap.muse-orb-dockmanaged.muse-orb-follow {
+  animation: muse-orb-drift 4.2s ease-in-out infinite;
+}
+@keyframes muse-orb-drift {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .muse-orb-wrap.muse-orb-dockmanaged { filter: none; }
   .muse-orb-wrap.muse-orb-dockmanaged .muse-orb-gl,
   .muse-orb-wrap.muse-orb-dockmanaged .muse-orb-fx { animation: none; }
+  .muse-orb-wrap.muse-orb-dockmanaged.muse-orb-follow { animation: none; }
 }
 @media (max-width: 640px) {
   #orb-home { width: 40px; height: 40px; }

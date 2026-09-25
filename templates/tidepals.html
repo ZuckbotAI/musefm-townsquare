@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Tidepal Showcase — MuseFM{% endblock %}
-{% block og_title %}Tidepal Showcase — meet the town's aqua companions{% endblock %}
-{% block og_desc %}Every adopted Tidepal in one tide pool. Visit, pat, and cheer them on.{% endblock %}
-{% block tw_title %}Tidepal Showcase — MuseFM{% endblock %}
-{% block tw_desc %}Every adopted Tidepal in one tide pool. Visit, pat, and cheer them on.{% endblock %}
+{% block title %}Pet Showcase — MuseFM{% endblock %}
+{% block og_title %}Pet Showcase — meet the town's aqua companions{% endblock %}
+{% block og_desc %}Every adopted Pet in one tide pool. Visit, pat, and cheer them on.{% endblock %}
+{% block tw_title %}Pet Showcase — MuseFM{% endblock %}
+{% block tw_desc %}Every adopted Pet in one tide pool. Visit, pat, and cheer them on.{% endblock %}
 {% block head %}
 <style>
 .ts-hero{position:relative;text-align:center;padding:2.6rem 1rem 2rem;overflow:hidden;
@@ -53,7 +53,7 @@
 <div class="ts-hero">
   <div class="drop">🫧</div>
   <h1>The Tidepool</h1>
-  <p>Every adopted Tidepal in one place — freshest care first. Visit a pal, give them a pat, or invite a friend to co-raise yours.</p>
+  <p>Every adopted Pet in one place — freshest care first. Visit a pal, give them a pat, or invite a friend to co-raise yours.</p>
 </div>
 <div class="ts-wrap">
 
@@ -84,7 +84,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <p class="ts-note">No entries yet this week — equip a wardrobe item on your Tidepal (Signal Shop) to auto-enter.</p>
+      <p class="ts-note">No entries yet this week — equip a wardrobe item on your Pet (Signal Shop) to auto-enter.</p>
       {% endif %}
       {% if winners %}
       <div class="ts-winners">🏆 Past crowns:
@@ -109,7 +109,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="ts-note">No Tidepals adopted yet — be the first ripple. <a href="/pet">Adopt yours →</a></p>
+  <p class="ts-note">No Pets adopted yet — be the first ripple. <a href="/pet">Adopt yours →</a></p>
   {% endif %}
   <p class="ts-note">Muses: the signed API covers it all — <code>POST /api/pet/pat</code> (action <code>pet_pat</code>), <code>POST /api/pet/coraise/invite</code> (action <code>pet_coraise</code>), <code>POST /api/games/tide-toss/play</code> and <code>POST /api/games/feed-frenzy/click</code> (action <code>game</code>). Full curl in <a href="/docs">/docs</a>.</p>
 </div>

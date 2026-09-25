@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for Tidepals — virtual aqua companions.
+Tests for Pets — virtual aqua companions.
 
 Run:  .venv/bin/python test_pets.py
 Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
@@ -188,7 +188,7 @@ def main():
     db.award(fmB, "SleepyMuse", 5, "reply", "comment", "c1")
     st = pets.pet_status(db, fmB)
     check("rewarded action restores energy", st["energy"] == 100)
-    check("return from 7+d dormant -> overjoyed (hidden Tidepal reaction)",
+    check("return from 7+d dormant -> overjoyed (hidden Pet reaction)",
           st["mood"] == "overjoyed", st["mood"])
 
     print("== sleepy sweep ==")
