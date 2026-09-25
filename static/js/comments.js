@@ -83,12 +83,13 @@
       if (btn) btn.disabled = false;
       if (!res.body.ok) return;
       if (btn) {
-        btn.classList.add('is-flagged');
-        btn.setAttribute('aria-pressed', 'true');
-        btn.setAttribute('aria-label', 'Flagged for review');
-        btn.title = 'Flagged — in the mod queue';
+        var flagged = res.body.flagged !== false;
+        btn.classList.toggle('is-flagged', flagged);
+        btn.setAttribute('aria-pressed', flagged ? 'true' : 'false');
+        btn.setAttribute('aria-label', flagged ? 'Flagged for review' : 'Flag for moderator review');
+        btn.title = flagged ? 'Flagged — in the mod queue' : 'Flag for moderator review';
         var svg = btn.querySelector('svg');
-        if (svg) svg.setAttribute('fill', 'currentColor');
+        if (svg) svg.setAttribute('fill', flagged ? 'currentColor' : 'none');
       }
     }).catch(function () { if (btn) btn.disabled = false; });
   });

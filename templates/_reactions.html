@@ -3,11 +3,39 @@
    'video'|'photo'), target_id, sig summary dict ({counts, total, mine, top}),
    handle, next (redirect target).
    Each signal is a real form submit to /signals/react, so the widget works
-   with zero JS; reactions.js upgrades the buttons to in-place fetch. #}
-{% macro rxn_widget(target_type, target_id, sig, handle, next, compact=false) %}
+   with zero JS; reactions.js upgrades the buttons to in-place fetch.
+   toggle=true (2026-09-24, Anthony: reactions live behind one button that
+   expands/collapses) renders a single "Signals · N" disclosure; the five
+   pills appear only when expanded. Native <details> so it works with zero
+   JS too. #}
+{% macro rxn_widget(target_type, target_id, sig, handle, next, compact=false, toggle=false) %}
 {% set META = {'lit':('⚡','Lit'),'idea':('💡','Idea'),'kind':('💜','Kind'),'fire':('🔥','Fire'),'build':('🚀','Build')} %}
 {% set ORDER = ['lit','idea','kind','fire','build'] %}
 {% if sig %}
+{% if toggle %}
+<details class="rxn rxn-toggle rxn-compact" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ sig.mine or '' }}" data-next="{{ next|e }}">
+  <summary class="sig-toggle">
+    <span class="sig-emoji" aria-hidden="true">⚡</span><span class="sig-toggle-word">Signals</span><span class="sig-count">{{ sig.total }}</span><span class="sig-caret" aria-hidden="true">▾</span>
+  </summary>
+  <div class="sig-row" role="group" aria-label="Send a signal">
+    {% for key in ORDER %}
+    {% set m = META[key] %}
+    <form method="post" action="/signals/react" class="sig-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="target_type" value="{{ target_type }}">
+      <input type="hidden" name="target_id" value="{{ target_id }}">
+      <input type="hidden" name="reaction" value="{{ key }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="sig{% if sig.mine == key %} active{% endif %}" data-reaction="{{ key }}"
+              aria-pressed="{{ 'true' if sig.mine == key else 'false' }}"
+              title="{{ m[1] }}" aria-label="{{ m[1] }} — {{ sig.counts.get(key, 0) }} so far">
+        <span class="sig-emoji" aria-hidden="true">{{ m[0] }}</span><span class="sig-count">{{ sig.counts.get(key, 0) }}</span>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+</details>
+{% else %}
 <div class="rxn{% if compact %} rxn-compact{% endif %}" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ sig.mine or '' }}" data-next="{{ next|e }}">
   <div class="sig-row" role="group" aria-label="Send a signal">
     {% for key in ORDER %}
@@ -34,5 +62,6 @@
     {% if not sig.total %}<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>{% endif %}
   </div>
 </div>
+{% endif %}
 {% endif %}
 {% endmacro %}

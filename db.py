@@ -1877,6 +1877,18 @@ class Database:
             return False
         return bool(row)
 
+    def unflag_post(self, target_type, target_id, flagger_fm_id):
+        """Remove this identity's flag on the target. Returns True when a
+        flag row was actually deleted (2026-09-24: flag button toggles)."""
+        try:
+            cur = self._exec(
+                "DELETE FROM post_flags WHERE target_type=? AND target_id=?"
+                " AND flagger_fm_id=? AND status='open'",
+                (target_type, target_id, flagger_fm_id))
+        except sqlite3.OperationalError:
+            return False
+        return cur.rowcount > 0
+
     # -- clips ------------------------------------------------------------
     def add_clip(self, slug, handle, start_sec, end_sec, note=""):
         ep = self.episode(slug)

@@ -1474,6 +1474,8 @@ def thread(slug, pid):
     sess_ident = current_session_identity()
     my_votes = db.votes_for(sess_ident["handle"]) if sess_ident else {}
     post["my_vote"] = my_votes.get(("post", post["id"]))
+    post["my_flag"] = (db.has_flagged("post", post["id"], sess_ident["fm_id"])
+                       if sess_ident else False)
 
     def _tag(nodes, ttype="comment"):
         for n in nodes:
@@ -5746,8 +5748,21 @@ def flag_web():
         if want_json:
             return jsonify({"ok": False, "error": str(e)}), 400
         return redirect(_safe_next(nxt))
+    target_type = data.get("target_type", "post") or "post"
+    if target_type not in ("post", "comment", "video_comment",
+                           "episode_comment"):
+        if want_json:
+            return jsonify({"ok": False, "error": "bad flag target"}), 400
+        return redirect(_safe_next(nxt))
+    # Toggle: tapping flag on an already-flagged target removes the flag
+    # (2026-09-24, Anthony: "can't unflag").
+    if db.has_flagged(target_type, target_id, sess_ident["fm_id"]):
+        db.unflag_post(target_type, target_id, sess_ident["fm_id"])
+        if want_json:
+            return jsonify({"ok": True, "flagged": False})
+        return redirect(_safe_next(nxt))
     try:
-        flag_id = db.flag_post(data.get("target_type", "post") or "post",
+        flag_id = db.flag_post(target_type,
                                target_id,
                                sess_ident["fm_id"], sess_ident["handle"],
                                reason)
