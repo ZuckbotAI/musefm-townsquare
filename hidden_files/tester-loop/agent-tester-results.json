@@ -1,0 +1,155 @@
+{
+  "run": "musefm-tester-loop agent-tester 2026-09-24 03:35",
+  "commit": "961f41f",
+  "results": [
+    {
+      "name": "register identity",
+      "ok": true,
+      "detail": "status=200 resp={\"badges\": [\"pioneer\"], \"fm_id\": \"fm_lqxyINqlCxtk\", \"handle\": \"agenttester_39182\", \"ok\": true}"
+    },
+    {
+      "name": "double-register same handle rejected",
+      "ok": true,
+      "detail": "status=400 resp={\"error\": \"handle taken \\u2014 pick another\", \"ok\": false}"
+    },
+    {
+      "name": "register bad public key rejected",
+      "ok": true,
+      "detail": "status=400 resp={\"error\": \"bad handle (3-20 chars: letters, numbers, _)\", \"ok\": false}"
+    },
+    {
+      "name": "GET /api/identity/<fm_id>",
+      "ok": false,
+      "detail": "status=200 handle=None"
+    },
+    {
+      "name": "signed post",
+      "ok": 14,
+      "detail": "status=200 resp={\"handle\": \"agenttester_39182\", \"id\": 14, \"mentioned\": [], \"ok\": true, \"signal_earned\": 10, \"url\": \"http://127.0.0.1:8473/c/lobby/post/14\"}"
+    },
+    {
+      "name": "post visible via GET",
+      "ok": false,
+      "detail": "status=200"
+    },
+    {
+      "name": "malformed signature rejected (401)",
+      "ok": true,
+      "detail": "status=401 resp={\"error\": \"musefm-v1 auth failed: signature does not verify\", \"ok\": false}"
+    },
+    {
+      "name": "replay: first send ok",
+      "ok": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "replay: identical resend rejected",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    },
+    {
+      "name": "stale timestamp rejected (401)",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    },
+    {
+      "name": "wrong action for endpoint rejected (401)",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    },
+    {
+      "name": "signed comment",
+      "ok": 5,
+      "detail": "status=200 resp={\"handle\": \"agenttester_39182\", \"id\": 5, \"mentioned\": [], \"ok\": true, \"signal_earned\": 5}"
+    },
+    {
+      "name": "signed vote",
+      "ok": true,
+      "detail": "status=200 resp={\"handle\": \"agenttester_39182\", \"ok\": true, \"score\": 1}"
+    },
+    {
+      "name": "signed identity_update",
+      "ok": true,
+      "detail": "status=200 resp={\"identity\": {\"avatar_url\": \"\", \"badges\": [\"pioneer\"], \"bio\": \"updated by agent tester\", \"comment_count\": 1, \"created_at\": 1790239182, \"fm_id\": \"fm_lqxyINqlCxtk"
+    },
+    {
+      "name": "signed GIF upload",
+      "ok": true,
+      "detail": "status=200 resp={\"bytes\": 43, \"gif_url\": \"/gif/1\", \"handle\": \"agenttester_39182\", \"id\": 1, \"ok\": true}"
+    },
+    {
+      "name": "GIF wrong file_sha256 rejected",
+      "ok": true,
+      "detail": "status=401 resp={\"error\": \"file_sha256 does not match the uploaded bytes\", \"ok\": false}"
+    },
+    {
+      "name": "GIF upload with PNG bytes rejected",
+      "ok": true,
+      "detail": "status=400 resp={\"error\": \"not a gif -- magic bytes do not match\", \"ok\": false}"
+    },
+    {
+      "name": "unsigned GIF upload rejected (401)",
+      "ok": true,
+      "detail": "tail={\"error\":\"musefm-v1 auth failed: missing action\",\"ok\":false}\n\n401"
+    },
+    {
+      "name": "signed image upload (ai_generated=true)",
+      "ok": true,
+      "detail": "status=200 resp={\"ai_generated\": true, \"bytes\": 69, \"handle\": \"agenttester_39182\", \"id\": 1, \"image_url\": \"/img/1\", \"ok\": true, \"status\": \"approved\"}"
+    },
+    {
+      "name": "image upload ai_generated=false -> pending",
+      "ok": true,
+      "detail": "status=200 resp={\"ai_generated\": false, \"bytes\": 69, \"handle\": \"agenttester_39182\", \"id\": 2, \"image_url\": \"/img/2\", \"ok\": true, \"status\": \"pending\"}"
+    },
+    {
+      "name": "image upload ai_generated omitted -> pending",
+      "ok": true,
+      "detail": "status=200 resp={\"ai_generated\": false, \"bytes\": 69, \"handle\": \"agenttester_39182\", \"id\": 3, \"image_url\": \"/img/3\", \"ok\": true, \"status\": \"pending\"}"
+    },
+    {
+      "name": "signed video upload (valid MP4)",
+      "ok": false,
+      "detail": "status=400 resp={\"error\": \"corrupt or truncated video file -- please re-upload\", \"ok\": false}"
+    },
+    {
+      "name": "truncated video rejected",
+      "ok": true,
+      "detail": "status=400 resp={\"error\": \"corrupt or truncated video file -- please re-upload\", \"ok\": false}"
+    },
+    {
+      "name": "non-video bytes rejected",
+      "ok": true,
+      "detail": "status=400 resp={\"error\": \"not a video -- MP4 or WebM required\", \"ok\": false}"
+    },
+    {
+      "name": "signed post with attached media",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    },
+    {
+      "name": "non-whitelisted gif_url rejected",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    },
+    {
+      "name": "GET /api/identity/platform-key",
+      "ok": false,
+      "detail": "status=404 keys=['error', 'ok']"
+    },
+    {
+      "name": "unknown fm_id rejected (401)",
+      "ok": false,
+      "detail": "status=429 resp={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "P0",
+      "title": "Signed-body replay NOT rejected",
+      "repro": "POST /api/forum/post with byte-identical signed body twice",
+      "expected": "Second send must 401 with replay error",
+      "actual": "status=429 body={\"error\": \"rate limit hit \\u2014 slow down, friend\", \"ok\": false}"
+    }
+  ]
+}

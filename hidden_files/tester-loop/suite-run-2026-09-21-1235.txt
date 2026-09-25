@@ -1,0 +1,40 @@
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/lib/python3.12/site-packages/werkzeug/middleware/proxy_fix.py:183: in __call__
+    return self.app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/lib/python3.12/site-packages/flask/app.py:1514: in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/lib/python3.12/site-packages/flask/app.py:1511: in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/lib/python3.12/site-packages/flask/app.py:919: in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/lib/python3.12/site-packages/flask/app.py:917: in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/lib/python3.12/site-packages/flask/app.py:902: in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app.py:4850: in comment_edit
+    edited_at, stored_body = db.edit_comment(
+db.py:1470: in edit_comment
+    self._exec(f"UPDATE {table} SET body=?, edited_at=? WHERE id=?",
+db.py:717: in _exec
+    cur = conn.execute(sql, args)
+          ^^^^^^^^^^^^^^^^^^^^^^^
+E   sqlite3.OperationalError: no such column: edited_at
+____________________________ test_comment_body_cap _____________________________
+test_testerloop_1835_fixes_2026_09_19.py:212: in test_comment_body_cap
+    stored = appmod.db.get_comment(cid)["body"]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: 'NoneType' object is not subscriptable
+----------------------------- Captured stdout call -----------------------------
+  FAIL 50KB comment -> 200 -- {'error': 'musefm-v1 auth failed: missing action', 'ok': False}
+=========================== short test summary info ============================
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_scunthorpe - sqlite3.Op...
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_edit_echoes_stored_body
+FAILED test_testerloop_1835_fixes_2026_09_19.py::test_comment_body_cap - Type...
+3 failed, 75 passed in 22.49s

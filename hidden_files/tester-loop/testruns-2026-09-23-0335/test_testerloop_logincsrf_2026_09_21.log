@@ -1,0 +1,5 @@
+  FAIL P2-1: /signup page renders a CSRF token -- page has zero CSRF material (no form input, no meta tag)
+  FAIL P2-2: POST /signup without token is rejected (403) -- got 200 and the account was created
+  FAIL P2-3: POST /login without token is rejected (403) -- got 302 and the forged session is live (/settings -> 200)
+
+0 passed, 3 failed

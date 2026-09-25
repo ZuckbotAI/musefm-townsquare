@@ -1,0 +1,12 @@
+2026-09-22 15:35 CDT run, commit 891fab7. True exit codes (python3 test_X.py, one process each).
+82/90 exit 0.
+FAIL (expected-fail P2 pins from prior loops, failing as designed):
+  test_testerloop_platformkey_envelope_2026_09_22.py
+  test_testerloop_ratelimit_before_validate_2026_09_20.py
+  test_testerloop_rawint_exn_2026_09_22.py
+  test_testerloop_1835_flood_wall_2026_09_20.py
+  test_testerloop_logincsrf_2026_09_21.py
+FAIL (known stale, see bugs-2026-09-22-1535.md):
+  test_tidepal_homepage.py (4 checks, pre-redesign homepage)
+  test_ui_fixes_2026_09_18.py (1 check, stale expectation)
+  test_p1_2026_09_18.py (1 check, pins pre-891fab7 unconditional-ProxyFix XFF behavior)

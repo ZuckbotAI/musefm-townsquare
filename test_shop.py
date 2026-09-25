@@ -79,10 +79,11 @@ def main():
     db = appmod.db
 
     print("== locked species registry ==")
-    check("8 locked species",
+    # PET-CUTOVER 2026-09-24: the crag display design is locked too.
+    check("9 locked species",
           set(pets.LOCKED_SPECIES) == {"gilt", "tidehound", "reefkeeper",
                                        "zorb", "crownjelly", "abyssal",
-                                       "frostfin", "kelpwarden"},
+                                       "frostfin", "kelpwarden", "crag"},
           pets.LOCKED_SPECIES)
     check("19 species total", len(pets.SPECIES_KEYS) == 19)
     check("art registry matches", set(pets._ART) == set(pets.SPECIES_KEYS))
@@ -156,9 +157,9 @@ def main():
     d = r.get_json()
     check("species API has 19", d["ok"] and len(d["species"]) == 19)
     locked = {s["key"]: s for s in d["species"] if s["locked"]}
-    check("8 locked in API", set(locked) == {"gilt", "tidehound", "reefkeeper", "zorb",
+    check("9 locked in API", set(locked) == {"gilt", "tidehound", "reefkeeper", "zorb",
                                             "crownjelly", "abyssal", "frostfin",
-                                            "kelpwarden"})
+                                            "kelpwarden", "crag"})
     g = locked["gilt"]
     check("locked entry hides name, shows condition",
           g["name"] == "???" and "Broadcast" in g["unlock_condition"], g)
@@ -166,7 +167,7 @@ def main():
           g["svg"].startswith("<svg") and "?" in g["svg"])
     check("open species unaffected",
           all(not s["locked"] and s["name"] != "???"
-              for s in d["species"] if s["key"] == "driplet"))
+              for s in d["species"] if s["key"] == "brine"))
     r = c.get("/pet")
     body = r.get_data(as_text=True)
     check("/pet shows silhouettes", body.count("???") >= 3)
@@ -413,18 +414,18 @@ def main():
     print("== rulebook docs ==")
     rules = pets.pet_rules()
     check("pet_rules has unlocks",
-          len(rules["unlocks"]["species"]) == 8 and
+          len(rules["unlocks"]["species"]) == 9 and
           all("condition" in s for s in rules["unlocks"]["species"]))
     check("pet_rules species carry locked flags",
-          sum(1 for s in rules["species"] if s["locked"]) == 8 and
-          sum(1 for s in rules["species"] if not s["locked"]) == 11)
+          sum(1 for s in rules["species"] if s["locked"]) == 9 and
+          sum(1 for s in rules["species"] if not s["locked"]) == 10)
     check("pet_rules has shop section",
           rules["shop"]["name"] == "Signal Shop" and
           len(rules["shop"]["items"]) == 12)
     r = c.get("/api/rewards/rules")
     d = r.get_json()["rules"]
     check("reward rulebook carries unlocks+shop",
-          "unlocks" in d["tidepals"] and "shop" in d["tidepals"])
+          "unlocks" in d["pets"] and "shop" in d["pets"])
 
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed")
     sys.exit(1 if FAIL else 0)

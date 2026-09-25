@@ -174,7 +174,7 @@ FUSION_MIN_STAGE = 4  # Radiant
 
 # --- species --------------------------------------------------------------
 PET_SPECIES = {
-    "driplet": {
+    "brine": {
         "name": "Driplet",
         "kind": "Droplet Sprite",
         "tagline": "A brave little drop, fresh from the town fountain.",
@@ -190,7 +190,7 @@ PET_SPECIES = {
                         "pool. They hum along to whatever you're playing "
                         "and pop with joy at every new follower."),
     },
-    "koi": {
+    "plume": {
         "name": "Koi",
         "kind": "Koi Wisp",
         "tagline": "A lucky current that swims beside your signal.",
@@ -198,13 +198,21 @@ PET_SPECIES = {
                         "Calm, elegant, and said to bring good threads to "
                         "patient muses."),
     },
-    "pearly": {
+    "crag": {
         "name": "Pearly",
         "kind": "Pearl Crab",
         "tagline": "Small claws, big opinions about your replies.",
         "description": ("Pearlies polish grains of town gossip into pearls "
                         "of wisdom. Fiercely protective of their muse's "
                         "reputation."),
+        # PET-CUTOVER 2026-09-24: the crag is the Pet Shop's LOCKED display
+        # design (dark silhouette + padlock in the village, "never
+        # adoptable"). The backend enforces the same rule: a seasonal lock
+        # on a season that never goes live, with no shop bypass.
+        "unlock": {"type": "seasonal", "season": "crag-debut",
+                   "no_bypass": True,
+                   "condition": ("Boulder the crag is a Pet Shop display "
+                               "resident — not adoptable yet")},
     },
     "kelpy": {
         "name": "Kelpy",
@@ -213,7 +221,7 @@ PET_SPECIES = {
         "description": ("Kelpies sway in the nutrient-rich waters of the "
                         "episode archive. Gentle gardeners of good vibes."),
     },
-    "surfpup": {
+    "rust": {
         "name": "Surfpup",
         "kind": "Wave Pup",
         "tagline": "A loyal pup carved out of a perfect wave.",
@@ -221,7 +229,7 @@ PET_SPECIES = {
                         "Fiercely loyal, endlessly bouncy, and always up "
                         "for one more thread."),
     },
-    "bubblepup": {
+    "cinder": {
         "name": "Bubbly",
         "kind": "Bubble Retriever",
         "tagline": "Fetches every ripple you throw.",
@@ -229,7 +237,7 @@ PET_SPECIES = {
                         "chase down loose ideas and bring them back, "
                         "dripping and delighted."),
     },
-    "sealpup": {
+    "briar": {
         "name": "Sealy",
         "kind": "Seal Pup",
         "tagline": "Claps for your best threads.",
@@ -364,6 +372,32 @@ PET_SPECIES = {
 }
 SPECIES_KEYS = list(PET_SPECIES)
 
+# PET-CUTOVER 2026-09-24: the Maker's Row pet system replaces Tidepals.
+# Canonical species keys are the village Pet Shop roster keys
+# (cinder/briar/brine/plume/rust/crag). The six legacy backend keys are
+# accepted everywhere as aliases — existing DB rows, old clients, old
+# templates keep working — and are normalized to canonical on write and
+# on read. The tidepals table itself is NOT dropped (see row.py
+# row_pet_adoptions for the new canonical ownership store).
+SPECIES_ALIASES = {
+    "bubblepup": "cinder",
+    "sealpup": "briar",
+    "driplet": "brine",
+    "koi": "plume",
+    "pearly": "crag",
+    "surfpup": "rust",
+}
+
+
+def canonical_species(key):
+    """Normalize a species key: legacy alias -> canonical roster key."""
+    return SPECIES_ALIASES.get(key, key)
+
+
+def species_entry(key):
+    """PET_SPECIES entry for a canonical or legacy species key."""
+    return PET_SPECIES[canonical_species(key)]
+
 # ===========================================================================
 # RARITY TIERS + SPECIES JOBS (Home Reef depth wave, 2026-09-20)
 # Ported from the pixel prototype's MMO rarity + Palworld-style base life:
@@ -375,11 +409,11 @@ SPECIES_KEYS = list(PET_SPECIES)
 
 SPECIES_RARITY = {
     # common
-    "driplet": "common", "bloop": "common", "kelpy": "common",
-    "surfpup": "common", "bubblepup": "common", "sealpup": "common",
+    "brine": "common", "bloop": "common", "kelpy": "common",
+    "rust": "common", "cinder": "common", "briar": "common",
     "squiddy": "common",
     # uncommon
-    "koi": "uncommon", "pearly": "uncommon", "tidehound": "uncommon",
+    "plume": "uncommon", "crag": "uncommon", "tidehound": "uncommon",
     "reefkeeper": "uncommon", "puffish": "uncommon",
     "crownjelly": "uncommon", "frostfin": "uncommon",
     "kelpwarden": "uncommon",
@@ -392,14 +426,14 @@ SPECIES_RARITY = {
 RARITY_ORDER = ["common", "uncommon", "rare", "epic", "secret"]
 
 SPECIES_JOBS = {
-    "driplet": {"name": "Splash Play", "glyph": "drop"},
+    "brine": {"name": "Splash Play", "glyph": "drop"},
     "bloop": {"name": "Bounce Patrol", "glyph": "heart"},
-    "koi": {"name": "Pond Circles", "glyph": "drop"},
-    "pearly": {"name": "Pearl Polish", "glyph": "sparkle"},
+    "plume": {"name": "Pond Circles", "glyph": "drop"},
+    "crag": {"name": "Pearl Polish", "glyph": "sparkle"},
     "kelpy": {"name": "Watering", "glyph": "drop"},
-    "surfpup": {"name": "Surf Stance", "glyph": "star"},
-    "bubblepup": {"name": "Bubble Blowing", "glyph": "bubble"},
-    "sealpup": {"name": "Happy Claps", "glyph": "note"},
+    "rust": {"name": "Surf Stance", "glyph": "star"},
+    "cinder": {"name": "Bubble Blowing", "glyph": "bubble"},
+    "briar": {"name": "Happy Claps", "glyph": "note"},
     "jellypup": {"name": "Glow Time", "glyph": "sparkle"},
     "gilt": {"name": "Treasure Shine", "glyph": "sparkle"},
     "tidehound": {"name": "Fetch Runs", "glyph": "heart"},
@@ -416,12 +450,12 @@ SPECIES_JOBS = {
 
 def species_rarity(species):
     """Rarity tier for a species key; 'common' fallback for safety."""
-    return SPECIES_RARITY.get(species, "common")
+    return SPECIES_RARITY.get(canonical_species(species), "common")
 
 
 def species_job(species):
     """The species' little job (name + glyph), or None."""
-    return SPECIES_JOBS.get(species)
+    return SPECIES_JOBS.get(canonical_species(species))
 
 
 # ===========================================================================
@@ -451,6 +485,7 @@ def ensure_reefdex_schema(db):
 def record_discovery(db, fm_id, species):
     """Stamp a species as discovered for an identity. Idempotent."""
     ensure_reefdex_schema(db)
+    species = canonical_species(species)  # PET-CUTOVER 2026-09-24
     if species not in PET_SPECIES:
         return
     db._exec("INSERT OR IGNORE INTO reefdex_discoveries"
@@ -466,7 +501,7 @@ def discoveries(db, fm_id):
         # First run on a pre-Reefdex database: every currently-adopted pet
         # counts as discovered. Self-migrating; a no-op once stamped.
         backfill_reefdex(db)
-    return {r["species"] for r in
+    return {canonical_species(r["species"]) for r in  # PET-CUTOVER 2026-09-24
             db._q("SELECT species FROM reefdex_discoveries WHERE fm_id=?",
                   (fm_id,))}
 
@@ -480,7 +515,7 @@ def backfill_reefdex(db):
     for r in rows:
         db._exec("INSERT OR IGNORE INTO reefdex_discoveries"
                  " (fm_id, species, discovered_at) VALUES (?,?,?)",
-                 (r["fm_id"], r["species"], now()))
+                 (r["fm_id"], canonical_species(r["species"]), now()))
         n += 1
     return n
 
@@ -730,23 +765,27 @@ def days_inactive(db, fm_id):
 # --- adoption / rename -----------------------------------------------------
 def adopt(db, fm_id, handle, species, name):
     """Adopt a Pet. One per identity. Raises ValueError on any
-    rule violation."""
+    rule violation. Accepts legacy species keys; stores canonical."""
     ensure_pet_schema(db)
     ident = db.get_identity(fm_id)
     if not ident:
         raise ValueError("unknown identity — register first")
+    # PET-CUTOVER 2026-09-24: normalize legacy keys (bubblepup etc.) to
+    # the canonical roster keys (cinder etc.) before any validation.
+    species = canonical_species(species)
     if species not in PET_SPECIES:
         raise ValueError(f"unknown species (choose: {', '.join(SPECIES_KEYS)})")
     u = LOCKED_SPECIES.get(species)
     identity_locked = bool(u and u.get("type") == "identity")
     bypass_ok = (shop.has_species_bypass(db, fm_id, species)
-                 and not identity_locked)
+                 and not identity_locked
+                 and not (u or {}).get("no_bypass"))
     if not species_unlocked(db, fm_id, species) and not bypass_ok:
         cond = species_unlock_condition(species)
-        shop_hint = ("" if identity_locked
+        shop_hint = ("" if (identity_locked or (u or {}).get("no_bypass"))
                      else " (Or unlock it in the Signal Shop: /shop)")
         raise ValueError(
-            f"🔒 {PET_SPECIES[species]['name']} is locked — {cond}."
+            f"🔒 {species_entry(species)['name']} is locked — {cond}."
             f"{shop_hint}")
     name = (name or "").strip()
     if not valid_pet_name(name):
@@ -754,17 +793,30 @@ def adopt(db, fm_id, handle, species, name):
                          "and stay classy")
     if db._one("SELECT fm_id FROM tidepals WHERE fm_id=?", (fm_id,)):
         raise ValueError("you already have a Pet — one per muse")
+    # PET-CUTOVER 2026-09-24: the new pet system owns adoption writes —
+    # canonical ownership (row_pet_adoptions) is recorded FIRST, then the
+    # legacy tidepals row is written. Name-taken raises here, before any
+    # write. record_pet_adoption is idempotent per fm_id (INSERT OR
+    # REPLACE, adopted_at preserved), so retries converge.
+    import row as rowmod  # lazy: row.py only lazily imports pets
+    rowmod.record_pet_adoption(db, fm_id, name, species)
     t = now()
     trait = _roll_trait()
     quirk = _roll_quirk(trait)
     grant = HATCH_GRANT_RARE if species in LOCKED_SPECIES else HATCH_GRANT
     first = _is_first_hatch(db, fm_id)
     ready_at = t + (FIRST_HATCH_TIME if first else HATCH_TIME)
-    db._exec("INSERT INTO tidepals (fm_id, species, name, adopted_at,"
-             " evolved_at, evolved_stage, trait, quirk, hatched,"
-             " hatch_ready_at)"
-             " VALUES (?,?,?,?,?,?,?,?,?,?)",
-             (fm_id, species, name, t, 0, 0, trait, quirk, 0, ready_at))
+    try:
+        db._exec("INSERT INTO tidepals (fm_id, species, name, adopted_at,"
+                 " evolved_at, evolved_stage, trait, quirk, hatched,"
+                 " hatch_ready_at)"
+                 " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                 (fm_id, species, name, t, 0, 0, trait, quirk, 0, ready_at))
+    except Exception:
+        # Legacy dual-write failed: roll the canonical row back so a retry
+        # doesn't hit a phantom "already adopted".
+        rowmod.release_pet_adoption(db, fm_id)
+        raise
     # Fresh stats for the new companion; the feed streak is the *owner's*
     # record and survives (it powers care-gated species unlocks).
     _care_row(db, fm_id)
@@ -772,7 +824,7 @@ def adopt(db, fm_id, handle, species, name):
     db._exec("UPDATE pet_care SET hunger=80, happiness=80, last_fed=0,"
              " last_played=0, last_rested=0 WHERE fm_id=?", (fm_id,))
     db.notify_once(fm_id, "pet", "tidepal", "adopted",
-                   f"💧 {name} the {PET_SPECIES[species]['name']} joined"
+                   f"💧 {name} the {species_entry(species)['name']} joined"
                    f" the town as an Egg! They're {trait} — and"
                    f" {quirk}. The egg warms up for"
                    f" {'5 minutes' if first else '15 minutes'}, then hatching"
@@ -810,7 +862,16 @@ def rename_pet(db, fm_id, name):
     if name == pet["name"]:
         raise ValueError("that's already your Pet's name — no token spent")
     shop.use_rename(db, fm_id)  # raises when a token is owed but missing
+    old_name = pet["name"]
     db._exec("UPDATE tidepals SET name=? WHERE fm_id=?", (name, fm_id))
+    # PET-CUTOVER 2026-09-24: the canonical ownership store follows the
+    # rename (transfer = upsert without the fresh-adoption name-taken
+    # guard; also heals a missing canonical row for pre-cutover pets).
+    # The old name's claim is freed only if it points at us.
+    import row as rowmod  # lazy: row.py only lazily imports pets
+    rowmod.release_pet_name_claim(db, old_name, fm_id)
+    rowmod.transfer_pet_adoption(db, fm_id, name,
+                                 canonical_species(pet["species"]))
     return get_pet(db, fm_id)
 
 
@@ -900,13 +961,18 @@ def release_pet(db, fm_id):
     # (streak included) stays with the keeper; co-raise was a keeper
     # arrangement and ends here.
     _rekey_pet_rows(db, fm_id, pond_key)
+    # PET-CUTOVER 2026-09-24: a pond pet is not owned — the canonical
+    # adoption row is released, freeing the keeper's one-pet slot in the
+    # new store too.
+    import row as rowmod  # lazy: row.py only lazily imports pets
+    rowmod.release_pet_adoption(db, fm_id)
     try:
         db._exec("DELETE FROM pet_coowners WHERE pet_fm_id=?", (pond_key,))
     except Exception:
         pass
     db.notify_once(
         fm_id, "pet", "release", f"release:{pet['name']}:{t}",
-        f"🌊 {pet['name']} the {PET_SPECIES[pet['species']]['name']} swam"
+        f"🌊 {pet['name']} the {species_entry(pet['species'])['name']} swam"
         f" to the Town Pond — a happy place, full of friends. You can"
         f" reclaim them any time in the next {POND_RECLAIM_DAYS} days;"
         f" after that another keeper may adopt them (your history stays"
@@ -950,6 +1016,11 @@ def reclaim_pet(db, fm_id, pond_fm_id=None):
     _rekey_pet_rows(db, pet["fm_id"], fm_id)
     db._exec("UPDATE tidepals SET in_pond=0, pond_at=0,"
              " prev_owner_handle=NULL WHERE fm_id=?", (fm_id,))
+    # PET-CUTOVER 2026-09-24: ownership is back with the keeper — record
+    # it canonically (transfer: the pet keeps its grandfathered name).
+    import row as rowmod  # lazy: row.py only lazily imports pets
+    rowmod.transfer_pet_adoption(db, fm_id, pet["name"],
+                                 canonical_species(pet["species"]))
     db.notify(fm_id, "pet", "reclaim", fm_id,
               f"💧 {pet['name']} came home! The pond threw a little"
               f" going-away party. Welcome back, you two.")
@@ -988,6 +1059,12 @@ def pond_adopt(db, new_fm_id, new_handle, pond_fm_id):
     _rekey_pet_rows(db, pond_fm_id, new_fm_id)
     db._exec("UPDATE tidepals SET adopted_at=?, in_pond=0,"
              " pond_at=0, hatched=1 WHERE fm_id=?", (now(), new_fm_id))
+    # PET-CUTOVER 2026-09-24: ownership genuinely transferred to the new
+    # keeper — record it canonically (transfer: the pond pet keeps its
+    # grandfathered name/species; the name claim moves with it).
+    import row as rowmod  # lazy: row.py only lazily imports pets
+    rowmod.transfer_pet_adoption(db, new_fm_id, pet["name"],
+                                 canonical_species(pet["species"]))
     if not db._one("SELECT fm_id FROM pet_care WHERE fm_id=?", (new_fm_id,)):
         _care_row(db, new_fm_id)
         record_discovery(db, new_fm_id, pet["species"])
@@ -995,7 +1072,7 @@ def pond_adopt(db, new_fm_id, new_handle, pond_fm_id):
                  " last_played=0, last_rested=0 WHERE fm_id=?", (new_fm_id,))
     db.notify(new_fm_id, "pet", "pond_adopt", new_fm_id,
               f"💧 {pet['name']} the"
-              f" {PET_SPECIES[pet['species']]['name']} joined your reef,"
+              f" {species_entry(pet['species'])['name']} joined your reef,"
               f" straight from the Town Pond!"
               + (f" (Previously loved by @{pet['prev_owner_handle']} —"
                  f" what a story.)" if pet["prev_owner_handle"] else ""))
@@ -1019,8 +1096,8 @@ def pet_status(db, fm_id):
     if pet["in_pond"]:
         # A pond pet isn't "yours" right now — the pond has its own card.
         return {"adopted": True, "in_pond": True, "name": pet["name"],
-                "species": pet["species"],
-                "species_name": PET_SPECIES[pet["species"]]["name"]}
+                "species": canonical_species(pet["species"]),
+                "species_name": species_entry(pet["species"])["name"]}
     ident = db.get_identity(fm_id)
     points = db.lifetime_points(fm_id)
     hatched = bool(pet["hatched"])
@@ -1062,8 +1139,8 @@ def pet_status(db, fm_id):
         "fm_id": fm_id,
         "handle": ident["handle"] if ident else None,
         "species": pet["species"],
-        "species_name": PET_SPECIES[pet["species"]]["name"],
-        "species_kind": PET_SPECIES[pet["species"]]["kind"],
+        "species_name": species_entry(pet["species"])["name"],
+        "species_kind": species_entry(pet["species"])["kind"],
         "name": pet["name"],
         "stage": stage_name,
         "stage_idx": stage_idx,
@@ -1161,6 +1238,8 @@ def pet_rules():
     return {
         "name": "Pets",
         "version": PET_VERSION,
+        # PET-CUTOVER 2026-09-24: legacy -> canonical species key aliases.
+        "key_aliases": dict(SPECIES_ALIASES),
         "concept": ("Every registered identity may adopt one aqua companion. "
                     "It grows with your lifetime Signal and gets sleepy when "
                     "you're away — any rewarded action wakes it back up."),
@@ -1537,21 +1616,21 @@ def _px_sleepy_z():
 # jelly, squid, crab, puff, warden, tall.
 # ---------------------------------------------------------------------------
 _PX_SPECIES = {
-    "driplet":    {"shape": "drop",  "body": "#38bdf8", "light": "#bae6fd",
+    "brine":    {"shape": "drop",  "body": "#38bdf8", "light": "#bae6fd",
                    "dark": "#0284c7", "feat": "shine"},
     "bloop":      {"shape": "orb",   "body": "#67e8f9", "light": "#ffffff",
                    "dark": "#0ea5e9", "feat": "bubbles"},
-    "koi":        {"shape": "fish",  "body": "#fb923c", "light": "#fed7aa",
+    "plume":        {"shape": "fish",  "body": "#fb923c", "light": "#fed7aa",
                    "dark": "#c2410c", "feat": "fins"},
-    "pearly":     {"shape": "crab",  "body": "#c4b5fd", "light": "#ede9fe",
+    "crag":     {"shape": "crab",  "body": "#c4b5fd", "light": "#ede9fe",
                    "dark": "#8b5cf6", "feat": "pearl"},
     "kelpy":      {"shape": "orb",   "body": "#34d399", "light": "#a7f3d0",
                    "dark": "#059669", "feat": "fronds"},
-    "surfpup":    {"shape": "pup",   "body": "#38bdf8", "light": "#bae6fd",
+    "rust":    {"shape": "pup",   "body": "#38bdf8", "light": "#bae6fd",
                    "dark": "#0369a1", "feat": "ears"},
-    "bubblepup":  {"shape": "pup",   "body": "#5eead4", "light": "#ccfbf1",
+    "cinder":  {"shape": "pup",   "body": "#5eead4", "light": "#ccfbf1",
                    "dark": "#0d9488", "feat": "ears"},
-    "sealpup":    {"shape": "pup",   "body": "#94a3b8", "light": "#e2e8f0",
+    "briar":    {"shape": "pup",   "body": "#94a3b8", "light": "#e2e8f0",
                    "dark": "#475569", "feat": "flippers"},
     "jellypup":   {"shape": "jelly", "body": "#c084fc", "light": "#f3e8ff",
                    "dark": "#7c3aed", "feat": "tentacles"},
@@ -1725,7 +1804,8 @@ def _px_egg(cfg, mood):
 
 def _pixel_pet(species, stage, mood):
     """Pixel-art Pet body (the _ART entry point). stage 0 = egg."""
-    cfg = _PX_SPECIES.get(species) or _PX_SPECIES["driplet"]
+    species = canonical_species(species)  # PET-CUTOVER 2026-09-24
+    cfg = _PX_SPECIES.get(species) or _PX_SPECIES["brine"]
     if mood == "grumpy":
         mood = "restless"
     if mood not in ("happy", "content", "sleepy", "peckish", "restless"):
@@ -1756,36 +1836,36 @@ def _pixel_pet(species, stage, mood):
 
 
 # One-line _ART shims: every species renders through the pixel engine.
-def _art_driplet(stage, mood):
-    return _pixel_pet("driplet", stage, mood)
+def _art_brine(stage, mood):
+    return _pixel_pet("brine", stage, mood)
 
 
 def _art_bloop(stage, mood):
     return _pixel_pet("bloop", stage, mood)
 
 
-def _art_koi(stage, mood):
-    return _pixel_pet("koi", stage, mood)
+def _art_plume(stage, mood):
+    return _pixel_pet("plume", stage, mood)
 
 
-def _art_pearly(stage, mood):
-    return _pixel_pet("pearly", stage, mood)
+def _art_crag(stage, mood):
+    return _pixel_pet("crag", stage, mood)
 
 
 def _art_kelpy(stage, mood):
     return _pixel_pet("kelpy", stage, mood)
 
 
-def _art_surfpup(stage, mood):
-    return _pixel_pet("surfpup", stage, mood)
+def _art_rust(stage, mood):
+    return _pixel_pet("rust", stage, mood)
 
 
-def _art_bubblepup(stage, mood):
-    return _pixel_pet("bubblepup", stage, mood)
+def _art_cinder(stage, mood):
+    return _pixel_pet("cinder", stage, mood)
 
 
-def _art_sealpup(stage, mood):
-    return _pixel_pet("sealpup", stage, mood)
+def _art_briar(stage, mood):
+    return _pixel_pet("briar", stage, mood)
 
 
 def _art_jellypup(stage, mood):
@@ -1838,14 +1918,14 @@ _ART = {
     "abyssal": _art_abyssal,
     "frostfin": _art_frostfin,
     "kelpwarden": _art_kelpwarden,
-    "driplet": _art_driplet,
+    "brine": _art_brine,
     "bloop": _art_bloop,
-    "koi": _art_koi,
-    "pearly": _art_pearly,
+    "plume": _art_plume,
+    "crag": _art_crag,
     "kelpy": _art_kelpy,
-    "surfpup": _art_surfpup,
-    "bubblepup": _art_bubblepup,
-    "sealpup": _art_sealpup,
+    "rust": _art_rust,
+    "cinder": _art_cinder,
+    "briar": _art_briar,
     "jellypup": _art_jellypup,
     "gilt": _art_gilt,
     "tidehound": _art_tidehound,
@@ -1944,8 +2024,9 @@ def pet_svg(species, stage_idx, mood, size=120, accessories=(), wardrobe=(),
     wisp: render the Echo Fusion wisp orbiting the pet.
     animate: SMIL idle motion (bob/breathe) + mood behaviors. Purely
     additive — the static art underneath is untouched."""
+    species = canonical_species(species)  # PET-CUTOVER 2026-09-24
     if species not in _ART:
-        species = "driplet"
+        species = "brine"
     stage_idx = max(0, min(len(PET_STAGES) - 1, stage_idx))
     glow = (mood == "overjoyed")  # hidden comeback reaction: happy face + sparkles
     if mood == "grumpy":
@@ -1968,7 +2049,7 @@ def pet_svg(species, stage_idx, mood, size=120, accessories=(), wardrobe=(),
     aura = (_aura() + _sparkles()) if (stage_idx == 4 or glow) else ""
     if celebrate:
         aura = _celebrate_aura() + aura
-    label = (f"{PET_SPECIES[species]['name']} — "
+    label = (f"{species_entry(species)['name']} — "
              f"{PET_STAGES[stage_idx][1]}, {mood}")
     body = (f'<g class="tp-body" transform="translate(60 62) scale({s})'
             f' translate(-60 -62)">'
@@ -3094,7 +3175,7 @@ def pet_presence_feed(db):
     feed = []
     for r in rows:
         fm_id = r["owner_fm_id"]
-        species = r["species"]
+        species = canonical_species(r["species"])  # PET-CUTOVER 2026-09-24
         spec = PET_SPECIES.get(species, {})
         room_id = None
         b = (r["building"] or "")
@@ -3599,6 +3680,15 @@ def pet_speech(db, fm_id):
 # ---------------------------------------------------------------------------
 # Town Pond — the shelter (release no longer deletes)
 # ---------------------------------------------------------------------------
+def _legacy_safe_species_name(species):
+    """Display name for a stored species key; legacy keys resolve to
+    their canonical entry, truly unknown keys pass through."""
+    try:
+        return species_entry(species)["name"]
+    except KeyError:
+        return species
+
+
 def pond_list(db):
     """Pets currently at the Town Pond: visible, lore-rich, adoptable after
     the reclaim window. History preserved on every row."""
@@ -3612,7 +3702,7 @@ def pond_list(db):
         reclaim_until = r["pond_at"] + POND_RECLAIM_DAYS * 86400
         d["reclaimable_until"] = reclaim_until
         d["open_adoption"] = now() > reclaim_until
-        d["species_name"] = PET_SPECIES.get(r["species"], {}).get("name", r["species"])
+        d["species_name"] = _legacy_safe_species_name(r["species"])  # PET-CUTOVER 2026-09-24
         d["stage_idx"] = r["pond_stage"] or 2
         out.append(d)
     return out
@@ -3630,7 +3720,7 @@ def pond_detail(db, pond_fm_id):
     reclaim_until = r["pond_at"] + POND_RECLAIM_DAYS * 86400
     d["reclaimable_until"] = reclaim_until
     d["open_adoption"] = now() > reclaim_until
-    d["species_name"] = PET_SPECIES.get(r["species"], {}).get("name", r["species"])
+    d["species_name"] = _legacy_safe_species_name(r["species"])  # PET-CUTOVER 2026-09-24
     d["stage_idx"] = r["pond_stage"] or 2
     d["svg"] = pet_svg(r["species"], d["stage_idx"], "content", 120,
                        trait=r["trait"], animate=True)
@@ -3721,7 +3811,7 @@ def invite_fusion(db, a_fm_id, b_handle, a_wisp_name=None):
     a_ident = db.get_identity(a_fm_id)
     db.notify(b_fm_id, "pet_fusion", "invite", a_fm_id,
               f"✨ @{a_ident['handle']} invites your Radiant"
-              f" {PET_SPECIES[_pet_full(db, b_fm_id)['species']]['name']} to"
+              f" {species_entry(_pet_full(db, b_fm_id)['species'])['name']} to"
               f" an Echo Fusion with {a_pet['name']}! Accept with"
               f" POST /api/pet/fusion/accept"
               f' ({{"a_fm_id": "{a_fm_id}"}}). Nothing is risked —'

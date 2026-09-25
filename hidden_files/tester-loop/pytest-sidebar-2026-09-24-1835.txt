@@ -1,0 +1,12 @@
+  FAIL account block renders when logged in
+  FAIL account block sits above the nav groups
+  FAIL account block shows @handle
+  FAIL account block links the profile
+  FAIL account block links Settings
+  PASS topbar no longer carries the account chip
+  PASS topbar settings gear removed
+  FAIL Settings link highlights on /settings
+  PASS no account block when logged out
+  PASS logged-out topbar keeps Log in / Sign up
+
+108 passed, 19 failed

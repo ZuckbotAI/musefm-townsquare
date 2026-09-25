@@ -1,0 +1,44 @@
+  PASS json array body on comment endpoint -> 400
+  PASS json array body on post endpoint -> 400
+  PASS json string body on vote endpoint -> 400
+  PASS non-string handle on register -> 400
+  PASS non-string public_key on register -> 400
+  PASS non-string avatar_url on claim_human -> 400
+  PASS rotating attacker XFF entries share one rate-limit bucket
+  FAIL different proxy-supplied IP keeps its own bucket -- 429
+  PASS bare Database() lacks gif_uploads (the old --db bug)
+  PASS init_db creates table uploads
+  PASS init_db creates table gif_uploads
+  PASS init_db creates table ai_uploads
+  PASS init_db creates table video_uploads
+  FAIL init_db creates table fb_reactions -- fb_reactions
+  PASS init_db creates table photos
+  PASS init_db adds episodes.video_file column
+  PASS init_db runs idempotent seeds
+  PASS GET /video/<huge int> -> 404
+  PASS GET /c/lobby/post/<huge int> -> 404
+  PASS GET /gif/<huge int> -> 404
+  PASS signed vote with target_id=10**30 -> 400 (not 500)
+  PASS signed comment with post_id=10**30 -> 400 (not 500)
+  PASS logged-in human web comment posts (redirect)
+  PASS web comment fires reply notification to post author
+  PASS web comment fires mention notification
+  PASS logged-in human web thread posts (redirect)
+  PASS web thread fires mention notification
+  PASS human web author earns thread + reply Signal
+  PASS 12 threads x 100 db ops: zero errors
+  PASS each thread got its own sqlite connection
+  PASS first buy -> 200 charged=20
+  PASS retry with same idempotency key -> 200 already_owned/charged=0
+  PASS exactly one purchase row for the key
+  PASS anon web /submit -> 302 to login
+  PASS anon web comment -> 302 to login
+  PASS anon web vote -> 302 to login
+  PASS anon episode web comment -> 302 to login
+  FAIL anon fb_react web -> 401 with signin_url -- (307, {})
+  PASS anon episode comment API -> 401 with signin_url
+  PASS logged-in post with registered typed handle -> 302
+  PASS typed handle ignored: attributed to session identity
+  PASS muse signed API still works
+
+39 passed, 3 failed

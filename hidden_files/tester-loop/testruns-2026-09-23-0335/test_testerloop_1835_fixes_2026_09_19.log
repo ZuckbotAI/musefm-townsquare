@@ -1,0 +1,28 @@
+  PASS snigger not blocked
+  PASS standalone slur still blocked
+  PASS fag standalone blocked
+  PASS clean prose passes
+  PASS edit with 'snigger' accepted
+  PASS edit JSON ok
+  PASS echo matches stored body
+  PASS newlines preserved in stored body
+  PASS horizontal whitespace collapsed in stored body
+  PASS no raw-echo of triple spaces
+  PASS vote value 'abc' -> 400
+  PASS vote error is clean (no python internals)
+  PASS vote error names the field
+  PASS vote value 1.5 -> 400
+  PASS fb_react target_id 1.5 -> 400
+  PASS fb_react target_id 'abc' -> 400 clean
+  PASS comment parent_id 'abc' -> 400 clean
+  PASS vote value 1 still 200
+  PASS vote numeric strings still 200
+  FAIL 50KB comment -> 400 (rejected, not silently truncated) -- {'handle': 'captester', 'id': 5, 'mentioned': [], 'ok': True, 'signal_earned': 0}
+  FAIL rejection names the limit -- None
+  FAIL oversize comment stored nothing
+  PASS exactly-2000-char comment -> 200
+  PASS 2000-char comment stored at full length
+  PASS 6 malformed posts all 400
+  PASS valid post after 6 malformed -> 200 (budget intact)
+  PASS next 4 valid 200 then 429 (limit enforced)
+== 24 PASS, 3 FAIL ==

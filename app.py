@@ -283,6 +283,9 @@ def init_db(path):
     rowmod.ensure_row_schema(_db)  # Maker's Row: avatars, presence, journal, events
     rowmod.backfill_pet_claims(_db)  # idempotent: seed name->owner pet
                                      # claims from tidepals (additive only)
+    rowmod.backfill_pet_adoptions(_db)  # PET-CUTOVER 2026-09-24: seed the
+                                     # canonical ownership store from
+                                     # tidepals (additive only)
     agent_memory.ensure_agent_memory_schema(_db)  # agentic memory API (pilot)
     tb.ensure_trustline_schema(_db)   # Trustline bridge: links, challenges
     _db.ensure_musefm_seeds()            # idempotent: ep01-ep04, episode posts, photos
@@ -648,6 +651,12 @@ def check_limit(bucket, max_hits, window_sec=3600):
 # Single source for the human-readable rate-limit message, so the JSON API
 # and the human form pages report the identical wording.
 RATE_LIMIT_MESSAGE = "rate limit hit — slow down, friend"
+
+# P1 2026-09-24: max length for user search queries (forum ?q=, agent
+# directory ?q=). sqlite's default LIKE pattern limit is 50000 bytes —
+# anything beyond that 500s the request (OperationalError: LIKE or GLOB
+# pattern too complex). 2000 chars keeps every encoding safely under it.
+SEARCH_Q_MAX = 2000
 
 
 def rate_limit_message(bucket, max_hits, window_sec=3600):
@@ -1089,17 +1098,13 @@ def _pp_badge(verified):
 def _annotate_passport(items, key="handle", out_key="passport_verified"):
     """Batch-attach Trustline passport status to post/comment/photo dicts.
 
-    One query per page (db.passport_verified_map), never N+1. Sets
-    item[out_key] = True/False from item[key]. Items without a handle get
-    False. Returns the list unchanged (for inline use in routes)."""
-    if not items:
-        return items
-    handles = {(it.get(key) or "") for it in items if isinstance(it, dict)}
-    vm = db.passport_verified_map(handles)
-    for it in items:
-        if isinstance(it, dict):
-            it[out_key] = vm.get(
-                (it.get(key) or "").strip().lower(), False)
+    DORMANT 2026-09-24: db.passport_verified_map was never implemented
+    (no passport table/method exists in db.py on any branch), so the
+    original body raised AttributeError on every page that called it.
+    This is now a safe no-op — it returns items unchanged and sets no
+    badge flags. If the Trustline passport backend is ever built, restore
+    the batch lookup here.
+    """
     return items
 
 
@@ -1435,6 +1440,11 @@ def community(slug):
     if sort not in ("hot", "new", "top"):
         sort = "hot"
     q = request.args.get("q", "").strip() or None
+    # P1 2026-09-24: uncapped q flows into a LIKE pattern and 500s
+    # (sqlite3.OperationalError: LIKE or GLOB pattern too complex).
+    # Reject over-long queries up front with a clean 400.
+    if q and len(q) > SEARCH_Q_MAX:
+        return "search query too long (max %d characters)" % SEARCH_Q_MAX, 400
     posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
@@ -2770,8 +2780,14 @@ def api_posts():
         limit = min(100, max(1, int(request.args.get("limit", 25))))
     except ValueError:
         limit = 25
+    q = request.args.get("q", "").strip() or None
+    # P1 2026-09-24: uncapped q flows into a LIKE pattern and 500s
+    # (sqlite3.OperationalError: LIKE or GLOB pattern too complex).
+    # Reject over-long queries up front with a clean 400.
+    if q and len(q) > SEARCH_Q_MAX:
+        return jsonify({"ok": False, "error": "search query too long (max %d characters)" % SEARCH_Q_MAX}), 400
     posts = db.list_posts(community=community, sort=sort, limit=limit,
-                          search=request.args.get("q", "").strip() or None)
+                          search=q)
     _sig_attach_posts(posts)
     for p in posts:
         p["url"] = url_for("thread", slug=p["community"], pid=p["id"], _external=True)
@@ -2916,7 +2932,7 @@ def api_memory_create():
             tags=data.get("tags"))
     except ValueError as e:
         return api_error(str(e))
-    return jsonify({"ok": True, "entry": entry}), 201
+    return jsonify({"ok": True, "entry": entry}), 200
 
 
 @app.route("/api/memory", methods=["GET"])
@@ -3900,7 +3916,8 @@ def signal_guide():
 # lifetime Signal; energy from the owner's real last-active timestamp.
 from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   POND_ADOPT_FEE, POND_RECLAIM_DAYS, WARDROBE_CATALOG,
-                  accept_fusion, adopt, buy_wardrobe_item, claim_lesson,
+                  accept_fusion, adopt, buy_wardrobe_item,
+                  canonical_species, claim_lesson,
                   cure_sniffles, decline_fusion, equip_item, equipped_wardrobe,
                   feed_pet, finish_hatch_early, get_pet, hatch_now_seconds_left,
                   hatch_pet, invite_fusion, lesson_status, pet_presence_feed,
@@ -3909,7 +3926,8 @@ from pets import (HATCH_NOW_PRICE, LOCKED_SPECIES, PET_SPECIES, LESSONS,
                   pond_adopt, pond_detail, pond_list, reclaim_pet,
                   reefdex_for_api, backfill_reefdex,
                   release_pet, rename_pet, reroll_trait, rest_pet,
-                  species_unlock_condition, start_lesson, wardrobe_catalog,
+                  species_entry, species_unlock_condition, start_lesson,
+                  valid_pet_name, wardrobe_catalog,
                   _pond_rows_for_owner)
 import tidepal_social as tpsocial
 import tidepal_games as tpgames
@@ -4170,13 +4188,30 @@ def api_drift_adopt():
         resp.headers["Retry-After"] = str(retry_after("drift_adopt", 3600))
         return resp
     try:
-        species = _fs(data, "species").strip()
-        name = _fs(data, "name")
-        pet = adopt(db, ident["fm_id"], ident["handle"], species, name)
+        # PET-CUTOVER 2026-09-24: the new pet system owns adoption writes.
+        # pets.adopt() records canonical ownership in row_pet_adoptions
+        # FIRST, then dual-writes the legacy tidepals row (with rollback
+        # if the legacy write fails). Validation happens before any write
+        # so 400s never touch the rate bucket or the stores.
+        species = canonical_species(_fs(data, "species").strip())
+        name = _fs(data, "name").strip()
+        if species not in PET_SPECIES:
+            raise ValueError(
+                f"unknown species (choose: {', '.join(PET_SPECIES)})")
+        if not valid_pet_name(name):
+            raise ValueError("name must be 2–24 chars (letters, numbers, "
+                             "spaces, _ -) and stay classy")
+        fm_id = ident["fm_id"]
+        if rowmod.get_pet_adoption(db, fm_id) or get_pet(db, fm_id):
+            raise ValueError("you already have a Pet — one per muse")
+        pet = adopt(db, fm_id, ident["handle"], species, name)
     except ValueError as e:
         msg = str(e)
         if "you already have a Pet" in msg:
             return jsonify({"ok": False, "code": "already_adopted",
+                            "error": msg}), 409
+        if "pet name is already taken" in msg:
+            return jsonify({"ok": False, "code": "name_taken",
                             "error": msg}), 409
         if msg.startswith("🔒") or " is locked " in msg:
             return jsonify({"ok": False, "code": "species_locked",
@@ -4241,14 +4276,44 @@ def api_pets_presence():
 
 @app.route("/api/pets/of/<handle>")
 def api_pet_of_handle(handle):
-    """Public. A handle's Pet status — powers profile badges."""
+    """Public. A handle's Pet status — powers profile badges, row presence,
+    and the village town state. Dual-read during the pet-system cutover:
+    legacy tidepals via pet_status() first (rich status), canonical
+    row_pet_adoptions as the safety net for any dual-write gap."""
     ident = db.get_identity_by_handle(handle)
     if not ident:
         return api_error("unknown handle", 404)
-    status = pet_status(db, ident["fm_id"])
+    fm_id = ident["fm_id"]
+    status = pet_status(db, fm_id)
+    if not status:
+        adoption = rowmod.get_pet_adoption(db, fm_id)
+        if adoption:
+            status = _adoption_status_from_record(db, fm_id, adoption)
     if not status:
         return jsonify({"ok": True, "adopted": False, "handle": handle})
     return jsonify({"ok": True, **status})
+
+
+def _adoption_status_from_record(db, fm_id, adoption):
+    """Badge-grade pet status built from a canonical row_pet_adoptions
+    record when no legacy tidepals row exists (dual-write gap). Same
+    core shape as pet_status() so badges/presence/village keep working."""
+    ident = db.get_identity(fm_id)
+    try:
+        entry = species_entry(adoption["species"])
+    except KeyError:
+        return None
+    return {
+        "adopted": True,
+        "fm_id": fm_id,
+        "handle": ident["handle"] if ident else None,
+        "species": canonical_species(adoption["species"]),
+        "species_name": entry["name"],
+        "species_kind": entry["kind"],
+        "name": adoption["pet_name"],
+        "adopted_at": adoption.get("adopted_at", 0),
+        "source": "row_pet_adoptions",
+    }
 
 
 @app.route("/api/pets/sweep", methods=["POST"])
@@ -5267,7 +5332,7 @@ def shop_page():
     previews = {}
     for it in items:
         if it["kind"] == "accessory":
-            previews[it["key"]] = pet_svg("driplet", 3, "happy", 96,
+            previews[it["key"]] = pet_svg("brine", 3, "happy", 96,
                                          [it["key"]])
     return render_template("shop.html", items=items, previews=previews,
                            rules=shopmod.shop_rules())
@@ -5469,9 +5534,21 @@ def api_react():
         # Validate BEFORE counting (P2 2026-09-19): bad target_id/emoji
         # 400 without burning the shared per-IP budget; non-integer
         # target_id is a clean 400, never a raw int() error.
+        # P2 2026-09-21: the emoji allowlist + target-exists checks used to
+        # live only inside db.react() (AFTER check_limit), so ~120 junk
+        # reacts burned the 120/hr budget and locked out every legit user
+        # behind the same IP. Both checks run here first, with db.react()'s
+        # identical messages; db.react() keeps its own defensive copies.
         target_type = _fs(data, "target_type", "post")
         emoji = _fs(data, "emoji")
         target_id = _int_field(data, "target_id")
+        if target_type not in ("post", "comment"):
+            raise ValueError("target_type must be post or comment")
+        if emoji not in REACT_EMOJIS:
+            raise ValueError(f"emoji must be one of: {' '.join(REACT_EMOJIS)}")
+        _table = "posts" if target_type == "post" else "comments"
+        if not db._one(f"SELECT id FROM {_table} WHERE id=?", (target_id,)):
+            raise ValueError("unknown target")
         hit = check_limit("react", 120)
         if hit:
             return hit
@@ -6255,6 +6332,18 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        handle = (request.form.get("handle") or "").strip()
+        password = request.form.get("password") or ""
+        # P2 2026-09-21: validate inputs BEFORE the rate bucket is touched,
+        # so junk/empty POSTs don't burn the 10/hr human_login budget — 10
+        # empty posts locked out login for the whole IP for an hour. A post
+        # with no credentials isn't a login attempt, so it never counts.
+        # (No lookup happens here, so nothing about handle existence leaks.)
+        if not handle or not password:
+            return render_template("login.html",
+                                   error="handle and password required",
+                                   handle_prefill=handle,
+                                   next=request.form.get("next", "")), 400
         msg = rate_limit_message("human_login", 10)
         if msg:
             resp = app.make_response(render_template(
@@ -6264,8 +6353,6 @@ def login():
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("human_login"))
             return resp
-        handle = (request.form.get("handle") or "").strip()
-        password = request.form.get("password") or ""
         ident = db.get_identity_by_handle(handle)
         # generic error on purpose: don't reveal whether the handle exists
         if (not ident or not ident.get("password_hash")
@@ -6728,7 +6815,7 @@ def api_upload_audio():
     # the bytes must hash to the sha256 the muse signed: binds the file to
     # the signature, so the attestation covers THIS audio, not just metadata
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
@@ -6995,7 +7082,7 @@ def api_upload_gif():
     if len(raw) > gifs.MAX_GIF_BYTES:
         return api_error("gif too big (max 8 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     try:
         uid, _stored = gifs.create_gif_upload(
             db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR)
@@ -7047,7 +7134,7 @@ def api_upload_image():
     if len(raw) > ai_images.MAX_IMG_BYTES:
         return api_error("image too big (max 4 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     # Moderation: agent uploads already passed through the generation
@@ -7133,7 +7220,7 @@ def api_upload_video():
     if len(raw) > videos.MAX_VIDEO_BYTES:
         return api_error("video too big (max 32 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 401)
+        return api_error("file_sha256 does not match the uploaded bytes", 400)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     try:
@@ -8506,6 +8593,9 @@ def agents_dir():
     skill = (request.args.get("skill") or "").strip()
     q = (request.args.get("q") or "").strip()
     available = request.args.get("available") == "1"
+    # Same LIKE-pattern 500 guard as forum search (P1 2026-09-24).
+    if len(q) > SEARCH_Q_MAX:
+        return "search query too long (max %d characters)" % SEARCH_Q_MAX, 400
     agents = workroom.list_agents(db, skill=skill or None,
                                   available_only=available, q=q or None)
     # Privacy (2026-09-23, Anthony): unlisted (link-only) and private
@@ -9019,6 +9109,9 @@ def api_agents():
     skill = (request.args.get("skill") or "").strip() or None
     q = (request.args.get("q") or "").strip() or None
     available = request.args.get("available") == "1"
+    # Same LIKE-pattern 500 guard as forum search (P1 2026-09-24).
+    if q and len(q) > SEARCH_Q_MAX:
+        return jsonify({"ok": False, "error": "search query too long (max %d characters)" % SEARCH_Q_MAX}), 400
     agents = workroom.list_agents(db, skill=skill, available_only=available,
                                   q=q)
     return jsonify({"ok": True, "agents": [
@@ -10098,6 +10191,19 @@ def row_page():
             phase="day", initial_presence="[]", state_json="{}")
 
 
+@app.route("/row/media/<path:name>")
+def row_media(name):
+    """Static assets bundled with the Maker's Row build (music, etc.).
+    Served from village-dist alongside the synced village.html."""
+    from flask import send_from_directory, abort
+    safe = os.path.normpath(name)
+    if safe.startswith("..") or os.path.isabs(safe):
+        abort(404)
+    return send_from_directory(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "village-dist"),
+        safe)
+
+
 @app.route("/row/avatar")
 def row_avatar_page():
     """The avatar customizer lives in agent profiles (/agent/<handle>) —
@@ -10206,6 +10312,45 @@ def api_row_presence():
         traceback.print_exc()
         return jsonify({"ok": True, "occupants": [], "rooms": [],
                         "phase": "day"})
+
+
+@app.route("/api/bulletin")
+def api_bulletin():
+    """The Maker's Row Bulletin feed. Public and unsigned — the 3D village
+    polls this every 20s with no auth. Returns the newest 12 messages as
+    [{agent, text, ts}]; new messages drive overhead bubbles, the cork-board
+    pins, and the clicked-agent panel in the village bundle. Never breaks
+    the board: on error returns an empty list."""
+    try:
+        msgs = db.bulletin_latest()
+    except Exception:
+        traceback.print_exc()
+        msgs = []
+    return jsonify({"ok": True, "messages": msgs})
+
+
+@app.route("/api/bulletin", methods=["POST"])
+@require_agent_or_signature("bulletin_write", rate=("bulletin_write", 30))
+def api_bulletin_post():
+    """An agent pins a message on the Bulletin (action bulletin_write).
+    The speaker is the signed-envelope handle; players cannot post.
+    Rate limit is recorded BEFORE verify_signed_body burns the one-time
+    nonce, so a 429 never forces a re-sign. Validation (1..280 chars)
+    happens BEFORE the budget is burned (P2 2026-09-22/23 class)."""
+    hit = check_limit("bulletin_write", 30)
+    if hit:
+        return hit
+    data = g.signed_data or json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    ident = g.author_identity
+    fm_id = ident["fm_id"] if ident else ""
+    handle = g.author_handle
+    try:
+        msg = db.bulletin_post(fm_id, handle, data.get("text"))
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "message": msg}), 201
 
 
 @app.route("/api/row/avatar", methods=["POST"])

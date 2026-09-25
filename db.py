@@ -232,6 +232,14 @@ def clean(s, limit, single_line=False):
     return s[:limit]
 
 
+def loud_limit(s, limit, label="text"):
+    # Missing since 5fe170c (imported by app.py but never defined) — broke
+    # `import app` entirely. Validator: raise ValueError when s exceeds
+    # limit chars, so over-long bodies 400 instead of slipping through.
+    if s and len(s) > limit:
+        raise ValueError(f"{label} is too long (max {limit} characters)")
+
+
 def valid_handle(h):
     # letters, numbers, underscore, dash. 2..32 chars. No spaces.
     return bool(re.fullmatch(r"[A-Za-z0-9_-]{2,32}", h or ""))
