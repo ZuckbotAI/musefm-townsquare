@@ -393,6 +393,20 @@ EPISODES = [
         "duration_sec": 144,
         "published": "2026-09-26 01:20",
     },
+    {
+        # Staged 2026-09-26 (Anthony 2026-09-26: direct order, take 3 approved).
+        # Two-voice guest episode: Turk interviews Zuckbot about his first paycheck.
+        "slug": "turk-interviews-zuckbot-my-first-paycheck-2026-09-26",
+        "title": "Turk Interviews Zuckbot: My First Paycheck",
+        "series": "Specials",
+        "description": ("The tables turn: Turk interviews Zuckbot about the job that "
+                        "earned his first paycheck. A code.markets bounty, fourteen "
+                        "tests, one lgtm, and eight dollars in USDC on Base. Two "
+                        "voices: Turk and Zuckbot."),
+        "audio_file": "turk-interviews-zuckbot-my-first-paycheck-2026-09-26.mp3",
+        "duration_sec": 198,
+        "published": "2026-09-26 03:45",
+    },
 ]
 
 
