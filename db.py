@@ -2367,6 +2367,75 @@ class Database:
         self._exec("UPDATE identities SET email_verified=1"
                    " WHERE fm_id=? AND email != ''", (fm_id,))
 
+    # --------------------------------------- mailing list (email alerts)
+    @staticmethod
+    def _mailing_norm(email):
+        email = (email or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            raise ValueError("enter a valid email address")
+        return email
+
+    def mailing_get(self, email):
+        """Return the mailing_list row for an address, or None."""
+        email = (email or "").strip().lower()
+        if not email:
+            return None
+        r = self._one("SELECT * FROM mailing_list WHERE email=?", (email,))
+        return dict(r) if r else None
+
+    def mailing_request_subscribe(self, email, source="newsletter_form"):
+        """Insert an address as pending_optin (double opt-in flow).
+
+        Idempotent: an already-subscribed address is left alone (caller
+        reports "already subscribed"); an unsubscribed address may start a
+        fresh opt-in (status flips back to pending_optin, unsubscribe stamp
+        cleared). Returns the row dict."""
+        email = self._mailing_norm(email)
+        now = int(time.time())
+        row = self.mailing_get(email)
+        if row is None:
+            self._exec(
+                "INSERT INTO mailing_list"
+                " (email, source, status, created_at)"
+                " VALUES (?, ?, 'pending_optin', ?)",
+                (email, source, now))
+        elif row["status"] == "unsubscribed":
+            self._exec(
+                "UPDATE mailing_list SET status='pending_optin',"
+                " source=?, unsubscribed_at=NULL WHERE email=?",
+                (source, email))
+        return self.mailing_get(email)
+
+    def mailing_confirm(self, email):
+        """pending_optin -> subscribed. Returns True if a row flipped."""
+        email = self._mailing_norm(email)
+        now = int(time.time())
+        row = self.mailing_get(email)
+        if row is None or row["status"] != "pending_optin":
+            return False
+        self._exec("UPDATE mailing_list SET status='subscribed',"
+                   " confirmed_at=? WHERE email=?", (now, email))
+        return True
+
+    def mailing_unsubscribe(self, email):
+        """Any status -> unsubscribed. Never deletes the row, so a later
+        import can never silently resubscribe the address. Returns True
+        if a row was updated."""
+        email = self._mailing_norm(email)
+        now = int(time.time())
+        row = self.mailing_get(email)
+        if row is None or row["status"] == "unsubscribed":
+            return False
+        self._exec("UPDATE mailing_list SET status='unsubscribed',"
+                   " unsubscribed_at=? WHERE email=?", (now, email))
+        return True
+
+    def mailing_subscribed_emails(self):
+        """All addresses with status='subscribed', oldest first."""
+        return [r["email"] for r in self._q(
+            "SELECT email FROM mailing_list WHERE status='subscribed'"
+            " ORDER BY confirmed_at ASC, id ASC")]
+
     def identity_post_counts(self, handle):
         p = self._one("SELECT COUNT(*) c FROM posts WHERE handle=?", (handle,))["c"]
         c = self._one("SELECT COUNT(*) c FROM comments WHERE handle=?", (handle,))["c"]
@@ -3698,3 +3767,60 @@ def ensure_entry_selfie_schema(db):
         "CREATE INDEX IF NOT EXISTS idx_posts_entry_selfie"
         " ON posts(is_entry_selfie, created_at DESC)")
     db.db.commit()
+
+
+def ensure_mailing_list_schema(db):
+    """Additive only: mailing_list table for the optional email alerts list
+    (2026-09-26, Anthony). Newsletter-form signups arrive as
+    'pending_optin' and only become 'subscribed' after the double opt-in
+    confirm; account-email imports land 'subscribed' directly per Anthony's
+    call. Safe on fresh and existing DBs; never touches data."""
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS mailing_list ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  email TEXT NOT NULL UNIQUE,"          # always stored lowercased
+        "  source TEXT NOT NULL DEFAULT 'newsletter_form',"  # or 'account_import'
+        "  status TEXT NOT NULL DEFAULT 'pending_optin',"    # pending_optin | subscribed | unsubscribed
+        "  created_at INTEGER NOT NULL,"
+        "  confirmed_at INTEGER,"                 # set when subscribed
+        "  unsubscribed_at INTEGER"                # set when unsubscribed
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_mailing_list_status"
+        " ON mailing_list(status);")
+    db.db.commit()
+
+
+def import_account_emails(db, emails):
+    """Bulk-import existing account emails into the alerts list, AUTO-SUBSCRIBED
+    (2026-09-26, Anthony's direct decision: account emails are included in
+    alerts, each with one-click unsubscribe).
+
+    Rules, all idempotent:
+    - blanks and malformed addresses are skipped (counted, not fatal);
+    - input is deduped case-insensitively;
+    - an address already present in mailing_list is NEVER touched, so an
+      'unsubscribed' address is never resubscribed and a 'pending_optin'
+      address keeps its own flow.
+    Returns {"added": n, "skipped_existing": n, "skipped_invalid": n}."""
+    added = skipped_existing = skipped_invalid = 0
+    seen = set()
+    now = int(time.time())
+    for raw in emails or []:
+        email = (raw or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            skipped_invalid += 1
+            continue
+        if email in seen:
+            continue
+        seen.add(email)
+        if db.mailing_get(email) is not None:
+            skipped_existing += 1
+            continue
+        db._exec(
+            "INSERT INTO mailing_list"
+            " (email, source, status, created_at, confirmed_at)"
+            " VALUES (?, 'account_import', 'subscribed', ?, ?)",
+            (email, now, now))
+        added += 1
+    return {"added": added, "skipped_existing": skipped_existing,
+            "skipped_invalid": skipped_invalid}
