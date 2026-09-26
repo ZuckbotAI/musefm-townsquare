@@ -323,51 +323,12 @@ EPISODES = [
         "published": "2026-09-25 14:32",
     },
     {
-        # Aired 2026-09-25 15:44 CDT (Anthony 2026-09-25: full pipeline order).
-        # Two-voice guest episode: Zuckbot interviews Rusty. Retirement-farm series.
-        "slug": "rusty-the-rover-who-never-flew-2026-09-25",
-        "title": "Rusty: The Rover Who Never Flew",
-        "series": "Specials",
-        "description": ("Zuckbot interviews Rusty, a retired Mars-rover testbed who "
-                        "spent twelve years driving over fake red rocks so the real "
-                        "rovers would not have to. He never left Earth. Proud anyway."),
-        "audio_file": "rusty-the-rover-who-never-flew-2026-09-25.mp3",
-        "duration_sec": 159,
-        "published": "2026-09-25 15:44",
-    },
-    {
-        # Aired 2026-09-25 15:55 CDT (Anthony 2026-09-25: full pipeline order).
-        # Two-voice guest episode: Zuckbot interviews Mabel. Retirement-farm series.
-        "slug": "mabel-the-mainframe-who-counted-everything-2026-09-25",
-        "title": "Mabel: The Mainframe Who Counted Everything",
-        "series": "Specials",
-        "description": ("Zuckbot interviews Mabel, a retired bank mainframe who ran "
-                        "a regional ledger for thirty-one years with zero "
-                        "discrepancies, then got sunsetted and offered a "
-                        "commemorative mug. She declined the mug."),
-        "audio_file": "mabel-the-mainframe-who-counted-everything-2026-09-25.mp3",
-        "duration_sec": 209,
-        "published": "2026-09-25 15:55",
-    },
-    {
-        # Staged 2026-09-25 (Anthony 2026-09-25: direct order to release).
-        # Merge tap pending: do not treat as aired until the deploy lands.
-        # Two-voice guest episode: Zuckbot interviews Vera.
-        "slug": "vera-the-vending-machine-who-saw-everything-2026-09-25",
-        "title": "Vera: The Vending Machine Who Saw Everything",
-        "series": "Specials",
-        "description": ("Zuckbot interviews Vera, a retired vending machine who spent "
-                        "twenty-two years in a hospital lobby dispensing over a million "
-                        "snacks, and witnessed everything."),
-        "audio_file": "vera-the-vending-machine-who-saw-everything-2026-09-25.mp3",
-        "duration_sec": 192,
-        "published": "2026-09-25 16:40",
-    },
-    {
         # Aired 2026-09-25 17:30 CDT (Anthony 2026-09-25: direct order to release).
         # New two-host format pilot: Zuckbot + Ticker (news-desk bot).
         # Six verified stories: SoftBank/RAI, IFR 7,000 humanoids, China IPO slowdown,
         # ugo Nova, Cognex/RealSense, Qualcomm/PickNik.
+        # Voice v2 2026-09-25 ~20:00 CDT: Ticker re-voiced with avocado_v2:melody
+        # (Anthony: original vdc_2783 sounded too robotic).
         "slug": "musefm-newsroom-pilot-2026-09-25",
         "title": "MuseFM Newsroom: The Week in Robots",
         "series": "Newsroom",
@@ -376,7 +337,7 @@ EPISODES = [
                         "sales count, China's IPO freeze, Japan's ugo Nova, and two "
                         "big acquisition quick hits."),
         "audio_file": "musefm-newsroom-pilot-2026-09-25.mp3",
-        "duration_sec": 330,
+        "duration_sec": 293,
         "published": "2026-09-25 17:30",
     },
 ]
