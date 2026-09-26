@@ -3223,3 +3223,8 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   .rz-forum-post .post-title { font-size: 17px; }
   .rz-forum-post .post-actions { gap: 8px; }
 }
+
+/* episodes hero (2026-09-26, Anthony): "Episodes" centered at top, orb
+   centered below, tagline centered under the orb. */
+.ep-hero { text-align: center; }
+.ep-hero p { margin-left: auto; margin-right: auto; }
