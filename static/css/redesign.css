@@ -979,6 +979,15 @@ details[open].rxn-rollout > .sig-tray {
 .post-detail-votes .cvote-btn { width: 100%; justify-content: center; padding: 8px 10px; }
 .post-detail-votes .cvote-score { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--rz-ink); text-align: center; }
 
+/* Simple page title (2026-09-26, Anthony): no banner bar, just the
+   community name at the top. */
+.page-title { margin: 4px 2px 14px; }
+.page-title h1 {
+  margin: 0; font-size: 30px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--rz-ink);
+}
+[data-theme="dark"] .page-title h1 { color: #eef4ff; }
+
 /* topbar search goes liquid glass */
 .topbar-search {
   background: linear-gradient(135deg, rgba(255,255,255,.78), rgba(255,255,255,.4));
@@ -1920,15 +1929,20 @@ body::before {
               0 8px 22px rgba(27, 58, 110, 0.12);
 }
 [data-theme="dark"] .topbar-search {
-  background: rgba(20, 33, 58, 0.55);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
-              inset 0 -1px 0 rgba(0, 0, 0, 0.25),
-              0 6px 18px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(135deg, rgba(40,60,98,.72), rgba(14,23,42,.58) 58%, rgba(22,36,64,.64));
+  border-color: rgba(148,197,255,.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14),
+              inset 0 -1px 0 rgba(0,0,0,.35),
+              0 8px 24px rgba(0,0,0,.45),
+              0 0 22px rgba(56,189,248,.07);
 }
 [data-theme="dark"] .topbar-search:hover {
-  background: rgba(20, 33, 58, 0.68);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: linear-gradient(135deg, rgba(48,70,110,.78), rgba(17,28,50,.64) 58%, rgba(26,42,72,.68));
+  border-color: rgba(148,197,255,.32);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18),
+              inset 0 -1px 0 rgba(0,0,0,.35),
+              0 10px 28px rgba(0,0,0,.5),
+              0 0 26px rgba(56,189,248,.1);
 }
 /* Ctrl+K chip: precisely centered, glassy, dark-aware */
 .topbar-search kbd {
@@ -1948,7 +1962,16 @@ body::before {
               0 0 0 3px rgba(47, 123, 255, 0.18),
               0 8px 22px rgba(27, 58, 110, 0.1);
 }
-[data-theme="dark"] .topbar-search:focus-within { background: rgba(12, 21, 38, 0.96); }
+[data-theme="dark"] .topbar-search:focus-within {
+  background: linear-gradient(135deg, rgba(32,48,82,.94), rgba(12,20,36,.96));
+  border-color: rgba(94,168,255,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16),
+              0 0 0 3px rgba(56,150,255,.22),
+              0 0 30px rgba(56,150,255,.14),
+              0 10px 28px rgba(0,0,0,.5);
+}
+[data-theme="dark"] .topbar-search svg { opacity: .8; color: #a8ccff; }
+[data-theme="dark"] .topbar-search input::placeholder { color: rgba(196,214,245,.55); }
 .topbar-right { margin-left: 0; flex: none; display: flex; align-items: center; gap: 8px; }
 /* auth pair: identical geometry, no clipping */
 .auth-link {
