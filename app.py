@@ -65,6 +65,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
                 ensure_sso_schema, ensure_entry_selfie_schema,
+                ensure_mailing_list_schema,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -72,6 +73,7 @@ import gifs
 import ai_images
 import videos
 import auth_email
+import mailing
 import workroom
 import swarm
 import row as rowmod
@@ -277,6 +279,7 @@ def init_db(path):
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
+    ensure_mailing_list_schema(_db)   # mailing_list table (email alerts)
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
@@ -1361,6 +1364,127 @@ def api_zuckbot_says_random():
 def privacy():
     """Privacy policy: what MuseFM collects, uses, and never collects."""
     return render_template("privacy.html")
+
+
+# ----------------------------------------------- email alerts (mailing list)
+# Opt-in alerts list. New form signups are double opt-in (confirm email
+# with a 7-day signed link). Existing account emails were included per
+# Anthony's 2026-09-26 decision; every alert carries a signed one-click
+# unsubscribe link. Nothing here auto-sends: alerts go out only through
+# the admin route below, called explicitly.
+@app.route("/newsletter")
+def newsletter():
+    """Email alerts signup page."""
+    return render_template("newsletter.html")
+
+
+@app.route("/newsletter", methods=["POST"])
+def newsletter_subscribe():
+    email = (request.form.get("email") or "").strip()
+    # P2 2026-09-20 03:35 pattern: validate BEFORE the rate bucket is
+    # touched, so 400s never burn the budget.
+    error = None
+    if not email or len(email) > MAX_EMAIL_LEN or not EMAIL_RE.fullmatch(email):
+        error = "enter a valid email address"
+    if error is not None:
+        return render_template("newsletter.html", error=error,
+                               email_prefill=email), 400
+    msg = rate_limit_message("newsletter_sub", 10)
+    if msg:
+        resp = app.make_response(render_template(
+            "newsletter.html", error=msg, email_prefill=email))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("newsletter_sub"))
+        return resp
+    row = db.mailing_request_subscribe(email, source="newsletter_form")
+    if row["status"] == "subscribed":
+        return render_template(
+            "newsletter_done.html", title="Already on the list",
+            message="That address already gets MuseFM alerts. Nothing to do.")
+    # pending_optin (brand new, or rejoining after unsubscribing): send
+    # the double opt-in confirmation. A send failure never blocks the
+    # page; the address stays pending and the user can retry.
+    token = auth_email.make_newsletter_token(app.secret_key, email)
+    confirm_url = url_for("newsletter_confirm", token=token, _external=True)
+    ok, err = auth_email.send_simple_email(
+        email, "Confirm your MuseFM alerts",
+        mailing.confirm_email_text(confirm_url),
+        mailing.confirm_email_html(confirm_url))
+    if not ok:
+        app.logger.warning("newsletter confirm email to %s failed: %s",
+                           email, err)
+    return render_template(
+        "newsletter_done.html", title="Check your inbox",
+        message=("We sent a confirmation link to %s. Click it within "
+                 "7 days and you are on the list.") % email)
+
+
+@app.route("/newsletter/confirm")
+def newsletter_confirm():
+    token = request.args.get("token") or ""
+    email = auth_email.read_newsletter_token(app.secret_key, token)
+    if not email:
+        return render_template(
+            "newsletter_done.html", title="Link expired",
+            message=("That confirmation link is invalid or older than 7 "
+                     "days. Sign up again and we will send a fresh one.")), 400
+    if db.mailing_confirm(email):
+        return render_template(
+            "newsletter_done.html", title="You are in",
+            message=("%s is now on the MuseFM alerts list. Every alert "
+                     "carries a one-click unsubscribe link.") % email)
+    row = db.mailing_get(email)
+    if row and row["status"] == "subscribed":
+        return render_template(
+            "newsletter_done.html", title="Already confirmed",
+            message="That address is already on the MuseFM alerts list.")
+    return render_template(
+        "newsletter_done.html", title="Nothing to confirm",
+        message=("That address is not waiting for confirmation. Sign up "
+                 "again if you want alerts.")), 400
+
+
+@app.route("/newsletter/unsubscribe")
+def newsletter_unsubscribe():
+    token = request.args.get("token") or ""
+    email = auth_email.read_unsubscribe_token(app.secret_key, token)
+    if not email:
+        return render_template(
+            "newsletter_done.html", title="Bad link",
+            message=("That unsubscribe link is not valid. Every MuseFM "
+                     "alert email carries a working one; use the link in "
+                     "the most recent alert.")), 400
+    db.mailing_unsubscribe(email)
+    return render_template(
+        "newsletter_done.html", title="Unsubscribed",
+        message=("%s is off the MuseFM alerts list. You will not hear "
+                 "from us again unless you rejoin.") % email)
+
+
+@app.route("/api/admin/mailing/send", methods=["POST"])
+@require_agent
+def api_admin_mailing_send():
+    """Send an alert to the whole subscribed list. Explicit calls only:
+    nothing in the app triggers this on its own. Body:
+    {"subject": str, "body_text": str}."""
+    hit = check_limit("mailing_send", 5)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    subject = (data.get("subject") or "").strip()
+    body_text = (data.get("body_text") or "").strip()
+    if not subject or not body_text:
+        return api_error("subject and body_text are required")
+    if len(subject) > 200 or len(body_text) > 20000:
+        return api_error("subject max 200 chars, body_text max 20000 chars")
+    base_url = request.host_url.rstrip("/")
+    result = mailing.send_alert(db, subject, body_text, base_url,
+                               app.secret_key)
+    return jsonify({"ok": True, "sent": result["sent"],
+                    "failed": [{"email": e, "reason": r}
+                               for e, r in result["failed"]]})
 
 
 @app.route("/terms")

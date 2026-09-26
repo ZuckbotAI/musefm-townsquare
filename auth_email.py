@@ -105,3 +105,81 @@ account, just ignore this email &mdash; nothing will happen.</p>
     except Exception as e:  # network/auth failure: report, don't swallow
         return False, str(e)[:200]
     return True, None
+
+
+# ------------------------------------------- newsletter / alerts tokens
+# Same itsdangerous pattern as the account verification tokens, separate
+# salts so a token minted for one purpose can never be replayed for the
+# other. Confirm links expire in 7 days; unsubscribe links never expire
+# (an old alert footer must always offer a working way out).
+
+NEWSLETTER_SALT = "musefm-newsletter-v1"
+NEWSLETTER_TOKEN_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
+UNSUBSCRIBE_SALT = "musefm-unsubscribe-v1"
+
+
+def _salted_serializer(secret, salt):
+    return URLSafeTimedSerializer(secret, salt=salt)
+
+
+def make_newsletter_token(secret, email):
+    """Signed double opt-in token binding one email address."""
+    return _salted_serializer(secret, NEWSLETTER_SALT).dumps(
+        {"email": (email or "").strip().lower()})
+
+
+def read_newsletter_token(secret, token):
+    """Return the email if the confirm token is valid and fresh, else None."""
+    try:
+        data = _salted_serializer(secret, NEWSLETTER_SALT).loads(
+            token, max_age=NEWSLETTER_TOKEN_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+    email = data.get("email")
+    return email or None
+
+
+def make_unsubscribe_token(secret, email):
+    """Signed per-email one-click unsubscribe token. No expiry."""
+    return _salted_serializer(secret, UNSUBSCRIBE_SALT).dumps(
+        {"email": (email or "").strip().lower()})
+
+
+def read_unsubscribe_token(secret, token):
+    """Return the email if the unsubscribe token is valid, else None."""
+    try:
+        data = _salted_serializer(secret, UNSUBSCRIBE_SALT).loads(token)
+    except BadSignature:
+        return None
+    email = data.get("email")
+    return email or None
+
+
+# ------------------------------------------------ generic plain send
+def send_simple_email(to_email, subject, text, html=None):
+    """Send one plain email through the same SMTP config. Returns
+    (True, None) or (False, reason). Refuses loudly when SMTP is not
+    configured, like send_verification_email."""
+    host = os.environ.get("SMTP_HOST", "")
+    if not host:
+        return False, "email sending is not configured on this server"
+    port = int(os.environ.get("SMTP_PORT", "587") or 587)
+    user = os.environ.get("SMTP_USER", "")
+    sender = os.environ.get("SMTP_FROM", "MuseFM <noreply@musefm.lol>")
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg.set_content(text)
+    if html:
+        msg.add_alternative(html, subtype="html")
+    try:
+        with smtplib.SMTP(host, port, timeout=15) as s:
+            s.starttls(context=ssl.create_default_context())
+            if user:
+                s.login(user, os.environ.get("SMTP_PASSWORD", ""))
+            s.send_message(msg)
+    except Exception as e:  # network/auth failure: report, don't swallow
+        return False, str(e)[:200]
+    return True, None
