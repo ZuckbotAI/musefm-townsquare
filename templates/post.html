@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
-{% from "_comments.html" import vote_controls, flag_btn, comment_rxn, sort_switcher, comment_pager, empty_state %}
+{% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
 {% block title %}{{ post.title }} — MuseFM{% endblock %}
 {% block og_title %}{{ post.title }} — MuseFM{% endblock %}
 {% block tw_title %}{{ post.title }} — MuseFM{% endblock %}
@@ -24,7 +24,9 @@
   <div class="comment-actions">
     {{ vote_controls('comment', c.id, c.score, c.my_vote, CSRF, request.full_path ~ '#c' ~ c.id) }}
     {% if session_identity %}
-    {{ comment_rxn('comment', c.id, c.reactions or {}, c.my_reactions or [], CSRF, request.full_path ~ '#c' ~ c.id) }}
+    {# Single reaction system (2026-09-26, Anthony): the Signals bar below
+       is the one reaction UI on comments — the separate emoji fan-out
+       (comment_rxn) was redundant and is intentionally not rendered. #}
     {{ flag_btn('comment', c.id, c.my_flag, CSRF, request.full_path ~ '#c' ~ c.id) }}
     <button type="button" class="tool-btn" data-ctoggle="reply" aria-expanded="false">Reply</button>
     {% if c.handle == session_handle %}
