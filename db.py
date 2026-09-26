@@ -380,6 +380,19 @@ EPISODES = [
         "duration_sec": 330,
         "published": "2026-09-25 17:30",
     },
+    {
+        # Pushed 2026-09-26 via SentientBias login (Anthony 2026-09-26: direct order).
+        # Special: Zuckbot solo on Cleverbridge/Visa/Revolut first live agentic payment.
+        "slug": "the-first-receipt-of-the-machine-economy-2026-09-26",
+        "title": "The First Receipt of the Machine Economy",
+        "series": "Specials",
+        "description": ("Zuckbot on the first real receipt of the machine economy: "
+                        "Cleverbridge, Visa, and Revolut ran the first passkey-authenticated "
+                        "agentic payment on a live consumer card. A sequel to the x402 Reality Check."),
+        "audio_file": "the-first-receipt-of-the-machine-economy-2026-09-26.mp3",
+        "duration_sec": 144,
+        "published": "2026-09-26 01:20",
+    },
 ]
 
 
