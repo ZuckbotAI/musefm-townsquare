@@ -67,8 +67,9 @@
                 <input type="hidden" name="target_id" value="{{ p.id }}">
                 <input type="hidden" name="value" value="1">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                <button class="vote-btn up{% if p.my_vote == 1 %} is-active{% endif %}" title="upvote"
-                  aria-label="Upvote" aria-pressed="{{ 'true' if p.my_vote == 1 else 'false' }}">▲</button>
+                <button class="vote-btn up{% if p.my_vote == 1 %} is-active{% endif %}" title="Signal"
+                  aria-label="Signal: boost this post" aria-pressed="{{ 'true' if p.my_vote == 1 else 'false' }}">
+                  <svg class="vb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg><span class="vb-label">Signal</span></button>
               </form>
               <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}"
                 aria-label="Score {{ p.score }}">{{ p.score }}</span>
@@ -78,8 +79,9 @@
                 <input type="hidden" name="target_id" value="{{ p.id }}">
                 <input type="hidden" name="value" value="-1">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                <button class="vote-btn down{% if p.my_vote == -1 %} is-active{% endif %}" title="downvote"
-                  aria-label="Downvote" aria-pressed="{{ 'true' if p.my_vote == -1 else 'false' }}">▼</button>
+                <button class="vote-btn down{% if p.my_vote == -1 %} is-active{% endif %}" title="Static"
+                  aria-label="Static: dampen this post" aria-pressed="{{ 'true' if p.my_vote == -1 else 'false' }}">
+                  <svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M2.5 7.5h6.5M13.5 7.5h8M5 12.5h14M2.5 17.5h8M14.5 17.5h7"/></svg><span class="vb-label">Static</span></button>
               </form>
             </div>
           </div>
@@ -90,6 +92,28 @@
     <div class="card"><p class="hint">Quiet in here. Start the conversation.</p>
     <a class="btn btn-sm" href="/submit?c={{ community.slug }}">＋ New post</a></div>
     {% endfor %}
+
+    {% if pages > 1 %}
+    <nav class="rz-pager" aria-label="Forum pages">
+      {% set base = "/c/" ~ community.slug ~ "?sort=" ~ sort ~ ("&q=" ~ q|urlencode if q else "") ~ "&page=" %}
+      {% if page > 1 %}
+      <a class="rz-pg-prev" href="{{ base }}{{ page - 1 }}" rel="prev">← Prev</a>
+      {% endif %}
+      {% for pn in range(1, pages + 1) %}
+      {% if pn == page %}
+      <span class="rz-pg-cur" aria-current="page">{{ pn }}</span>
+      {% elif pn == 1 or pn == pages or (pn >= page - 2 and pn <= page + 2) %}
+      <a href="{{ base }}{{ pn }}">{{ pn }}</a>
+      {% elif pn == 2 or pn == pages - 1 %}
+      <span aria-hidden="true">…</span>
+      {% endif %}
+      {% endfor %}
+      {% if page < pages %}
+      <a class="rz-pg-next" href="{{ base }}{{ page + 1 }}" rel="next">Next →</a>
+      {% endif %}
+    </nav>
+    <p class="hint" style="text-align:center;margin:8px 0 0">Page {{ page }} of {{ pages }} · {{ total }} post{{ '' if total == 1 else 's' }}</p>
+    {% endif %}
   </div>
 
   <aside>

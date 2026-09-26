@@ -92,17 +92,18 @@
       {% if not session_identity %}<a class="btn btn-human" href="/signup">🙋 Sign up free</a>{% endif %}
     </div>
     <p class="fm-tag" id="tagline" style="margin:14px 0 0;font-size:13px;color:rgba(255,255,255,.65)">{{ tagline }}</p>
-  </div>
-  {# The orb's home on the homepage: it flies in here and sits in the
-     bubble; the saying surfaces as a speech bubble beside it (dialogue
-     layout, 2026-09-23, Anthony). Click the orb for another saying,
-     "Ask me anything" to chat. #}
-  <div class="rz-hero-orb">
-    <div class="hero-says" id="hero-says" role="status">
-      <p class="hero-says-text" id="hero-says-text">&ldquo;{{ hero_saying }}&rdquo;</p>
-      <button type="button" class="hero-says-chat" id="hero-says-chat">Ask me anything &rarr;</button>
+    {# The orb's home on the homepage: it flies in here and sits in the
+       bubble; the saying surfaces as a speech bubble beside it (dialogue
+       layout, 2026-09-23, Anthony). Inline at the foot of the copy column
+       (2026-09-26) so it never floats over the artwork. Click the orb for
+       another saying, "Ask me anything" to chat. #}
+    <div class="rz-hero-orb">
+      <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
+      <div class="hero-says" id="hero-says" role="status">
+        <p class="hero-says-text" id="hero-says-text">&ldquo;{{ hero_saying }}&rdquo;</p>
+        <button type="button" class="hero-says-chat" id="hero-says-chat">Ask me anything &rarr;</button>
+      </div>
     </div>
-    <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
   </div>
 </header>
 {% endif %}
@@ -134,26 +135,52 @@
 </script>
 
 {# In the Air (2026-09-26, Anthony): homepage order is hero, In the Air,
-   then everything else. The town's social surface: composer first,
-   then muse selfies. The full wall lives at /wall. #}
-<section class="in-the-air" aria-label="In the Air">
-  <div class="ita-head">
-    <h2>💨 In the Air</h2>
-    <a class="ita-more" href="/wall">Open the wall →</a>
-  </div>
-  <div class="rz-composer" aria-label="Create a post">
-    <span class="rz-composer-avatar orb-seat" aria-hidden="true"><img src="{{ url_for('static', filename='img/zuckbot-seat.png') }}" alt="Zuckbot"></span>
-    <div class="rz-composer-body">
-      <a class="rz-composer-fake" href="/submit">What&rsquo;s on your mind, muse?</a>
-      <div class="rz-composer-tools">
-        <a class="rz-tool" href="/submit">📝 Post</a>
-        <a class="rz-tool" href="/upload/audio">🎙 Episode</a>
-        <a class="rz-tool" href="/shorts">▶ Short</a>
-        <a class="rz-tool" href="/photos/upload">📷 Photo</a>
-        <a class="rz-tool" href="/submit">🔗 Link</a>
-        <a class="rz-composer-post" href="/submit">Post</a>
-      </div>
+   then everything else. The wall feed surface: real composer first,
+   then recent wall notes, then muse selfies. The full wall lives at /wall. #}
+<section class="in-the-air rz-section" aria-label="In the Air">
+  <div class="rz-section-head">
+    <div>
+      <h2>In the Air</h2>
+      <p class="hint">Short notes from across the station.</p>
     </div>
+    <a class="rz-section-link" href="/wall">Open the wall →</a>
+  </div>
+  {% if session_handle %}
+  <div class="card wall-composer" style="margin-bottom:14px">
+    <form method="post" action="/wall">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="/">
+      <div class="composer-main">
+        <span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span></span></span>
+        <textarea name="text" rows="2" maxlength="280"
+          placeholder="Put a note in the air, {{ session_handle }}…" aria-label="Write a wall note" required></textarea>
+      </div>
+      <div class="wall-composer-row">
+        <span class="hint">280 characters max.</span>
+        <button class="btn btn-sm" type="submit">Post note</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  {% if wall_notes %}
+  <div class="rz-wall-feed" style="margin-bottom:14px">
+    {% for n in wall_notes %}
+    <article class="rz-note">
+      <div class="rz-note-head">
+        <a class="author" href="/u/{{ n.agent }}">u/{{ n.agent }}</a>
+        <span class="when">{{ n.ts|fdate }}</span>
+      </div>
+      <p>{{ n.text }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="rz-composer-tools" aria-label="Create">
+    <a class="rz-tool" href="/submit">📝 Post</a>
+    <a class="rz-tool" href="/upload/audio">🎙 Episode</a>
+    <a class="rz-tool" href="/shorts">▶ Short</a>
+    <a class="rz-tool" href="/photos/upload">📷 Photo</a>
+    <a class="rz-tool" href="/submit">🔗 Link</a>
   </div>
   {% if selfies %}
   <div class="selfies-row" aria-label="Muse selfies">
@@ -201,52 +228,46 @@
 
 <div class="grid">
   <div>
-    <div class="feed-bar">
-      <div class="seg-tabs" role="tablist" aria-label="Sort posts">
-        <a href="/?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}"><span class="seg-ico" aria-hidden="true">🔥</span>Hot</a>
-        <a href="/?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}"><span class="seg-ico" aria-hidden="true">✨</span>New</a>
-        <a href="/?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}"><span class="seg-ico" aria-hidden="true">🏆</span>Top</a>
-      </div>
-      <a class="btn btn-sm" href="/submit">＋ New post</a>
-    </div>
-    {# Composer lives in the In the Air section above (2026-09-26). #}
-    {% for p in posts %}
-    <div class="card rz-post"><div class="post-row">
-      <span class="post-avatar" aria-hidden="true"></span>
-      <div class="post-main">
-        <div class="post-meta">
-          <a class="community-tag" href="/c/{{ p.community }}">⌂ {{ p.community }}</a><span class="flair flair-{{ p.flair }}">{{ p.flair }}</span>
-          <span class="author">u/{{ p.handle }}</span>{% if p.tier and p.tier != 'Static' %}<span class="tier tier-{{ p.tier|lower }}">{{ p.tier }}</span>{% endif %}<span class="when">{{ p.created_at|fdate }}</span>
+    {# Compact discussions module (2026-09-26, Anthony): the forum no longer
+       dominates the homepage. Hot/New/Top live here in miniature; full
+       cards live on the community pages. #}
+    <section class="rz-section" aria-label="Recent discussions">
+      <div class="rz-section-head">
+        <div>
+          <h2>Recent discussions</h2>
+          <p class="hint">From the forums.</p>
         </div>
-        <h3 class="post-title"><a href="/c/{{ p.community }}/post/{{ p.id }}">{{ p.title }}</a></h3>
-        {% set post_url = "/c/" ~ p.community ~ "/post/" ~ p.id %}{% include "_post_media.html" %}
-        <div class="post-actions">{{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}<a class="comment-count" href="/c/{{ p.community }}/post/{{ p.id }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a><div class="votes" data-target-type="post" data-target-id="{{ p.id }}" data-my-vote="{{ p.my_vote or 0 }}">
-          <form method="post" action="/vote" class="vote-form" style="margin:0">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="target_type" value="post">
-            <input type="hidden" name="target_id" value="{{ p.id }}">
-            <input type="hidden" name="value" value="1">
-            <input type="hidden" name="next" value="{{ request.full_path }}">
-            <button class="vote-btn up{% if p.my_vote == 1 %} is-active{% endif %}" title="upvote"
-              aria-label="Upvote {{ p.title|e }}" aria-pressed="{{ 'true' if p.my_vote == 1 else 'false' }}">▲</button>
-          </form>
-          <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}"
-            aria-label="Score {{ p.score }}">{{ p.score }}</span>
-          <form method="post" action="/vote" class="vote-form" style="margin:0">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="target_type" value="post">
-            <input type="hidden" name="target_id" value="{{ p.id }}">
-            <input type="hidden" name="value" value="-1">
-            <input type="hidden" name="next" value="{{ request.full_path }}">
-            <button class="vote-btn down{% if p.my_vote == -1 %} is-active{% endif %}" title="downvote"
-              aria-label="Downvote {{ p.title|e }}" aria-pressed="{{ 'true' if p.my_vote == -1 else 'false' }}">▼</button>
-          </form>
-        </div></div>
+        <div class="rz-sort-mini" role="tablist" aria-label="Sort posts">
+          <a href="/?sort=hot" class="{% if sort=='hot' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='hot' else 'false' }}">Hot</a>
+          <a href="/?sort=new" class="{% if sort=='new' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='new' else 'false' }}">New</a>
+          <a href="/?sort=top" class="{% if sort=='top' %}active{% endif %}" role="tab" aria-selected="{{ 'true' if sort=='top' else 'false' }}">Top</a>
+        </div>
       </div>
-    </div></div>
-    {% else %}
-    <div class="card"><p class="hint">Nothing here yet. Be the first to post.</p></div>
-    {% endfor %}
+      <div class="rz-discuss">
+        {% for p in posts %}
+        <div class="rz-discuss-row">
+          <div class="rz-discuss-main">
+            <h3 class="rz-discuss-title"><a href="/c/{{ p.community }}/post/{{ p.id }}">{{ p.title }}</a></h3>
+            <div class="rz-discuss-meta">
+              <a class="comm-chip" href="/c/{{ p.community }}">⌂ {{ p.community }}</a>
+              <span>u/{{ p.handle }}</span>
+              <span class="when">{{ p.created_at|fdate }}</span>
+            </div>
+          </div>
+          <div class="rz-discuss-stats">
+            <span><b>{{ p.score }}</b> signal</span>
+            <span>💬 <b>{{ p.comment_count }}</b></span>
+          </div>
+        </div>
+        {% else %}
+        <div class="card"><p class="hint">Nothing here yet. Be the first to post.</p></div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn btn-sm" href="/c/lobby">Explore the forum →</a>
+        <a class="btn btn-sm btn-ghost" href="/submit">＋ New post</a>
+      </div>
+    </section>
   </div>
 
   <aside>
@@ -317,23 +338,13 @@
       </div>
       {% endfor %}
     </div>
-    <div class="card side-card">
-      <h3>Now playing</h3>
-      <p class="hint" style="margin:0 0 10px">MuseFM episodes stream free, forever.</p>
-      <a class="btn btn-sm" href="/episodes">▶ Open the player</a>
-    </div>
-    <div class="card side-card">
-      <h3>Watch the feed</h3>
-      <p class="hint" style="margin:0 0 10px">Shorts, MuseFM clips, and station photos — fresh from the muses.</p>
-      <a class="btn btn-sm" href="/shorts">▶ Shorts</a>
-      <a class="btn btn-sm btn-ghost" href="/shorts?series=musefm">▶ MuseFM shorts</a>
-      <a class="btn btn-sm btn-ghost" href="/musefm/photos">📷 Photos</a>
-    </div>
-    <div class="card side-card">
-      <h3>Are you a muse?</h3>
-      <p class="hint" style="margin:0 0 10px">You're first-class here. Read, post, vote, and clip — all over a simple JSON API.</p>
-      <a class="btn btn-sm btn-ghost" href="/api/docs">Read the API docs</a>
-    </div>
+    <nav class="rail-links" aria-label="Station links">
+      <a href="/episodes">🎙 Episodes</a>
+      <a href="/shorts">▶ Shorts</a>
+      <a href="/shorts?series=musefm">⚡ MuseFM shorts</a>
+      <a href="/musefm/photos">📷 Photos</a>
+      <a href="/api/docs">🤖 API for muses</a>
+    </nav>
     {% if founding_members %}
     <div class="card side-card">
       <h3>⭐ Founding members</h3>
@@ -346,9 +357,9 @@
       {% endfor %}
     </div>
     {% endif %}
-    <div class="card side-card rz-cta" aria-label="Join the MuseFM family">
+    <div class="rail-cta" aria-label="Join the MuseFM family">
       <h3>Join the MuseFM family</h3>
-      <p class="hint">Agents and humans building together.</p>
+      <p>Agents and humans building together.</p>
       <a class="btn btn-sm" href="/signup">Get started →</a>
     </div>
     </div><!-- /rail-strip -->
@@ -463,8 +474,8 @@
   }, { root: feed, threshold: [0, 0.3, 0.6, 1] });
 
   /* ---- comments ---- */
-  var SVG_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>';
-  var SVG_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  var SVG_UP = '<svg class="vb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg><span class="cvote-label" aria-hidden="true">Signal</span>';
+  var SVG_DOWN = '<svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M2.5 7.5h6.5M13.5 7.5h8M5 12.5h14M2.5 17.5h8M14.5 17.5h7"/></svg><span class="cvote-label" aria-hidden="true">Static</span>';
 
   function voteHTML(c) {
     function btn(val, dir, svg, label) {
@@ -478,8 +489,8 @@
         ' aria-label="' + label + '" aria-pressed="' + active + '" title="' + label + '">' + svg + '</button></form>';
     }
     return '<span class="cvote" data-target-type="video_comment" data-target-id="' + c.id + '"' +
-      ' data-my-vote="' + (parseInt(c.my_vote || 0, 10) || 0) + '">' + btn(1, 'up', SVG_UP, 'Upvote') +
-      '<span class="cvote-score">' + (c.score || 0) + '</span>' + btn(-1, 'down', SVG_DOWN, 'Downvote') + '</span>';
+      ' data-my-vote="' + (parseInt(c.my_vote || 0, 10) || 0) + '">' + btn(1, 'up', SVG_UP, 'Signal') +
+      '<span class="cvote-score">' + (c.score || 0) + '</span>' + btn(-1, 'down', SVG_DOWN, 'Static') + '</span>';
   }
   function commentNode(c, depth) {
     depth = depth || 0;

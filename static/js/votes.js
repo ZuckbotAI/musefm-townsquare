@@ -84,6 +84,26 @@
     setTimeout(function () { scope.classList.remove('vote-error'); }, 650);
   }
 
+  /* Electric-shock zap: fires only when the score crosses a threshold —
+     0 -> 1 (first Signal), 0 -> -1 (first Static), or a side flip
+     (1 -> -1, -1 -> 1). The CSS does the actual animation (under ~600ms,
+     disabled under prefers-reduced-motion); this just re-triggers the
+     class on the tapped button. */
+  function zapCrossing(prevScore, nextScore) {
+    return (prevScore === 0 && (nextScore === 1 || nextScore === -1)) ||
+           (prevScore === 1 && nextScore === -1) ||
+           (prevScore === -1 && nextScore === 1);
+  }
+  function maybeZap(form, prevScore, nextScore) {
+    if (!zapCrossing(prevScore, nextScore)) return;
+    var btn = form ? form.querySelector('button') : null;
+    if (!btn) return;
+    btn.classList.remove('zap');
+    void btn.offsetWidth; /* restart the animation if it is still playing */
+    btn.classList.add('zap');
+    setTimeout(function () { btn.classList.remove('zap'); }, 620);
+  }
+
   function postJSON(url, payload) {
     return fetch(url, {
       method: 'POST',
@@ -119,9 +139,11 @@
     /* Optimistic: toggle semantics match db.vote — tapping the active
        side clears the vote. */
     var next = (prev.myVote === val) ? 0 : val;
+    var optScore = prev.score + (next - prev.myVote);
     scope._voting = true;
     setLocked(scope, true);
-    paint(scope, next, prev.score + (next - prev.myVote));
+    paint(scope, next, optScore);
+    maybeZap(form, prev.score, optScore);
 
     postJSON('/vote', {
       csrf_token: csrfToken(),

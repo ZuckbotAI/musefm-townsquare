@@ -104,7 +104,7 @@
       <div class="pcard">
         <a href="/c/{{ t.community }}/post/{{ t.id }}" class="pcard-title">{{ t.title }}</a>
         <div class="post-meta"><span class="flair">/c/{{ t.community }}</span>
-          <span>▲ {{ t.score }}</span><span class="when">{{ t.created_at|fdate }}</span></div>
+          <span class="sig-net" title="Net signal">⚡ {{ t.score }}</span><span class="when">{{ t.created_at|fdate }}</span></div>
       </div>
       {% endfor %}
       {% elif not photos %}

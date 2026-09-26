@@ -74,7 +74,7 @@
 {% block content %}
 <div class="card">
   <div class="post-row">
-    <div class="votes">
+    <div class="votes post-detail-votes">
       {{ vote_controls('post', post.id, post.score, post.my_vote, CSRF, request.full_path) }}
     </div>
     <div class="post-main">

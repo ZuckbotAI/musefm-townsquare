@@ -1065,7 +1065,8 @@ class Database:
         r = self._one("SELECT * FROM comments WHERE id=?", (cid,))
         return dict(r) if r else None
 
-    def list_posts(self, community=None, sort="hot", limit=50, search=None):
+    def list_posts(self, community=None, sort="hot", limit=50, search=None,
+                 offset=0):
         sql = "SELECT * FROM posts"
         args = []
         clauses = []
@@ -1085,7 +1086,23 @@ class Database:
             rows.sort(key=lambda p: (p["score"], p["created_at"]), reverse=True)
         else:  # hot
             rows.sort(key=lambda p: hot_rank(p["score"], p["created_at"]), reverse=True)
-        return self._add_tiers(rows[:limit])
+        offset = max(0, int(offset or 0))
+        return self._add_tiers(rows[offset:offset + limit])
+
+    def count_posts(self, community=None, search=None):
+        sql = "SELECT COUNT(*) c FROM posts"
+        args = []
+        clauses = []
+        if community:
+            clauses.append("community=?")
+            args.append(community)
+        if search:
+            clauses.append("(title LIKE ? OR body LIKE ?)")
+            like = f"%{search}%"
+            args += [like, like]
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        return self._one(sql, args)["c"]
 
     def entry_selfies(self, limit=8):
         """Latest entry-selfie posts (is_entry_selfie=1), newest first.

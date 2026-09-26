@@ -115,6 +115,8 @@ def main():
     check("react 'lmaooo' body names valid reactions",
           b"reaction must be one of" in r.get_data(), r.status_code)
 
+    import sys as _sys, os as _os
+    _sys.path.insert(0, _os.path.expanduser("~/workspace/tidepal-wow-work"))
     import fb_reactions
     check("invalid reaction stored nothing",
           fb_reactions.fb_reaction_counts(appmod.db, "post", pid) == {})

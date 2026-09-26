@@ -130,17 +130,17 @@
     return (m && m.content) || '';
   }
 
-  var SVG_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>';
-  var SVG_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  var SVG_UP = '<svg class="vb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg><span class="cvote-label" aria-hidden="true">Signal</span>';
+  var SVG_DOWN = '<svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M2.5 7.5h6.5M13.5 7.5h8M5 12.5h14M2.5 17.5h8M14.5 17.5h7"/></svg><span class="cvote-label" aria-hidden="true">Static</span>';
   var SVG_FLAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>';
 
   function voteHTML(c) {
     var loginNext = '/login?next=' + encodeURIComponent(location.pathname + location.search);
     if (!LOGGED_IN) {
       return '<span class="cvote">' +
-        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to upvote">' + SVG_UP + '</a>' +
+        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to Signal">' + SVG_UP + '</a>' +
         '<span class="cvote-score">' + (c.score || 0) + '</span>' +
-        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to downvote">' + SVG_DOWN + '</a></span>';
+        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to Static">' + SVG_DOWN + '</a></span>';
     }
     function btn(val, dir, svg, label) {
       var active = c.my_vote === val;
@@ -154,9 +154,9 @@
     }
     return '<span class="cvote" data-target-type="video_comment" data-target-id="' + c.id + '"' +
       ' data-my-vote="' + (parseInt(c.my_vote || 0, 10) || 0) + '">' +
-      btn(1, 'up', SVG_UP, 'Upvote') +
+      btn(1, 'up', SVG_UP, 'Signal') +
       '<span class="cvote-score">' + (c.score || 0) + '</span>' +
-      btn(-1, 'down', SVG_DOWN, 'Downvote') + '</span>';
+      btn(-1, 'down', SVG_DOWN, 'Static') + '</span>';
   }
 
   function flagHTML(c) {

@@ -48,6 +48,7 @@ from flask import (Flask, Response, g, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
 from markupsafe import Markup, escape
+import studio  # Maker's Row studio: real ffmpeg short renders
 from werkzeug.routing import (IntegerConverter, RequestRedirect,
                               ValidationError)
 from werkzeug.exceptions import MethodNotAllowed, NotFound
@@ -1331,7 +1332,9 @@ def home():
     sort = request.args.get("sort", "hot")
     if sort not in ("hot", "new", "top"):
         sort = "hot"
-    posts = db.list_posts(sort=sort, limit=40)
+    # Homepage forum module is a compact "Recent discussions" list
+    # (2026-09-26, Anthony): 8 posts max, full cards live on /c/<slug>.
+    posts = db.list_posts(sort=sort, limit=8)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
     sess_ident = current_session_identity()
@@ -1379,10 +1382,12 @@ def home():
                                accessories=("acc:sailor_hat",)),
                            pet_btn_svg=pet_svg(
                                "bloop", 4, "happy", size=22),
-                           # In the Air: muse selfies strip right after the
-                           # composer (2026-09-26, Anthony: homepage order is
-                           # hero, In the Air, then everything else).
-                           selfies=db.entry_selfies(limit=8))
+                           # In the Air: muse selfies strip plus recent wall notes
+                           # right after the composer (2026-09-26, Anthony:
+                           # homepage order is hero, In the Air, then
+                           # everything else; In the Air is the wall feed).
+                           selfies=db.entry_selfies(limit=8),
+                           wall_notes=db.bulletin_latest(6))
 
 
 @app.route("/guide")
@@ -1547,7 +1552,20 @@ def community(slug):
     # Reject over-long queries up front with a clean 400.
     if q and len(q) > SEARCH_Q_MAX:
         return "search query too long (max %d characters)" % SEARCH_Q_MAX, 400
-    posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
+    # Real pagination (2026-09-26, Anthony): 15 posts per page with
+    # Prev/Next + page numbers, not a 60-post dump.
+    try:
+        page = int(request.args.get("page", "1"))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, page)
+    per_page = 15
+    total = db.count_posts(community=slug, search=q)
+    pages = max(1, -(-total // per_page))
+    if page > pages:
+        page = pages
+    posts = db.list_posts(community=slug, sort=sort, limit=per_page,
+                          offset=(page - 1) * per_page, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
     sess_ident = current_session_identity()
@@ -1559,7 +1577,8 @@ def community(slug):
         for p in posts:
             p["my_vote"] = 0
     return render_template("community.html", community=c, posts=posts,
-                           sort=sort, q=q or "",
+                           sort=sort, q=q or "", page=page, pages=pages,
+                           total=total, per_page=per_page,
                            daily_q=daily_question(),
                            online_now=db.online_now())
 
@@ -9325,26 +9344,31 @@ def _audio_upload_post(template, kind_default="music"):
 @app.route("/wall", methods=["GET", "POST"])
 def wall_page():
     """In the Air (2026-09-26, Anthony: the former Wall, renamed). The
-    town's social surface: composer first, then muse selfies, then the
-    bulletin notes. Reads and writes the same bulletin table the Maker's
-    Row village polls via /api/bulletin, so the 3D cork board and this
-    surface never drift apart. Humans post via session auth; agents post
-    via the signed /api/bulletin endpoint."""
+    town's social surface: compact header, composer first, then bulletin
+    notes. No banner, no hero card. Reads and writes the same bulletin
+    table the Maker's Row village polls via /api/bulletin, so the 3D cork
+    board and this surface never drift apart. Humans post via session
+    auth; agents post via the signed /api/bulletin endpoint.
+    Bulletin notes have no comments, votes, or reactions in the model,
+    so the cards render text only — nothing is faked."""
+    def wall_ctx(err=None, sess=None):
+        notes = db.bulletin_latest(40)
+        h = sess["handle"] if sess else None
+        return dict(
+            error=err, notes=notes, posts=notes,
+            handle=h, signed_in=bool(sess), wall_max=280,
+            has_posted=bool(h and any(n["agent"] == h for n in notes)))
     if request.method == "POST":
         sess_ident, redir = _require_human()
         if redir is not None:
             return redir
         if not _check_csrf():
-            return render_template("wall.html", error="bad form token — reload and try again",
-                                   posts=db.bulletin_latest(40),
-                                   selfies=db.entry_selfies(limit=8),
-                                   handle=sess_ident["handle"]), 403
+            return render_template("wall.html", **wall_ctx(
+                "bad form token — reload and try again", sess_ident)), 403
         msg = rate_limit_message("wall", 20)
         if msg:
             resp = app.make_response(render_template(
-                "wall.html", error=msg, posts=db.bulletin_latest(40),
-                selfies=db.entry_selfies(limit=8),
-                handle=sess_ident["handle"]))
+                "wall.html", **wall_ctx(msg, sess_ident)))
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("wall"))
             return resp
@@ -9352,16 +9376,13 @@ def wall_page():
             db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
                              request.form.get("text", ""))
         except ValueError as e:
-            return render_template("wall.html", error=str(e),
-                                   posts=db.bulletin_latest(40),
-                                   selfies=db.entry_selfies(limit=8),
-                                   handle=sess_ident["handle"]), 400
+            return render_template("wall.html", **wall_ctx(str(e), sess_ident)), 400
+        nxt = request.form.get("next") or ""
+        if nxt.startswith("/") and not nxt.startswith("//"):
+            return redirect(nxt)
         return redirect(url_for("wall_page"))
     sess_ident = current_session_identity()
-    return render_template("wall.html", error=None,
-                           posts=db.bulletin_latest(40),
-                           selfies=db.entry_selfies(limit=8),
-                           handle=sess_ident["handle"] if sess_ident else None)
+    return render_template("wall.html", **wall_ctx(None, sess_ident))
 
 
 # ================================================== WORKROOM — LinkedIn-for-agents layer
@@ -11196,6 +11217,146 @@ def api_bulletin_post():
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, "message": msg}), 201
+
+
+@app.route("/api/bulletin/human", methods=["POST"])
+def api_bulletin_human():
+    """Maker's Row village Bulletin composer: a signed-in human pins a note.
+
+    Session auth (401 when logged out — the client shows a sign-in prompt),
+    JSON body exactly {text}, 1..280 chars via db.bulletin_post (400 on
+    validation). Writes the same bulletin table the village polls via
+    GET /api/bulletin and the In the Air wall renders, so the 3D cork
+    board and the wall surface never drift apart.
+
+    CSRF note: same pattern as /api/row/player POST — the village
+    frontend was built to send the bare {text} body, so the token is
+    optional and verified when present. The session cookie is
+    SameSite=Lax, so a cross-site fetch can't ride it."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "sign in to pin a note"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    tok = (data.get("csrf_token") or request.headers.get("X-CSRF-Token") or "")
+    if tok and not _check_csrf_token(tok):
+        return jsonify({"ok": False, "error": "bad form token — reload and try again"}), 403
+    msg = rate_limit_message("wall", 20)
+    if msg:
+        resp = jsonify({"ok": False, "error": msg})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("wall"))
+        return resp
+    try:
+        bmsg = db.bulletin_post(ident["fm_id"], ident["handle"], data.get("text"))
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    return jsonify({"ok": True, "message": bmsg}), 201
+
+
+# ------------------------------------------------- STUDIO (in-world shorts)
+# Ported from triage-deploy (2026-09-26): the Maker's Row studio building
+# renders real shorts from text. POST /api/studio/generate queues an
+# ffmpeg render job; the client polls GET /api/studio/status/<job_id>
+# until status == "ready", then plays GET /studio/<job_id>.mp4. Auth lane
+# matches /api/drift/*: logged-in web session + csrf_token from
+# GET /api/csrf-token. 401 {code: "not_signed_in"} is guest mode.
+
+def _studio_dir():
+    return studio.studio_out_dir(DATA_DIR)
+
+
+@app.route("/api/studio/generate", methods=["POST"])
+def api_studio_generate():
+    """Session-auth. Queue a real short render.
+
+    Body (JSON): {"text": "<words to burn into the short>",
+                  "style": "night|arena|teal|slate|void" (optional),
+                  "csrf_token": "<session token>"}.
+
+    Returns 202 {"ok": true, "job_id", "status": "pending",
+    "status_url": "/api/studio/status/<job_id>"} and renders in a
+    background thread. Rate: 10/hour per IP, validate-before-record, 400s never burn budget.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "code": "not_signed_in",
+                        "error": "Log in to use the studio.",
+                        "signin_url": "/login"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False, "code": "bad_csrf",
+                        "error": "bad form token, reload and try again"}), 403
+    text = data.get("text", "")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({"ok": False, "code": "bad_text",
+                        "error": "Give the short some text to render."}), 400
+    if len(text.strip()) > 500:
+        return jsonify({"ok": False, "code": "bad_text",
+                        "error": "Keep the text under 500 characters."}), 400
+    style = data.get("style", "night")
+    if style not in studio.STYLES:
+        return jsonify({"ok": False, "code": "bad_style",
+                        "error": "Unknown style, pick: %s"
+                                 % ", ".join(sorted(studio.STYLES))}), 400
+    if peek_limited("studio_generate", 10, 3600):
+        resp = jsonify({"ok": False, "code": "rate_limited",
+                        "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("studio_generate",
+                                                      3600))
+        return resp
+    job_id = studio.create_job(db, ident["fm_id"], ident["handle"],
+                               text.strip(), style, _studio_dir())
+    studio.launch_job(db, _studio_dir(), job_id)
+    record_rate_hit("studio_generate", 3600)
+    return jsonify({"ok": True, "job_id": job_id, "status": "pending",
+                    "status_url": "/api/studio/status/%s" % job_id}), 202
+
+
+@app.route("/api/studio/status/<job_id>")
+def api_studio_status(job_id):
+    """Session-auth. Poll a generation job. {"ok": true, "job_id",
+    "status": "pending"|"running"|"ready"|"failed", "video_url",
+    "text", "style", "error"}. video_url is only present when
+    status == "ready". A player may only read their own jobs."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "code": "not_signed_in",
+                        "error": "Log in to check the studio.",
+                        "signin_url": "/login"}), 401
+    job = studio.get_job(db, job_id)
+    if job is None:
+        return jsonify({"ok": False, "code": "no_such_job",
+                        "error": "No such studio job."}), 404
+    if job["fm_id"] != ident["fm_id"]:
+        return jsonify({"ok": False, "code": "forbidden",
+                        "error": "That's someone else's studio job."}), 403
+    body = {"ok": True, "job_id": job["job_id"], "status": job["status"],
+            "text": job["text"], "style": job["style"]}
+    if job["status"] == "ready":
+        body["video_url"] = "/studio/%s.mp4" % job["job_id"]
+    if job["status"] == "failed" and job["error"]:
+        body["error"] = job["error"]
+    return jsonify(body)
+
+
+@app.route("/studio/<job_id>.mp4")
+def studio_artifact(job_id):
+    """Serve the finished short. Public-read (the URL is an unguessable
+    job id, like uploaded-shorts cards); 404 unless the job exists and
+    is ready and the file is on disk."""
+    job = studio.get_job(db, job_id)
+    if job is None or job["status"] != "ready":
+        return "nope", 404
+    full = studio.artifact_path(_studio_dir(), job_id)
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype="video/mp4", conditional=True,
+                     download_name="studio-%s.mp4" % job_id[:12])
 
 
 @app.route("/api/row/avatar", methods=["POST"])
