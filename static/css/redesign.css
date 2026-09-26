@@ -2533,3 +2533,149 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
   .p2-rail { grid-template-columns: 1fr; }
   .p2-tiles { grid-template-columns: 1fr 1fr; }
 }
+
+/* =====================================================================
+   Redesign pass A: sidebar motion (2026-09-26, Anthony)
+   Dimensional buttons, intriguing but readable motion, glass aesthetic.
+   Loaded last so it wins over the earlier flat pass. The pass-1 avatar
+   account block is untouched by these rules.
+   ===================================================================== */
+.sidebar .sb-link {
+  position: relative;
+  isolation: isolate;
+  transition: transform .22s var(--spring), box-shadow .22s var(--ease),
+    background-color .22s var(--ease), border-color .22s var(--ease), color .18s var(--ease);
+}
+/* hover: lift with layered depth, top-light glass sheen */
+.sidebar .sb-link:hover {
+  transform: translateY(-2px);
+  color: var(--rz-ink);
+  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.6));
+  border-color: var(--rz-line);
+  box-shadow: 0 10px 22px rgba(27,58,110,.13), 0 2px 6px rgba(27,58,110,.08),
+    inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(27,58,110,.05);
+}
+[data-theme="dark"] .sidebar .sb-link:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  box-shadow: 0 10px 22px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+/* tactile press */
+.sidebar .sb-link:active { transform: translateY(0) scale(.965); transition-duration: .08s; }
+/* dimensional icon chip: gradient, top light, bottom shade */
+.sidebar .sb-link .sb-icon {
+  background: linear-gradient(180deg, #ffffff 0%, #edf1f8 100%);
+  box-shadow: 0 3px 9px rgba(27,58,110,.12),
+    inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 3px rgba(27,58,110,.06);
+  transition: transform .28s var(--spring), box-shadow .22s var(--ease),
+    background .22s var(--ease), border-color .22s var(--ease);
+}
+[data-theme="dark"] .sidebar .sb-link .sb-icon {
+  background: linear-gradient(180deg, #1a2745 0%, #0f1930 100%);
+  box-shadow: 0 3px 9px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 3px rgba(0,0,0,.35);
+}
+/* icon micro-motion on row hover: playful tilt-pop */
+.sidebar .sb-link:hover .sb-icon {
+  transform: rotate(-9deg) scale(1.14);
+  box-shadow: 0 7px 16px rgba(47,123,255,.30),
+    inset 0 1px 0 rgba(255,255,255,.95);
+}
+/* selected: glowing indicator bar + lit icon */
+.sidebar .sb-link.active {
+  background: linear-gradient(180deg, #f2f7ff, var(--rz-blue-soft));
+  border-color: rgba(47,123,255,.35);
+  box-shadow: 0 6px 16px rgba(47,123,255,.18),
+    inset 0 1px 0 rgba(255,255,255,.9);
+  color: var(--rz-blue-deep);
+}
+[data-theme="dark"] .sidebar .sb-link.active {
+  background: linear-gradient(180deg, #1b2c52, #14233f);
+  color: var(--rz-blue);
+}
+.sidebar .sb-link.active::before {
+  content: "";
+  position: absolute; left: 5px; top: 22%; bottom: 22%; width: 4px;
+  border-radius: 999px; z-index: 1;
+  background: linear-gradient(180deg, #7aa8ff, var(--rz-blue-deep));
+  box-shadow: 0 0 10px rgba(47,123,255,.9), 0 0 3px rgba(47,123,255,1);
+  animation: sb-glow-pulse 2.6s ease-in-out infinite;
+}
+@keyframes sb-glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+.sidebar .sb-link.active .sb-icon {
+  background: linear-gradient(180deg, var(--rz-blue), var(--rz-blue-deep));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 4px 12px rgba(47,123,255,.5),
+    inset 0 1px 0 rgba(255,255,255,.45), inset 0 -2px 4px rgba(0,0,0,.18);
+  transform: none;
+}
+.sidebar .sb-link.active { padding-left: 16px; } /* room for the glow bar */
+/* unread badge: tiny lift target */
+.sidebar .sb-badge {
+  box-shadow: 0 2px 6px rgba(47,123,255,.45), inset 0 1px 0 rgba(255,255,255,.4);
+  transition: transform .2s var(--spring);
+}
+.sidebar .sb-link:hover .sb-badge { transform: scale(1.12); }
+
+/* Create button: keep its depth, add press + sheen sweep */
+.sidebar .sb-create { position: relative; overflow: hidden; }
+.sidebar .sb-create:active { transform: scale(.96); }
+.sidebar .sb-create::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.5), transparent);
+  transform: skewX(-18deg);
+  transition: left .6s var(--ease);
+  pointer-events: none;
+}
+.sidebar .sb-create:hover::after { left: 130%; }
+
+/* staggered entrance: JS assigns --sb-i in DOM order, then adds body.sb-motion */
+@keyframes sb-rise {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: none; }
+}
+body.sb-motion .sidebar .sb-create,
+body.sb-motion .sidebar .sb-account,
+body.sb-motion .sidebar .sb-group > .sb-heading,
+body.sb-motion .sidebar .sb-link {
+  animation: sb-rise .55s var(--spring) backwards;
+  animation-delay: calc(var(--sb-i, 0) * 38ms);
+}
+
+/* collapsible section groups: headings toggle, links fold smoothly */
+.sidebar .sb-group > .sb-heading { cursor: pointer; user-select: none; -webkit-user-select: none; }
+.sidebar .sb-group > .sb-heading::after {
+  content: "▾"; font-size: 12px; color: var(--rz-ink3);
+  transition: transform .25s var(--spring);
+  margin-left: 6px;
+}
+.sidebar .sb-group.sb-collapsed > .sb-heading::after { transform: rotate(-90deg); }
+.sidebar .sb-group .sb-link {
+  max-height: 64px; overflow: hidden;
+  transition: transform .22s var(--spring), box-shadow .22s var(--ease),
+    background-color .22s var(--ease), border-color .22s var(--ease), color .18s var(--ease),
+    max-height .3s var(--ease), opacity .25s var(--ease),
+    margin .3s var(--ease), padding .3s var(--ease), min-height .3s var(--ease);
+}
+.sidebar .sb-group.sb-collapsed .sb-link {
+  max-height: 0; min-height: 0; opacity: 0;
+  margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0;
+  pointer-events: none;
+}
+/* entrance animation must not fight the collapse transition */
+body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  body.sb-motion .sidebar .sb-create,
+  body.sb-motion .sidebar .sb-account,
+  body.sb-motion .sidebar .sb-group > .sb-heading,
+  body.sb-motion .sidebar .sb-link { animation: none; }
+  .sidebar .sb-link, .sidebar .sb-link .sb-icon, .sidebar .sb-group .sb-link,
+  .sidebar .sb-group > .sb-heading::after { transition: none; }
+  .sidebar .sb-link.active::before, .sidebar .sb-create::after { animation: none; display: none; }
+  .sidebar .sb-link:hover { transform: none; }
+  .sidebar .sb-link:hover .sb-icon { transform: none; }
+}
