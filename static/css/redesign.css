@@ -3123,3 +3123,85 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   .rz-forum-post { padding: 10px 12px 9px 15px; }
   .rz-forum-post .post-thumb { width: 112px; height: 84px; }
 }
+
+/* ============================================================
+   Forum cards v2 (2026-09-26, Anthony): match the reference
+   mockup. Kill dead space: bigger avatar and type, tighter
+   vertical rhythm, thumbnails that stretch the full card
+   height, and the actions as separate colored pills (blue
+   upvote, yellow zap, light comments/share). The card keeps
+   no overflow:hidden so the reaction tray never clips.
+   Light and dark aware.
+   ============================================================ */
+.rz-forum-post { padding: 14px 16px 14px 18px; border-radius: 18px; }
+.rz-forum-post .post-avatar { width: 44px; height: 44px; }
+.rz-forum-post .post-meta { margin-bottom: 5px; }
+.rz-forum-post .post-meta .author { font-size: 14px; }
+.rz-forum-post .post-title { font-size: 19px; margin: 3px 0 4px; }
+.rz-forum-post .post-excerpt { font-size: 14.5px; line-height: 1.5; margin: 0; }
+/* body row: text column on the left, thumbnail stretching full height */
+.rz-forum-post .post-body-row { display: flex; gap: 14px; align-items: stretch; }
+.rz-forum-post .post-textcol { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.rz-forum-post .post-textcol .post-text { min-width: 0; }
+.rz-forum-post .post-thumb {
+  width: 152px; height: auto; align-self: stretch; flex: none;
+  min-height: 138px; border-radius: 14px;
+}
+/* actions: separate pills, no more segmented strip */
+.rz-forum-post .post-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 12px 0 0; padding: 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none;
+}
+.rz-forum-post .post-actions > * + * { border-left: 0; }
+.rz-forum-post:hover .post-actions { box-shadow: none; }
+/* vote pill: blue up arrow + score, quiet downvote */
+.rz-forum-post .votes {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+  border-radius: 999px; padding: 6px 10px 6px 8px; margin: 0;
+}
+.rz-forum-post .vote-btn { width: 30px; height: 30px; border: 0; background: transparent; box-shadow: none; }
+.rz-forum-post .vote-btn.up { color: #2f7bff; }
+.rz-forum-post .vote-btn.up .vb-ico { width: 20px; height: 20px; }
+.rz-forum-post .vote-btn.up:hover { background: rgba(47,123,255,.14); color: #1d5fe2; border: 0; }
+.rz-forum-post .vote-btn.up.is-active { color: #1d5fe2; }
+.rz-forum-post .vote-btn.down { width: 24px; height: 24px; opacity: .5; }
+.rz-forum-post .vote-btn.down:hover { opacity: 1; background: rgba(120,130,150,.14); border: 0; }
+.rz-forum-post .vote-score { font-size: 14px; font-weight: 700; min-width: 22px; text-align: center; color: var(--rz-ink); }
+[data-theme="dark"] .rz-forum-post .vote-btn.up { color: #5ea2ff; }
+[data-theme="dark"] .rz-forum-post .vote-btn.up:hover { background: rgba(94,162,255,.16); color: #8fbdff; }
+[data-theme="dark"] .rz-forum-post .vote-btn.up.is-active { color: #8fbdff; }
+/* zap pill: yellow bolt */
+.rz-forum-post .sig-rollout {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+  border-radius: 999px; padding: 8px 15px;
+  font-size: 14px; font-weight: 700; color: var(--rz-ink);
+  box-shadow: none;
+}
+.rz-forum-post .sig-rollout .sig-emoji { font-size: 17px; filter: drop-shadow(0 0 4px rgba(245,179,1,.55)); }
+.rz-forum-post .sig-rollout .sig-caret { opacity: .5; font-size: 11px; }
+.rz-forum-post .sig-rollout:hover { background: rgba(245,179,1,.1); transform: none; box-shadow: none; }
+[data-theme="dark"] .rz-forum-post .sig-rollout:hover { background: rgba(245,179,1,.12); }
+/* comments pill: light bubble */
+.rz-forum-post .comment-count {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+  border-radius: 999px; padding: 8px 15px;
+  font-size: 14px; font-weight: 600; color: var(--rz-ink); text-decoration: none;
+}
+.rz-forum-post .comment-count:hover { color: var(--rz-blue-deep); border-color: rgba(47,123,255,.4); background: var(--rz-pill); }
+/* share pill: copies the post link */
+.rz-forum-post .share-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: 999px; cursor: pointer;
+  background: var(--rz-pill); border: 1px solid var(--rz-line); color: var(--rz-ink2);
+}
+.rz-forum-post .share-pill:hover { color: var(--rz-ink); border-color: rgba(47,123,255,.4); }
+.rz-forum-post .share-pill svg { width: 18px; height: 18px; }
+@media (max-width: 640px) {
+  .rz-forum-post .post-thumb { width: 104px; height: auto; min-height: 110px; }
+  .rz-forum-post .post-title { font-size: 17px; }
+  .rz-forum-post .post-actions { gap: 8px; }
+}

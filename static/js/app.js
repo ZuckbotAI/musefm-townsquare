@@ -115,6 +115,14 @@ document.addEventListener('click', function (e) {
   if (b) openShare(b.getAttribute('data-share'), b.getAttribute('data-title'));
 });
 
+// ---- forum card share pill: copy the post link (2026-09-26, Anthony) ----
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-copylink]');
+  if (!b) return;
+  copyText(location.origin + b.getAttribute('data-copylink'));
+  toast('Link copied');
+});
+
 // ---- notification bell popout (opens a panel, not a page) ----
 (function () {
   var btn = document.getElementById('notif-bell-btn');

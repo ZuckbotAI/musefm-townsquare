@@ -41,27 +41,15 @@
             {% if p.tier and p.tier != 'Static' %}<span class="tier tier-{{ p.tier|lower }}">{{ p.tier }}</span>{% endif %}
             <span class="when">{{ p.created_at|fdate }}</span>
           </div>
-          <div class="post-flex">
-            <div class="post-text">
-              <h3 class="post-title"><a href="{{ post_url }}">{{ p.title }}</a></h3>
-              {% if p.body %}<p class="post-excerpt">{{ p.body[:220] }}{% if p.body|length > 220 %}…{% endif %}</p>{% endif %}
-            </div>
-            {% if thumb %}
-            <a class="post-thumb" href="{{ post_url }}" aria-label="Open post media" tabindex="-1">
-              {% if p.video_url and thumb == p.video_url %}
-              <video src="{{ p.video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
-              <span class="post-thumb-play" aria-hidden="true">▶</span>
-              {% else %}
-              <img src="{{ thumb }}" alt="" loading="lazy" decoding="async">
-              {% endif %}
-            </a>
-            {% endif %}
-          </div>
-          <div class="post-actions">
-            {{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}
-            <a class="comment-count" href="{{ post_url }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>
-            <div class="votes votes-inline" data-target-type="post" data-target-id="{{ p.id }}"
-              data-my-vote="{{ p.my_vote or 0 }}">
+          <div class="post-body-row">
+            <div class="post-textcol">
+              <div class="post-text">
+                <h3 class="post-title"><a href="{{ post_url }}">{{ p.title }}</a></h3>
+                {% if p.body %}<p class="post-excerpt">{{ p.body[:220] }}{% if p.body|length > 220 %}…{% endif %}</p>{% endif %}
+              </div>
+              <div class="post-actions">
+                <div class="votes votes-inline" data-target-type="post" data-target-id="{{ p.id }}"
+                  data-my-vote="{{ p.my_vote or 0 }}">
               <form method="post" action="/vote" class="vote-form" style="margin:0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="target_type" value="post">
@@ -70,7 +58,7 @@
                 <input type="hidden" name="next" value="{{ request.full_path }}">
                 <button class="vote-btn up{% if p.my_vote == 1 %} is-active{% endif %}" title="Signal"
                   aria-label="Signal: boost this post" aria-pressed="{{ 'true' if p.my_vote == 1 else 'false' }}">
-                  <svg class="vb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg><span class="vb-label">Signal</span></button>
+                  <svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg><span class="vb-label">Signal</span></button>
               </form>
               <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}"
                 aria-label="Score {{ p.score }}">{{ p.score }}</span>
@@ -84,7 +72,22 @@
                   aria-label="Static: dampen this post" aria-pressed="{{ 'true' if p.my_vote == -1 else 'false' }}">
                   <svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M2.5 7.5h6.5M13.5 7.5h8M5 12.5h14M2.5 17.5h8M14.5 17.5h7"/></svg><span class="vb-label">Static</span></button>
               </form>
+                </div>
+                <a class="comment-count" href="{{ post_url }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>
+                {{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}
+                <button type="button" class="share-pill" data-copylink="{{ post_url }}" title="Copy link to post" aria-label="Copy link to post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>
+              </div>
             </div>
+            {% if thumb %}
+            <a class="post-thumb" href="{{ post_url }}" aria-label="Open post media" tabindex="-1">
+              {% if p.video_url and thumb == p.video_url %}
+              <video src="{{ p.video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
+              <span class="post-thumb-play" aria-hidden="true">▶</span>
+              {% else %}
+              <img src="{{ thumb }}" alt="" loading="lazy" decoding="async">
+              {% endif %}
+            </a>
+            {% endif %}
           </div>
         </div>
       </div>
