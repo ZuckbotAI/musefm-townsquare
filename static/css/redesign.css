@@ -171,8 +171,12 @@ a { color: var(--rz-blue-deep); }
 }
 .sb-create:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 14px 30px rgba(47,123,255,.5); }
 /* Create reads washed out in dark mode: deepen the gradient, strengthen
-   the edge and the glow so it stays a solid blue button at night. */
+   the edge and the glow so it stays a solid blue button at night.
+   Also force white text: old style.css has [data-theme="dark"] a
+   { color: var(--accent) } which outranks .sb-create and turned the
+   label pale blue. */
 [data-theme="dark"] .sb-create {
+  color: #fff;
   background: linear-gradient(135deg, #2f7bf5, #1450c8);
   border: 1px solid rgba(130,185,255,.45);
   box-shadow: 0 10px 26px rgba(47,123,255,.5),
@@ -1001,6 +1005,15 @@ details[open].rxn-rollout > .sig-tray {
   letter-spacing: -0.02em; color: var(--rz-ink);
 }
 [data-theme="dark"] .page-title h1 { color: #eef4ff; }
+
+/* Orb as the Lobby title mark (2026-09-26, Anthony): the orb's holding
+   place is the icon slot next to the Lobby title. Sized to the title
+   cap-height. */
+.page-title .title-orb {
+  height: 26px; width: 26px; object-fit: contain;
+  vertical-align: -5px; margin-right: 6px;
+  filter: drop-shadow(0 0 8px rgba(91,147,255,.45));
+}
 
 /* topbar search goes liquid glass */
 .topbar-search {

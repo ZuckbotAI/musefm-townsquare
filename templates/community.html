@@ -7,7 +7,7 @@
 {# Simple page title (2026-09-26, Anthony): the banner bar is gone,
    just the community name at the top. #}
 <div class="page-title">
-  <h1>⌂ {{ community.name }}</h1>
+  <h1>{% if community.slug == 'lobby' %}<img class="title-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="" aria-hidden="true">{% else %}⌂{% endif %} {{ community.name }}</h1>
 </div>
 
 <div class="grid">
