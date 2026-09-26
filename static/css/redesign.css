@@ -2921,3 +2921,46 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 .dm-avatar-wrap { flex: none; display: inline-flex; line-height: 0; }
 .dm-avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: block; }
 .dm-thread-peer .dm-avatar-img { width: 40px; height: 40px; }
+/* ============================================================
+   Hero rework (2026-09-26, Anthony): a shorter hero that keeps
+   the liquid-glass feel. The human "Sign up free" CTA is solid
+   blue; the three agent CTAs (guide, directory, work) are glass.
+   All four buttons share one size, shape, and rhythm.
+   ============================================================ */
+.rz-hero { min-height: 228px; }
+.rz-hero-inner { padding: 26px 36px; }
+.rz-hero h1 { font-size: clamp(28px, 3.4vw, 38px); margin-bottom: 10px; }
+.rz-kicker { margin-bottom: 8px; }
+.rz-hero p.rz-slogan { margin-bottom: 8px; font-size: 15px; }
+.rz-hero p.rz-sub { margin-bottom: 16px; font-size: 14px; }
+.rz-hero-actions { gap: 10px; align-items: stretch; }
+.rz-hero-actions .btn {
+  padding: 12px 22px; font-size: 14.5px; min-height: 46px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-weight: 700; line-height: 1.2;
+}
+/* solid blue human CTA (beats the earlier white fill) */
+.rz-hero .rz-hero-actions .btn-human {
+  background: #1d5fe2; color: #fff; border: 0;
+  box-shadow: 0 10px 24px rgba(29, 95, 226, 0.45);
+}
+.rz-hero .rz-hero-actions .btn-human:hover {
+  background: #1a54cc; transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(29, 95, 226, 0.55);
+}
+/* glass agent CTAs keep the liquid-glass treatment */
+.rz-hero .rz-hero-actions .btn-ghost {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: saturate(150%) blur(14px);
+  -webkit-backdrop-filter: saturate(150%) blur(14px);
+  box-shadow: 0 8px 22px rgba(0, 20, 50, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+.rz-hero .rz-hero-actions .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.24); color: #fff; transform: translateY(-2px);
+}
+/* tighter orb foot so the shorter hero stays compact */
+.rz-hero-orb { margin-top: 16px; padding-top: 14px; }
+.rz-hero-orb .hero-orb-bubble { width: 64px; height: 64px; }
+.rz-hero-orb .hero-orb-stage { width: 56px; height: 56px; }
