@@ -25,6 +25,7 @@ Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
 """
 import os
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -36,7 +37,7 @@ os.environ.pop("SMTP_HOST", None)  # hermetic: no real email ever sends
 import app as appmod
 import auth_email
 import mailing
-from db import import_account_emails
+from db import ensure_mailing_list_schema, import_account_emails
 
 TEST_DB = "/tmp/test-townsquare-mailing.db"
 
@@ -249,6 +250,56 @@ def test_admin_send_route(client):
           [c["to"] for c in cap.calls])
 
 
+def test_backfill_on_schema_init():
+    # ensure_mailing_list_schema auto-subscribes verified account emails
+    # (deploy-time import of the missed ones). Idempotent, and never
+    # resubscribes an unsubscribed address.
+    db = appmod.db
+    now = int(time.time())
+    db._exec("INSERT INTO identities"
+             " (fm_id, handle, public_key, created_at, email, email_verified)"
+             " VALUES ('fm_backfill1', 'backfill_one', 'k', ?,"
+             " 'Backfill@Example.Test', 1)", (now,))
+    db._exec("INSERT INTO identities"
+             " (fm_id, handle, public_key, created_at, email, email_verified)"
+             " VALUES ('fm_backfill2', 'backfill_two', 'k', ?,"
+             " 'unverified@example.test', 0)", (now,))
+    ensure_mailing_list_schema(db)
+    row = db.mailing_get("backfill@example.test")
+    check("backfill subscribes verified account email",
+          row is not None and row["status"] == "subscribed"
+          and row["source"] == "account_import", row)
+    check("backfill skips unverified account email",
+          db.mailing_get("unverified@example.test") is None)
+    ensure_mailing_list_schema(db)
+    n = db.db.execute("SELECT COUNT(*) FROM mailing_list"
+                      " WHERE email='backfill@example.test'").fetchone()[0]
+    check("backfill is idempotent (no duplicate row)", n == 1, n)
+    db._exec("UPDATE mailing_list SET status='unsubscribed',"
+             " unsubscribed_at=? WHERE email='backfill@example.test'",
+             (now,))
+    ensure_mailing_list_schema(db)
+    check("backfill never resubscribes an unsubscribed address",
+          db.mailing_get("backfill@example.test")["status"] == "unsubscribed")
+
+
+def test_verify_hook_autosubscribes():
+    # New accounts: verifying an email auto-subscribes it to alerts, so
+    # capture keeps working for promos going forward.
+    db = appmod.db
+    now = int(time.time())
+    db._exec("INSERT INTO identities"
+             " (fm_id, handle, public_key, created_at, email, email_verified)"
+             " VALUES ('fm_hook1', 'hook_one', 'k', ?,"
+             " 'hook@example.test', 0)", (now,))
+    check("unverified email not in list yet",
+          db.mailing_get("hook@example.test") is None)
+    db.mark_email_verified("fm_hook1")
+    row = db.mailing_get("hook@example.test")
+    check("mark_email_verified auto-subscribes the email",
+          row is not None and row["status"] == "subscribed", row)
+
+
 def main():
     client = setup()
     test_form_page(client)
@@ -259,6 +310,8 @@ def main():
     test_import_idempotent(client)
     test_send_alert_only_subscribed()
     test_admin_send_route(client)
+    test_backfill_on_schema_init()
+    test_verify_hook_autosubscribes()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
     if FAIL:
         print("FAILURES:", FAIL)

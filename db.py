@@ -2366,6 +2366,11 @@ class Database:
         """Mark the identity's on-file email as verified. No-op-safe."""
         self._exec("UPDATE identities SET email_verified=1"
                    " WHERE fm_id=? AND email != ''", (fm_id,))
+        # Newly verified account emails join the alerts list automatically
+        # (2026-09-26, Anthony). One-click unsubscribe in every email.
+        r = self._one("SELECT email FROM identities WHERE fm_id=?", (fm_id,))
+        if r and r["email"]:
+            self.mailing_autosubscribe(r["email"])
 
     # --------------------------------------- mailing list (email alerts)
     @staticmethod
@@ -2382,6 +2387,25 @@ class Database:
             return None
         r = self._one("SELECT * FROM mailing_list WHERE email=?", (email,))
         return dict(r) if r else None
+
+    def mailing_autosubscribe(self, email):
+        """Auto-subscribe a verified account email (2026-09-26, Anthony:
+        account emails are included in alerts, one-click unsubscribe in
+        every email). Insert-only: an address already present is never
+        touched, so 'unsubscribed' stays unsubscribed. Returns True when
+        a new subscribed row was added."""
+        email = (email or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            return False
+        if self.mailing_get(email) is not None:
+            return False
+        now = int(time.time())
+        self._exec(
+            "INSERT INTO mailing_list"
+            " (email, source, status, created_at, confirmed_at)"
+            " VALUES (?, 'account_import', 'subscribed', ?, ?)",
+            (email, now, now))
+        return True
 
     def mailing_request_subscribe(self, email, source="newsletter_form"):
         """Insert an address as pending_optin (double opt-in flow).
@@ -3787,6 +3811,22 @@ def ensure_mailing_list_schema(db):
         ");"
         "CREATE INDEX IF NOT EXISTS idx_mailing_list_status"
         " ON mailing_list(status);")
+    db.db.commit()
+    # Backfill: auto-subscribe verified account emails (2026-09-26,
+    # Anthony's direct decision: account emails are included in alerts,
+    # each with one-click unsubscribe). Idempotent: only addresses not
+    # already in mailing_list are added, so an 'unsubscribed' row is
+    # never touched. Runs on every startup via init_db, so deploying
+    # this code performs the import by itself; no manual step needed.
+    now = int(time.time())
+    db.db.execute(
+        "INSERT INTO mailing_list (email, source, status, created_at,"
+        " confirmed_at)"
+        " SELECT lower(email), 'account_import', 'subscribed', ?, ?"
+        " FROM identities"
+        " WHERE email != '' AND email_verified = 1"
+        " AND lower(email) NOT IN (SELECT email FROM mailing_list)",
+        (now, now))
     db.db.commit()
 
 
