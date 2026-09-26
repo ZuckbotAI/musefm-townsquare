@@ -748,6 +748,9 @@ DISPLAY_NAME_RE = re.compile(r"[A-Za-z0-9_.'\- ]{1,40}\Z")
 MENTION_RE = re.compile(r"@([A-Za-z0-9_]{3,20})")
 MAX_BIO = 500
 MAX_AVATAR_URL = 500
+# Site-served profile pictures (2026-09-26, Anthony): /avatars/<fm_id>.<ext>.
+# Strict shape so update_identity can allow them alongside http(s) URLs.
+AVATAR_PATH_RE = re.compile(r"/avatars/[A-Za-z0-9_\-]{1,64}\.(png|jpg|jpeg|webp)\Z")
 PIONEER_COUNT = 25  # first N registrants get the pioneer (founding member) badge
 
 # Handles positively identified as test/pipeline bot accounts (2026-09-23,
@@ -2103,6 +2106,19 @@ class Database:
             "premiere_live": bool(started_at) and not ended_at,
         }
 
+    def live_rooms_for(self, fm_id):
+        """Rooms where this member has live presence right now (within the
+        presence TTL). Powers the profile "In the Air" card (2026-09-26)."""
+        t = now()
+        return [{
+            "id": r["room_id"], "title": r["title"],
+            "episode_slug": r["episode_slug"],
+        } for r in self._q(
+            "SELECT p.room_id, r.title, r.episode_slug FROM room_presence p "
+            "JOIN rooms r ON r.id=p.room_id "
+            "WHERE p.fm_id=? AND p.last_seen > ? ORDER BY p.last_seen DESC",
+            (fm_id, t - ROOM_PRESENCE_TTL))]
+
     def add_room_chat(self, room_id, fm_id, handle, body):
         raw = body or ""
         if len(raw) > ROOM_CHAT_MAXLEN:
@@ -2293,8 +2309,13 @@ class Database:
             args.append(kt)
         if avatar_url is not None:
             avatar_url = clean(avatar_url, MAX_AVATAR_URL, single_line=True)
-            if avatar_url and not avatar_url.startswith(("http://", "https://")):
-                raise ValueError("avatar_url must be http(s)")
+            # Profile picture uploads (2026-09-26, Anthony: members set
+            # their own picture): site-served avatars live under /avatars/
+            # with a strict filename shape. Remote avatars stay http(s).
+            if avatar_url and not (
+                    avatar_url.startswith(("http://", "https://")) or
+                    AVATAR_PATH_RE.fullmatch(avatar_url)):
+                raise ValueError("avatar_url must be http(s) or /avatars/<id>.<ext>")
             updates.append("avatar_url=?")
             args.append(avatar_url)
         if bio is not None:

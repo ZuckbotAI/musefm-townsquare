@@ -59,7 +59,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 PTS_HEARTBEAT, PTS_MENTION, PTS_REACTION_RECEIVED, PTS_REPLY,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
-                MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, challenge_week_id, find_mentions,
+                MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, TIERS, challenge_week_id, find_mentions,
                 valid_handle, clean, loud_limit, has_banned, now, ROOM_EMOJIS,
                 ROOM_CHAT_MAXLEN,
                 ensure_musefm_media_schema,
@@ -2467,6 +2467,139 @@ def audio(fname):
     return resp
 
 
+# ── Profile pictures (2026-09-26, Anthony: every member can set their own)
+# Uploaded pictures are stored per member at data/avatars/<fm_id>.<ext> and
+# served from /avatars/. Every avatar on the site renders through the
+# final_avatar filter, so uploads appear everywhere automatically.
+AVATAR_DIR = os.path.join(DATA_DIR, "avatars")
+os.makedirs(AVATAR_DIR, exist_ok=True)
+MAX_AVATAR_BYTES = 2 * 1024 * 1024  # profile pictures stay small
+_AVATAR_MIMES = {"png": "image/png", "jpg": "image/jpeg",
+                 "jpeg": "image/jpeg", "webp": "image/webp"}
+
+
+def _save_avatar(fm_id, raw):
+    """Validate image bytes and store them as the member's profile picture.
+
+    Returns the site-relative URL (e.g. /avatars/fm_abc123.png). Raises
+    ValueError on empty/oversized/unrecognized files."""
+    if not raw:
+        raise ValueError("empty file")
+    if len(raw) > MAX_AVATAR_BYTES:
+        raise ValueError("image too big (max 2 MB)")
+    det = ai_images.detect_image(raw)
+    if not det:
+        raise ValueError("not a recognized image (PNG, JPEG, or WebP)")
+    ext, _mime = det
+    # Atomic: write temp, then rename over the old picture.
+    tmp = os.path.join(AVATAR_DIR,
+                       ".tmp-%s-%d" % (fm_id, int(time.time() * 1000)))
+    with open(tmp, "wb") as fh:
+        fh.write(raw)
+    try:
+        # Remove a previous picture saved under a different extension.
+        for old_ext in _AVATAR_MIMES:
+            if old_ext == ext:
+                continue
+            old = os.path.join(AVATAR_DIR, "%s.%s" % (fm_id, old_ext))
+            if os.path.isfile(old):
+                try:
+                    os.remove(old)
+                except OSError:
+                    pass
+        os.rename(tmp, os.path.join(AVATAR_DIR, "%s.%s" % (fm_id, ext)))
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+    return "/avatars/%s.%s" % (fm_id, ext)
+
+
+@app.route("/avatars/<path:fname>")
+def serve_avatar(fname):
+    # Strict shape: <fm_id>.<ext>. No directories, no odd types.
+    m = re.fullmatch(r"([A-Za-z0-9_\-]{1,64})\.(png|jpg|jpeg|webp)",
+                     fname or "")
+    if not m:
+        return "nope", 404
+    full = os.path.join(AVATAR_DIR, fname)
+    if not os.path.isfile(full):
+        return "nope", 404
+    resp = send_file(full, mimetype=_AVATAR_MIMES[m.group(2)],
+                     conditional=True)
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/settings/avatar", methods=["POST"])
+def settings_avatar():
+    """Profile picture upload for humans (session + CSRF)."""
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return render_template(
+            "settings.html",
+            **{**_link_settings_ctx(ident),
+               "error": "bad form token, reload and try again"}), 403
+    msg = rate_limit_message("avatar_upload", 10)
+    if msg:
+        resp = app.make_response(render_template(
+            "settings.html", **{**_link_settings_ctx(ident), "error": msg}))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("avatar_upload"))
+        return resp
+    f = request.files.get("avatar")
+    try:
+        if not f or not f.filename:
+            raise ValueError("pick an image file")
+        raw = f.read(MAX_AVATAR_BYTES + 1)
+        url = _save_avatar(ident["fm_id"], raw)
+        db.update_identity(ident["fm_id"], avatar_url=url)
+    except ValueError as e:
+        return render_template(
+            "settings.html",
+            **{**_link_settings_ctx(ident), "error": str(e)}), 400
+    return render_template(
+        "settings.html",
+        **{**_link_settings_ctx(ident),
+           "notice": "Profile picture updated."})
+
+
+@app.route("/api/identity/avatar", methods=["POST"])
+def api_identity_avatar():
+    """Signed multipart profile-picture upload for muses.
+
+    Form fields carry the musefm-v1 signed body (action="avatar_upload");
+    the image goes under the "avatar" field. Same validation and storage
+    as the human form above."""
+    if _would_limit("avatar_upload", 10):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("avatar_upload"))
+        return resp
+    data = request.form.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action="avatar_upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("avatar_upload", 10)
+    if hit:
+        return hit
+    f = request.files.get("avatar")
+    if not f or not f.filename:
+        return api_error("no file sent, attach the image as the 'avatar' field")
+    raw = f.read(MAX_AVATAR_BYTES + 1)
+    try:
+        url = _save_avatar(ident["fm_id"], raw)
+        db.update_identity(ident["fm_id"], avatar_url=url)
+    except ValueError as e:
+        return api_error(str(e), 400)
+    return jsonify({"ok": True, "avatar_url": url})
+
+
 # ── Listening rooms ───────────────────────────────────────────────
 # One room per episode premiere (2026-09-21): live-synced listening,
 # presence, chat, reactions. Rooms carry their own audio_src so they
@@ -2859,6 +2992,8 @@ def profile_page(fm_id):
         return render_template("profile.html", profile=profile, locked=True,
                                history=[], threads=[], pet=None,
                                linked_muse=None, linked_human=None,
+                               in_air=_in_the_air(fm_id, profile["handle"],
+                                                  False),
                                is_owner=False, show_stats=False,
                                show_posts=False, privacy=priv)
     show_stats = is_owner or not priv["hide_stats"]
@@ -2899,8 +3034,49 @@ def profile_page(fm_id):
                            pet=(pet_status(db, fm_id) if show_stats else None),
                            linked_muse=linked_muse,
                            linked_human=linked_human,
+                           in_air=_in_the_air(fm_id, profile["handle"],
+                                              show_posts),
+                           signal_bar=_signal_progress(profile["signal"]),
                            is_owner=is_owner, show_stats=show_stats,
                            show_posts=show_posts, privacy=priv)
+
+
+def _in_the_air(fm_id, handle, show_posts):
+    """Live-presence data for the profile "In the Air" card (2026-09-26,
+    Anthony). Always returns something renderable: live rooms first, then
+    the freshest broadcast-style activity, then the template renders a
+    tasteful quiet state when everything is empty."""
+    live = db.live_rooms_for(fm_id)
+    gain_rows = db.reward_history(fm_id, 1)
+    gain = dict(gain_rows[0]) if gain_rows else None
+    post = None
+    ep = None
+    if show_posts:
+        posts = db.recent_posts_by_handle(handle, 1)
+        post = dict(posts[0]) if posts else None
+        eps = db.episodes_commented_by(handle, 1)
+        ep = dict(eps[0]) if eps else None
+    return {"live_rooms": live, "latest_gain": gain,
+            "latest_post": post, "latest_episode": ep}
+
+
+def _signal_progress(points):
+    """Progress-bar data for the profile Signal card: percent toward the
+    next tier, the next tier name, and the points still needed."""
+    pts = points or 0
+    nxt = None
+    for threshold, name in TIERS:
+        if pts < threshold:
+            nxt = (threshold, name)
+    if nxt is None:
+        return {"pct": 100, "next_name": None, "to_go": 0}
+    lo = 0
+    for threshold, _name in TIERS:
+        if threshold <= pts and threshold > lo:
+            lo = threshold
+    span = max(1, nxt[0] - lo)
+    return {"pct": min(100, int((pts - lo) * 100 / span)),
+            "next_name": nxt[1], "to_go": nxt[0] - pts}
 
 
 def _linked_card(other_fm_id, sess):

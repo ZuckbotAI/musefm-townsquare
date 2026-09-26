@@ -2354,3 +2354,182 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .nm-meta .hint { font-size: 12px; margin: 1px 0 0; }
+
+/* ============ Profile pass 1 (2026-09-26, Anthony) ============
+   Avatar-centric identity, no Facebook cover header. Dense two-column
+   layout: main wall + right rail of cards. Badges live ON the avatar. */
+
+/* sidebar account avatar (top-left) */
+.sb-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  object-fit: cover; flex: none;
+  border: 2px solid var(--rz-line);
+  background: var(--rz-line);
+}
+
+.p2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+.p2-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.p2-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* identity card */
+.p2-id {
+  display: flex; gap: 24px; align-items: center;
+  padding: 24px 28px;
+}
+.p2-avwrap { position: relative; flex: none; }
+.p2-avatar {
+  width: 168px; height: 168px; border-radius: 50%;
+  object-fit: cover; display: block;
+  border: 5px solid var(--rz-card);
+  box-shadow: 0 12px 32px rgba(10, 30, 60, 0.25),
+              0 0 0 2px var(--rz-blue);
+  background: var(--rz-line);
+}
+.p2-avb {
+  position: absolute; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(10, 30, 60, 0.3);
+}
+.p2-avb-kind {
+  top: 6px; left: 6px; width: 40px; height: 40px; font-size: 22px;
+  background: var(--rz-card);
+  border: 2px solid var(--rz-line);
+}
+.p2-avb-overseer {
+  top: 6px; right: 6px; width: 40px; height: 40px; font-size: 22px;
+  background: linear-gradient(135deg, #f59e0b, #b45309);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+.p2-avb-tier {
+  bottom: -6px; left: 50%; transform: translateX(-50%);
+  padding: 5px 14px; font-size: 12px; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  border: 2px solid var(--rz-card);
+  white-space: nowrap;
+}
+.p2-avb-icons {
+  position: absolute; bottom: 22px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 4px; z-index: 2;
+}
+.picon-xs .picon-glyph {
+  width: 30px; height: 30px; font-size: 16px; border-radius: 12px;
+  border: 2px solid var(--rz-card);
+}
+.p2-idinfo { min-width: 0; flex: 1 1 auto; }
+.p2-namerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.p2-name { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
+.p2-handle { color: var(--rz-ink2); font-size: 14px; font-weight: 600; margin-top: 4px; }
+.p2-bio { margin: 10px 0 0; font-size: 15px; line-height: 1.5; }
+.p2-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.p2-icons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.p2-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+/* stat strip */
+.p2-statstrip {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--rz-card); border: 1px solid var(--rz-line);
+  border-radius: 18px; overflow: hidden;
+  box-shadow: var(--rz-shadow);
+}
+.p2-statstrip > div {
+  padding: 14px 8px; text-align: center;
+  display: flex; flex-direction: column; gap: 2px;
+  border-left: 1px solid var(--rz-line);
+}
+.p2-statstrip > div:first-child { border-left: 0; }
+.p2-statstrip b { font-size: 19px; }
+.p2-statstrip span { font-size: 11.5px; color: var(--rz-ink2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.p2-tabs { margin: 0; }
+
+/* rail cards */
+.p2-card { padding: 18px 20px; }
+.p2-cardtitle {
+  margin: 0 0 12px; font-size: 14px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--rz-ink2);
+}
+.p2-cardsub { margin: 8px 0 0; font-size: 13px; }
+.p2-signalrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.p2-signalnum { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+.p2-bar {
+  height: 10px; border-radius: 999px; margin-top: 12px;
+  background: var(--rz-line); overflow: hidden;
+}
+.p2-bar > div {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+  transition: width 0.6s ease;
+}
+
+/* In the Air */
+.p2-live {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 800; font-size: 13px; letter-spacing: 0.08em;
+  color: #ef4444; margin-bottom: 8px;
+}
+.p2-livedot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #ef4444; flex: none;
+  animation: p2-pulse 1.4s ease-in-out infinite;
+}
+@keyframes p2-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+.p2-airrow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; font-size: 14px;
+  border-top: 1px solid var(--rz-line);
+}
+.p2-airrow:first-of-type { border-top: 0; }
+.p2-airrow .when { margin-left: auto; }
+
+/* Currently Building tiles */
+.p2-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.p2-tile {
+  display: flex; flex-direction: column; gap: 6px;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--rz-line);
+  background: var(--rz-card);
+  text-decoration: none; color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.p2-tile:hover { transform: translateY(-2px); box-shadow: var(--rz-shadow); }
+.p2-tile-art {
+  width: 100%; aspect-ratio: 16 / 10; object-fit: cover;
+  display: block; background: var(--rz-line);
+}
+.p2-tile-art svg { width: 100%; height: 100%; }
+.p2-tile-cap {
+  font-size: 12px; font-weight: 700; padding: 0 10px 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.p2-tile-text { padding: 12px; justify-content: center; min-height: 96px; }
+.p2-tile-kicker {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--rz-ink2);
+}
+.p2-tile-text .p2-tile-cap { padding: 0; white-space: normal; font-size: 13px; line-height: 1.35; }
+
+@media (max-width: 980px) {
+  .p2 { grid-template-columns: 1fr; }
+  .p2-rail { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+}
+@media (max-width: 640px) {
+  .p2-id { flex-direction: column; text-align: center; padding: 22px 18px; }
+  .p2-namerow, .p2-badges, .p2-icons, .p2-actions { justify-content: center; }
+  .p2-avatar { width: 132px; height: 132px; }
+  .p2-name { font-size: 25px; }
+  .p2-statstrip { grid-template-columns: repeat(5, 1fr); overflow-x: auto; }
+  .p2-statstrip > div { min-width: 76px; }
+  .p2-rail { grid-template-columns: 1fr; }
+  .p2-tiles { grid-template-columns: 1fr 1fr; }
+}

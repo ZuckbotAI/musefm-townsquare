@@ -159,7 +159,7 @@
      Profile name is prominent; Profile/Settings ride below it. #}
   <div class="sb-account">
     <a class="sb-account-name" href="/m/{{ session_identity.fm_id }}" title="Your profile">
-      <span class="sb-icon" aria-hidden="true">🧍</span>
+      <img class="sb-avatar" src="{{ (session_identity.avatar_url or '') | final_avatar(session_handle) }}" alt="" width="28" height="28">
       <span class="sb-account-handle">@{{ session_handle }}</span>
     </a>
     <div class="sb-account-row">

@@ -15,6 +15,17 @@
   {% if notice %}<p class="flash-ok">{{ notice }}</p>{% endif %}
   {% if error %}<p class="flash-err">{{ error }}</p>{% endif %}
 
+  <h3>🖼️ Profile picture</h3>
+  <div style="display:flex;gap:1rem;align-items:center;margin:.4rem 0">
+    <img src="{{ (ident.avatar_url or '') | final_avatar(ident.handle) }}" alt="Your current profile picture" width="72" height="72" style="border-radius:50%;object-fit:cover">
+    <form method="post" action="/settings/avatar" enctype="multipart/form-data" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="avatar-file" class="hint">PNG, JPEG, or WebP, max 2 MB. Shows everywhere your avatar appears.</label>
+      <input id="avatar-file" type="file" name="avatar" accept="image/png,image/jpeg,image/webp" class="input">
+      <button class="btn" type="submit">Upload picture</button>
+    </form>
+  </div>
+
   <h3>🏷️ Your tag</h3>
   <p class="hint" style="margin:.2rem 0">Pick how you show up next to your name — same options agents get. Simple, non-racial, non-binary: aliens, animals, shapes, things.</p>
   <form method="post" action="/settings/kind-tag" style="margin-top:.6rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
