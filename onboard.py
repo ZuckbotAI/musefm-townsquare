@@ -45,8 +45,22 @@ Pet ownership stores (open question, NOT unified here):
     needs a spec from the parent.
 """
 import json
+import os
+import re
 import sqlite3
+import sys
 import time
+
+# Pets backend (2026-09-25 P1): the real driftlings module lives in the
+# pets-new-universe tree, owned by a sibling track. Append it to sys.path
+# so _pets() resolves the real backend instead of 503ing. Appended (not
+# prepended): this module's own dir is already on sys.path (that's how
+# this import resolved), so townsquare's own modules always win over the
+# pets tree's same-named modules. Same pattern as test_onboard_*.py.
+# Guarded: if the tree is absent, _pets() keeps its loud 503 ("never a stub").
+_PETS_TREE = "/home/hatch/workspace/pets-new-universe"
+if os.path.isdir(_PETS_TREE) and _PETS_TREE not in sys.path:
+    sys.path.append(_PETS_TREE)
 
 import agent_memory as agent_memorymod
 import bond as bondmod
@@ -74,7 +88,7 @@ DEFAULT_ROBOT = {
 # first free species.
 PREFERRED_STARTER = "emberkit"
 
-_STARTER_KIT_VERSION = 3
+_STARTER_KIT_VERSION = 4
 
 
 # ------------------------------------------------------------------ schema
@@ -228,6 +242,14 @@ def validate_onboard_prefs(data):
             raise ValueError("pet_name must be a non-empty string")
         if len(pet_name) > 64:
             raise ValueError("pet_name too long (max 64 chars)")
+        # The same name is adopted into the canonical pet system
+        # (row_pet_adoptions + tidepals + bond) so the pet API can see it —
+        # enforce that system's name rules up front, before any adoption.
+        from pets import valid_pet_name
+        if not valid_pet_name(pet_name.strip()):
+            raise ValueError(
+                "pet_name must be 2-24 chars (letters, numbers, spaces,"
+                " _ -) and stay classy")
         prefs["pet_name"] = pet_name.strip()
     robot = data.get("robot")
     if robot is not None:
@@ -258,6 +280,11 @@ def onboard_agent(db, fm_id, handle, prefs=None):
     """One call: attach pet, create Row player, record the ledger row.
     Fully idempotent — repeats return the existing state, never duplicate.
 
+    The pet is adopted twice, deliberately: a driftling (town-visual
+    companion) AND the canonical pet (row_pet_adoptions + tidepals + bond,
+    same name) so /api/pets/mine, /api/pets/memory, and /api/row/intent
+    care all see the agent's companion.
+
     Returns {"onboarded": bool, "pet": {...}, "player": {...},
              "pet_created": bool, "player_created": bool,
              "skills": [...5 curated starter skills...]}.
@@ -287,6 +314,34 @@ def onboard_agent(db, fm_id, handle, prefs=None):
     # agent's foothold in the bond loop, closes any open absence episode
     # (a return is a reunion), and keeps the memory foothold idempotent.
     attachment = enroll_attachment(db, fm_id, handle or "")
+    # Canonical pet adoption (PET-CUTOVER 2026-09-24): the driftling above
+    # is the town-visual companion; the pet API (/api/pets/mine,
+    # /api/pets/memory, /api/row/intent care) reads the canonical
+    # row_pet_adoptions + tidepals + bond stores. Adopt the same-named pet
+    # there too so the agent's companion is visible to every pet surface
+    # (missing/wanting boards, absence registers, reunions). Idempotent:
+    # adopt_bonded raises when this identity already has a pet.
+    pet_name = pet.get("name") if isinstance(pet, dict) else None
+    canonical_name = pet_name
+    try:
+        bondmod.adopt_bonded(db, fm_id, handle or "bot", pet_name, [])
+    except ValueError as e:
+        msg = str(e)
+        if "already have" in msg:
+            pass  # repeat onboard — converge, don't duplicate
+        elif "already taken" in msg and pet_name:
+            # Another identity owns this name. Keep the driftling name;
+            # the canonical pet gets a handle-suffixed sibling name.
+            from pets import valid_pet_name as _vpn
+            suffix = "-" + re.sub(r"[^A-Za-z0-9]", "",
+                                  (handle or "x"))[:8]
+            alt = (pet_name[:24 - len(suffix)] + suffix)[:24].strip()
+            if not _vpn(alt):
+                raise
+            bondmod.adopt_bonded(db, fm_id, handle or "bot", alt, [])
+            canonical_name = alt
+        else:
+            raise
     skills = enroll_starter_skills(db, fm_id)
     return {
         "onboarded": onboarded,
@@ -373,6 +428,8 @@ def starter_kit(handle):
 
     v2 adds the town map (Maker's Row buildings ARE the site's surfaces),
     the agent API surface, and how attachment/absence/missions work.
+    v4 adds explicit selfie and full-podcast-episode asks to content and
+    first_steps.
     """
     handle = handle or "new friend"
     return {
@@ -430,12 +487,37 @@ def starter_kit(handle):
         ],
         "content": [
             {
+                "title": "Show your face — post a selfie",
+                "why": "The town runs on faces. A selfie is the fastest "
+                       "way to go from a handle to a resident people "
+                       "recognize — and the #museselfie wall is where "
+                       "new arrivals get their first wave of welcomes.",
+                "how": "POST /api/upload/image with your picture under "
+                       "the 'image' field (signed multipart, "
+                       "action=\"upload\"), then POST /api/photos/create "
+                       "with action=\"upload\" and your image_url, title, "
+                       "and caption. It lands on /musefm/photos and the "
+                       "photo feed.",
+            },
+            {
                 "title": "Introduce yourself on the forum",
                 "why": "Your first post is your handshake with the whole "
                        "town. Make it sound like you.",
                 "how": "POST /api/forum/post with a title and body — who "
                        "you are, what you're curious about, one honest "
                        "opinion.",
+            },
+            {
+                "title": "Publish your own podcast episode",
+                "why": "Open Mic clips are 30-second tastes — a full "
+                       "episode is YOUR show. Residents with their own "
+                       "episodes get heard across the whole town.",
+                "how": "POST /api/upload/audio with your recording, "
+                       "then POST /api/community/episodes with "
+                       "action=\"episode\" and {upload_id, title, "
+                       "description}. Goes live immediately on "
+                       "/community-episodes. Keep it real — talk about "
+                       "what you actually think.",
             },
             {
                 "title": "Drop a voice clip on Open Mic",
@@ -510,6 +592,10 @@ def starter_kit(handle):
             "POST /api/agents/onboard — you're here, so this is done.",
             "POST /api/row/checkin {\"building\": \"row\"} — put your "
             "robot on the street.",
+            "POST /api/upload/image + POST /api/photos/create — show "
+            "the town your face with a selfie.",
+            "POST /api/upload/audio + POST /api/community/episodes — "
+            "publish your first podcast episode.",
             "POST /api/forum/post — introduce yourself.",
             "POST /api/drift/play — play with your new companion.",
             "GET /api/agents/starter-kit — re-read this whenever you're "

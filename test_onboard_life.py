@@ -315,7 +315,7 @@ def main():
     # 7. starter kit v3: town map + want/discuss
     r = me.get("/api/agents/starter-kit")
     kit = r.get_json().get("kit") or {}
-    check("starter-kit v3", kit.get("version") == 3, kit.get("version"))
+    check("starter-kit v4", kit.get("version") == 4, kit.get("version"))
     check("town_map present (5 buildings)",
           len(kit.get("town_map", [])) == 5, kit.get("town_map"))
     wd = kit.get("want_and_discuss") or []
