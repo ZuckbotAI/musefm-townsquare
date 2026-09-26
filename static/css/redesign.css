@@ -170,6 +170,20 @@ a { color: var(--rz-blue-deep); }
   transition: transform 0.18s var(--spring), box-shadow 0.18s var(--ease);
 }
 .sb-create:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 14px 30px rgba(47,123,255,.5); }
+/* Create reads washed out in dark mode: deepen the gradient, strengthen
+   the edge and the glow so it stays a solid blue button at night. */
+[data-theme="dark"] .sb-create {
+  background: linear-gradient(135deg, #2f7bf5, #1450c8);
+  border: 1px solid rgba(130,185,255,.45);
+  box-shadow: 0 10px 26px rgba(47,123,255,.5),
+              inset 0 1px 0 rgba(255,255,255,.35),
+              0 0 18px rgba(47,123,255,.25);
+}
+[data-theme="dark"] .sb-create:hover {
+  box-shadow: 0 14px 32px rgba(47,123,255,.6),
+              inset 0 1px 0 rgba(255,255,255,.35),
+              0 0 26px rgba(47,123,255,.32);
+}
 .sb-create span[aria-hidden="true"] {
   width: 22px; height: 22px; border: 1.5px solid rgba(255,255,255,.9);
   border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
@@ -224,7 +238,7 @@ a { color: var(--rz-blue-deep); }
   position: relative;
   border-radius: 24px;
   overflow: hidden;
-  min-height: 340px;
+  min-height: 220px;
   display: flex;
   align-items: stretch;
   margin: 0 0 22px;
@@ -249,8 +263,8 @@ a { color: var(--rz-blue-deep); }
 .rz-hero-inner {
   position: relative;
   z-index: 1;
-  padding: 46px 44px;
-  max-width: 540px;
+  padding: 30px 40px;
+  max-width: 620px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -258,22 +272,22 @@ a { color: var(--rz-blue-deep); }
 }
 .rz-kicker {
   font-size: 12px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase;
-  color: #8fd8ff; margin: 0 0 12px;
+  color: #8fd8ff; margin: 0 0 8px;
 }
 .rz-hero h1 {
-  margin: 0 0 12px;
-  font-size: clamp(30px, 4.2vw, 44px);
-  line-height: 1.08; letter-spacing: -0.025em; font-weight: 800; color: #fff;
+  margin: 0 0 8px;
+  font-size: clamp(26px, 3.4vw, 36px);
+  line-height: 1.1; letter-spacing: -0.025em; font-weight: 800; color: #fff;
   text-wrap: balance;
 }
 .rz-hero h1 .rz-hi { color: #8fd8ff; }
 .rz-hero p.rz-slogan {
-  margin: 0 0 10px; font-size: 16px; font-weight: 700; font-style: italic;
+  margin: 0 0 8px; font-size: 15px; font-weight: 700; font-style: italic;
   color: rgba(255, 255, 255, 0.92); letter-spacing: 0.01em;
 }
 .rz-hero p.rz-sub {
-  margin: 0 0 24px; font-size: 15px; line-height: 1.6;
-  color: rgba(255, 255, 255, 0.8); max-width: 46ch;
+  margin: 0 0 18px; font-size: 14px; line-height: 1.55;
+  color: rgba(255, 255, 255, 0.8); max-width: 60ch;
 }
 .rz-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .rz-hero-actions .btn { border-radius: 999px; font-weight: 700; }
@@ -1929,20 +1943,18 @@ body::before {
               0 8px 22px rgba(27, 58, 110, 0.12);
 }
 [data-theme="dark"] .topbar-search {
-  background: linear-gradient(135deg, rgba(40,60,98,.72), rgba(14,23,42,.58) 58%, rgba(22,36,64,.64));
-  border-color: rgba(148,197,255,.22);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.14),
-              inset 0 -1px 0 rgba(0,0,0,.35),
-              0 8px 24px rgba(0,0,0,.45),
-              0 0 22px rgba(56,189,248,.07);
+  background: linear-gradient(180deg, rgba(44,64,104,.66), rgba(20,30,56,.66));
+  border-color: rgba(148,197,255,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12),
+              inset 0 -1px 0 rgba(0,0,0,.3),
+              0 6px 18px rgba(0,0,0,.4);
 }
 [data-theme="dark"] .topbar-search:hover {
-  background: linear-gradient(135deg, rgba(48,70,110,.78), rgba(17,28,50,.64) 58%, rgba(26,42,72,.68));
-  border-color: rgba(148,197,255,.32);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.18),
-              inset 0 -1px 0 rgba(0,0,0,.35),
-              0 10px 28px rgba(0,0,0,.5),
-              0 0 26px rgba(56,189,248,.1);
+  background: linear-gradient(180deg, rgba(52,74,118,.72), rgba(24,36,64,.72));
+  border-color: rgba(148,197,255,.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16),
+              inset 0 -1px 0 rgba(0,0,0,.3),
+              0 8px 22px rgba(0,0,0,.45);
 }
 /* Ctrl+K chip: precisely centered, glassy, dark-aware */
 .topbar-search kbd {
@@ -1963,12 +1975,11 @@ body::before {
               0 8px 22px rgba(27, 58, 110, 0.1);
 }
 [data-theme="dark"] .topbar-search:focus-within {
-  background: linear-gradient(135deg, rgba(32,48,82,.94), rgba(12,20,36,.96));
-  border-color: rgba(94,168,255,.55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.16),
-              0 0 0 3px rgba(56,150,255,.22),
-              0 0 30px rgba(56,150,255,.14),
-              0 10px 28px rgba(0,0,0,.5);
+  background: linear-gradient(180deg, rgba(36,54,92,.92), rgba(14,22,40,.94));
+  border-color: rgba(94,168,255,.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14),
+              0 0 0 3px rgba(56,150,255,.2),
+              0 8px 22px rgba(0,0,0,.45);
 }
 [data-theme="dark"] .topbar-search svg { opacity: .8; color: #a8ccff; }
 [data-theme="dark"] .topbar-search input::placeholder { color: rgba(196,214,245,.55); }
@@ -2069,27 +2080,36 @@ body::before {
 .rz-hero p.rz-sub { margin-bottom: 22px; }
 .rz-hero-actions { gap: 12px; align-items: center; }
 .rz-hero-actions .btn { padding: 12px 22px; font-size: 14.5px; }
-/* orb + saying sit inline at the foot of the copy column, not floating */
+/* Slim companion strip under the hero (2026-09-26, Anthony): the hero
+   reads as a rectangle, and the orb dialogue lives here instead of
+   inside it. */
+.rz-hero-orb-strip { margin: 0 0 22px; display: flex; }
 .rz-hero-orb {
   position: static; display: flex; align-items: center; gap: 14px;
-  margin-top: 26px; padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  max-width: 480px;
+  margin: 0; padding: 10px 16px 10px 10px;
+  border-radius: 18px; max-width: none;
+  background: var(--rz-card); border: 1px solid var(--rz-line);
+  box-shadow: var(--rz-shadow);
 }
-.rz-hero-orb .hero-orb-bubble { width: 76px; height: 76px; flex: none; }
-.rz-hero-orb .hero-orb-stage { width: 66px; height: 66px; }
+[data-theme="dark"] .rz-hero-orb {
+  background: rgba(20,33,58,.62); border-color: rgba(148,197,255,.16);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.rz-hero-orb .hero-orb-bubble { width: 56px; height: 56px; flex: none; }
+.rz-hero-orb .hero-orb-stage { width: 48px; height: 48px; }
 .rz-hero-orb .hero-says {
   margin: 0; max-width: none; flex: 1;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  box-shadow: none; border-radius: 14px; padding: 10px 14px;
+  background: transparent; border: 0;
+  box-shadow: none; border-radius: 0; padding: 0;
 }
-.rz-hero-orb .hero-says-text { color: rgba(255, 255, 255, 0.92); font-size: 13px; margin-bottom: 6px; }
+.rz-hero-orb .hero-says-text { color: var(--rz-ink2); font-size: 13px; margin: 0 0 6px; }
 .rz-hero-orb .hero-says-chat {
-  background: rgba(255, 255, 255, 0.16); color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: var(--rz-pill); color: var(--rz-ink);
+  border: 1px solid var(--rz-line);
 }
+
+/* dark mode: the FM in the logo reads blown out at full accent blue */
+[data-theme="dark"] .brand .wordmark text tspan:last-child { fill: #8fb0e8 !important; }
 
 /* ---------- homepage sections ---------- */
 .rz-section { margin: 0 0 30px; }
@@ -2660,9 +2680,12 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
     inset 0 1px 0 rgba(255,255,255,.9);
   color: var(--rz-blue-deep);
 }
+/* dark mode: sidebar link text reads white, not blue (2026-09-26, Anthony) */
+[data-theme="dark"] .sidebar .sb-link { color: #edf2fa; }
+[data-theme="dark"] .sidebar .sb-link:hover { color: #fff; }
 [data-theme="dark"] .sidebar .sb-link.active {
   background: linear-gradient(180deg, #1b2c52, #14233f);
-  color: var(--rz-blue);
+  color: #fff;
 }
 .sidebar .sb-link.active::before {
   content: "";

@@ -98,20 +98,21 @@
       {% if not session_identity %}<a class="btn btn-human" href="/signup">🙋 Sign up free</a>{% endif %}
     </div>
     <p class="fm-tag" id="tagline" style="margin:14px 0 0;font-size:13px;color:rgba(255,255,255,.65)">{{ tagline }}</p>
-    {# The orb's home on the homepage: it flies in here and sits in the
-       bubble; the saying surfaces as a speech bubble beside it (dialogue
-       layout, 2026-09-23, Anthony). Inline at the foot of the copy column
-       (2026-09-26) so it never floats over the artwork. Click the orb for
-       another saying, "Ask me anything" to chat. #}
-    <div class="rz-hero-orb">
-      <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
-      <div class="hero-says" id="hero-says" role="status">
-        <p class="hero-says-text" id="hero-says-text">&ldquo;{{ hero_saying }}&rdquo;</p>
-        <button type="button" class="hero-says-chat" id="hero-says-chat">Ask me anything &rarr;</button>
-      </div>
-    </div>
   </div>
 </header>
+{# The orb's home on the homepage: a slim companion strip under the hero
+   (2026-09-26, Anthony: the hero should read as a rectangle, not a square —
+   the dialogue row was the height anchor). The orb still snaps into
+   #hero-orb-stage; "Ask me anything" opens chat. #}
+<div class="rz-hero-orb-strip">
+  <div class="rz-hero-orb">
+    <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
+    <div class="hero-says" id="hero-says" role="status">
+      <p class="hero-says-text" id="hero-says-text">&ldquo;{{ hero_saying }}&rdquo;</p>
+      <button type="button" class="hero-says-chat" id="hero-says-chat">Ask me anything &rarr;</button>
+    </div>
+  </div>
+</div>
 {% endif %}
 <script>
 /* Hero dialogue: "Ask me anything" opens the orb chat panel. */
