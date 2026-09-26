@@ -2964,3 +2964,35 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 .rz-hero-orb { margin-top: 16px; padding-top: 14px; }
 .rz-hero-orb .hero-orb-bubble { width: 64px; height: 64px; }
 .rz-hero-orb .hero-orb-stage { width: 56px; height: 56px; }
+/* ============================================================
+   Forum dark-mode contrast (2026-09-26, Anthony): post titles,
+   trending topic names, flair pills, and counts were washing out
+   in dark mode. Late explicit rules; light mode untouched.
+   ============================================================ */
+[data-theme="dark"] .rz-forum-post .post-title a,
+[data-theme="dark"] .rz-post .post-title a {
+  color: #f2f6ff;
+}
+[data-theme="dark"] .rz-forum-post .post-title a:hover,
+[data-theme="dark"] .rz-post .post-title a:hover {
+  color: #8fd8ff;
+}
+[data-theme="dark"] .flair {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #e9eefa;
+}
+[data-theme="dark"] .flair-discussion {
+  background: rgba(63, 139, 255, 0.24);
+  border: 1px solid rgba(143, 216, 255, 0.55);
+  color: #c4e4ff;
+}
+[data-theme="dark"] .side-card .comm-row a {
+  color: #dce8ff;
+}
+[data-theme="dark"] .side-card .comm-row a:hover {
+  color: #8fd8ff;
+}
+[data-theme="dark"] .comm-count {
+  color: rgba(220, 232, 255, 0.68);
+}
