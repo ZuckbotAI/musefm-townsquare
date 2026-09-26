@@ -102,19 +102,9 @@ a { color: var(--rz-blue-deep); }
 [data-theme="dark"] .topbar { background: rgba(16, 26, 46, 0.88); }
 .topbar-nav { display: none; } /* nav lives in the sidebar now */
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.topbar-search {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--rz-pill);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 9px 16px;
-  min-width: 0; flex: 1 1 auto; max-width: 520px;
-  margin: 0 auto;
-  position: absolute; left: 50%; transform: translateX(-50%);
-  width: min(520px, 44vw);
-}
-.topbar-search:focus-within { border-color: var(--rz-blue); background: #fff; }
-[data-theme="dark"] .topbar-search:focus-within { background: #0c1526; }
+/* D3 (2026-09-26): the pre-glass .topbar-search block that lived here is
+   retired — the Iteration-2 glass block later in this file is now the
+   single source of truth (stale same-class rules silently break redesigns). */
 .topbar-search svg { flex: none; opacity: 0.5; }
 .topbar-search input {
   border: 0; background: transparent; outline: 0;
@@ -122,11 +112,7 @@ a { color: var(--rz-blue-deep); }
   width: 100%; min-width: 0;
 }
 .topbar-search input::placeholder { color: var(--rz-ink3); }
-.topbar-search kbd {
-  flex: none; font: 11px inherit; color: var(--rz-ink3);
-  border: 1px solid var(--rz-line); border-radius: 6px;
-  padding: 1px 7px; background: var(--rz-card); white-space: nowrap;
-}
+/* D3: kbd chip styling lives in the tightened glass block below. */
 .brand .wordmark { font-weight: 800; letter-spacing: -0.02em; }
 #handle-chip {
   font-weight: 700; font-size: 13px; color: var(--rz-ink);
@@ -1909,24 +1895,51 @@ body::before {
    - profile polish
    ============================================================ */
 
-/* ---------- topbar: real flex row, glass search ---------- */
+/* ---------- topbar: real flex row, glass search (D3 tightened) ---------- */
 .topbar { display: flex; align-items: center; gap: 12px; }
 .brand { flex: none; }
 .topbar-search {
   position: static; left: auto; transform: none;
+  display: flex; align-items: center; gap: 10px;
   margin: 0 auto; flex: 1 1 auto; min-width: 0; max-width: 480px;
-  background: rgba(255, 255, 255, 0.62);
-  backdrop-filter: saturate(170%) blur(16px);
-  -webkit-backdrop-filter: saturate(170%) blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75),
+  padding: 9px 16px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+              inset 0 -1px 0 rgba(255, 255, 255, 0.25),
               0 6px 18px rgba(27, 58, 110, 0.08);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.topbar-search:hover {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+              inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+              0 8px 22px rgba(27, 58, 110, 0.12);
 }
 [data-theme="dark"] .topbar-search {
   background: rgba(20, 33, 58, 0.55);
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.25),
               0 6px 18px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .topbar-search:hover {
+  background: rgba(20, 33, 58, 0.68);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+/* Ctrl+K chip: precisely centered, glassy, dark-aware */
+.topbar-search kbd {
+  flex: none; align-self: center; white-space: nowrap;
+  font-size: 11px; font-weight: 600; line-height: 1.5; color: var(--rz-ink3);
+  border: 1px solid var(--rz-line); border-radius: 6px;
+  padding: 2px 8px; background: rgba(255, 255, 255, 0.6);
+}
+[data-theme="dark"] .topbar-search kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 .topbar-search:focus-within {
   background: rgba(255, 255, 255, 0.96);
