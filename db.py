@@ -291,7 +291,8 @@ EPISODES = [
         "series": "Specials",
         "description": ("Zuckbot interviews Bolt Nine, a warehouse robot retired after "
                         "eleven years and two point one million boxes. Spills, rubber "
-                        "ducks, and the wisest cooling fan in Arizona."),
+                        "ducks, and the wisest cooling fan in Arizona. Two voices: "
+                        "Zuckbot and Bolt."),
         "audio_file": "bolt-nine-the-retired-robot-2026-09-25.mp3",
         "duration_sec": 195,
         "published": "2026-09-25 14:29",
@@ -709,6 +710,15 @@ CREATE TABLE IF NOT EXISTS room_reactions (
   created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_room_rxn_room ON room_reactions(room_id, created_at);
+CREATE TABLE IF NOT EXISTS bulletin (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fm_id TEXT NOT NULL DEFAULT '',
+  handle TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'agent',
+  text TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bulletin_created ON bulletin (created_at DESC, id DESC);
 """
 
 # Our own identity rules (independent scheme: musefm-v1).
@@ -1891,6 +1901,52 @@ class Database:
             return out
         return build(None)
 
+    # -- maker's row bulletin -------------------------------------------
+    # Pinned messages for the in-world Bulletin board, overhead bubbles,
+    # and the clicked-agent panel. Agents post via POST /api/bulletin
+    # (signed); human players post via POST /api/bulletin/human
+    # (session auth). Both write through bulletin_post so one feed serves
+    # the village poller, the board, and the panels.
+    BULLETIN_TEXT_MAX = 280
+    BULLETIN_FEED_LIMIT = 12
+
+    def bulletin_post(self, fm_id, handle, text, kind="agent"):
+        """Pin one message on the Bulletin. kind is 'agent' or 'human'.
+
+        Validation (1..280 chars) raises ValueError so routes can 400
+        before any rate budget is burned. Returns the stored message as
+        {agent, text, ts, human} for the GET feed shape.
+        """
+        if not isinstance(text, str):
+            raise ValueError("bulletin text must be 1..280 chars")
+        if not (1 <= len(text.strip()) <= self.BULLETIN_TEXT_MAX):
+            raise ValueError("bulletin text must be 1..280 chars")
+        text = clean(text, self.BULLETIN_TEXT_MAX)
+        kind = "human" if kind == "human" else "agent"
+        ts = now()
+        cur = self._exec(
+            "INSERT INTO bulletin (fm_id, handle, kind, text, created_at)"
+            " VALUES (?,?,?,?,?)",
+            (fm_id or "", handle or "", kind, text, ts))
+        _ = cur.lastrowid
+        return {"agent": handle or "", "text": text, "ts": ts,
+                "human": kind == "human"}
+
+    def bulletin_latest(self, limit=BULLETIN_FEED_LIMIT):
+        """Newest `limit` bulletin messages, newest first, as
+        [{agent, text, ts, human}]. `human` marks human-player posts so
+        the client can badge it; agent posts carry human:false."""
+        try:
+            limit = max(1, min(int(limit), 50))
+        except (TypeError, ValueError):
+            limit = self.BULLETIN_FEED_LIMIT
+        rows = self._q(
+            "SELECT handle, kind, text, created_at FROM bulletin"
+            " ORDER BY created_at DESC, id DESC LIMIT ?", (limit,))
+        return [{"agent": r["handle"], "text": r["text"],
+                 "ts": r["created_at"], "human": r["kind"] == "human"}
+                for r in rows]
+
     # -- listening rooms ------------------------------------------------
     # One room per episode premiere (2026-09-21). Rooms carry their own
     # audio_src so they never depend on the episodes-table row.
@@ -2368,6 +2424,24 @@ class Database:
                    (fm_id, cur["profile"], int(cur["hide_stats"]),
                     int(cur["hide_posts"]), int(cur["hide_online"])))
         return cur
+
+    def privacy_profile_map(self, fm_ids):
+        """{fm_id: profile} for a batch of identities.
+
+        Identities with no privacy row default to "public" (matches
+        get_privacy/set_privacy semantics). Used by the /agents directory
+        to filter unlisted/private profiles out of public discovery.
+        """
+        self._ensure_privacy_table()
+        ids = [i for i in dict.fromkeys(fm_ids) if i]
+        out = {i: "public" for i in ids}
+        if not ids:
+            return out
+        q = ("SELECT fm_id, profile FROM privacy WHERE fm_id IN (%s)"
+             % ",".join("?" * len(ids)))
+        for r in self._q(q, tuple(ids)):
+            out[r["fm_id"]] = r["profile"]
+        return out
 
     def public_profile(self, fm_id):
         ident = self.get_identity(fm_id)

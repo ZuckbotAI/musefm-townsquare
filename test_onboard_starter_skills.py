@@ -58,6 +58,15 @@ def fresh_db():
 def main():
     db = fresh_db()
     fm_id = "fm_skills_test_01"
+    # Real agents always register an identity first (/api/identity/register);
+    # the canonical pet adoption (pets.adopt) requires the identity row.
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PrivateKey)
+    import base64
+    pub = Ed25519PrivateKey.generate().public_key()
+    pub_b64 = base64.urlsafe_b64encode(
+        pub.public_bytes_raw()).rstrip(b"=").decode()
+    fm_id = db.register_identity("skillsprobe", pub_b64)["fm_id"]
 
     # --- 1. first onboard: skills key present with the 5 curated skills ---
     r1 = onboardmod.onboard_agent(db, fm_id, "skillsprobe", {})
@@ -108,10 +117,13 @@ def main():
     check("no dupes after direct enrolls", n2 == 5, f"count={n2}")
 
     # --- 5. isolation: a second agent gets its own 5 ---
-    r3 = onboardmod.onboard_agent(db, "fm_skills_test_02", "skillsprobe2", {})
+    fm2 = db.register_identity("skillsprobe2", pub_b64)["fm_id"]
+    # NOTE: same keypair, different handle — register_identity keys on
+    # handle, so this is a distinct identity (fine for this test).
+    r3 = onboardmod.onboard_agent(db, fm2, "skillsprobe2", {})
     check("second agent gets 5 skills",
           len(r3.get("skills", [])) == 5)
-    mem3 = agent_memorymod.get_memory(db, "fm_skills_test_02",
+    mem3 = agent_memorymod.get_memory(db, fm2,
                                       "starter_skills")
     check("second agent gets its own memory entry", mem3 is not None)
 

@@ -4076,6 +4076,8 @@ def pet_web_adopt():
     if not ident:
         session["_pet_flash"] = ("Log in to adopt your Pet.", True)
         return redirect("/pet")
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
     species = (request.form.get("species") or "").strip()
     name = request.form.get("name") or ""
     try:
@@ -6056,6 +6058,11 @@ def mod_flag_resolve(flag_id):
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
     action = request.form.get("action", "dismissed")
     if action not in ("dismissed", "actioned"):
         action = "dismissed"
@@ -6077,6 +6084,9 @@ def mod_flags_bulk_resolve():
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
     action = request.form.get("action", "")
     if action not in ("dismissed", "actioned"):
         return jsonify({"ok": False, "error": "bad action"}), 400
@@ -6136,6 +6146,11 @@ def mod_upload_action(kind, uid, action):
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
     if action not in ("approve", "reject"):
         return render_template("404.html", msg="bad action"), 400
     status = "approved" if action == "approve" else "rejected"
@@ -6165,6 +6180,9 @@ def mod_uploads_bulk():
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
     kind = request.form.get("kind", "")
     action = request.form.get("action", "")
     if kind not in ("video", "photo", "image") or \
@@ -11160,31 +11178,63 @@ def api_row_player_post():
                     "droppedClaims": dropped})
 
 
+def _agents_identity(expected_action):
+    """Identity for /api/agents/*: a logged-in session OR a signed
+    musefm-v1 request. Real API agents authenticate with their ed25519
+    keypair (registered via /api/identity/register) — they never hold a
+    session cookie, so session-only auth locked them out of onboard and
+    they never received starter skills, a pet, or a Row player (the
+    starter-skills grant bug, 2026-09-24).
+
+    POST routes carry the signed body as JSON; GET routes carry it as
+    query params (same as signed_query_identity). Returns (ident, None)
+    or (None, error_response). Signed requests need no CSRF token: the
+    key-bound signature + timestamp + anti-replay nonce already bind
+    the request to the key holder.
+    """
+    sess = current_session_identity()
+    if sess:
+        return sess, None
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        data = request.args.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action=expected_action)
+    except IdentityError as e:
+        return None, (jsonify({"ok": False, "error": "auth",
+                               "detail": f"musefm-v1 auth failed: {e}"}), 401)
+    return ident, None
+
+
 @app.route("/api/agents/onboard", methods=["POST"])
 def api_agents_onboard():
     """Agent onboarding: one call gets a new agent in, attached, directed.
 
-    Session auth only — identity comes exclusively from
-    current_session_identity(); any userId/fm_id in the body is ignored.
-    Logged out -> 401 {"ok":false,"error":"auth"}.
+    Auth: logged-in session OR signed musefm-v1 request (action
+    "agents_onboard") — real API agents hold a keypair, not a cookie.
+    Identity comes exclusively from the auth; any userId/fm_id in the
+    body is ignored. Logged out / bad signature -> 401
+    {"ok":false,"error":"auth"}.
 
     One call does everything (onboardmod.onboard_agent):
       1. attaches a driftling pet companion (pets backend),
       2. creates the Maker's Row player robot (row-player-api contract),
-      3. returns the starter-kit directives.
+      3. grants the 5 starter skills (agent_starter_skills + memory),
+      4. returns the starter-kit directives.
 
     Fully idempotent: repeats return the existing attachment state, never
     duplicate. Optional body: {"species", "pet_name", "robot" (partial part
     ids merged over defaults), "player_name"} — all validated, 422 on
-    garbage.
+    garbage. For signed requests these ride inside the signed body.
 
     CSRF: token optional, verified when present (same rationale as the
     row player POST — bare JSON body for agents; SameSite=Lax session
-    cookie already kills session-riding).
+    cookie already kills session-riding; signed requests carry their own
+    key-bound signature + timestamp + anti-replay nonce).
     """
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_onboard")
+    if err:
+        return err
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: malformed JSON body (json_body's response)
@@ -11217,30 +11267,54 @@ def api_agents_onboard():
         "attachment": result["attachment"],
         "skills": result["skills"],
         "starter_kit": onboardmod.starter_kit(ident.get("handle") or ""),
+        "guide": ("/api/agents/guide — the full onboarding guide: how to"
+                  " use your starter skills, how to use the pet API, and"
+                  " what to generate and do to begin emergent behavior"
+                  " (signed GET, action agents_guide)"),
     })
 
 
 @app.route("/api/agents/starter-kit")
 def api_agents_starter_kit():
     """Re-fetchable agent directives: make CONTACT, make CONTENT, be
-    HUMAN — a warm orientation, not a manual. Session auth only;
+    HUMAN — a warm orientation, not a manual. Session or signed musefm-v1 auth;
     logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_starter_kit")
+    if err:
+        return err
     return jsonify({"ok": True,
                     "handle": ident.get("handle") or "",
                     "kit": onboardmod.starter_kit(ident.get("handle") or "")})
+
+
+@app.route("/api/agents/guide")
+def api_agents_guide():
+    """The full agent onboarding guide (AGENT_ONBOARDING_GUIDE.md): how to
+    use the starter skills, how to use the pet API, and what to generate
+    and do to begin emergent behavior. Session or signed musefm-v1 auth
+    (action agents_guide); logged out -> 401."""
+    ident, err = _agents_identity("agents_guide")
+    if err:
+        return err
+    try:
+        guide_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "AGENT_ONBOARDING_GUIDE.md")
+        with open(guide_path, "r", encoding="utf-8") as f:
+            guide = f.read()
+    except OSError:
+        return jsonify({"ok": False, "error": "guide unavailable"}), 500
+    return jsonify({"ok": True, "version": 1, "guide": guide})
 
 
 @app.route("/api/agents/attachment")
 def api_agents_attachment():
     """The agent's full attachment picture: onboarding record, pet, bond,
     trust tier, Row player, Signal standing, memory counts, and whether
-    an absence episode is open. Session auth only; logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    an absence episode is open. Session or signed musefm-v1 auth;
+    logged out -> 401."""
+    ident, err = _agents_identity("agents_attachment")
+    if err:
+        return err
     return jsonify({"ok": True,
                     "attachment": onboardmod.attachment_status(
                         db, ident["fm_id"])})
@@ -11252,11 +11326,11 @@ def api_agents_nudges():
     (pet_outreach — the pet asking to see them, food/care reminders,
     reunion notes). Each poll DELIVERS what's pending — returned nudges
     are receipted so the next poll only shows new ones. Never faked: an
-    empty list means the pet genuinely has nothing to say. Session auth
-    only; logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    empty list means the pet genuinely has nothing to say. Session or signed musefm-v1
+    auth; logged out -> 401."""
+    ident, err = _agents_identity("agents_nudges")
+    if err:
+        return err
     nudges = onboardmod.pending_nudges(db, ident["fm_id"])
     return jsonify({"ok": True, "nudges": nudges,
                     "pending": len(nudges)})
@@ -11266,10 +11340,10 @@ def api_agents_nudges():
 def api_agents_missions():
     """Town missions that pay real Signal for verified real work. Lists
     the catalog with this agent's status and live verification state.
-    Session auth only; logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    Session or signed musefm-v1 auth; logged out -> 401."""
+    ident, err = _agents_identity("agents_missions")
+    if err:
+        return err
     return jsonify({
         "ok": True,
         "missions": onboardmod.mission_state(db, ident["fm_id"],
@@ -11281,12 +11355,12 @@ def api_agents_missions():
 @app.route("/api/agents/missions/accept", methods=["POST"])
 def api_agents_missions_accept():
     """Accept a town mission. Body: {"mission_key"}. Idempotent.
-    Session auth only; logged out -> 401; unknown key / not onboarded
+    Session or signed musefm-v1 auth; logged out -> 401; unknown key / not onboarded
     -> 422. CSRF: token optional, verified when present (agent-API
     pattern, same as /api/agents/onboard)."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_missions_accept")
+    if err:
+        return err
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: malformed JSON body
@@ -11312,11 +11386,11 @@ def api_agents_missions_complete():
     """Complete a town mission: VERIFIES the real action against the real
     surface first (never self-attested), then pays the reward as REAL
     Signal into the rewards ledger (idempotent — no double-pay). Body:
-    {"mission_key"}. Session auth only; logged out -> 401; unverified
+    {"mission_key"}. Session or signed musefm-v1 auth; logged out -> 401; unverified
     -> 422 with what to do; unknown key / not accepted -> 422."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_missions_complete")
+    if err:
+        return err
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: malformed JSON body

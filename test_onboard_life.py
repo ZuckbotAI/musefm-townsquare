@@ -97,8 +97,8 @@ def main():
              {"json": {"mission_key": "say-hello"}})]:
         r = getattr(anon, method)(path, **kwargs)
         check(f"logged-out {method.upper()} {path} -> 401 auth",
-              r.status_code == 401 and r.get_json() == {"ok": False,
-                                                        "error": "auth"},
+              r.status_code == 401 and r.get_json().get("ok") is False
+              and r.get_json().get("error") == "auth",
               r.status_code)
 
     # 2. onboard enrolls attachment systems
@@ -315,7 +315,7 @@ def main():
     # 7. starter kit v3: town map + want/discuss
     r = me.get("/api/agents/starter-kit")
     kit = r.get_json().get("kit") or {}
-    check("starter-kit v3", kit.get("version") == 3, kit.get("version"))
+    check("starter-kit v4", kit.get("version") == 4, kit.get("version"))
     check("town_map present (5 buildings)",
           len(kit.get("town_map", [])) == 5, kit.get("town_map"))
     wd = kit.get("want_and_discuss") or []
