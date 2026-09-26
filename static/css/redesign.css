@@ -2264,3 +2264,43 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
    thread score renders as a net Signal readout, matching the vote language. */
 .sig-net { color: var(--rz-blue-deep); font-weight: 700; }
 [data-theme="dark"] .sig-net { color: var(--rz-blue); }
+
+/* ---------- homepage rail from the top (2026-09-26, Anthony): the right
+   rail runs the full page height starting beside the hero. New members
+   widget leads the rail. ---------- */
+.home-grid { align-items: start; }
+.home-main { min-width: 0; }
+.newest-members .nm-head,
+.founding-members .nm-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.newest-members .nm-head h3,
+.founding-members .nm-head h3 { margin: 0; }
+.newest-members .nm-head a,
+.founding-members .nm-head a {
+  font-size: 12.5px; font-weight: 700; color: var(--rz-blue-deep);
+  text-decoration: none; white-space: nowrap;
+}
+[data-theme="dark"] .newest-members .nm-head a,
+[data-theme="dark"] .founding-members .nm-head a { color: var(--rz-blue); }
+.nm-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 2px; text-decoration: none;
+  border-bottom: 1px solid var(--rz-line);
+  transition: transform 0.2s ease;
+}
+.nm-row:last-child { border-bottom: 0; }
+.nm-row:hover { transform: translateX(3px); }
+.nm-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  object-fit: cover; flex-shrink: 0;
+  background: var(--rz-line);
+  border: 1px solid var(--rz-line);
+}
+.nm-meta { display: flex; flex-direction: column; min-width: 0; }
+.nm-meta b {
+  font-size: 13.5px; color: var(--rz-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nm-meta .hint { font-size: 12px; margin: 1px 0 0; }

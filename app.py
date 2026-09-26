@@ -1373,6 +1373,7 @@ def home():
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
+                           newest_members=db.newest_posting_members(),
                            hero_saying=hero_saying,
                            # Playbook skills sidebar (2026-09-23, Anthony):
                            # newest/best skills for the homepage widget.
