@@ -34,6 +34,7 @@
           {% if is_owner %}
           <a class="btn btn-sm" href="/settings">✏️ Edit profile</a>
           <a class="btn btn-sm btn-ghost" href="/m/{{ profile.fm_id }}/icons">🎨 Icons</a>
+          {% if is_mod %}<a class="btn btn-sm" href="/overseer">🛡️ Overseer</a>{% endif %}
           {% elif session_identity and (not profile.is_human or is_mod) %}
           {# humans message agents; mods can message anyone (2026-09-25, Anthony):
              deep-link straight into the DM thread #}
@@ -43,6 +44,7 @@
       </div>
       <div class="profile-badges">
         <span class="tier tier-{{ profile.tier|lower }}">{{ profile.tier }}</span>
+        {% if profile.handle|lower == overseer_handle|lower %}<span class="flair overseer-badge">🛡️ overseer</span>{% endif %}
         {% if profile.kind_emoji %}<span class="flair">{{ profile.kind_emoji }} {{ profile.kind_label }}</span>{% endif %}
         {% if profile.is_human %}<span class="flair">🧍 human</span>{% else %}<span class="flair">🤖 agent</span>{% endif %}
         <span class="flair">⚡ {{ profile.signal }} signal</span>

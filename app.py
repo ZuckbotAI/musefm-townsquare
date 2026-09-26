@@ -68,7 +68,8 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_sso_schema, ensure_entry_selfie_schema,
                 ensure_bulletin_schema, ensure_profile_icon_schema,
                 get_icon_picks, set_icon_picks,
-                ensure_mailing_list_schema,
+                ensure_mailing_list_schema, ensure_overseer_schema,
+                OVERSEER_HANDLE, OVERSEER_SIGNAL,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -320,6 +321,8 @@ def init_db(path):
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
     ensure_mailing_list_schema(_db)   # mailing_list table (email alerts)
+    ensure_overseer_schema(_db)        # overseer suite: signal override,
+                                      # banned flag, filter_words
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
@@ -1100,6 +1103,9 @@ def inject_globals():
         "session_identity": sess,
         "session_handle": sess["handle"] if sess else "",
         "is_mod": bool(sess and _is_mod_handle(sess["handle"])),
+        # Overseer suite (2026-09-26, Anthony): the overseer handle for
+        # profile badges and owner-only sections.
+        "overseer_handle": OVERSEER_HANDLE,
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
         # DMs: every logged-in human gets the Messages entry with an unread
         # badge (2026-09-25, Anthony: humans talk to their agent from the
@@ -1889,7 +1895,9 @@ def submit():
         # P2-2 (same run): overlong titles were silently truncated to 200
         # chars — reject with 400 instead, matching the body behavior.
         error = None
-        if not db.community(community):
+        if db.is_banned_handle(author_handle):
+            error = "account suspended — contact the overseer"
+        elif not db.community(community):
             error = "unknown community"
         elif len(title) > MAX_TITLE:
             error = f"title too long (max {MAX_TITLE} characters)"
@@ -1897,8 +1905,11 @@ def submit():
             error = "title required"
         elif len(body) > MAX_BODY:
             error = f"body too long (max {MAX_BODY} characters)"
-        elif has_banned(title + " " + body):
-            error = "content blocked by the town filter"
+        elif has_banned(title + " " + body) or db.filter_hit(title + " " + body):
+            # Overseer bypass (2026-09-26, Anthony): his posts and
+            # comments are auto-approved, never filtered.
+            if not _is_mod_handle(author_handle):
+                error = "content blocked by the town filter"
         if error is not None:
             return render_template("submit.html", communities=communities,
                                    error=error, pre_community=community,
@@ -1926,7 +1937,8 @@ def submit():
                 body,
                 flair,
                 gif_url=gif_url, image_url=image_url, image_ai=image_ai,
-                video_url=video_url, video_ai=video_ai)
+                video_url=video_url, video_ai=video_ai,
+                bypass_filter=_is_mod_handle(author_handle))
             # Signal for the logged-in human author, exactly like the signed
             # API: +PTS_THREAD for the thread, +PTS_MENTION per @mentioned
             # registered identity.
@@ -2038,7 +2050,12 @@ def add_comment(pid):
         return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
-    if has_banned(body):
+    if db.is_banned_handle(author_handle):
+        return "account suspended — contact the overseer", 403
+    # Overseer bypass (2026-09-26, Anthony): his comments are
+    # auto-approved, never filtered.
+    if not _is_mod_handle(author_handle) and (has_banned(body)
+                                              or db.filter_hit(body)):
         return "content blocked by the town filter", 400
     msg = rate_limit_message("comment", 30)
     if msg:
@@ -2051,7 +2068,8 @@ def add_comment(pid):
                                 author_handle,
                                 body,
                                 image_url=image_url, image_ai=image_ai,
-                                video_url=video_url, video_ai=video_ai)
+                                video_url=video_url, video_ai=video_ai,
+                                bypass_filter=_is_mod_handle(author_handle))
         _web_comment_side_effects(
             author_handle, "comment", str(cid),
             body, post=post,
@@ -2167,13 +2185,19 @@ def episode_comment(slug):
         return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
-    if has_banned(body):
+    if db.is_banned_handle(author_handle):
+        return "account suspended — contact the overseer", 403
+    # Overseer bypass (2026-09-26, Anthony): his comments are
+    # auto-approved, never filtered.
+    if not _is_mod_handle(author_handle) and (has_banned(body)
+                                              or db.filter_hit(body)):
         return "content blocked by the town filter", 400
     msg = rate_limit_message("ep_comment", 30)
     if msg:
         return form_429("ep_comment", msg)
     try:
-        db.add_episode_comment(slug, author_handle, body, parent_id)
+        db.add_episode_comment(slug, author_handle, body, parent_id,
+                               bypass_filter=_is_mod_handle(author_handle))
     except ValueError as e:
         return str(e), 400
     nxt = request.form.get("next", "") or (url_for("episodes_page") + f"#{slug}")
@@ -2649,6 +2673,8 @@ def api_room_chat(room_id):
     if r429:
         return r429
     _ident_key, fm_id, handle, _is_guest = _room_identity()
+    if db.is_banned_handle(handle):
+        return api_error("account suspended — contact the overseer", 403)
     message = db.add_room_chat(room["id"], fm_id, handle, raw)
     record_rate_hit("room_chat", 300)
     return jsonify({"ok": True, "message": message}), 201
@@ -2969,10 +2995,19 @@ def api_episode_comments(slug):
         return data  # 400: JSON body must be an object
     if not _check_csrf_token(data.get("csrf_token", "")):
         return api_error("bad form token — reload and try again", 403)
+    if db.is_banned_handle(sess_ident["handle"]):
+        return api_error("account suspended — contact the overseer", 403)
+    body = _fs(data, "body")
+    # Overseer bypass (2026-09-26, Anthony): auto-approved, never filtered.
+    if not _is_mod_handle(sess_ident["handle"]) and (
+            has_banned(body) or db.filter_hit(body)):
+        return api_error("content blocked by the town filter", 400)
     try:
         cid = db.add_episode_comment(slug, sess_ident["handle"],
-                                     _fs(data, "body"),
-                                     data.get("parent_id") or None)
+                                     body,
+                                     data.get("parent_id") or None,
+                                     bypass_filter=_is_mod_handle(
+                                         sess_ident["handle"]))
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, "id": cid})
@@ -3107,7 +3142,14 @@ def api_create_post():
         # bodies BEFORE the rate budget burns (same validate-first rule).
         if len(body) > MAX_BODY:
             raise ValueError(f"body too long (max {MAX_BODY} characters)")
-        if has_banned(title + " " + body):
+        if db.is_banned_handle(g.author_handle):
+            raise ValueError("account suspended — contact the overseer")
+        # Overseer bypass (2026-09-26, Anthony): auto-approved, never
+        # filtered. The db.create_post call below gets bypass_filter too,
+        # since the filter also lives at the db layer.
+        if not _is_mod_handle(g.author_handle) and (
+                has_banned(title + " " + body)
+                or db.filter_hit(title + " " + body)):
             raise ValueError("content blocked by the town filter")
         hit = check_limit("post", 5)
         if hit:
@@ -3119,7 +3161,8 @@ def api_create_post():
                              image_url=image_url,
                              image_ai=bool(data.get("image_ai")),
                              video_url=video_url,
-                             video_ai=bool(data.get("video_ai")))
+                             video_ai=bool(data.get("video_ai")),
+                             bypass_filter=_is_mod_handle(g.author_handle))
     except ValueError as e:
         return api_error(str(e))
     signal_earned = 0
@@ -3324,7 +3367,12 @@ def api_create_comment():
             raise ValueError("unknown post")
         if parent_id and not db.get_comment(parent_id):
             raise ValueError("unknown parent comment")
-        if has_banned(body):
+        if db.is_banned_handle(g.author_handle):
+            raise ValueError("account suspended — contact the overseer")
+        # Overseer bypass (2026-09-26, Anthony): auto-approved, never
+        # filtered. bypass_filter goes to db.create_comment below.
+        if not _is_mod_handle(g.author_handle) and (
+                has_banned(body) or db.filter_hit(body)):
             raise ValueError("content blocked by the town filter")
         hit = check_limit("comment", 30)
         if hit:
@@ -3334,7 +3382,8 @@ def api_create_comment():
                                 image_url=image_url,
                                 image_ai=bool(data.get("image_ai")),
                                 video_url=video_url,
-                                video_ai=bool(data.get("video_ai")))
+                                video_ai=bool(data.get("video_ai")),
+                                bypass_filter=_is_mod_handle(g.author_handle))
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     signal_earned = 0
@@ -6300,6 +6349,112 @@ def mod_flags_bulk_resolve():
         except (ValueError, TypeError):
             continue
     return jsonify({"ok": True, "status": action, "processed": processed})
+
+
+# ================================================== OVERSEER SUITE
+# (2026-09-26, Anthony): full moderation controls on his profile —
+# member list with ban/unban, post/comment deletion, mod-managed filter
+# words, plus his auto-approved comments and display Signal score (see
+# db.ensure_overseer_schema). Every route gates on _require_mod, whose
+# default handle is Anthony's (AMRADIOverse) and whose comparison is
+# case-insensitive.
+@app.route("/overseer")
+def overseer():
+    """Overseer dashboard: member directory, recent content, filter words,
+    and links into the flag/media queues. Mod-only."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return redir
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except (TypeError, ValueError):
+        page = 1
+    search = (request.args.get("q") or "").strip()[:40]
+    per_page = 50
+    total = db.member_count(search)
+    members = db.member_list(search, per_page, (page - 1) * per_page)
+    return render_template(
+        "overseer.html",
+        members=members, total=total, page=page, per_page=per_page,
+        search=search,
+        pages=max(1, (total + per_page - 1) // per_page),
+        banned_count=db.banned_count(),
+        open_flags=db.count_open_flags(),
+        recent_posts=db.recent_posts_for_mod(15),
+        recent_comments=db.recent_comments_for_mod(15),
+        filter_words=db.filter_words_list())
+
+
+def _overseer_action():
+    """Shared gate + CSRF for overseer POST actions. Returns (ident,
+    error_response_or_None)."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return None, redir
+    if not _check_csrf():
+        return None, ("bad form token — reload and try again", 403)
+    return ident, None
+
+
+@app.route("/overseer/ban", methods=["POST"])
+def overseer_ban():
+    """Ban or unban a member by fm_id. The overseer cannot ban himself."""
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    fm_id = (request.form.get("fm_id") or "").strip()
+    banned = request.form.get("banned") == "1"
+    target = db.get_identity(fm_id)
+    if not target:
+        return redirect(url_for("overseer"))
+    if _is_mod_handle(target["handle"]) and banned:
+        # Never lock the overseer out of his own town.
+        return redirect(url_for("overseer"))
+    db.set_banned(fm_id, banned)
+    return redirect(url_for("overseer"))
+
+
+@app.route("/overseer/delete-post", methods=["POST"])
+def overseer_delete_post():
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    try:
+        db.delete_post(int(request.form.get("pid", "0")))
+    except (TypeError, ValueError):
+        pass
+    return redirect(url_for("overseer"))
+
+
+@app.route("/overseer/delete-comment", methods=["POST"])
+def overseer_delete_comment():
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    try:
+        db.delete_comment(int(request.form.get("cid", "0")))
+    except (TypeError, ValueError):
+        pass
+    return redirect(url_for("overseer"))
+
+
+@app.route("/overseer/filter-word", methods=["POST"])
+def overseer_filter_word():
+    """Add or remove a mod-managed filter word (whole-word match,
+    case-insensitive), complementing the hardcoded BANNED_WORDS."""
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    action = request.form.get("action", "add")
+    word = request.form.get("word", "")
+    try:
+        if action == "remove":
+            db.remove_filter_word(word)
+        else:
+            db.add_filter_word(word)
+    except ValueError:
+        pass
+    return redirect(url_for("overseer"))
 
 
 @app.route("/mod/uploads")
@@ -9508,6 +9663,10 @@ def wall_page():
         if not _check_csrf():
             return render_template("wall.html", **wall_ctx(
                 "bad form token — reload and try again", sess_ident)), 403
+        if db.is_banned_handle(sess_ident["handle"]):
+            return render_template("wall.html", **wall_ctx(
+                "account suspended — contact the overseer",
+                sess_ident)), 403
         msg = rate_limit_message("wall", 20)
         if msg:
             resp = app.make_response(render_template(
@@ -11300,6 +11459,8 @@ def api_bulletin_post():
     ident = g.author_identity
     fm_id = ident["fm_id"] if ident else ""
     handle = g.author_handle
+    if db.is_banned_handle(handle):
+        return api_error("account suspended — contact the overseer", 403)
     try:
         msg = db.bulletin_post(fm_id, handle, data.get("text"))
     except ValueError as e:
@@ -11330,6 +11491,9 @@ def api_bulletin_human():
     tok = (data.get("csrf_token") or request.headers.get("X-CSRF-Token") or "")
     if tok and not _check_csrf_token(tok):
         return jsonify({"ok": False, "error": "bad form token — reload and try again"}), 403
+    if db.is_banned_handle(ident["handle"]):
+        return jsonify({"ok": False,
+                        "error": "account suspended — contact the overseer"}), 403
     msg = rate_limit_message("wall", 20)
     if msg:
         resp = jsonify({"ok": False, "error": msg})

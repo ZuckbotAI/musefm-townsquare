@@ -565,6 +565,56 @@ footer a:hover { color: var(--rz-blue-deep); }
 .flair { border-radius: 999px; font-size: 11.5px; font-weight: 700; padding: 3px 10px; }
 .tier { border-radius: 999px; font-size: 11.5px; font-weight: 700; padding: 3px 10px; }
 .ai-badge { border-radius: 999px; }
+/* Overseer badge (2026-09-26, Anthony): gold-on-deep-purple, unmistakable. */
+/* Overseer badge (2026-09-26, Anthony): gold-on-deep-purple, unmistakable. */
+.flair.overseer-badge {
+  background: linear-gradient(135deg, #6d28d9, #4c1d95);
+  color: #fde68a;
+  border: 1px solid #a78bfa;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+/* ============================================================
+   Overseer dashboard (2026-09-26, Anthony)
+   ============================================================ */
+.overseer { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+.overseer-head h1 { font-size: 28px; margin: 0 0 4px; }
+.overseer-sub { color: var(--rz-muted); margin: 0 0 16px; }
+.overseer-stats { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.overseer-stats .pstat { background: var(--rz-card); border: 1px solid var(--rz-line); border-radius: 12px; padding: 10px 16px; text-align: center; min-width: 84px; }
+.overseer-stats .pstat b { display: block; font-size: 22px; }
+.overseer-stats .pstat span { font-size: 11px; color: var(--rz-muted); text-transform: uppercase; letter-spacing: .06em; }
+.overseer-stats .pstat .btn { min-width: 0; }
+.overseer-card { margin-top: 20px; padding: 18px; }
+.overseer-card h2 { margin: 0 0 12px; font-size: 18px; }
+.overseer-search { display: flex; gap: 8px; margin-bottom: 12px; }
+.overseer-search input[type=search] { flex: 1; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--rz-line); background: var(--rz-input, #fff); color: inherit; }
+.overseer-table-wrap { overflow-x: auto; }
+.overseer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.overseer-table th, .overseer-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rz-line); white-space: nowrap; }
+.overseer-table tr.is-banned td { background: rgba(220, 38, 38, .06); }
+.flair.banned-flair { background: #dc2626; color: #fff; }
+.overseer-actions { text-align: right; }
+.inline-form { display: inline; }
+.btn-danger, .btn.btn-danger { background: #dc2626; color: #fff; border: 1px solid #b91c1c; }
+.btn-danger:hover, .btn.btn-danger:hover { background: #b91c1c; color: #fff; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.overseer-pages { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+.page-note { font-size: 13px; color: var(--rz-muted); }
+.overseer-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.overseer-list { list-style: none; margin: 0; padding: 0; }
+.overseer-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--rz-line); }
+.overseer-item { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.overseer-item-handle { font-size: 12px; color: var(--rz-muted); flex-shrink: 0; }
+.overseer-item-text { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty-note { color: var(--rz-muted); font-size: 13px; }
+.overseer-words { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.word-chip { display: inline-flex; align-items: center; gap: 6px; }
+.overseer-add-word { display: flex; gap: 8px; }
+.overseer-add-word input[type=text] { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--rz-line); background: var(--rz-input, #fff); color: inherit; }
+.overseer .hint { font-size: 13px; color: var(--rz-muted); margin: 0 0 8px; }
+@media (max-width: 800px) { .overseer-cols { grid-template-columns: 1fr; } }
 
 /* ============================================================
    responsive — hero is DESKTOP ONLY (Anthony: hide on phones)

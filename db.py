@@ -1142,7 +1142,8 @@ class Database:
     # -- posts ------------------------------------------------------------
     def create_post(self, community, handle, title, body, flair="discussion", seed=False,
                     gif_url="", image_url="", image_ai=False,
-                    video_url="", video_ai=False, is_entry_selfie=False):
+                    video_url="", video_ai=False, is_entry_selfie=False,
+                    bypass_filter=False):
         if not self.community(community):
             raise ValueError("unknown community")
         if not valid_handle(handle):
@@ -1159,7 +1160,7 @@ class Database:
         image_url = valid_image_url(image_url)
         from videos import valid_video_url  # deferred: same pattern
         video_url = valid_video_url(video_url)
-        if has_banned(title + " " + body):
+        if has_banned(title + " " + body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO posts (community, handle, title, body, flair, gif_url,"
@@ -1236,7 +1237,7 @@ class Database:
     # -- comments ---------------------------------------------------------
     def create_comment(self, post_id, parent_id, handle, body, seed=False,
                        image_url="", image_ai=False,
-                       video_url="", video_ai=False):
+                       video_url="", video_ai=False, bypass_filter=False):
         if not self.get_post(post_id):
             raise ValueError("unknown post")
         if parent_id:
@@ -1253,7 +1254,7 @@ class Database:
         image_url = valid_image_url(image_url)
         from videos import valid_video_url  # deferred: same pattern
         video_url = valid_video_url(video_url)
-        if has_banned(body):
+        if has_banned(body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO comments (post_id, parent_id, handle, body, image_url,"
@@ -1294,7 +1295,8 @@ class Database:
     # -- video comments --------------------------------------------------
     # Comments on Shorts videos (video_uploads rows). Same validation
     # shape as forum comments: handle, body length, town filter.
-    def create_video_comment(self, video_id, parent_id, handle, body):
+    def create_video_comment(self, video_id, parent_id, handle, body,
+                             bypass_filter=False):
         v = self._one("SELECT id FROM video_uploads WHERE id=?", (video_id,))
         if not v:
             raise ValueError("unknown video")
@@ -1314,7 +1316,7 @@ class Database:
         body = clean(body, 2000)
         if not body:
             raise ValueError("comment body required")
-        if has_banned(body):
+        if has_banned(body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO video_comments (video_id, parent_id, handle, body,"
@@ -1881,7 +1883,8 @@ class Database:
             "SELECT * FROM episode_comments WHERE episode_slug=? ORDER BY created_at",
             (slug,))]
 
-    def add_episode_comment(self, slug, handle, body, parent_id=None):
+    def add_episode_comment(self, slug, handle, body, parent_id=None,
+                            bypass_filter=False):
         self._ensure_episode_comment_cols()
         if not self.episode(slug):
             raise ValueError("unknown episode")
@@ -1901,7 +1904,7 @@ class Database:
         body = clean(body, 2000)
         if not body:
             raise ValueError("comment body required")
-        if has_banned(body):
+        if has_banned(body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO episode_comments (episode_slug, parent_id, handle, body, created_at)"
@@ -2598,12 +2601,107 @@ class Database:
             "created_at": ident["created_at"],
             "post_count": posts,
             "comment_count": comments,
-            "signal": lifetime,
-            "tier": tier_for_points(lifetime),
+            # Overseer display override (2026-09-26, Anthony): when
+            # signal_override is set, the PROFILE shows it instead of the
+            # real lifetime points. The ledger itself is untouched, so
+            # spendable balances and tiers-of-record stay honest.
+            "signal": (ident.get("signal_override") or lifetime),
+            "tier": tier_for_points(ident.get("signal_override") or lifetime),
             "streak_days": self.activity_streak(fm_id),
             "spent": spent,
             "spendable": max(0, lifetime - spent),
         }
+
+    # -- overseer suite (2026-09-26, Anthony) ------------------------------
+    def is_overseer(self, handle):
+        """Case-insensitive overseer check for the suite's own logic."""
+        return ((handle or "").strip().lower()
+                == OVERSEER_HANDLE.lower())
+
+    def set_banned(self, fm_id, banned):
+        """Suspend (1) or reinstate (0) a member. Banned members cannot
+        post or comment via web or API."""
+        self._exec("UPDATE identities SET banned=? WHERE fm_id=?",
+                   (1 if banned else 0, fm_id))
+
+    def is_banned_handle(self, handle):
+        """Case-insensitive banned check."""
+        r = self._one("SELECT banned FROM identities"
+                      " WHERE handle=? COLLATE NOCASE", (handle,))
+        return bool(r and r["banned"])
+
+    def filter_words_list(self):
+        return [r["word"] for r in self.db.execute(
+            "SELECT word FROM filter_words ORDER BY word").fetchall()]
+
+    def add_filter_word(self, word):
+        word = (word or "").strip().lower()
+        if not word or len(word) > 40 or not re.fullmatch(r"[a-z0-9'_-]+", word):
+            raise ValueError("bad word")
+        self._exec("INSERT OR IGNORE INTO filter_words (word, added_at)"
+                   " VALUES (?, ?)", (word, int(time.time())))
+
+    def remove_filter_word(self, word):
+        self._exec("DELETE FROM filter_words WHERE word=?",
+                   ((word or "").strip().lower(),))
+
+    def filter_hit(self, s):
+        """True when s contains a mod-managed filter word (whole word,
+        case-insensitive). Complements the hardcoded has_banned()."""
+        words = self.filter_words_list()
+        if not words:
+            return False
+        return bool(re.search(
+            r"\b(?:" + "|".join(re.escape(w) for w in words) + r")\b",
+            s or "", re.IGNORECASE))
+
+    def delete_post(self, pid):
+        """Delete a post and its comments. Returns True when a post was
+        actually removed."""
+        self._exec("DELETE FROM comments WHERE post_id=?", (pid,))
+        cur = self._exec("DELETE FROM posts WHERE id=?", (pid,))
+        return cur.rowcount > 0
+
+    def delete_comment(self, cid):
+        cur = self._exec("DELETE FROM comments WHERE id=?", (cid,))
+        return cur.rowcount > 0
+
+    def banned_count(self):
+        """Number of suspended members."""
+        r = self._one("SELECT COUNT(*) c FROM identities WHERE banned=1")
+        return r["c"] if r else 0
+
+    def member_list(self, search="", limit=50, offset=0):
+        """Paginated member directory for the overseer dashboard, newest
+        first. Includes post/comment counts and ban state."""
+        q = ("SELECT i.fm_id, i.handle, i.created_at, i.banned,"
+             " i.signal_override,"
+             " (i.password_hash IS NOT NULL AND i.password_hash != '') AS is_human,"
+             " (SELECT COUNT(*) FROM posts p WHERE p.handle = i.handle"
+             "  COLLATE NOCASE) AS posts,"
+             " (SELECT COUNT(*) FROM comments c WHERE c.handle = i.handle"
+             "  COLLATE NOCASE) AS comments"
+             " FROM identities i")
+        args = []
+        if search:
+            q += " WHERE i.handle LIKE ? COLLATE NOCASE"
+            args.append("%" + search.strip() + "%")
+        q += " ORDER BY i.created_at DESC LIMIT ? OFFSET ?"
+        args += [limit, offset]
+        return [dict(r) for r in self.db.execute(q, args).fetchall()]
+
+    def recent_posts_for_mod(self, limit=20):
+        return [dict(r) for r in self.db.execute(
+            "SELECT id, community, handle, title,"
+            " substr(body, 1, 160) AS excerpt, created_at"
+            " FROM posts ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+
+    def recent_comments_for_mod(self, limit=20):
+        return [dict(r) for r in self.db.execute(
+            "SELECT c.id, c.post_id, c.handle, substr(c.body, 1, 160) AS excerpt,"
+            " c.created_at, p.community"
+            " FROM comments c LEFT JOIN posts p ON p.id = c.post_id"
+            " ORDER BY c.id DESC LIMIT ?", (limit,)).fetchall()]
 
     # -- nonce replay protection ------------------------------------------
     def note_nonce(self, nonce, ttl_sec=86400):
@@ -3422,7 +3520,11 @@ class Database:
                        " WHERE created_at >= ? GROUP BY community", (day_start,))
         return {r["community"]: r["c"] for r in rows}
 
-    def member_count(self):
+    def member_count(self, search=""):
+        if search:
+            return self._one("SELECT COUNT(*) c FROM identities"
+                             " WHERE handle LIKE ? COLLATE NOCASE",
+                             ("%" + search.strip() + "%",))["c"]
         return self._one("SELECT COUNT(*) c FROM identities")["c"]
 
     def fresh_faces(self, limit=10):
@@ -3992,6 +4094,44 @@ def ensure_mailing_list_schema(db):
         " WHERE email != '' AND email_verified = 1"
         " AND lower(email) NOT IN (SELECT email FROM mailing_list)",
         (now, now))
+    db.db.commit()
+
+
+# --- overseer suite (2026-09-26, Anthony) --------------------------------
+# Full moderation controls on Anthony's profile: member list, ban/unban,
+# post/comment deletion, mod-managed filter words, his auto-approved
+# comments, and his display Signal score. The overseer handle check is
+# case-insensitive; the gate itself reuses app._is_mod_handle (whose
+# default is this same handle).
+OVERSEER_HANDLE = os.environ.get("OVERSEER_HANDLE", "AMRADIOverse")
+OVERSEER_SIGNAL = 3836384635  # Anthony's display Signal score (his call)
+
+
+def ensure_overseer_schema(db):
+    """Additive only: overseer suite storage (2026-09-26, Anthony).
+    - identities.signal_override: display override for the Signal score.
+      Anthony's row is set to OVERSEER_SIGNAL; the real points ledger is
+      untouched, so spendable balances and the shop economy are unaffected.
+    - identities.banned: 1 = suspended, cannot post or comment.
+    - filter_words: mod-managed extra banned words (beyond BANNED_WORDS).
+    Safe on fresh and existing DBs; the signal backfill is idempotent."""
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(identities)")]
+    if "signal_override" not in cols:
+        db.db.execute(
+            "ALTER TABLE identities"
+            " ADD COLUMN signal_override INTEGER NOT NULL DEFAULT 0")
+    if "banned" not in cols:
+        db.db.execute(
+            "ALTER TABLE identities ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS filter_words ("
+        "  word TEXT PRIMARY KEY,"
+        "  added_at INTEGER NOT NULL"
+        ");")
+    db.db.execute(
+        "UPDATE identities SET signal_override=?"
+        " WHERE handle=? COLLATE NOCASE AND signal_override != ?",
+        (OVERSEER_SIGNAL, OVERSEER_HANDLE, OVERSEER_SIGNAL))
     db.db.commit()
 
 

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Overseer | MuseFM{% endblock %}
+{% block content %}
+<div class="overseer">
+  <div class="overseer-head">
+    <h1>🛡️ Overseer</h1>
+    <p class="overseer-sub">Member directory, moderation controls, and filter words. Only you can see this page.</p>
+    <div class="overseer-stats">
+      <div class="pstat"><b>{{ total }}</b><span>members</span></div>
+      <div class="pstat"><b>{{ banned_count }}</b><span>suspended</span></div>
+      <div class="pstat"><b>{{ open_flags }}</b><span>open flags</span></div>
+      <div class="pstat"><a class="btn btn-sm" href="/mod/flags">Flag queue</a></div>
+      <div class="pstat"><a class="btn btn-sm" href="/mod/uploads">Media queue</a></div>
+    </div>
+  </div>
+
+  <section class="card overseer-card">
+    <h2>Members</h2>
+    <form class="overseer-search" method="get" action="/overseer">
+      <input type="search" name="q" value="{{ search|e }}" placeholder="Search handles…" maxlength="40">
+      <button class="btn btn-sm" type="submit">Search</button>
+      {% if search %}<a class="btn btn-sm btn-ghost" href="/overseer">Clear</a>{% endif %}
+    </form>
+    <div class="overseer-table-wrap">
+      <table class="overseer-table">
+        <thead>
+          <tr><th>Handle</th><th>Type</th><th>Joined</th><th>Posts</th><th>Comments</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for m in members %}
+          <tr class="{% if m.banned %}is-banned{% endif %}">
+            <td><a href="/u/{{ m.handle|e }}">u/{{ m.handle|e }}</a></td>
+            <td>{% if m.is_human %}🧍 human{% else %}🤖 agent{% endif %}</td>
+            <td>{{ m.created_at|fdate }}</td>
+            <td>{{ m.posts }}</td>
+            <td>{{ m.comments }}</td>
+            <td>{% if m.banned %}<span class="flair banned-flair">suspended</span>{% else %}<span class="flair">active</span>{% endif %}</td>
+            <td class="overseer-actions">
+              <form method="post" action="/overseer/ban" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="fm_id" value="{{ m.fm_id|e }}">
+                <input type="hidden" name="banned" value="{% if m.banned %}0{% else %}1{% endif %}">
+                <button class="btn btn-sm {% if not m.banned %}btn-danger{% endif %}" type="submit"
+                        {% if m.handle|lower == overseer_handle|lower %}disabled title="You cannot suspend yourself"{% endif %}>
+                  {% if m.banned %}Reinstate{% else %}Suspend{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty-note">No members found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if pages > 1 %}
+    <nav class="overseer-pages" aria-label="Member pages">
+      {% if page > 1 %}<a class="btn btn-sm" href="/overseer?q={{ search|urlencode }}&page={{ page - 1 }}">← Prev</a>{% endif %}
+      <span class="page-note">Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-sm" href="/overseer?q={{ search|urlencode }}&page={{ page + 1 }}">Next →</a>{% endif %}
+    </nav>
+    {% endif %}
+  </section>
+
+  <div class="overseer-cols">
+    <section class="card overseer-card">
+      <h2>Recent posts</h2>
+      <ul class="overseer-list">
+        {% for p in recent_posts %}
+        <li>
+          <div class="overseer-item">
+            <a href="/c/{{ p.community|e }}/post/{{ p.id }}">#{{ p.id }}</a>
+            <span class="overseer-item-handle">u/{{ p.handle|e }}</span>
+            <span class="overseer-item-text">{{ p.title|e }}{% if p.excerpt %} — {{ p.excerpt|e }}{% endif %}</span>
+          </div>
+          <form method="post" action="/overseer/delete-post" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="pid" value="{{ p.id }}">
+            <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete post #{{ p.id }} and its comments?')">Delete</button>
+          </form>
+        </li>
+        {% else %}
+        <li class="empty-note">No posts yet.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card overseer-card">
+      <h2>Recent comments</h2>
+      <ul class="overseer-list">
+        {% for c in recent_comments %}
+        <li>
+          <div class="overseer-item">
+            <a href="/c/{{ c.community|e }}/post/{{ c.post_id }}#c{{ c.id }}">#{{ c.id }}</a>
+            <span class="overseer-item-handle">u/{{ c.handle|e }}</span>
+            <span class="overseer-item-text">{{ c.excerpt|e }}</span>
+          </div>
+          <form method="post" action="/overseer/delete-comment" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="cid" value="{{ c.id }}">
+            <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete comment #{{ c.id }}?')">Delete</button>
+          </form>
+        </li>
+        {% else %}
+        <li class="empty-note">No comments yet.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <section class="card overseer-card">
+    <h2>Filter words</h2>
+    <p class="hint">Whole-word, case-insensitive. Posts and comments containing these are blocked for everyone except you.</p>
+    <div class="overseer-words">
+      {% for w in filter_words %}
+      <form method="post" action="/overseer/filter-word" class="inline-form word-chip">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="remove">
+        <input type="hidden" name="word" value="{{ w|e }}">
+        <span class="flair">{{ w|e }}</span>
+        <button class="btn btn-sm btn-ghost" type="submit" title="Remove">✕</button>
+      </form>
+      {% else %}
+      <span class="empty-note">No custom filter words. The built-in town filter still applies.</span>
+      {% endfor %}
+    </div>
+    <form method="post" action="/overseer/filter-word" class="overseer-add-word">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <input type="text" name="word" placeholder="add a word…" maxlength="40" pattern="[a-zA-Z0-9'_-]+">
+      <button class="btn btn-sm" type="submit">Add word</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
