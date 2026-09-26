@@ -2679,3 +2679,87 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   .sidebar .sb-link:hover { transform: none; }
   .sidebar .sb-link:hover .sb-icon { transform: none; }
 }
+
+/* =====================================================================
+   Redesign pass B: In the Air composer + living orb (2026-09-26, Anthony)
+   The orb breathes at rest, ripples on keystroke, and its glow ramps with
+   input length (--zb-charge, 0..1, set by zuckbot-orb.js). The composer
+   card tightens up with a focus ring and a live character counter.
+   ===================================================================== */
+/* orb aura: soft halo behind the orb, brighter as the note fills */
+.zuckbot-orb::before {
+  content: ""; position: absolute; inset: -22%; border-radius: 50%;
+  background: radial-gradient(circle, rgba(96,165,250,.55) 0%, rgba(96,165,250,.18) 45%, rgba(96,165,250,0) 70%);
+  opacity: calc(.20 + var(--zb-charge, 0) * .55);
+  transition: opacity .35s ease;
+  pointer-events: none;
+  animation: zb-aura 4.5s ease-in-out infinite;
+}
+@keyframes zb-aura {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+/* idle breathe: the orb is alive even before you type */
+.zuckbot-orb-inner { animation: zb-breathe 4.5s ease-in-out infinite; }
+@keyframes zb-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+/* keystroke ripple: JS re-triggers .zb-hit on each burst of typing */
+.zuckbot-orb.zb-hit::after {
+  content: ""; position: absolute; inset: -6%; border-radius: 50%;
+  border: 2px solid rgba(147,197,253,.85);
+  animation: zb-ripple .55s ease-out;
+  pointer-events: none;
+}
+@keyframes zb-ripple {
+  from { transform: scale(.72); opacity: .9; }
+  to { transform: scale(1.65); opacity: 0; }
+}
+/* charge: the core swells gently as the note fills the 280 chars */
+.zuckbot-orb .zb-core {
+  transform: scale(calc(1 + var(--zb-charge, 0) * .08));
+  transition: transform .3s ease;
+}
+/* listening state keeps its bob, now with a brighter charged aura */
+.zuckbot-orb.is-listening .zuckbot-orb-inner { animation: zb-bob 1.15s ease-in-out infinite; }
+.zuckbot-orb.is-listening::before { opacity: calc(.55 + var(--zb-charge, 0) * .45); animation: none; }
+.zuckbot-orb.is-listening .zb-core { animation: zb-glow 1.15s ease-in-out infinite; }
+
+/* composer card: tighter, focus ring, tactile post button */
+.wall-composer { padding: 14px 16px; transition: box-shadow .22s var(--ease), transform .22s var(--ease); }
+.wall-composer:focus-within {
+  box-shadow: 0 12px 30px rgba(47,123,255,.14), 0 0 0 3px rgba(47,123,255,.12);
+  transform: translateY(-1px);
+}
+.wall-composer textarea {
+  min-height: 64px; padding: 10px 13px;
+  background: var(--rz-pill);
+  border: 1px solid transparent; border-radius: 13px;
+  transition: background .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.wall-composer textarea:focus {
+  background: var(--rz-card);
+  border-color: var(--rz-blue);
+  box-shadow: 0 0 0 3px rgba(47,123,255,.15);
+  outline: none;
+}
+.wall-composer .btn { transition: transform .15s var(--spring), box-shadow .2s var(--ease), filter .2s var(--ease); }
+.wall-composer .btn:hover { filter: brightness(1.06); box-shadow: 0 8px 18px rgba(47,123,255,.35); }
+.wall-composer .btn:active { transform: scale(.95); }
+/* live character counter, injected by zuckbot-orb.js */
+.zb-count {
+  font-size: 12px; font-weight: 700; color: var(--rz-ink3);
+  font-variant-numeric: tabular-nums; margin-left: 8px;
+  transition: color .2s var(--ease);
+}
+.zb-count.zb-low { color: #d97706; }
+.zb-count.zb-empty { color: #dc2626; }
+
+@media (prefers-reduced-motion: reduce) {
+  .zuckbot-orb::before, .zuckbot-orb-inner { animation: none; }
+  .zuckbot-orb.zb-hit::after { animation: none; display: none; }
+  .zuckbot-orb .zb-core { transform: none; transition: none; }
+  .wall-composer, .wall-composer textarea, .wall-composer .btn { transition: none; }
+  .wall-composer:focus-within { transform: none; }
+}
