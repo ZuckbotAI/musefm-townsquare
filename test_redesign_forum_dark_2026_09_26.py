@@ -11,10 +11,13 @@ CSS = open(os.path.join(HERE, "static", "css", "redesign.css")).read()
 
 def dark_rule(selector):
     """Return the body of the LAST [data-theme="dark"] rule mentioning
-    the selector (late rules win)."""
+    the selector (late rules win). Rules that only reference the selector
+    inside :has(...) are contextual hooks (e.g. a flair-tinted card
+    spine), not the element's own treatment, so they are skipped."""
     bodies = []
     for m in re.finditer(r'\[data-theme="dark"\]([^\{]*)\{([^}]*)\}', CSS):
-        if selector in m.group(1):
+        sel = re.sub(r":has\([^)]*\)", "", m.group(1))
+        if selector in sel:
             bodies.append(m.group(2))
     assert bodies, f"no dark rule found for {selector}"
     return bodies[-1]

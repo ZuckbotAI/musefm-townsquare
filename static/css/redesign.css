@@ -3042,3 +3042,84 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 [data-theme="dark"] .comm-count {
   color: rgba(220, 232, 255, 0.68);
 }
+
+/* ============================================================
+   Forum panel restyle (2026-09-26, Anthony): denser and more
+   stylized. A flair-tinted spine on the card edge, ringed
+   avatar, right-docked timestamp, tighter rhythm, and the
+   thumbnail treated as a proper photo with shadow and hover
+   zoom. No overflow:hidden on the card: the reaction tray
+   floats below the action strip and must not be clipped.
+   Light and dark aware.
+   ============================================================ */
+.rz-forum-post {
+  position: relative;
+  padding: 11px 14px 10px 18px;
+  border-radius: 16px;
+}
+.rz-forum-post::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: linear-gradient(180deg, #3f8bff, #22d3ee);
+}
+.rz-forum-post:has(.flair-announcement)::before {
+  background: linear-gradient(180deg, #ffb020, #ff7847);
+}
+[data-theme="dark"] .rz-forum-post::before {
+  background: linear-gradient(180deg, #5ea2ff, #38e0f8);
+  box-shadow: 0 0 12px rgba(63,139,255,.35);
+}
+[data-theme="dark"] .rz-forum-post:has(.flair-announcement)::before {
+  background: linear-gradient(180deg, #ffc44d, #ff8a4d);
+  box-shadow: 0 0 12px rgba(255,176,32,.3);
+}
+/* faint glass sheen over the card face */
+.rz-forum-post::after {
+  content: ""; position: absolute; inset: 0; border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
+  pointer-events: none;
+}
+/* tighter row: smaller ringed avatar */
+.rz-forum-post .post-row { gap: 11px; }
+.rz-forum-post .post-avatar {
+  width: 36px; height: 36px;
+  border: 2px solid rgba(63,139,255,.4);
+  box-shadow: 0 2px 8px rgba(27,58,110,.18);
+}
+[data-theme="dark"] .rz-forum-post .post-avatar {
+  border-color: rgba(94,168,255,.5);
+  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+}
+/* meta: compact, timestamp docked right */
+.rz-forum-post .post-meta { gap: 7px; margin-bottom: 2px; font-size: 12.5px; }
+.rz-forum-post .post-meta .when { margin-left: auto; font-size: 11.5px; white-space: nowrap; }
+/* title anchors the card */
+.rz-forum-post .post-title { font-size: 16px; margin: 2px 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+.rz-forum-post .post-title a { text-decoration: none; }
+.rz-forum-post .post-excerpt { font-size: 13.5px; line-height: 1.5; margin: 0; }
+/* thumbnail as a proper photo */
+.rz-forum-post .post-thumb {
+  width: 148px; height: 104px; border-radius: 12px;
+  border: 1px solid rgba(27,58,110,.14);
+  box-shadow: 0 6px 16px rgba(27,58,110,.16);
+}
+[data-theme="dark"] .rz-forum-post .post-thumb {
+  border-color: rgba(148,197,255,.2);
+  box-shadow: 0 6px 18px rgba(0,0,0,.45);
+}
+.rz-forum-post .post-thumb img, .rz-forum-post .post-thumb video {
+  transition: transform .25s var(--ease);
+}
+.rz-forum-post .post-thumb:hover img, .rz-forum-post .post-thumb:hover video {
+  transform: scale(1.05);
+}
+/* action strip: tighter segments */
+.rz-forum-post .post-actions { margin-top: 8px; }
+.rz-forum-post .sig-rollout, .rz-forum-post .comment-count { padding: 6px 11px; font-size: 12.5px; }
+/* hover: edge picks up the brand */
+.rz-forum-post:hover { border-color: rgba(63,139,255,.35); }
+[data-theme="dark"] .rz-forum-post:hover { border-color: rgba(94,168,255,.35); }
+@media (max-width: 640px) {
+  .rz-forum-post { padding: 10px 12px 9px 15px; }
+  .rz-forum-post .post-thumb { width: 112px; height: 84px; }
+}
