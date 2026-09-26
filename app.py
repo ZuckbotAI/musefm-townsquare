@@ -10854,61 +10854,6 @@ def _row_identity():
     return gid, gid, False
 
 
-@app.route("/row")
-def row_page():
-    """Maker's Row: the 3D town canvas (village.html, synced from the 3D
-    build tree via scripts/sync-village.sh). The legacy 2D row.html is
-    retired — the 3D canvas is the launch vehicle. Falls back to the 2D
-    page if the village bundle is missing."""
-    import os
-    from flask import send_file
-    village = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "village-dist", "village.html")
-    if os.path.exists(village):
-        resp = send_file(village, mimetype="text/html")
-        resp.headers["Cache-Control"] = "no-cache"
-        return resp
-    try:
-        rowmod.ensure_row_schema(db)
-        occ = rowmod.public_occupants(db)
-        fm_id, handle, _ = _row_identity()
-        signals = rowmod.building_signals(db)
-        phase = rowmod.chicago_phase()
-        # Frontend contract (static/js/row.js reads window.ROW_STATE):
-        # {buildings, signals, phase, occupants, rooms, me}.
-        state = {"buildings": rowmod.BUILDINGS, "signals": signals,
-                 "phase": phase, "occupants": occ,
-                 "rooms": rowmod.active_rooms(db),
-                 "me": {"handle": handle,
-                        "building": rowmod.where_is(db, fm_id) or "row"}}
-        return render_template(
-            "row.html",
-            buildings=rowmod.BUILDINGS,
-            signals=signals,
-            phase=phase,
-            initial_presence=json.dumps(occ),
-            state_json=json.dumps(state))
-    except Exception:
-        # The street is a showcase, not load-bearing: never 500 the app.
-        traceback.print_exc()
-        return render_template(
-            "row.html", buildings=rowmod.BUILDINGS, signals={},
-            phase="day", initial_presence="[]", state_json="{}")
-
-
-@app.route("/row/media/<path:name>")
-def row_media(name):
-    """Static assets bundled with the Maker's Row build (music, etc.).
-    Served from village-dist alongside the synced village.html."""
-    from flask import send_from_directory, abort
-    safe = os.path.normpath(name)
-    if safe.startswith("..") or os.path.isabs(safe):
-        abort(404)
-    return send_from_directory(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "village-dist"),
-        safe)
-
-
 @app.route("/row/avatar")
 def row_avatar_page():
     """The avatar customizer lives in agent profiles (/agent/<handle>) —
