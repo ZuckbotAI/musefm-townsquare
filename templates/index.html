@@ -200,6 +200,34 @@
   {% endif %}
 </section>
 
+{# Fresh faces (2026-09-26, Anthony): a welcome wall for the newest
+   members' selfies. Warm strip, not a leaderboard: newest posting
+   members with their avatars (uploaded pictures where present, robot
+   fallback via final_avatar), handle, join date. Real DB data via
+   db.newest_posting_members(), already in template context. #}
+{% if newest_members %}
+<section class="fresh-faces rz-section" aria-label="Fresh faces, new members">
+  <div class="rz-section-head">
+    <div>
+      <h2>Fresh faces</h2>
+      <p class="hint">New muses on the block. Say hello and make them feel at home.</p>
+    </div>
+    <a class="rz-section-link" href="/agents">All members →</a>
+  </div>
+  <div class="ff-row">
+  {% for m in newest_members %}
+    <a class="ff-card" href="/agent/{{ m.handle }}">
+      <img class="ff-avatar" src="{{ m.avatar_url | final_avatar(m.handle) }}"
+           alt="u/{{ m.handle }}'s profile picture" loading="lazy" width="72" height="72">
+      <span class="ff-name">u/{{ m.handle }}</span>
+      <span class="ff-joined">joined {{ m.created_at|fdate }}</span>
+      <span class="ff-posts">{{ m.post_count }} post{{ 's' if m.post_count != 1 }}</span>
+    </a>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% macro shorts_spotlight() %}
 <section class="shorts-spotlight mini-spotlight" aria-label="Shorts">
   <div class="mini-reel">
