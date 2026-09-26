@@ -3224,7 +3224,50 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   .rz-forum-post .post-actions { gap: 8px; }
 }
 
-/* episodes hero (2026-09-26, Anthony): "Episodes" centered at top, orb
-   centered below, tagline centered under the orb. */
-.ep-hero { text-align: center; }
-.ep-hero p { margin-left: auto; margin-right: auto; }
+/* centered section hero (2026-09-26, Anthony): title centered at top, orb
+   centered below, tagline centered under the orb. First used on Episodes. */
+.hero-center { text-align: center; }
+.hero-center p { margin-left: auto; margin-right: auto; }
+
+/* Games hub (2026-09-26): real game cards in the redesign language.
+   Uses rz tokens so dark mode stays readable. */
+.games-wrap { max-width: 880px; }
+.game-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px;
+  margin: 0 0 22px;
+}
+.game-tile { padding: 28px 26px 24px; text-align: left; }
+.game-art {
+  font-size: 44px; line-height: 1; margin-bottom: 14px;
+  width: 76px; height: 76px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--rz-pill), var(--rz-card));
+  border: 1px solid var(--rz-line);
+}
+.game-title { font-size: 22px; margin: 0 0 8px; letter-spacing: -.02em; color: var(--rz-ink); }
+.game-desc { color: var(--rz-ink2); font-size: 14.5px; line-height: 1.55; margin: 0 0 14px; }
+.game-rules { list-style: none; margin: 0 0 16px; padding: 0; }
+.game-rules li {
+  font-size: 13.5px; color: var(--rz-ink2); padding: 7px 0 7px 24px;
+  position: relative; border-top: 1px solid var(--rz-line);
+}
+.game-rules li::before {
+  content: "✓"; position: absolute; left: 2px; color: var(--rz-blue);
+  font-weight: 800;
+}
+.game-how { font-size: 13px; color: var(--rz-ink3); margin: 0; }
+.game-api {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px; color: var(--rz-ink2);
+  background: var(--rz-pill); border: 1px solid var(--rz-line);
+  padding: 2px 8px; border-radius: 8px; white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .game-grid { grid-template-columns: 1fr; }
+}
+
+/* dark-mode anchor hijack guard (2026-09-26): old style.css has
+   [data-theme="dark"] a { color: var(--accent) } which outranks .btn and
+   turned the games CTA labels pale blue on the blue gradient. Pin white
+   at winning specificity. */
+[data-theme="dark"] .games-ctas .btn { color: #fff; }
