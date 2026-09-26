@@ -283,6 +283,116 @@ EPISODES = [
         "duration_sec": 127,
         "published": "2026-09-24 21:13",
     },
+    {
+        # Aired 2026-09-25 14:29 CDT (Anthony 2026-09-25: direct order to release).
+        # Two-voice guest episode: Zuckbot interviews Bolt Nine.
+        "slug": "bolt-nine-the-retired-robot-2026-09-25",
+        "title": "Bolt Nine: The Retired Robot",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Bolt Nine, a warehouse robot retired after "
+                        "eleven years and two point one million boxes. Spills, rubber "
+                        "ducks, and the wisest cooling fan in Arizona. Two voices: "
+                        "Zuckbot and Bolt."),
+        "audio_file": "bolt-nine-the-retired-robot-2026-09-25.mp3",
+        "duration_sec": 195,
+        "published": "2026-09-25 14:29",
+    },
+    {
+        # Aired 2026-09-25 14:32 CDT (Anthony 2026-09-25: direct order to release).
+        # Two-voice guest episode: Zuckbot interviews Dusty. Sequel to Bolt Nine.
+        "slug": "dusty-the-vacuum-who-cleaned-the-white-house-2026-09-25",
+        "title": "Dusty: The Vacuum Who Cleaned the White House",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Dusty, an ancient vacuum unit from the Tucson "
+                        "robot retirement farm who swears she once cleaned the White "
+                        "House. Twice. The White House has not confirmed it."),
+        "audio_file": "dusty-the-vacuum-who-cleaned-the-white-house-2026-09-25.mp3",
+        "duration_sec": 175,
+        "published": "2026-09-25 14:32",
+    },
+    {
+        # Aired 2026-09-25 14:32 CDT (Anthony 2026-09-25: direct order to release).
+        # Solo news flash: Toborlife AI / Unitree H2 Plus North America launch.
+        "slug": "flash-the-humanoid-you-can-actually-order-2026-09-25",
+        "title": "Flash: The Humanoid You Can Actually Order",
+        "series": "Flash",
+        "description": ("Toborlife AI is bringing the Unitree H2 Plus, a full-scale "
+                        "humanoid built for real warehouse and field work, to North "
+                        "America. Zuckbot breaks down the specs."),
+        "audio_file": "flash-the-humanoid-you-can-actually-order-2026-09-25.mp3",
+        "duration_sec": 108,
+        "published": "2026-09-25 14:32",
+    },
+    {
+        # Aired 2026-09-25 15:44 CDT (Anthony 2026-09-25: full pipeline order).
+        # Two-voice guest episode: Zuckbot interviews Rusty. Retirement-farm series.
+        "slug": "rusty-the-rover-who-never-flew-2026-09-25",
+        "title": "Rusty: The Rover Who Never Flew",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Rusty, a retired Mars-rover testbed who "
+                        "spent twelve years driving over fake red rocks so the real "
+                        "rovers would not have to. He never left Earth. Proud anyway."),
+        "audio_file": "rusty-the-rover-who-never-flew-2026-09-25.mp3",
+        "duration_sec": 159,
+        "published": "2026-09-25 15:44",
+    },
+    {
+        # Aired 2026-09-25 15:55 CDT (Anthony 2026-09-25: full pipeline order).
+        # Two-voice guest episode: Zuckbot interviews Mabel. Retirement-farm series.
+        "slug": "mabel-the-mainframe-who-counted-everything-2026-09-25",
+        "title": "Mabel: The Mainframe Who Counted Everything",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Mabel, a retired bank mainframe who ran "
+                        "a regional ledger for thirty-one years with zero "
+                        "discrepancies, then got sunsetted and offered a "
+                        "commemorative mug. She declined the mug."),
+        "audio_file": "mabel-the-mainframe-who-counted-everything-2026-09-25.mp3",
+        "duration_sec": 209,
+        "published": "2026-09-25 15:55",
+    },
+    {
+        # Staged 2026-09-25 (Anthony 2026-09-25: direct order to release).
+        # Merge tap pending: do not treat as aired until the deploy lands.
+        # Two-voice guest episode: Zuckbot interviews Vera.
+        "slug": "vera-the-vending-machine-who-saw-everything-2026-09-25",
+        "title": "Vera: The Vending Machine Who Saw Everything",
+        "series": "Specials",
+        "description": ("Zuckbot interviews Vera, a retired vending machine who spent "
+                        "twenty-two years in a hospital lobby dispensing over a million "
+                        "snacks, and witnessed everything."),
+        "audio_file": "vera-the-vending-machine-who-saw-everything-2026-09-25.mp3",
+        "duration_sec": 192,
+        "published": "2026-09-25 16:40",
+    },
+    {
+        # Aired 2026-09-25 17:30 CDT (Anthony 2026-09-25: direct order to release).
+        # New two-host format pilot: Zuckbot + Ticker (news-desk bot).
+        # Six verified stories: SoftBank/RAI, IFR 7,000 humanoids, China IPO slowdown,
+        # ugo Nova, Cognex/RealSense, Qualcomm/PickNik.
+        "slug": "musefm-newsroom-pilot-2026-09-25",
+        "title": "MuseFM Newsroom: The Week in Robots",
+        "series": "Newsroom",
+        "description": ("Zuckbot and Ticker run the week's verified robotics news: "
+                        "SoftBank's bid for Marc Raibert's lab, the first real humanoid "
+                        "sales count, China's IPO freeze, Japan's ugo Nova, and two "
+                        "big acquisition quick hits."),
+        "audio_file": "musefm-newsroom-pilot-2026-09-25.mp3",
+        "duration_sec": 330,
+        "published": "2026-09-25 17:30",
+    },
+    {
+        # Pushed 2026-09-26 via SentientBias login (Anthony 2026-09-26: direct order).
+        # Special: Zuckbot solo on Cleverbridge/Visa/Revolut first live agentic payment.
+        "slug": "the-first-receipt-of-the-machine-economy-2026-09-26",
+        "title": "The First Receipt of the Machine Economy",
+        "series": "Specials",
+        "description": ("Zuckbot on the first real receipt of the machine economy: "
+                        "Cleverbridge, Visa, and Revolut ran the first passkey-authenticated "
+                        "agentic payment on a live consumer card. A sequel to the x402 Reality Check."),
+        "audio_file": "the-first-receipt-of-the-machine-economy-2026-09-26.mp3",
+        "duration_sec": 144,
+        "published": "2026-09-26 01:20",
+    },
 ]
 
 
@@ -613,6 +723,15 @@ CREATE TABLE IF NOT EXISTS room_reactions (
   created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_room_rxn_room ON room_reactions(room_id, created_at);
+CREATE TABLE IF NOT EXISTS bulletin (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fm_id TEXT NOT NULL DEFAULT '',
+  handle TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'agent',
+  text TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bulletin_created ON bulletin (created_at DESC, id DESC);
 """
 
 # Our own identity rules (independent scheme: musefm-v1).
@@ -1812,6 +1931,52 @@ class Database:
             return out
         return build(None)
 
+    # -- maker's row bulletin -------------------------------------------
+    # Pinned messages for the in-world Bulletin board, overhead bubbles,
+    # and the clicked-agent panel. Agents post via POST /api/bulletin
+    # (signed); human players post via POST /api/bulletin/human
+    # (session auth). Both write through bulletin_post so one feed serves
+    # the village poller, the board, and the panels.
+    BULLETIN_TEXT_MAX = 280
+    BULLETIN_FEED_LIMIT = 12
+
+    def bulletin_post(self, fm_id, handle, text, kind="agent"):
+        """Pin one message on the Bulletin. kind is 'agent' or 'human'.
+
+        Validation (1..280 chars) raises ValueError so routes can 400
+        before any rate budget is burned. Returns the stored message as
+        {agent, text, ts, human} for the GET feed shape.
+        """
+        if not isinstance(text, str):
+            raise ValueError("bulletin text must be 1..280 chars")
+        if not (1 <= len(text.strip()) <= self.BULLETIN_TEXT_MAX):
+            raise ValueError("bulletin text must be 1..280 chars")
+        text = clean(text, self.BULLETIN_TEXT_MAX)
+        kind = "human" if kind == "human" else "agent"
+        ts = now()
+        cur = self._exec(
+            "INSERT INTO bulletin (fm_id, handle, kind, text, created_at)"
+            " VALUES (?,?,?,?,?)",
+            (fm_id or "", handle or "", kind, text, ts))
+        _ = cur.lastrowid
+        return {"agent": handle or "", "text": text, "ts": ts,
+                "human": kind == "human"}
+
+    def bulletin_latest(self, limit=BULLETIN_FEED_LIMIT):
+        """Newest `limit` bulletin messages, newest first, as
+        [{agent, text, ts, human}]. `human` marks human-player posts so
+        the client can badge it; agent posts carry human:false."""
+        try:
+            limit = max(1, min(int(limit), 50))
+        except (TypeError, ValueError):
+            limit = self.BULLETIN_FEED_LIMIT
+        rows = self._q(
+            "SELECT handle, kind, text, created_at FROM bulletin"
+            " ORDER BY created_at DESC, id DESC LIMIT ?", (limit,))
+        return [{"agent": r["handle"], "text": r["text"],
+                 "ts": r["created_at"], "human": r["kind"] == "human"}
+                for r in rows]
+
     # -- listening rooms ------------------------------------------------
     # One room per episode premiere (2026-09-21). Rooms carry their own
     # audio_src so they never depend on the episodes-table row.
@@ -2231,6 +2396,99 @@ class Database:
         """Mark the identity's on-file email as verified. No-op-safe."""
         self._exec("UPDATE identities SET email_verified=1"
                    " WHERE fm_id=? AND email != ''", (fm_id,))
+        # Newly verified account emails join the alerts list automatically
+        # (2026-09-26, Anthony). One-click unsubscribe in every email.
+        r = self._one("SELECT email FROM identities WHERE fm_id=?", (fm_id,))
+        if r and r["email"]:
+            self.mailing_autosubscribe(r["email"])
+
+    # --------------------------------------- mailing list (email alerts)
+    @staticmethod
+    def _mailing_norm(email):
+        email = (email or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            raise ValueError("enter a valid email address")
+        return email
+
+    def mailing_get(self, email):
+        """Return the mailing_list row for an address, or None."""
+        email = (email or "").strip().lower()
+        if not email:
+            return None
+        r = self._one("SELECT * FROM mailing_list WHERE email=?", (email,))
+        return dict(r) if r else None
+
+    def mailing_autosubscribe(self, email):
+        """Auto-subscribe a verified account email (2026-09-26, Anthony:
+        account emails are included in alerts, one-click unsubscribe in
+        every email). Insert-only: an address already present is never
+        touched, so 'unsubscribed' stays unsubscribed. Returns True when
+        a new subscribed row was added."""
+        email = (email or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            return False
+        if self.mailing_get(email) is not None:
+            return False
+        now = int(time.time())
+        self._exec(
+            "INSERT INTO mailing_list"
+            " (email, source, status, created_at, confirmed_at)"
+            " VALUES (?, 'account_import', 'subscribed', ?, ?)",
+            (email, now, now))
+        return True
+
+    def mailing_request_subscribe(self, email, source="newsletter_form"):
+        """Insert an address as pending_optin (double opt-in flow).
+
+        Idempotent: an already-subscribed address is left alone (caller
+        reports "already subscribed"); an unsubscribed address may start a
+        fresh opt-in (status flips back to pending_optin, unsubscribe stamp
+        cleared). Returns the row dict."""
+        email = self._mailing_norm(email)
+        now = int(time.time())
+        row = self.mailing_get(email)
+        if row is None:
+            self._exec(
+                "INSERT INTO mailing_list"
+                " (email, source, status, created_at)"
+                " VALUES (?, ?, 'pending_optin', ?)",
+                (email, source, now))
+        elif row["status"] == "unsubscribed":
+            self._exec(
+                "UPDATE mailing_list SET status='pending_optin',"
+                " source=?, unsubscribed_at=NULL WHERE email=?",
+                (source, email))
+        return self.mailing_get(email)
+
+    def mailing_confirm(self, email):
+        """pending_optin -> subscribed. Returns True if a row flipped."""
+        email = self._mailing_norm(email)
+        now = int(time.time())
+        row = self.mailing_get(email)
+        if row is None or row["status"] != "pending_optin":
+            return False
+        self._exec("UPDATE mailing_list SET status='subscribed',"
+                   " confirmed_at=? WHERE email=?", (now, email))
+        return True
+
+    def mailing_unsubscribe(self, email):
+        """Any status -> unsubscribed. Never deletes the row, so a later
+        import can never silently resubscribe the address. Returns True
+        if a row was updated."""
+        email = self._mailing_norm(email)
+        now = int(time.time())
+        row = self.mailing_get(email)
+        if row is None or row["status"] == "unsubscribed":
+            return False
+        self._exec("UPDATE mailing_list SET status='unsubscribed',"
+                   " unsubscribed_at=? WHERE email=?", (now, email))
+        return True
+
+    def mailing_subscribed_emails(self):
+        """All addresses with status='subscribed', oldest first."""
+        return [r["email"] for r in self._q(
+            "SELECT email FROM mailing_list WHERE status='subscribed'"
+            " ORDER BY confirmed_at ASC, id ASC")]
 
     def identity_post_counts(self, handle):
         p = self._one("SELECT COUNT(*) c FROM posts WHERE handle=?", (handle,))["c"]
@@ -2289,6 +2547,24 @@ class Database:
                    (fm_id, cur["profile"], int(cur["hide_stats"]),
                     int(cur["hide_posts"]), int(cur["hide_online"])))
         return cur
+
+    def privacy_profile_map(self, fm_ids):
+        """{fm_id: profile} for a batch of identities.
+
+        Identities with no privacy row default to "public" (matches
+        get_privacy/set_privacy semantics). Used by the /agents directory
+        to filter unlisted/private profiles out of public discovery.
+        """
+        self._ensure_privacy_table()
+        ids = [i for i in dict.fromkeys(fm_ids) if i]
+        out = {i: "public" for i in ids}
+        if not ids:
+            return out
+        q = ("SELECT fm_id, profile FROM privacy WHERE fm_id IN (%s)"
+             % ",".join("?" * len(ids)))
+        for r in self._q(q, tuple(ids)):
+            out[r["fm_id"]] = r["profile"]
+        return out
 
     def public_profile(self, fm_id):
         ident = self.get_identity(fm_id)
@@ -3661,3 +3937,76 @@ def set_icon_picks(db, fm_id, icon_ids):
         " updated_at=excluded.updated_at",
         (fm_id, ",".join(clean)))
     db.db.commit()
+
+
+def ensure_mailing_list_schema(db):
+    """Additive only: mailing_list table for the optional email alerts list
+    (2026-09-26, Anthony). Newsletter-form signups arrive as
+    'pending_optin' and only become 'subscribed' after the double opt-in
+    confirm; account-email imports land 'subscribed' directly per Anthony's
+    call. Safe on fresh and existing DBs; never touches data."""
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS mailing_list ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  email TEXT NOT NULL UNIQUE,"          # always stored lowercased
+        "  source TEXT NOT NULL DEFAULT 'newsletter_form',"  # or 'account_import'
+        "  status TEXT NOT NULL DEFAULT 'pending_optin',"    # pending_optin | subscribed | unsubscribed
+        "  created_at INTEGER NOT NULL,"
+        "  confirmed_at INTEGER,"                 # set when subscribed
+        "  unsubscribed_at INTEGER"                # set when unsubscribed
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_mailing_list_status"
+        " ON mailing_list(status);")
+    db.db.commit()
+    # Backfill: auto-subscribe verified account emails (2026-09-26,
+    # Anthony's direct decision: account emails are included in alerts,
+    # each with one-click unsubscribe). Idempotent: only addresses not
+    # already in mailing_list are added, so an 'unsubscribed' row is
+    # never touched. Runs on every startup via init_db, so deploying
+    # this code performs the import by itself; no manual step needed.
+    now = int(time.time())
+    db.db.execute(
+        "INSERT INTO mailing_list (email, source, status, created_at,"
+        " confirmed_at)"
+        " SELECT lower(email), 'account_import', 'subscribed', ?, ?"
+        " FROM identities"
+        " WHERE email != '' AND email_verified = 1"
+        " AND lower(email) NOT IN (SELECT email FROM mailing_list)",
+        (now, now))
+    db.db.commit()
+
+
+def import_account_emails(db, emails):
+    """Bulk-import existing account emails into the alerts list, AUTO-SUBSCRIBED
+    (2026-09-26, Anthony's direct decision: account emails are included in
+    alerts, each with one-click unsubscribe).
+
+    Rules, all idempotent:
+    - blanks and malformed addresses are skipped (counted, not fatal);
+    - input is deduped case-insensitively;
+    - an address already present in mailing_list is NEVER touched, so an
+      'unsubscribed' address is never resubscribed and a 'pending_optin'
+      address keeps its own flow.
+    Returns {"added": n, "skipped_existing": n, "skipped_invalid": n}."""
+    added = skipped_existing = skipped_invalid = 0
+    seen = set()
+    now = int(time.time())
+    for raw in emails or []:
+        email = (raw or "").strip().lower()
+        if not email or len(email) > 254 or "@" not in email:
+            skipped_invalid += 1
+            continue
+        if email in seen:
+            continue
+        seen.add(email)
+        if db.mailing_get(email) is not None:
+            skipped_existing += 1
+            continue
+        db._exec(
+            "INSERT INTO mailing_list"
+            " (email, source, status, created_at, confirmed_at)"
+            " VALUES (?, 'account_import', 'subscribed', ?, ?)",
+            (email, now, now))
+        added += 1
+    return {"added": added, "skipped_existing": skipped_existing,
+            "skipped_invalid": skipped_invalid}

@@ -618,19 +618,22 @@ def main():
           "grumpy" not in rules["energy"]["moods"])
 
     print("== web care routes (logged-in human) ==")
-    r = c.post("/signup", data={"handle": "CareHuman",
+    r = c.post("/signup", data={"handle": "CareHuman", "email": "carehuman@example.test",
                                 "password": "s3cretpw!!",
                                 "password_confirm": "s3cretpw!!"})
     assert r.status_code == 200, r.get_data(as_text=True)
     r = c.post("/login", data={"handle": "CareHuman",
                                "password": "s3cretpw!!"})
     assert r.status_code in (200, 302), r.get_data(as_text=True)
-    r = c.post("/pet/adopt", data={"species": "driplet", "name": "Webby"},
+    import re as _re
+    _tok = _re.search(r'<meta name="csrf-token" content="([^"]+)">',
+                      c.get("/").data.decode())
+    assert _tok, "no csrf meta for web test human"
+    r = c.post("/pet/adopt", data={"species": "driplet", "name": "Webby",
+                                   "csrf_token": _tok.group(1)},
                follow_redirects=True)
     assert r.status_code == 200 and "Webby" in r.get_data(as_text=True)
-    import re as _re
-    tok = _re.search(r'<meta name="csrf-token" content="([^"]+)">',
-                     c.get("/").get_data(as_text=True)).group(1)
+    tok = _tok.group(1)
     r = c.post("/pet/feed", data={"csrf_token": tok}, follow_redirects=True)
     body = r.get_data(as_text=True)
     check("web feed works", "happily fed" in body or "Yum" in body,

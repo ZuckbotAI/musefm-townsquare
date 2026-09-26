@@ -71,10 +71,12 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         {% if f.url %}<a class="btn btn-sm btn-ghost" href="{{ f.url }}">View {{ f.target_type }} →</a>{% endif %}
         <form method="post" action="/mod/flags/{{ f.id }}/resolve" class="mod-single-form" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="dismissed">
           <button class="btn btn-sm" type="submit">Dismiss</button>
         </form>
         <form method="post" action="/mod/flags/{{ f.id }}/resolve" class="mod-single-form" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="actioned">
           <button class="btn btn-sm" type="submit">Mark actioned</button>
         </form>

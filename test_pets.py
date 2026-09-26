@@ -408,28 +408,30 @@ def main():
     r = c.post("/login", data={"handle": "webadopter",
                                "password": "s3cretpw!!"})
     check("web test human login", r.status_code in (200, 302), r.status_code)
-    r = c.post("/pet/adopt", data={"species": "brine", "name": "Webby"},
+    import re as _re
+    _tok = _re.search(r'<meta name="csrf-token" content="([^"]+)">',
+                      c.get("/").data.decode())
+    assert _tok, "no csrf meta for web test human"
+    r = c.post("/pet/adopt", data={"species": "brine", "name": "Webby",
+                                   "csrf_token": _tok.group(1)},
                 follow_redirects=True)
     body = r.data.decode()
     check("web adopt succeeds", r.status_code == 200 and "Webby" in body,
           r.status_code)
     check("pet page shows energy meter", "Energy" in body and "meter" in body)
-    import re as _re
-    _tok = _re.search(r'<meta name="csrf-token" content="([^"]+)">',
-                      c.get("/").data.decode())
-    assert _tok, "no csrf meta for web test human"
     r = c.post("/pet/rename", data={"name": "Webster",
                                     "csrf_token": _tok.group(1)},
                 follow_redirects=True)
     check("web rename works", "Webster" in r.data.decode())
-    r = c.post("/pet/adopt", data={"species": "plume", "name": "Second"},
+    r = c.post("/pet/adopt", data={"species": "plume", "name": "Second",
+                                   "csrf_token": _tok.group(1)},
                 follow_redirects=True)
     check("second web adopt rejected (one pet per identity)",
           "already" in r.data.decode().lower())
     r = c.get("/pet")
     check("pet page 200 for logged-in adopter", r.status_code == 200)
-    check("pet page links back to Maker's Row (Pet Shop return path)",
-          'href="/row"' in r.data.decode() and "Maker's Row" in r.data.decode())
+    check("pet page does NOT link to the row demo (removed 2026-09-25)",
+          'href="/row"' not in r.data.decode() and "Maker's Row" not in r.data.decode())
 
     print("== stuck-egg repair (2026-09-20) ==")
     db = appmod.db  # the web section above re-ran setup(); re-capture

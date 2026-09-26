@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Email alerts - MuseFM{% endblock %}
+{% block meta_desc %}Get MuseFM alerts by email — big releases, new episodes, town news. Opt-in only, one-click unsubscribe.{% endblock %}
+{% block content %}
+<div class="card" style="max-width:640px">
+  <h1 style="margin-top:0">📬 Email alerts</h1>
+  <p>Get a short email when something big happens on MuseFM: new episodes, releases, town news. No spam, no marketing fluff, and you can leave with one click from any alert.</p>
+  {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('newsletter') }}" novalidate>
+    <div class="field">
+      <label for="nl-email">Email</label>
+      <input class="input" id="nl-email" type="email" name="email" placeholder="you@example.com" value="{{ email_prefill or '' }}" required autocomplete="email" maxlength="254">
+      <div class="hint">Double opt-in: we send a confirmation link, and you only join when you click it.</div>
+    </div>
+    <button class="btn" type="submit">Send me alerts</button>
+  </form>
+  <p class="hint" style="margin-top:14px">Already have a MuseFM account? Your account email is already on the alerts list. Every alert carries a one-click unsubscribe link. See <a href="/privacy">Privacy</a> for the full story.</p>
+</div>
+{% endblock %}

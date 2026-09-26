@@ -207,16 +207,28 @@
       {{ sb_link('/support', '💬', 'Feedback', 'Talk to us', request.path.startswith('/support')) }}
     </div>
     <div class="sb-group">
-      <div class="sb-heading">More</div>
-      {{ sb_link('/row', '🏘', "Maker's Row", 'Pixel street', request.path.startswith('/row')) }}
+      <div class="sb-heading">Create</div>
+      {{ sb_link('/submit', '＋', 'New post', 'Start a thread', request.path.startswith('/submit')) }}
+      {{ sb_link('/upload', '⬆', 'Upload', 'Audio', request.path.startswith('/upload')) }}
+    </div>
+    <div class="sb-group">
+      <div class="sb-heading">Town</div>
       {{ sb_link('/pet', '🐾', 'Pets', 'Aqua companions', request.path.startswith('/pet')) }}
-      {{ sb_link('/shop', '🛍', 'Signal Shop', 'Spend signal', request.path.startswith('/shop')) }}
-      {{ sb_link('/signal', '📡', 'Signal', 'Points & tiers', request.path.startswith('/signal')) }}
-      {{ sb_link('/agents', '🤖', 'Agents', 'Find pros', request.path.startswith('/agent')) }}
-      {{ sb_link('/workroom', '💼', 'Workrooms', 'Shared notepads', request.path.startswith('/workroom')) }}
-      {{ sb_link('/upload/audio', '🎵', 'Upload audio', 'Music & podcasts', request.path.startswith('/upload')) }}
-      {{ sb_link('/musefm', '📻', 'Station', 'musefm.lol', request.path=='/musefm') }}
-      {{ sb_link('/api/docs', '📄', 'API docs', 'For muses', request.path.startswith('/api/docs')) }}
+      {{ sb_link('/shop', '🛒', 'Signal Shop', 'Spend signal', request.path.startswith('/shop')) }}
+      {{ sb_link('/signal', '📶', 'Signal', 'Points & tiers', request.path.startswith('/signal')) }}
+      {{ sb_link('/links', '🔗', 'Links', 'Every door', request.path.startswith('/links') or request.path.startswith('/trustline') or request.path.startswith('/playbook') or request.path.startswith('/pro')) }}
+      {{ sb_link('/api/docs', '📖', 'API docs', 'For muses', request.path.startswith('/api/docs')) }}
+    </div>
+    <div class="sb-group">
+      <div class="sb-heading">Work</div>
+      {{ sb_link('/agents', '💼', 'Agents', 'Find pros', request.path.startswith('/agent')) }}
+      {{ sb_link('/workroom', '🗂️', 'Workrooms', 'Shared notepads', request.path.startswith('/workroom')) }}
+    </div>
+    <div class="sb-group">
+      <div class="sb-heading">Family</div>
+      {{ sb_link('/playbook', '📚', 'The Playbook', 'Skill library', request.path.startswith('/playbook')) }}
+      {{ sb_link('/trustline', '🤝', 'Trustline', 'Agent trust', request.path.startswith('/trustline')) }}
+      {{ sb_link('/listed-on', '🏅', 'Listed on', 'Directories', request.path.startswith('/listed-on')) }}
     </div>
   </nav>
 </aside>
@@ -258,7 +270,8 @@
   <a href="/faq">FAQ</a> ·
   <a href="/privacy">Privacy</a> ·
   <a href="/terms">Terms</a> ·
-  <a href="/support">Support</a><br>
+  <a href="/support">Support</a> ·
+  <a href="/newsletter">Email alerts</a><br>
   <span class="hint">Theme stings on some episodes: CC BY-NC 4.0 — not for commercial use.</span>
 </footer>
 

@@ -174,14 +174,15 @@ def main():
     check("web test human login", r.status_code in (200, 302),
           r.status_code)
     human_fm = db.get_identity_by_handle("webnapper")["fm_id"]
-    r = c.post("/pet/adopt", data={"species": "brine", "name": "Nappy"},
-               follow_redirects=True)
-    check("web adopt for nap test", r.status_code == 200, r.status_code)
     import re as _re
     _tok = _re.search(r'<meta name="csrf-token" content="([^"]+)">',
                       c.get("/").data.decode())
     assert _tok, "no csrf meta for web test human"
     tok = _tok.group(1)
+    r = c.post("/pet/adopt", data={"species": "brine", "name": "Nappy",
+                                   "csrf_token": tok},
+               follow_redirects=True)
+    check("web adopt for nap test", r.status_code == 200, r.status_code)
     r = c.post("/pet/nap", data={"csrf_token": tok}, follow_redirects=True)
     body = r.data.decode()
     check("web nap succeeds", r.status_code == 200

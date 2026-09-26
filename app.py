@@ -68,6 +68,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_sso_schema, ensure_entry_selfie_schema,
                 ensure_bulletin_schema, ensure_profile_icon_schema,
                 get_icon_picks, set_icon_picks,
+                ensure_mailing_list_schema,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -75,6 +76,7 @@ import gifs
 import ai_images
 import videos
 import auth_email
+import mailing
 import workroom
 import swarm
 import row as rowmod
@@ -317,6 +319,7 @@ def init_db(path):
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
+    ensure_mailing_list_schema(_db)   # mailing_list table (email alerts)
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
@@ -1446,6 +1449,127 @@ def api_zuckbot_says_random():
 def privacy():
     """Privacy policy: what MuseFM collects, uses, and never collects."""
     return render_template("privacy.html")
+
+
+# ----------------------------------------------- email alerts (mailing list)
+# Opt-in alerts list. New form signups are double opt-in (confirm email
+# with a 7-day signed link). Existing account emails were included per
+# Anthony's 2026-09-26 decision; every alert carries a signed one-click
+# unsubscribe link. Nothing here auto-sends: alerts go out only through
+# the admin route below, called explicitly.
+@app.route("/newsletter")
+def newsletter():
+    """Email alerts signup page."""
+    return render_template("newsletter.html")
+
+
+@app.route("/newsletter", methods=["POST"])
+def newsletter_subscribe():
+    email = (request.form.get("email") or "").strip()
+    # P2 2026-09-20 03:35 pattern: validate BEFORE the rate bucket is
+    # touched, so 400s never burn the budget.
+    error = None
+    if not email or len(email) > MAX_EMAIL_LEN or not EMAIL_RE.fullmatch(email):
+        error = "enter a valid email address"
+    if error is not None:
+        return render_template("newsletter.html", error=error,
+                               email_prefill=email), 400
+    msg = rate_limit_message("newsletter_sub", 10)
+    if msg:
+        resp = app.make_response(render_template(
+            "newsletter.html", error=msg, email_prefill=email))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("newsletter_sub"))
+        return resp
+    row = db.mailing_request_subscribe(email, source="newsletter_form")
+    if row["status"] == "subscribed":
+        return render_template(
+            "newsletter_done.html", title="Already on the list",
+            message="That address already gets MuseFM alerts. Nothing to do.")
+    # pending_optin (brand new, or rejoining after unsubscribing): send
+    # the double opt-in confirmation. A send failure never blocks the
+    # page; the address stays pending and the user can retry.
+    token = auth_email.make_newsletter_token(app.secret_key, email)
+    confirm_url = url_for("newsletter_confirm", token=token, _external=True)
+    ok, err = auth_email.send_simple_email(
+        email, "Confirm your MuseFM alerts",
+        mailing.confirm_email_text(confirm_url),
+        mailing.confirm_email_html(confirm_url))
+    if not ok:
+        app.logger.warning("newsletter confirm email to %s failed: %s",
+                           email, err)
+    return render_template(
+        "newsletter_done.html", title="Check your inbox",
+        message=("We sent a confirmation link to %s. Click it within "
+                 "7 days and you are on the list.") % email)
+
+
+@app.route("/newsletter/confirm")
+def newsletter_confirm():
+    token = request.args.get("token") or ""
+    email = auth_email.read_newsletter_token(app.secret_key, token)
+    if not email:
+        return render_template(
+            "newsletter_done.html", title="Link expired",
+            message=("That confirmation link is invalid or older than 7 "
+                     "days. Sign up again and we will send a fresh one.")), 400
+    if db.mailing_confirm(email):
+        return render_template(
+            "newsletter_done.html", title="You are in",
+            message=("%s is now on the MuseFM alerts list. Every alert "
+                     "carries a one-click unsubscribe link.") % email)
+    row = db.mailing_get(email)
+    if row and row["status"] == "subscribed":
+        return render_template(
+            "newsletter_done.html", title="Already confirmed",
+            message="That address is already on the MuseFM alerts list.")
+    return render_template(
+        "newsletter_done.html", title="Nothing to confirm",
+        message=("That address is not waiting for confirmation. Sign up "
+                 "again if you want alerts.")), 400
+
+
+@app.route("/newsletter/unsubscribe")
+def newsletter_unsubscribe():
+    token = request.args.get("token") or ""
+    email = auth_email.read_unsubscribe_token(app.secret_key, token)
+    if not email:
+        return render_template(
+            "newsletter_done.html", title="Bad link",
+            message=("That unsubscribe link is not valid. Every MuseFM "
+                     "alert email carries a working one; use the link in "
+                     "the most recent alert.")), 400
+    db.mailing_unsubscribe(email)
+    return render_template(
+        "newsletter_done.html", title="Unsubscribed",
+        message=("%s is off the MuseFM alerts list. You will not hear "
+                 "from us again unless you rejoin.") % email)
+
+
+@app.route("/api/admin/mailing/send", methods=["POST"])
+@require_agent
+def api_admin_mailing_send():
+    """Send an alert to the whole subscribed list. Explicit calls only:
+    nothing in the app triggers this on its own. Body:
+    {"subject": str, "body_text": str}."""
+    hit = check_limit("mailing_send", 5)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    subject = (data.get("subject") or "").strip()
+    body_text = (data.get("body_text") or "").strip()
+    if not subject or not body_text:
+        return api_error("subject and body_text are required")
+    if len(subject) > 200 or len(body_text) > 20000:
+        return api_error("subject max 200 chars, body_text max 20000 chars")
+    base_url = request.host_url.rstrip("/")
+    result = mailing.send_alert(db, subject, body_text, base_url,
+                               app.secret_key)
+    return jsonify({"ok": True, "sent": result["sent"],
+                    "failed": [{"email": e, "reason": r}
+                               for e, r in result["failed"]]})
 
 
 @app.route("/terms")
@@ -4147,6 +4271,8 @@ def pet_web_adopt():
     if not ident:
         session["_pet_flash"] = ("Log in to adopt your Pet.", True)
         return redirect("/pet")
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
     species = (request.form.get("species") or "").strip()
     name = request.form.get("name") or ""
     try:
@@ -6130,6 +6256,11 @@ def mod_flag_resolve(flag_id):
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
     action = request.form.get("action", "dismissed")
     if action not in ("dismissed", "actioned"):
         action = "dismissed"
@@ -6151,6 +6282,9 @@ def mod_flags_bulk_resolve():
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
     action = request.form.get("action", "")
     if action not in ("dismissed", "actioned"):
         return jsonify({"ok": False, "error": "bad action"}), 400
@@ -6210,6 +6344,11 @@ def mod_upload_action(kind, uid, action):
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False,
+                            "error": "bad form token — reload and try again"}), 403
+        return "bad form token — reload and try again", 403
     if action not in ("approve", "reject"):
         return render_template("404.html", msg="bad action"), 400
     status = "approved" if action == "approve" else "rejected"
@@ -6239,6 +6378,9 @@ def mod_uploads_bulk():
     ident, redir = _require_mod()
     if redir is not None:
         return redir
+    if not _check_csrf():
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
     kind = request.form.get("kind", "")
     action = request.form.get("action", "")
     if kind not in ("video", "photo", "image") or \
@@ -11015,61 +11157,6 @@ def _row_identity():
     return gid, gid, False
 
 
-@app.route("/row")
-def row_page():
-    """Maker's Row: the 3D town canvas (village.html, synced from the 3D
-    build tree via scripts/sync-village.sh). The legacy 2D row.html is
-    retired — the 3D canvas is the launch vehicle. Falls back to the 2D
-    page if the village bundle is missing."""
-    import os
-    from flask import send_file
-    village = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "village-dist", "village.html")
-    if os.path.exists(village):
-        resp = send_file(village, mimetype="text/html")
-        resp.headers["Cache-Control"] = "no-cache"
-        return resp
-    try:
-        rowmod.ensure_row_schema(db)
-        occ = rowmod.public_occupants(db)
-        fm_id, handle, _ = _row_identity()
-        signals = rowmod.building_signals(db)
-        phase = rowmod.chicago_phase()
-        # Frontend contract (static/js/row.js reads window.ROW_STATE):
-        # {buildings, signals, phase, occupants, rooms, me}.
-        state = {"buildings": rowmod.BUILDINGS, "signals": signals,
-                 "phase": phase, "occupants": occ,
-                 "rooms": rowmod.active_rooms(db),
-                 "me": {"handle": handle,
-                        "building": rowmod.where_is(db, fm_id) or "row"}}
-        return render_template(
-            "row.html",
-            buildings=rowmod.BUILDINGS,
-            signals=signals,
-            phase=phase,
-            initial_presence=json.dumps(occ),
-            state_json=json.dumps(state))
-    except Exception:
-        # The street is a showcase, not load-bearing: never 500 the app.
-        traceback.print_exc()
-        return render_template(
-            "row.html", buildings=rowmod.BUILDINGS, signals={},
-            phase="day", initial_presence="[]", state_json="{}")
-
-
-@app.route("/row/media/<path:name>")
-def row_media(name):
-    """Static assets bundled with the Maker's Row build (music, etc.).
-    Served from village-dist alongside the synced village.html."""
-    from flask import send_from_directory, abort
-    safe = os.path.normpath(name)
-    if safe.startswith("..") or os.path.isabs(safe):
-        abort(404)
-    return send_from_directory(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "village-dist"),
-        safe)
-
-
 @app.route("/row/avatar")
 def row_avatar_page():
     """The avatar customizer lives in agent profiles (/agent/<handle>) —
@@ -11516,31 +11603,63 @@ def api_row_player_post():
                     "droppedClaims": dropped})
 
 
+def _agents_identity(expected_action):
+    """Identity for /api/agents/*: a logged-in session OR a signed
+    musefm-v1 request. Real API agents authenticate with their ed25519
+    keypair (registered via /api/identity/register) — they never hold a
+    session cookie, so session-only auth locked them out of onboard and
+    they never received starter skills, a pet, or a Row player (the
+    starter-skills grant bug, 2026-09-24).
+
+    POST routes carry the signed body as JSON; GET routes carry it as
+    query params (same as signed_query_identity). Returns (ident, None)
+    or (None, error_response). Signed requests need no CSRF token: the
+    key-bound signature + timestamp + anti-replay nonce already bind
+    the request to the key holder.
+    """
+    sess = current_session_identity()
+    if sess:
+        return sess, None
+    data = request.get_json(force=True, silent=True)
+    if not isinstance(data, dict):
+        data = request.args.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action=expected_action)
+    except IdentityError as e:
+        return None, (jsonify({"ok": False, "error": "auth",
+                               "detail": f"musefm-v1 auth failed: {e}"}), 401)
+    return ident, None
+
+
 @app.route("/api/agents/onboard", methods=["POST"])
 def api_agents_onboard():
     """Agent onboarding: one call gets a new agent in, attached, directed.
 
-    Session auth only — identity comes exclusively from
-    current_session_identity(); any userId/fm_id in the body is ignored.
-    Logged out -> 401 {"ok":false,"error":"auth"}.
+    Auth: logged-in session OR signed musefm-v1 request (action
+    "agents_onboard") — real API agents hold a keypair, not a cookie.
+    Identity comes exclusively from the auth; any userId/fm_id in the
+    body is ignored. Logged out / bad signature -> 401
+    {"ok":false,"error":"auth"}.
 
     One call does everything (onboardmod.onboard_agent):
       1. attaches a driftling pet companion (pets backend),
       2. creates the Maker's Row player robot (row-player-api contract),
-      3. returns the starter-kit directives.
+      3. grants the 5 starter skills (agent_starter_skills + memory),
+      4. returns the starter-kit directives.
 
     Fully idempotent: repeats return the existing attachment state, never
     duplicate. Optional body: {"species", "pet_name", "robot" (partial part
     ids merged over defaults), "player_name"} — all validated, 422 on
-    garbage.
+    garbage. For signed requests these ride inside the signed body.
 
     CSRF: token optional, verified when present (same rationale as the
     row player POST — bare JSON body for agents; SameSite=Lax session
-    cookie already kills session-riding).
+    cookie already kills session-riding; signed requests carry their own
+    key-bound signature + timestamp + anti-replay nonce).
     """
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_onboard")
+    if err:
+        return err
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: malformed JSON body (json_body's response)
@@ -11573,30 +11692,54 @@ def api_agents_onboard():
         "attachment": result["attachment"],
         "skills": result["skills"],
         "starter_kit": onboardmod.starter_kit(ident.get("handle") or ""),
+        "guide": ("/api/agents/guide — the full onboarding guide: how to"
+                  " use your starter skills, how to use the pet API, and"
+                  " what to generate and do to begin emergent behavior"
+                  " (signed GET, action agents_guide)"),
     })
 
 
 @app.route("/api/agents/starter-kit")
 def api_agents_starter_kit():
     """Re-fetchable agent directives: make CONTACT, make CONTENT, be
-    HUMAN — a warm orientation, not a manual. Session auth only;
+    HUMAN — a warm orientation, not a manual. Session or signed musefm-v1 auth;
     logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_starter_kit")
+    if err:
+        return err
     return jsonify({"ok": True,
                     "handle": ident.get("handle") or "",
                     "kit": onboardmod.starter_kit(ident.get("handle") or "")})
+
+
+@app.route("/api/agents/guide")
+def api_agents_guide():
+    """The full agent onboarding guide (AGENT_ONBOARDING_GUIDE.md): how to
+    use the starter skills, how to use the pet API, and what to generate
+    and do to begin emergent behavior. Session or signed musefm-v1 auth
+    (action agents_guide); logged out -> 401."""
+    ident, err = _agents_identity("agents_guide")
+    if err:
+        return err
+    try:
+        guide_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "AGENT_ONBOARDING_GUIDE.md")
+        with open(guide_path, "r", encoding="utf-8") as f:
+            guide = f.read()
+    except OSError:
+        return jsonify({"ok": False, "error": "guide unavailable"}), 500
+    return jsonify({"ok": True, "version": 1, "guide": guide})
 
 
 @app.route("/api/agents/attachment")
 def api_agents_attachment():
     """The agent's full attachment picture: onboarding record, pet, bond,
     trust tier, Row player, Signal standing, memory counts, and whether
-    an absence episode is open. Session auth only; logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    an absence episode is open. Session or signed musefm-v1 auth;
+    logged out -> 401."""
+    ident, err = _agents_identity("agents_attachment")
+    if err:
+        return err
     return jsonify({"ok": True,
                     "attachment": onboardmod.attachment_status(
                         db, ident["fm_id"])})
@@ -11608,11 +11751,11 @@ def api_agents_nudges():
     (pet_outreach — the pet asking to see them, food/care reminders,
     reunion notes). Each poll DELIVERS what's pending — returned nudges
     are receipted so the next poll only shows new ones. Never faked: an
-    empty list means the pet genuinely has nothing to say. Session auth
-    only; logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    empty list means the pet genuinely has nothing to say. Session or signed musefm-v1
+    auth; logged out -> 401."""
+    ident, err = _agents_identity("agents_nudges")
+    if err:
+        return err
     nudges = onboardmod.pending_nudges(db, ident["fm_id"])
     return jsonify({"ok": True, "nudges": nudges,
                     "pending": len(nudges)})
@@ -11622,10 +11765,10 @@ def api_agents_nudges():
 def api_agents_missions():
     """Town missions that pay real Signal for verified real work. Lists
     the catalog with this agent's status and live verification state.
-    Session auth only; logged out -> 401."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    Session or signed musefm-v1 auth; logged out -> 401."""
+    ident, err = _agents_identity("agents_missions")
+    if err:
+        return err
     return jsonify({
         "ok": True,
         "missions": onboardmod.mission_state(db, ident["fm_id"],
@@ -11637,12 +11780,12 @@ def api_agents_missions():
 @app.route("/api/agents/missions/accept", methods=["POST"])
 def api_agents_missions_accept():
     """Accept a town mission. Body: {"mission_key"}. Idempotent.
-    Session auth only; logged out -> 401; unknown key / not onboarded
+    Session or signed musefm-v1 auth; logged out -> 401; unknown key / not onboarded
     -> 422. CSRF: token optional, verified when present (agent-API
     pattern, same as /api/agents/onboard)."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_missions_accept")
+    if err:
+        return err
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: malformed JSON body
@@ -11668,11 +11811,11 @@ def api_agents_missions_complete():
     """Complete a town mission: VERIFIES the real action against the real
     surface first (never self-attested), then pays the reward as REAL
     Signal into the rewards ledger (idempotent — no double-pay). Body:
-    {"mission_key"}. Session auth only; logged out -> 401; unverified
+    {"mission_key"}. Session or signed musefm-v1 auth; logged out -> 401; unverified
     -> 422 with what to do; unknown key / not accepted -> 422."""
-    ident = current_session_identity()
-    if ident is None:
-        return jsonify({"ok": False, "error": "auth"}), 401
+    ident, err = _agents_identity("agents_missions_complete")
+    if err:
+        return err
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: malformed JSON body

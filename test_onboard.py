@@ -86,15 +86,17 @@ def main():
     anon = setup()
 
     # 1. logged out -> 401 on both endpoints
+    # (error body may carry an extra "detail" key since the 2026-09-24
+    # signed-auth helper; assert the contract, not exact key equality)
     r = anon.post("/api/agents/onboard", json={})
     check("logged-out onboard -> 401 auth",
-          r.status_code == 401 and r.get_json() == {"ok": False,
-                                                    "error": "auth"},
+          r.status_code == 401 and r.get_json().get("ok") is False
+          and r.get_json().get("error") == "auth",
           r.status_code)
     r = anon.get("/api/agents/starter-kit")
     check("logged-out starter-kit -> 401 auth",
-          r.status_code == 401 and r.get_json() == {"ok": False,
-                                                    "error": "auth"},
+          r.status_code == 401 and r.get_json().get("ok") is False
+          and r.get_json().get("error") == "auth",
           r.status_code)
 
     # 2+3. bare onboard with a forged userId in the body
@@ -126,7 +128,7 @@ def main():
           player.get("petOwners"))
     kit = body.get("starter_kit") or {}
     check("starter_kit bundled in onboard response",
-          kit.get("version") == 3 and "orientation" in kit, kit)
+          kit.get("version") == 4 and "orientation" in kit, kit)
 
     # row_pet_claims: the player-contract ownership store got the claim
     claim = appmod.db._one(
@@ -205,7 +207,7 @@ def main():
                 "first_steps"):
         check(f"starter-kit has {key}", key in kit and bool(kit[key]),
               list(kit.keys()))
-    check("starter-kit versioned", kit.get("version") == 3, kit)
+    check("starter-kit versioned", kit.get("version") == 4, kit)
     check("starter-kit greets the handle",
           "OnboardBot" in kit.get("orientation", ""), kit)
 

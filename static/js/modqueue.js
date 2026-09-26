@@ -8,6 +8,13 @@
 
   var AJAX_HEADER = "XMLHttpRequest";
 
+  function csrfToken() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    if (m && m.content) return m.content;
+    var inp = document.querySelector('input[name="csrf_token"]');
+    return inp ? inp.value : '';
+  }
+
   function say(msg) {
     if (typeof window.toast === "function") window.toast(msg);
   }
@@ -15,6 +22,7 @@
   function postForm(url, fields) {
     var fd = new FormData();
     Object.keys(fields).forEach(function (k) { fd.append(k, fields[k]); });
+    fd.append("csrf_token", csrfToken());
     return fetch(url, {
       method: "POST",
       body: fd,
