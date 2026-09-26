@@ -428,8 +428,8 @@ def main():
           "already" in r.data.decode().lower())
     r = c.get("/pet")
     check("pet page 200 for logged-in adopter", r.status_code == 200)
-    check("pet page links back to Maker's Row (Pet Shop return path)",
-          'href="/row"' in r.data.decode() and "Maker's Row" in r.data.decode())
+    check("pet page does NOT link to the row demo (removed 2026-09-25)",
+          'href="/row"' not in r.data.decode() and "Maker's Row" not in r.data.decode())
 
     print("== stuck-egg repair (2026-09-20) ==")
     db = appmod.db  # the web section above re-ran setup(); re-capture

@@ -345,24 +345,15 @@ def test_seed_journal_skips_when_not_empty(client):
 
 # ------------------------------------------------------------- routes
 def test_row_page_logged_out(client):
+    # /row demo removed from production 2026-09-25 (Anthony: not live).
     r = client.get("/row", environ_base=fresh_ip())
-    assert r.status_code == 200
-    html = r.get_data(as_text=True)
-    assert "Maker's Row" in html
-    assert "ROW_STATE" in html
-    assert 'name="csrf-token"' in html  # guests need the JSON heartbeat token
+    assert r.status_code == 404
 
 
 def test_row_state_json_shape(client):
+    # /row demo removed from production 2026-09-25 (Anthony: not live).
     r = client.get("/row", environ_base=fresh_ip())
-    m = re.search(r"window\.ROW_STATE = (\{.*?\});\s*</script>",
-                  r.get_data(as_text=True), re.S)
-    assert m, "no ROW_STATE blob"
-    state = json.loads(m.group(1))
-    assert set(state) >= {"buildings", "signals", "phase", "occupants",
-                          "rooms", "me"}
-    assert len(state["buildings"]) == 8
-    assert state["me"]["building"] == "row"
+    assert r.status_code == 404
 
 
 def test_row_journal_page(client):
@@ -390,9 +381,9 @@ def _signup_human(client, handle):
 
 
 def _csrf(client):
-    html = client.get("/row", environ_base=fresh_ip()).get_data(as_text=True)
+    html = client.get("/pet", environ_base=fresh_ip()).get_data(as_text=True)
     m = re.search(r'<meta name="csrf-token" content="([^"]+)">', html)
-    assert m, "no csrf meta on /row"
+    assert m, "no csrf meta on /pet"
     return m.group(1)
 
 
