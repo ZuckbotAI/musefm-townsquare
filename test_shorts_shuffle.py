@@ -214,7 +214,7 @@ def main():
           "%s -> %s" % (r.status_code, r.headers.get("Location")))
     import re
     html = c1.get("/shorts?series=musefm").get_data(as_text=True)
-    found = [int(x) for x in re.findall(r'data-id="video-(\d+)"', html)]
+    found = [int(x) for x in re.findall(r'data-id="(\d+)"', html)]
     fm_found = [i for i in found if i in set(fm_ids)]
     check("series filter shows musefm clips", len(fm_found) >= 1,
           str(fm_found))
