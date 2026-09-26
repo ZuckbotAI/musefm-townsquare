@@ -494,6 +494,11 @@ a { color: var(--rz-blue-deep); }
   padding: 6px 11px; border-radius: 999px;
 }
 .comment-count:hover { background: var(--rz-pill); color: var(--rz-ink); }
+/* Old style.css has [data-theme="dark"] a { color: var(--accent) } (0,1,1)
+   which outranks .comment-count (0,1,0) and recolors the pill link.
+   Same fix as the Create button: force the intended ink in dark mode. */
+[data-theme="dark"] .comment-count { color: var(--rz-ink2); }
+[data-theme="dark"] .comment-count:hover { color: var(--rz-ink); }
 /* compact votes in the actions row */
 .rz-post .votes { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .rz-post .vote-btn {
