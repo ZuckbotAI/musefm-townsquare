@@ -3271,3 +3271,11 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
    turned the games CTA labels pale blue on the blue gradient. Pin white
    at winning specificity. */
 [data-theme="dark"] .games-ctas .btn { color: #fff; }
+/* same hijack, general case (2026-09-26): every solid .btn anchor site-wide
+   (Answer it, Open feed, Browse all skills, ...) got pale-blue text on the
+   blue gradient in dark mode. Pin white for all of them, except the variants
+   that set their own text color: .btn-ghost (ink on card), .btn-human (dark
+   on white hero button), and the rail-cta white button (blue on white),
+   which is re-pinned below at still-higher specificity. */
+[data-theme="dark"] a.btn:not(.btn-ghost):not(.btn-human) { color: #fff; }
+[data-theme="dark"] .rail-cta a.btn:not(.btn-ghost):not(.btn-human) { color: #1d5fe2; }
