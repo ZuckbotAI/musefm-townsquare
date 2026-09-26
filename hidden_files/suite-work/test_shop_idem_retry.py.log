@@ -1,0 +1,6 @@
+  PASS first buy charges 20
+  PASS spendable now 0
+  PASS retry with same key is idempotent no-op (not insufficient)
+  PASS still exactly one purchase row for the key
+
+4 passed, 0 failed

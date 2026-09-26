@@ -1,0 +1,4 @@
+PASS newlines preserved in clean()
+PASS single \n preserved
+PASS spaces collapsed but not to newline
+== 3 PASS, 0 FAIL ==

@@ -1,0 +1,25 @@
+== anon 30-second experience ==
+  PASS anon /pet -> 200
+  PASS hero adopt CTA present
+  PASS anon CTA routes to signup
+  PASS demo egg hook present
+  PASS demo egg is pixel art (engine-style rects, no smooth paths)
+  PASS caretaker waves hello
+  PASS copy: hatching is FREE
+  PASS copy: first egg 5 minutes
+  PASS copy: hatching pays +25 Signal
+  PASS copy: never says hatching costs Signal
+  PASS 4 onboarding steps present
+  PASS 30-second guide hints present
+  PASS anim engine script included
+== logged-in, no pet ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_pet_onboarding.py", line 222, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_pet_onboarding.py", line 211, in main
+    me = t_logged_in_no_pet(client)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_pet_onboarding.py", line 110, in t_logged_in_no_pet
+    assert signup(me, "EggKeeper").status_code == 200
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

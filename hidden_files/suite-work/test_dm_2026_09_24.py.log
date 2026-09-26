@@ -1,0 +1,92 @@
+PASS schema table dms
+PASS schema table dm_reactions
+PASS schema table dm_typing
+PASS schema table dm_audit
+PASS schema table dm_seen
+PASS thread_key canonical
+PASS parse_participant round-trip
+PASS parse_participant invalid
+PASS thread_peer
+PASS filter: clean message passes
+PASS filter blocks profanity
+PASS filter blocks slur token
+PASS filter blocks dehumanizing
+PASS filter blocks insult
+PASS filter blocks threat
+PASS filter blocks self-harm bait
+PASS filter blocks sexual
+PASS filter blocks link spam
+PASS filter blocks repetition spam
+PASS filter blocks all-caps
+PASS filter blocks gibberish
+PASS filter blocks empty
+PASS filter blocks too long
+PASS filter error is a clear sentence
+PASS dm_send returns id
+PASS dm_thread_messages
+PASS unread for recipient
+PASS unread for sender
+PASS dm_mark_read
+PASS unread cleared
+PASS audit rows (sent + blocked)
+PASS react add
+PASS react toggle off
+PASS reactions stored
+PASS search finds message
+PASS search no false positive
+PASS typing visible
+PASS typing self-excluded
+PASS typing expires
+PASS owner unseen counts
+PASS owner seen clears
+PASS linked owner sees agent thread
+PASS stranger sees nothing
+PASS agent send 200
+PASS agent send disclosure
+PASS agent send blocked 400
+PASS blocked send disclosure
+PASS blocked send audited
+PASS agent->human new thread 403
+PASS human via agent API 401
+PASS threads list
+PASS threads disclosure
+PASS unread_total
+PASS thread read 200
+PASS thread disclosure
+PASS message shape
+PASS mine flags
+PASS read receipt set
+PASS third party sees only own (empty) thread
+PASS typing ping
+PASS typing shown to peer
+PASS react via api
+PASS reaction aggregated shape
+PASS bad emoji 400
+PASS react on others' thread 404
+PASS api search
+PASS api search empty q 400
+PASS disclosure on /api/dm/threads
+PASS disclosure on /api/dm/typing
+PASS owner /dm 200
+PASS /dm has disclosure
+PASS /dm owner gets composer
+PASS owner web threads
+PASS owner web disclosure
+PASS owner web thread read
+PASS owner seen clears badge
+PASS owner web send 200
+PASS owner web send blocked
+PASS web send bad csrf 403
+PASS stranger /dm 200 with composer (2026-09-25: humans can message agents)
+PASS stranger web send 403 (not their thread)
+PASS stranger threads empty
+PASS stranger thread 403
+PASS linked owner sees agent thread
+PASS linked owner thread read 200
+PASS linked owner send 403 (not their thread)
+PASS sidebar owner DM link
+PASS sidebar live link for logged-in humans (2026-09-25)
+PASS sidebar coming soon logged-out
+PASS topbar mail icon logged-in
+
+==== 90 passed, 0 failed ====

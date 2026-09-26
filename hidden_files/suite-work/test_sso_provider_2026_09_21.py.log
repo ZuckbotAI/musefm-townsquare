@@ -1,0 +1,27 @@
+  PASS sso_codes table exists
+  PASS sso_audit table exists
+  PASS GET /auth/pubkey 200
+  PASS pubkey is ed25519
+  PASS pubkey decodes to 32 bytes
+  PASS unknown client_id -> 400
+  PASS retired client_id (arena) -> 400
+  PASS unlisted redirect_uri -> 400 not redirect
+  PASS non-S256 challenge method -> 400
+  PASS empty state -> 400
+  PASS logged-out authorize -> 302 to /login
+  FAIL signup creates account -- got 400
+  FAIL login works -- got 401
+  FAIL consent page 200 -- got 302
+  FAIL consent names the site + handle
+  FAIL consent carries CSRF token
+  PASS bad CSRF -> 403
+  FAIL deny -> 302 with error=access_denied
+  FAIL approve -> 302 with code + state
+  FAIL redirect stays on the registered URI
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_sso_provider_2026_09_21.py", line 289, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_sso_provider_2026_09_21.py", line 190, in main
+    code = q["code"][0]
+           ~^^^^^^^^
+KeyError: 'code'

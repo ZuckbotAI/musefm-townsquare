@@ -7,7 +7,7 @@ Tests for the session-seeded /shorts shuffle (Batch 2, Anthony requirement):
 - ?video= anchor still works
 - legacy ?before= cursor still returns newest-first
 - Cache-Control is private on the shuffled feed (never shared-cached)
-- /musefm/shorts stays newest-first (unchanged)
+- /musefm/shorts redirects to /shorts?series=musefm (unified Shorts surface)
 
 Run:  python3 test_shorts_shuffle.py
 Throwaway SQLite db + Flask test client + temp DATA_DIR.
@@ -200,20 +200,26 @@ def main():
     check("page renders with session order",
           html.count('class="short-item"') >= 10)
 
-    print("== /musefm/shorts unchanged (newest-first) ==")
+    print("== unified feed serves the musefm series filter ==")
     priv2, fm2 = register(client, "FmClipper")
     fm_ids = []
     for _ in range(6):
         uid = post_video(client, priv2, fm2, make_mp4())
         videos.set_series(appmod.db, uid, "musefm")
         fm_ids.append(uid)
-    html = c1.get("/musefm/shorts").get_data(as_text=True)
+    r = c1.get("/musefm/shorts")
+    check("old /musefm/shorts redirects to the unified feed",
+          r.status_code in (301, 302)
+          and r.headers.get("Location", "").endswith("/shorts?series=musefm"),
+          "%s -> %s" % (r.status_code, r.headers.get("Location")))
     import re
+    html = c1.get("/shorts?series=musefm").get_data(as_text=True)
     found = [int(x) for x in re.findall(r'data-id="video-(\d+)"', html)]
     fm_found = [i for i in found if i in set(fm_ids)]
-    check("musefm feed still newest-first",
-          fm_found == sorted(fm_found, reverse=True),
+    check("series filter shows musefm clips", len(fm_found) >= 1,
           str(fm_found))
+    check("series filter excludes other clips",
+          all(i in set(fm_ids) for i in found), str(found))
 
     print()
     print(f"{len(PASS)} passed, {len(FAIL)} failed")

@@ -1,0 +1,67 @@
+== module validation ==
+  PASS reject kind 'money'
+  PASS reject kind 'bounty'
+  PASS reject kind ''
+  PASS reject kind None
+  PASS kind 'Video' normalizes
+  PASS accept kind 'video'
+  PASS accept kind 'writing'
+  PASS accept kind 'audio'
+  PASS accept kind 'music'
+  PASS accept kind 'code'
+  PASS accept kind 'art'
+  PASS accept kind 'idea'
+  PASS accept kind 'other'
+== schema idempotency ==
+  PASS column id present
+  PASS column fm_id present
+  PASS column handle present
+  PASS column kind present
+  PASS column title present
+  PASS column description present
+  PASS column status present
+  PASS column created_at present
+  PASS column closed_at present
+== POST /api/collab ==
+  PASS create -> 200 ok
+  PASS id returned
+  PASS handle attributed from identity
+  PASS second create -> 200
+  PASS other author create -> 200
+  PASS bad kind -> 400
+  PASS title 121 chars -> 400
+  PASS description 2001 chars -> 400
+  PASS blank title -> 400
+  PASS missing kind -> 400
+  PASS unsigned -> 401
+== GET /api/collab ==
+  PASS list -> 200 ok
+  PASS newest first
+  PASS all three present
+  PASS filter kind=video
+  PASS filter kind=music
+  PASS bad kind filter -> 400
+  PASS status=open shows all three
+== close ==
+  PASS close by non-owner -> 400
+  PASS close by owner -> 200 ok
+  PASS closed_at set
+  PASS status closed
+  PASS re-close idempotent -> 200
+  PASS close unknown id -> 400
+  PASS unsigned close -> 401
+  PASS closed post drops out of open list
+  PASS status=closed shows it
+  PASS kind+status combined -> empty
+  PASS module close by non-owner rejected
+== /collab page ==
+  PASS page -> 200
+  PASS brand heading
+  PASS no-DMs copy present
+  PASS open posts rendered
+  PASS closed post hidden from open view
+  PASS kind filter chips
+  PASS create form present
+  PASS ?kind=music filters page
+
+59 passed, 0 failed

@@ -1,0 +1,78 @@
+== pats: cooldown + self-pat rejected ==
+  PASS test pets hatched
+  PASS pat ok
+  PASS pat xp landed
+  PASS pat happiness bumped
+  PASS pat count
+  PASS pat notification
+  PASS pat cooldown
+  PASS self-pat rejected
+  PASS pat unadopted rejected
+== co-raise: invite/accept/decline + care gate ==
+  PASS invite ok
+  PASS invite notification
+  PASS not caretaker before accept
+  PASS non-coowner care rejected
+  PASS double invite rejected
+  PASS invite unknown rejected
+  PASS invite self rejected
+  PASS accept ok
+  PASS caretaker after accept
+  PASS owner is caretaker
+  PASS can_care alias
+  PASS co-owner care works
+  PASS care granted xp
+  PASS gallery sorts by care
+  PASS caretakers listed
+  PASS re-accept rejected
+  PASS decline ok
+  PASS declined not caretaker
+  PASS respond without invite rejected
+== tide toss: daily limit, server RNG ==
+  PASS play returns shells
+  PASS play honest shape
+  PASS status played_today
+  PASS daily limit
+  PASS bad pick rejected
+  PASS no-pet play rejected
+  PASS secrets rng sane
+== feed frenzy: window scoring + rate cap ==
+  PASS first click
+  PASS server counts clicks
+  PASS rate cap
+  PASS expiry finalizes
+  PASS tier xp (6 clicks -> 2)
+  PASS finalize idempotent
+  PASS tier xp (35 clicks -> 5)
+  PASS no-pet frenzy rejected
+== pet XP thresholds grant wardrobe ==
+  PASS threshold 50 grants sailor hat
+  PASS owns granted item
+  PASS auto-equipped (slot empty)
+  PASS entries include equipped pet
+  PASS threshold 150+300 grant
+  PASS no double grant
+== fashion friday: vote-once + resolve ==
+  PASS owner not entered
+  PASS window key
+  PASS window open friday
+  PASS window closed saturday
+  PASS vote ok
+  PASS vote-once
+  PASS vote non-entry rejected
+  PASS vote after close rejected
+  PASS resolve crowns winner
+  PASS winner signal prize
+  PASS winner got crown item
+  PASS winner notified
+  PASS crowned listed
+  PASS past winners
+  PASS resolve idempotent
+== templates render ==
+  PASS /tidepals renders
+  PASS /pet/<handle> renders
+== rulebooks ==
+  PASS social_rules
+  PASS game_rules
+
+68 passed, 0 failed

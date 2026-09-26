@@ -1,0 +1,32 @@
+== chrome wordmark ==
+  PASS home 200
+  PASS three wordmark SVGs on the page (topbar, sidebar, footer)
+  PASS wordmark 0 has explicit width+height
+  PASS wordmark 1 has explicit width+height
+  PASS wordmark 2 has explicit width+height
+  PASS brand link keeps aria-label="MuseFM home"
+  PASS header wordmark is decorative (aria-hidden)
+  PASS standalone marks use role=img + aria-label
+  PASS no old brand-word span
+  PASS no old droplet brand-mark
+  PASS sidebar title has no plain-text MuseFM
+  PASS wordmark uses svg text element
+  PASS "MuseFM" still hearable
+== favicon ==
+  PASS mark.svg 200
+  PASS mark.svg content type
+  PASS mark.svg is valid svg with broadcast arcs
+  PASS favicon.png 200
+  PASS favicon.png content type
+  PASS favicon.png non-trivial size
+  FAIL svg favicon linked in head
+  PASS png favicon fallback still linked
+== wordmark on other pages ==
+  PASS /shorts has graphic wordmark
+  PASS /musefm has graphic wordmark
+  PASS /episodes has graphic wordmark
+  PASS /signal has graphic wordmark
+  PASS /login has graphic wordmark
+  PASS /settings has graphic wordmark
+
+brand: 26 passed, 1 failed

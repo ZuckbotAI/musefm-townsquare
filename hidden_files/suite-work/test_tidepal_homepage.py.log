@@ -1,0 +1,7 @@
+== pets homepage promo ==
+  PASS home 200
+  FAIL pet-promo section present
+== no external pet asset needed ==
+  PASS band uses no <img> pet asset (pure inline SVG)
+
+2 passed, 1 failed

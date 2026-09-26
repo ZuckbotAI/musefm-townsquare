@@ -1,0 +1,28 @@
+pool: 30 clips (8 musefm)
+== unseen-first across fresh loads ==
+  PASS load2 has zero overlap with load1
+  FAIL load3 leads with the last unseen clips -- first-6=[21, 22, 9, 12, 26, 1]
+  FAIL load3 tail fills only from already-seen
+  FAIL loads 1-3 cover the pool exactly once
+  PASS rotation only after exhaustion: load4 repeats from the pool
+== one deck walks clean ==
+  PASS full deck walk: 30 unique, 0 dupes
+== two visitors get different orders ==
+  PASS visitors do not all share one order
+== homepage strip + horizontal scroll ==
+  PASS home strip renders 12 cards
+  FAIL home mints a seed
+  PASS second home load is all unseen
+  FAIL strip + mini-scroll page1: no dupes
+== /shorts feed + infinite scroll ==
+  PASS /shorts renders page 0
+  PASS /shorts has a feed seed
+  PASS feed scroll: no dupes across pages
+== series isolation ==
+  PASS musefm deck holds only musefm clips
+  PASS general deck unaffected by series flags
+== unit: shuffled_short_page unseen-first ==
+  PASS excluded ids sort after unseen
+  FAIL unseen lead, seen fill the tail -- [20, 24, 17, 26, 21, 15, 6, 11, 28, 13, 4, 18, 1, 9, 25, 29, 3, 22, 14, 27, 23, 7, 8, 12, 16, 5, 30, 19, 10, 2]
+
+12 passed, 6 failed

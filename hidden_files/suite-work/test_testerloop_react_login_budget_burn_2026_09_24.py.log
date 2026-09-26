@@ -1,0 +1,6 @@
+  PASS identity registered
+  PASS 120 invalid signed reacts all 400 (not 429)
+  PASS valid signed react after 120 invalid ones -> 200 (budget not burned)
+  PASS 11 empty /login POSTs: none 429 (invalid input must not burn budget)
+
+4 passed, 0 failed

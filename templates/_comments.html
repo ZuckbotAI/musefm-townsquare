@@ -10,7 +10,8 @@
    score given real visual weight, active side tinted. Forms, routes, fields,
    and class hooks (.cvote, .cvote-form, .cvote-btn.up/.down, .cvote-score)
    are unchanged so comments.js AJAX keeps working. #}
-<span class="cvote" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
+<span class="cvote" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}"
+  data-my-vote="{{ my_vote or 0 }}">
   <form method="post" action="/vote" class="cvote-form" data-value="1">
     <input type="hidden" name="csrf_token" value="{{ csrf_tok }}">
     <input type="hidden" name="target_type" value="{{ target_type }}">

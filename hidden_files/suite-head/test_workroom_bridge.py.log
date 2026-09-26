@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_workroom_bridge.py", line 324, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_workroom_bridge.py", line 86, in main
+    workroom.ensure_workroom_events_schema(appmod.db)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'workroom' has no attribute 'ensure_workroom_events_schema'. Did you mean: 'ensure_workroom_schema'?

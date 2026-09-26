@@ -1334,6 +1334,14 @@ def home():
     posts = db.list_posts(sort=sort, limit=40)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
+    sess_ident = current_session_identity()
+    if sess_ident:
+        _my_votes = db.votes_for(sess_ident["handle"])
+        for p in posts:
+            p["my_vote"] = _my_votes.get(("post", p["id"]))
+    else:
+        for p in posts:
+            p["my_vote"] = 0
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
     # tiles rotate on every visit. Recency memory (shared with /shorts and
     # /api/shorts via the session) excludes anything served in the last
@@ -1370,7 +1378,11 @@ def home():
                                "bloop", 4, "happy", size=104,
                                accessories=("acc:sailor_hat",)),
                            pet_btn_svg=pet_svg(
-                               "bloop", 4, "happy", size=22))
+                               "bloop", 4, "happy", size=22),
+                           # In the Air: muse selfies strip right after the
+                           # composer (2026-09-26, Anthony: homepage order is
+                           # hero, In the Air, then everything else).
+                           selfies=db.entry_selfies(limit=8))
 
 
 @app.route("/guide")
@@ -1538,6 +1550,14 @@ def community(slug):
     posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
+    sess_ident = current_session_identity()
+    if sess_ident:
+        _my_votes = db.votes_for(sess_ident["handle"])
+        for p in posts:
+            p["my_vote"] = _my_votes.get(("post", p["id"]))
+    else:
+        for p in posts:
+            p["my_vote"] = 0
     return render_template("community.html", community=c, posts=posts,
                            sort=sort, q=q or "",
                            daily_q=daily_question(),
@@ -2145,87 +2165,22 @@ def episode_video(fname):
 
 @app.route("/musefm/shorts")
 def musefm_shorts():
-    """Vertical 9:16 feed for MuseFM clips: videos tagged 'musefm', station
-    photos, and episode audio cards. Reaction overlay on every card."""
-    reactor = _sig_web_reactor()
-    items = []
-    musefm_uploads = videos.list_shorts(db, limit=20, series="musefm")
-    _musefm_marks = videos.duet_marks(db, [u["id"] for u in musefm_uploads])
-    for u in musefm_uploads:
-        _mk = _musefm_marks.get(u["id"]) or {}
-        items.append({
-            "kind": "video", "id": u["id"], "handle": u["handle"],
-            "title": videos.clean_title(u["title"], u["filename"]),
-            "series": u["series"] or "",
-            "description": u["description"] or "",
-            "video_url": url_for("serve_video", uid=u["id"]),
-            "watch_url": url_for("watch_video", uid=u["id"]),
-            "feed_url": "/musefm/shorts?video=%d" % u["id"],
-            "duration_secs": u["duration_secs"],
-            "ai_generated": bool(u["ai_generated"]),
-            "created_at": u["created_at"],
-            "target": ("video", u["id"]),
-            "is_duet": bool(_mk.get("is_duet")),
-            "duet_count": int(_mk.get("duet_count") or 0),
-        })
-    for p in db.list_photos(limit=20):
-        items.append({
-            "kind": "photo", "id": p["id"], "handle": p["handle"],
-            "title": p["title"], "caption": p["caption"],
-            "img_url": _photo_src(p),
-            "photo_url": url_for("photo_page", pid=p["id"]),
-            "credit": p["credit"], "created_at": p["created_at"],
-            "target": ("photo", p["id"]),
-        })
-    for e in db.episodes():
-        rid = db.episode_rowid(e["slug"])
-        items.append({
-            "kind": "audio", "id": rid, "handle": "Zuckbot",
-            "title": e["title"], "caption": e["description"],
-            "audio_url": url_for("audio", fname=e["audio_file"]),
-            "episode_url": url_for("episode_watch", slug=e["slug"]),
-            "duration_secs": e["duration_sec"], "created_at": 0,
-            "target": ("episode", rid),
-        })
-    items.sort(key=lambda it: (it["created_at"] or 0, it["id"]), reverse=True)
-    sums = signals.reaction_summaries(
-        db, [it["target"] for it in items], reactor)
-    for it in items:
-        it["sig"] = sums[it["target"]]
-    # ?video=<id> deep-link: include the anchored clip even when it falls
-    # outside the initial page (musefm-tagged shorts only here).
-    anchor_id = None
-    au = _feed_anchor_video(request.args.get("video"), require_series="musefm")
-    if au:
-        anchor_id = au["id"]
-        if not any(it["kind"] == "video" and it["id"] == au["id"]
-                   for it in items):
-            anchor_item = {
-                "kind": "video", "id": au["id"], "handle": au["handle"],
-                "title": videos.clean_title(au["title"], au["filename"]),
-                "series": au.get("series") or "",
-                "description": au["description"] or "",
-                "video_url": url_for("serve_video", uid=au["id"]),
-                "watch_url": url_for("watch_video", uid=au["id"]),
-                "feed_url": "/musefm/shorts?video=%d" % au["id"],
-                "duration_secs": au["duration_secs"],
-                "ai_generated": bool(au["ai_generated"]),
-                "created_at": au["created_at"],
-                "target": ("video", au["id"]),
-            }
-            anchor_item["sig"] = signals.reaction_summaries(
-                db, [("video", au["id"])], reactor)[("video", au["id"])]
-            items.insert(0, anchor_item)
-    _annotate_passport(items)  # Trustline badge by author name
-    resp = app.make_response(render_template(
-        "musefm_shorts.html", items=items,
-        anchor_id=anchor_id, handle=_musefm_handle()))
-    resp.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    return resp
+    """Retired as a mixed feed (round 2): Shorts is one unified surface now.
+    MuseFM clips live at /shorts?series=musefm, station photos at
+    /musefm/photos, episode audio at /episodes. This keeps every old link
+    working. ?video= deep-links are carried over to the unified feed.
+    """
+    dest = "/shorts?series=musefm"
+    vid = (request.args.get("video", "") or "").strip()
+    if vid:
+        dest += "&video=" + quote(vid, safe="")
+    return redirect(dest, code=302)
 
 
 @app.route("/musefm/photos")
 def photos_page():
+    """Station photos grid. Stays its own surface (round 2): the unified
+    Shorts feed absorbed videos only, photos remain separate per spec."""
     reactor = _sig_web_reactor()
     photos = db.list_photos(limit=50)
     if photos:
@@ -8689,19 +8644,26 @@ def shorts_page():
     ?video=<id> deep-links one clip: the feed opens scrolled to that
     exact card, which is included even when it falls outside the
     initial page. Bad ids are ignored silently.
+
+    ?series=musefm filters the deck to MuseFM clips (the unified Shorts
+    surface absorbed the old /musefm/shorts video feed; that URL now
+    redirects here). Unknown series values are ignored.
     """
+    series = (request.args.get("series", "") or "").strip().lower()
+    if series not in ("musefm",):
+        series = None
     seed = _shorts_seed()
     # Fresh page load (no ?seed=): skip shorts served in the repeat window
     # (shared with the home strip and /api/shorts). In-scroll loads reuse
     # the seed and are untouched.
     fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
-        db, seed, limit=10, page=0,
+        db, seed, limit=10, page=0, series=series,
         exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
     _shorts_mark_seen([u["id"] for u in uploads])
     anchor_id = None
-    au = _feed_anchor_video(request.args.get("video"))
+    au = _feed_anchor_video(request.args.get("video"), require_series=series)
     if au:
         anchor_id = au["id"]
         if not any(it["id"] == au["id"] for it in items):
@@ -8710,7 +8672,8 @@ def shorts_page():
     _annotate_passport(items)  # Trustline badge by author name
     resp = app.make_response(render_template(
         "shorts.html", items=items, anchor_id=anchor_id,
-        shorts_seed=seed, handle=_musefm_handle()))
+        shorts_seed=seed, series=series or "",
+        handle=_musefm_handle()))
     # Per-session order — private caching only, never shared.
     resp.headers["Cache-Control"] = "private, max-age=60"
     return resp
@@ -9361,11 +9324,12 @@ def _audio_upload_post(template, kind_default="music"):
 # ================================================== WALL — the bulletin board as a social wall
 @app.route("/wall", methods=["GET", "POST"])
 def wall_page():
-    """The town Wall (2026-09-25, Anthony): the bulletin board surfaced as a
-    social wall. Reads and writes the same bulletin table the Maker's Row
-    village polls via /api/bulletin, so the 3D cork board and this wall
-    never drift apart. Humans post via session auth; agents post via the
-    signed /api/bulletin endpoint."""
+    """In the Air (2026-09-26, Anthony: the former Wall, renamed). The
+    town's social surface: composer first, then muse selfies, then the
+    bulletin notes. Reads and writes the same bulletin table the Maker's
+    Row village polls via /api/bulletin, so the 3D cork board and this
+    surface never drift apart. Humans post via session auth; agents post
+    via the signed /api/bulletin endpoint."""
     if request.method == "POST":
         sess_ident, redir = _require_human()
         if redir is not None:
@@ -9373,11 +9337,13 @@ def wall_page():
         if not _check_csrf():
             return render_template("wall.html", error="bad form token — reload and try again",
                                    posts=db.bulletin_latest(40),
+                                   selfies=db.entry_selfies(limit=8),
                                    handle=sess_ident["handle"]), 403
         msg = rate_limit_message("wall", 20)
         if msg:
             resp = app.make_response(render_template(
                 "wall.html", error=msg, posts=db.bulletin_latest(40),
+                selfies=db.entry_selfies(limit=8),
                 handle=sess_ident["handle"]))
             resp.status_code = 429
             resp.headers["Retry-After"] = str(retry_after("wall"))
@@ -9388,11 +9354,13 @@ def wall_page():
         except ValueError as e:
             return render_template("wall.html", error=str(e),
                                    posts=db.bulletin_latest(40),
+                                   selfies=db.entry_selfies(limit=8),
                                    handle=sess_ident["handle"]), 400
         return redirect(url_for("wall_page"))
     sess_ident = current_session_identity()
     return render_template("wall.html", error=None,
                            posts=db.bulletin_latest(40),
+                           selfies=db.entry_selfies(limit=8),
                            handle=sess_ident["handle"] if sess_ident else None)
 
 

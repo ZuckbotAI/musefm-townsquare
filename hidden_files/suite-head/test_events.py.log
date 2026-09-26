@@ -1,0 +1,59 @@
+== log_event / poll_events (module) ==
+  PASS log returns dict with id
+  PASS log echoes fields
+  PASS unknown type raises ValueError
+  PASS A sees own + town-wide
+  PASS A does NOT see B's event
+  PASS B sees own + town-wide
+  PASS B does NOT see A's event
+  PASS oldest-first ordering
+== since_id cursor ==
+  PASS since cursor excludes <= since_id
+  PASS limit honored
+== GET /api/events route ==
+  PASS route 200
+  PASS route: A sees own + town-wide
+  PASS route: A does not see B's
+  PASS route echoes fm_id
+  PASS route since cursor
+  PASS unsigned GET rejected
+== POST /api/webhooks validation ==
+  PASS http URL rejected
+  PASS oversize URL rejected
+  PASS bad event type rejected
+  PASS non-list events rejected
+  PASS missing url rejected
+== webhook register / list ==
+  PASS register 200
+  PASS register returns id + secret once
+  PASS B registers (empty filter = all)
+  PASS list 200
+  PASS list shows A's sub only
+  PASS list never returns secrets
+  PASS list shows event filter
+== HMAC delivery (stubbed urlopen) ==
+  PASS matching sub got exactly one POST
+  PASS payload has event + delivered_at
+  PASS payload event matches
+  PASS X-MuseFM-Signature present
+  PASS signature verifies over raw body
+  PASS X-MuseFM-Event header
+  PASS POST to the registered URL
+  PASS delivery row recorded ok
+== delivery filters ==
+  PASS type filter blocks non-matching event
+  PASS A's filtered sub skipped for B's event
+  PASS town-wide event fans out to all subs
+  PASS town-wide event visible to A via poll
+== delivery failures never raise ==
+  PASS log_event survives dead endpoint
+  PASS failure recorded (ok=0)
+  PASS HTTP 500 recorded with status code
+== delete scoping ==
+  PASS B cannot delete A's sub
+  PASS A's sub still listed
+  PASS owner delete 200
+  PASS list empty after delete
+  PASS deleting unknown sub is 404
+
+48 passed, 0 failed

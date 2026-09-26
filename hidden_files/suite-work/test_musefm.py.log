@@ -1,0 +1,94 @@
+[2026-09-26 05:31:25,001] WARNING in app: verification email to shutterhuman@test.local failed: email sending is not configured on this server
+[2026-09-26 05:31:31,650] WARNING in app: verification email to epfan@test.local failed: email sending is not configured on this server
+== seeds (idempotent) ==
+  PASS ep04 seeded with real title
+  PASS ep01 keeps real title
+  PASS episodes() latest-first
+  PASS ep03 has video_file
+  PASS 2 starter photos
+  PASS episode posts idempotent
+  PASS photos idempotent
+== section hub ==
+  PASS /musefm 200
+  PASS hub lists ep04
+  PASS hub has attribution
+  PASS hub links show page
+  PASS hub has reaction widgets
+  PASS no money-talk
+  PASS seed welcome has no money-hunger copy
+== episode watch pages ==
+  PASS /episodes/ep04 200
+  PASS watch page has audio player
+  PASS watch page has title card art
+  PASS watch page has reactions
+  PASS watch page has comment form
+  PASS watch page attribution
+  PASS ep03 watch page has video player
+  PASS unknown episode -> 404
+  PASS /episodes listing 200 + widgets + watch links
+== episode media ==
+  PASS /audio/ep04.mp3 200
+== shorts feed (unified: /musefm/shorts redirects) ==
+  PASS /musefm/shorts redirects to unified feed
+  PASS deep-link preserved through redirect
+  PASS unified feed 200 + filter pill active
+  PASS empty feed shows empty state, not photos
+== photos ==
+  PASS /musefm/photos 200
+  PASS photos grid has widgets
+  PASS photo permalink 200
+  PASS photo page has widget
+  PASS unknown photo -> 404
+  PASS anon upload form -> login
+  PASS upload form 200 for signed-in human
+  PASS photo upload -> redirect with pending notice
+  PASS photo attributed to the human's handle
+  PASS human photo upload lands pending
+  PASS pending photo does NOT serve publicly
+  PASS pending photo page 404s publicly
+  PASS non-image upload -> 400
+== reactions on episode / video / photo ==
+  PASS react to episode -> added
+  PASS same reaction removes
+  PASS unknown episode rowid -> 400
+  PASS react to video -> added
+  PASS unknown video -> 400
+  PASS react to photo -> added
+  PASS unknown photo -> 400
+  PASS anon web react on episode -> 401
+  PASS web react on episode
+  PASS mixed-type summaries
+== series filter ==
+  PASS /api/shorts?series=musefm lists the tagged clip
+  PASS api short items carry signal summaries
+  PASS video watch page 200 + reactions
+  PASS /musefm/shorts redirects to unified feed
+  PASS unified musefm feed includes the video card
+== api episode urls ==
+  PASS api page_url points at watch page
+== ios audio/player regression ==
+  PASS player never sets currentTime synchronously after src
+  PASS player seeks via seekSafe (post-metadata)
+  PASS player surfaces play failures instead of swallowing
+  PASS reaction picker not shoved off left edge on phones
+  PASS miniplayer row wraps on small phones
+== signed agent publish (upload -> feed, no manual step) ==
+  PASS signed video upload 200
+  PASS signed series tag 200
+  PASS foreign tag rejected
+  PASS signed image upload 200
+  PASS signed photo publish 200
+  PASS unified shorts shows agent video + handle
+  PASS photos shows agent photo newest-first
+== de-musebooking + town slogan regression ==
+  PASS slogan in index.html hero
+  PASS slogan in musefm.html hero
+  PASS no musebook in template copy
+  PASS no musebook in static/css
+  PASS no musebook in static/js
+  PASS seed welcome post has no musebook mention
+  PASS seed documents the tag-only exception
+  PASS muse-fm-title-card.png present
+  PASS og-image.png present
+
+78 passed, 0 failed

@@ -281,6 +281,10 @@ a { color: var(--rz-blue-deep); }
   text-wrap: balance;
 }
 .rz-hero h1 .rz-hi { color: #8fd8ff; }
+.rz-hero p.rz-slogan {
+  margin: 0 0 10px; font-size: 16px; font-weight: 700; font-style: italic;
+  color: rgba(255, 255, 255, 0.92); letter-spacing: 0.01em;
+}
 .rz-hero p.rz-sub {
   margin: 0 0 24px; font-size: 15px; line-height: 1.6;
   color: rgba(255, 255, 255, 0.8); max-width: 46ch;
@@ -336,6 +340,21 @@ a { color: var(--rz-blue-deep); }
 .feed-bar .tabs a:hover { color: var(--rz-ink); }
 .feed-bar .tabs a.active { color: var(--rz-ink); border-bottom-color: var(--rz-blue); }
 
+/* ---------- In the Air (2026-09-26): hero, In the Air, then everything else ---------- */
+.in-the-air { margin: 18px 0 6px; }
+.ita-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 10px; }
+.ita-head h2 { font-size: 20px; margin: 0; }
+.ita-more { font-size: 13px; font-weight: 700; color: var(--rz-blue); }
+.in-the-air .rz-composer { margin-bottom: 12px; }
+/* muse selfies: horizontal snap strip */
+.selfies-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x mandatory; }
+.selfie-card { flex: 0 0 auto; width: 132px; scroll-snap-align: start; border-radius: 12px; overflow: hidden;
+  background: var(--rz-card); border: 1px solid var(--rz-line); text-decoration: none; }
+.selfie-card img { width: 100%; height: 132px; object-fit: cover; display: block; }
+.selfie-handle { display: block; font-size: 12px; font-weight: 700; padding: 6px 8px; color: var(--rz-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selfies-strip { margin: 16px 0; }
+.selfies-title { font-size: 17px; margin: 0 0 10px; }
+
 /* ---------- composer ---------- */
 .rz-composer {
   display: flex; gap: 12px; align-items: flex-start;
@@ -352,6 +371,16 @@ a { color: var(--rz-blue-deep); }
   font-size: 20px; color: #fff; overflow: hidden;
 }
 .rz-composer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+/* glass-blue Zuckbot orb composer seat (2026-09-26): the orb sits in the
+   composer avatar seat on desktop and mobile */
+.rz-composer-avatar.orb-seat { width: 44px; height: 44px; border-radius: 50%;
+  overflow: hidden; flex: 0 0 auto;
+  box-shadow: 0 4px 14px rgba(56,189,248,.45), inset 0 2px 6px rgba(255,255,255,.5);
+  border: 2px solid rgba(186,230,253,.8); }
+.rz-composer-avatar.orb-seat img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 640px) {
+  .rz-composer-avatar.orb-seat { width: 38px; height: 38px; }
+}
 .rz-composer-body { flex: 1 1 auto; min-width: 0; }
 .rz-composer-fake {
   display: block; width: 100%; text-align: left;
@@ -559,7 +588,13 @@ footer a:hover { color: var(--rz-blue-deep); }
 }
 @media (max-width: 640px) {
   .wrap { padding: 16px 12px 130px; }
-  .rz-composer { padding: 14px; }
+  .rz-composer { padding: 14px; gap: 10px; }
+  /* mobile composer clipping fix (2026-09-26): no horizontal overflow */
+  .rz-composer, .in-the-air .rz-composer { max-width: 100%; overflow: hidden; }
+  .rz-composer-body { min-width: 0; }
+  .rz-composer-fake { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rz-composer-tools { gap: 2px; }
+  .rz-tool { padding: 7px 9px; font-size: 12.5px; }
   .rz-post { padding: 14px; }
   .rz-post .post-row { gap: 10px; }
   .post-avatar { width: 38px; height: 38px; }
@@ -710,26 +745,67 @@ details[open] .sig-tray .sig-form:nth-child(5) { animation-delay: .18s; }
 .rxn-compact .sig-rollout { padding: 5px 10px; font-size: 12px; }
 .rxn-compact .sig-rollout .sig-emoji { font-size: 14px; }
 
-/* ---------- votes: pill control ---------- */
+/* ---------- votes: pill control + async states ---------- */
+/* Round 2: every vote tap is async (votes.js) with immediate feedback,
+   a per-target lock, and rollback. States:
+   default -> hover (leans toward the action color) -> is-active (filled,
+   glowing) -> is-voting (locked, dimmed) -> vote-error (shake on rollback).
+   Server truth always wins; no-JS keeps the plain form POST. */
 .post-actions .votes, .votes {
   display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
   background: var(--rz-card); border: 1px solid var(--rz-line);
   border-radius: 999px; padding: 5px 3px; min-width: 0;
   box-shadow: var(--rz-shadow-sm);
+  transition: border-color .2s, box-shadow .2s, opacity .2s;
 }
 .votes .vote-btn {
   width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent;
   color: var(--rz-ink3); font-size: 12px; padding: 0; box-shadow: none;
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: background .18s, color .18s, transform .18s;
+  transition: background .18s, color .18s, transform .18s var(--spring), box-shadow .18s;
 }
-.votes .vote-btn:hover { background: var(--rz-pill); color: var(--rz-ink); transform: none; box-shadow: none; }
-.votes .vote-btn:active { transform: scale(.88); }
-.votes .vote-btn.up.on { background: linear-gradient(180deg, #ffb37e, #ff6a3d); color: #fff; box-shadow: 0 3px 10px rgba(255,106,61,.4); }
-.votes .vote-btn.down.on { background: linear-gradient(180deg, #8fa8ff, #4d7cfe); color: #fff; box-shadow: 0 3px 10px rgba(77,124,254,.4); }
-.votes .vote-score { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--rz-ink); padding: 1px 0; }
+/* hover leans toward the action color so intent reads before the tap */
+.votes .vote-btn.up:hover { background: rgba(255,106,61,.14); color: #e05a1f; }
+.votes .vote-btn.down:hover { background: rgba(77,124,254,.14); color: #3f62d8; }
+.votes .vote-btn:active { transform: scale(.82); }
+.votes .vote-btn:focus-visible { outline: 2px solid var(--rz-blue); outline-offset: 1px; }
+.votes .vote-btn.up.is-active {
+  background: linear-gradient(180deg, #ffb37e, #ff6a3d); color: #fff;
+  box-shadow: 0 3px 10px rgba(255,106,61,.45), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.votes .vote-btn.down.is-active {
+  background: linear-gradient(180deg, #8fa8ff, #4d7cfe); color: #fff;
+  box-shadow: 0 3px 10px rgba(77,124,254,.45), inset 0 1px 0 rgba(255,255,255,.5);
+}
+/* locked while the request is in flight: dimmed, progress cursor */
+.votes.is-voting { opacity: .6; }
+.votes.is-voting .vote-btn { cursor: progress; }
+/* rollback: quick shake so a failed vote is felt, not just read */
+@keyframes rz-vote-shake {
+  20% { transform: translateX(-3px); } 40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); } 80% { transform: translateX(2px); }
+}
+.votes.vote-error { animation: rz-vote-shake .45s ease; border-color: #e05a5a; }
+.votes .vote-score {
+  font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--rz-ink); padding: 1px 0; transition: transform .18s var(--spring);
+}
 .votes .vote-score.pos { color: #e05a1f; }
 .votes .vote-score.neg { color: #3f62d8; }
+@media (prefers-reduced-motion: reduce) {
+  .votes.vote-error { animation: none; }
+  .votes .vote-btn, .votes .vote-score { transition: none; }
+}
+/* comment vote pill (.cvote standalone): same async language */
+.cvote { transition: border-color .2s, opacity .2s; }
+.cvote .cvote-btn.up:hover { background: rgba(255,106,61,.14); color: #e05a1f; }
+.cvote .cvote-btn.down:hover { background: rgba(77,124,254,.14); color: #3f62d8; }
+.cvote.is-voting { opacity: .6; }
+.cvote.is-voting .cvote-btn { cursor: progress; }
+.cvote.vote-error { animation: rz-vote-shake .45s ease; border-color: #e05a5a; }
+@media (prefers-reduced-motion: reduce) {
+  .cvote.vote-error { animation: none; }
+}
 /* post detail renders the horizontal .cvote macro inside .votes — keep the
    pill, let the macro lay out horizontally within it */
 .votes .cvote { flex-direction: row; gap: 2px; align-items: center; }
@@ -824,12 +900,16 @@ details[open].rxn-rollout > .sig-tray {
 }
 
 /* post-detail vote macro inside the pill: slim chevron buttons, no text labels */
-.votes .cvote-btn { width: 30px; height: 30px; border: 0; background: transparent; color: var(--rz-ink3); box-shadow: none; }
-.votes .cvote-btn:hover { background: var(--rz-pill); color: var(--rz-ink); }
+.votes .cvote-btn { width: 30px; height: 30px; border: 0; background: transparent; color: var(--rz-ink3); box-shadow: none;
+  transition: background .18s, color .18s, transform .18s var(--spring), box-shadow .18s; }
+.votes .cvote-btn.up:hover { background: rgba(255,106,61,.14); color: #e05a1f; }
+.votes .cvote-btn.down:hover { background: rgba(77,124,254,.14); color: #3f62d8; }
+.votes .cvote-btn:active { transform: scale(.82); }
+.votes .cvote-btn:focus-visible { outline: 2px solid var(--rz-blue); outline-offset: 1px; }
 .votes .cvote-btn svg { width: 16px; height: 16px; }
 .votes .cvote-label { display: none; }
-.votes .cvote-btn.up.is-active { background: linear-gradient(180deg, #ffb37e, #ff6a3d); color: #fff; box-shadow: 0 3px 10px rgba(255,106,61,.4); }
-.votes .cvote-btn.down.is-active { background: linear-gradient(180deg, #8fa8ff, #4d7cfe); color: #fff; box-shadow: 0 3px 10px rgba(77,124,254,.4); }
+.votes .cvote-btn.up.is-active { background: linear-gradient(180deg, #ffb37e, #ff6a3d); color: #fff; box-shadow: 0 3px 10px rgba(255,106,61,.45), inset 0 1px 0 rgba(255,255,255,.5); }
+.votes .cvote-btn.down.is-active { background: linear-gradient(180deg, #8fa8ff, #4d7cfe); color: #fff; box-shadow: 0 3px 10px rgba(77,124,254,.45), inset 0 1px 0 rgba(255,255,255,.5); }
 .votes .cvote-score { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--rz-ink); }
 
 /* topbar search goes liquid glass */
@@ -1614,4 +1694,123 @@ body::before {
 @media (max-width: 640px) {
   .profile-icons { gap: 12px 14px; }
   .picon-glyph { width: 56px; height: 56px; font-size: 28px; border-radius: 19px; }
+}
+
+/* ============================================================
+   Round 2 (2026-09-26, Anthony): hover micro-animations.
+   Modeled on the Muse app sidebar icon hovers: very small,
+   quick (150-250ms), restrained. Gentle scale / lift / soft
+   highlight only, nothing bouncy. Primary CTAs get the nicest
+   version. All motion is removed under prefers-reduced-motion.
+   ============================================================ */
+:root { --ease-micro: cubic-bezier(.22,.61,.36,1); }
+
+/* ---- primary CTAs: the nicest hover on the site ----
+   Gentle lift, soft glow bloom, slight brightening. */
+.btn, .rz-composer-post {
+  transition: transform .22s var(--ease-micro), box-shadow .22s var(--ease-micro),
+    filter .22s var(--ease-micro), background-color .22s var(--ease-micro),
+    border-color .22s var(--ease-micro), color .22s var(--ease-micro);
+}
+.btn:hover, .rz-composer-post:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+  box-shadow: 0 10px 24px rgba(47,123,255,.42), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.btn:active, .rz-composer-post:active {
+  transform: translateY(0) scale(.98);
+  transition-duration: .1s;
+}
+/* ghost / secondary CTAs: same language, softer lift */
+.btn-ghost:hover, .btn.btn-ghost:hover { transform: translateY(-1px); }
+
+/* ---- composer tool buttons: gentle pop ---- */
+.rz-tool {
+  transition: transform .18s var(--ease-micro), background-color .18s var(--ease-micro),
+    color .18s var(--ease-micro);
+}
+.rz-tool:hover { transform: scale(1.06); }
+.rz-tool:active { transform: scale(.96); transition-duration: .1s; }
+.rz-composer-fake {
+  transition: border-color .18s var(--ease-micro), color .18s var(--ease-micro),
+    box-shadow .18s var(--ease-micro);
+}
+.rz-composer-fake:hover { box-shadow: 0 0 0 3px var(--rz-blue-soft); }
+
+/* ---- feed tabs (Hot / New / Top underline style): soft highlight ---- */
+.feed-bar .tabs a {
+  border-radius: 10px;
+  transition: color .18s var(--ease-micro), background-color .18s var(--ease-micro);
+}
+.feed-bar .tabs a:hover:not(.active) { background: var(--rz-blue-soft); }
+
+/* ---- segmented pill tabs (feed, forum, shorts comment sort) ---- */
+.seg-tabs a, .seg-tabs button {
+  transition: background-color .16s var(--ease-micro), color .16s var(--ease-micro),
+    box-shadow .16s var(--ease-micro), transform .18s var(--ease-micro);
+}
+.seg-tabs a:hover:not(.active), .seg-tabs button:hover:not(.active):not(.is-active) {
+  transform: scale(1.05);
+}
+.seg-tabs a:active, .seg-tabs button:active { transform: scale(.97); transition-duration: .1s; }
+.sc-sortbar button {
+  transition: background-color .16s var(--ease-micro), color .16s var(--ease-micro),
+    box-shadow .16s var(--ease-micro), transform .18s var(--ease-micro);
+}
+.sc-sortbar button:hover:not(.is-active) { transform: scale(1.05); }
+
+/* ---- card action buttons: vote chevrons get a quick gentle pop ---- */
+.votes .vote-btn:hover, .votes .cvote-btn:hover { transform: scale(1.14); }
+.votes.is-voting .vote-btn:hover, .votes.is-voting .cvote-btn:hover { transform: none; }
+.rz-post .vote-btn {
+  transition: transform .15s var(--ease-micro), border-color .15s var(--ease-micro),
+    color .15s var(--ease-micro), background-color .15s var(--ease-micro);
+}
+.rz-post .vote-btn:hover { transform: scale(1.12); }
+.cvote .cvote-btn {
+  transition: transform .15s var(--ease-micro), background-color .15s var(--ease-micro),
+    color .15s var(--ease-micro);
+}
+.cvote .cvote-btn:hover { transform: scale(1.14); }
+.cvote.is-voting .cvote-btn:hover { transform: none; }
+
+/* ---- shorts filter pills ---- */
+.shorts-filter:hover { transform: scale(1.05); }
+.shorts-filter:active { transform: scale(.96); }
+
+/* ---- shorts chrome + mute icon buttons: gentle press language ---- */
+.short-mute {
+  transition: transform .18s var(--ease-micro), background-color .18s var(--ease-micro);
+}
+.short-mute:hover { transform: scale(1.08); }
+.shorts-back:hover, .shorts-chrome-btn:hover { transform: scale(1.08); }
+
+/* ---- mobile bottom nav: icon nudges like the sidebar ---- */
+.bn-icon { transition: transform .18s var(--ease-micro); }
+.bn-item:hover .bn-icon { transform: scale(1.12); }
+.bn-create {
+  transition: transform .2s var(--ease-micro), filter .2s var(--ease-micro),
+    box-shadow .2s var(--ease-micro);
+}
+.bn-create:hover { transform: scale(1.07); filter: brightness(1.08); }
+
+/* ---- reduced motion: no hover animation at all ---- */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .rz-composer-post, .rz-tool, .rz-composer-fake,
+  .feed-bar .tabs a, .seg-tabs a, .seg-tabs button, .sc-sortbar button,
+  .votes .vote-btn, .votes .cvote-btn, .rz-post .vote-btn, .cvote .cvote-btn,
+  .shorts-filter, .short-mute, .shorts-chrome-btn, .shorts-back,
+  .bn-icon, .bn-create, .tool-btn, .icon-pick {
+    transition: none !important;
+    animation: none !important;
+  }
+  .btn:hover, .rz-composer-post:hover, .rz-tool:hover, .rz-composer-fake:hover,
+  .feed-bar .tabs a:hover, .seg-tabs a:hover, .seg-tabs button:hover,
+  .sc-sortbar button:hover, .votes .vote-btn:hover, .votes .cvote-btn:hover,
+  .rz-post .vote-btn:hover, .cvote .cvote-btn:hover, .shorts-filter:hover,
+  .short-mute:hover, .shorts-chrome-btn:hover, .shorts-back:hover,
+  .bn-item:hover .bn-icon, .bn-create:hover, .tool-btn:hover, .icon-pick:hover {
+    transform: none !important;
+    filter: none !important;
+  }
 }

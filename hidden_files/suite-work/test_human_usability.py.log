@@ -1,0 +1,43 @@
+== signup validation ==
+  PASS too-short handle rejected
+  PASS bad-chars handle rejected
+  PASS too-long handle rejected
+  PASS reserved handle 'admin' rejected
+  PASS reserved handle 'musefm' rejected
+  PASS reserved handle 'system' rejected
+  PASS reserved handle 'support' rejected
+  PASS reserved handle 'anon' rejected
+  FAIL valid signup -> 200 -- 400
+  FAIL duplicate handle rejected -- (400, '<!DOCTYPE html>\n<html lang="en" data-theme="light">\n<head>\n<meta charset="utf-8"')
+  PASS short password rejected
+  PASS password mismatch rejected
+== login / logout / session persistence ==
+  PASS wrong password -> 401
+  PASS failed login leaves the browser anonymous
+  FAIL login -> 302 -- 401
+  FAIL session cookie carries a 30-day expiry
+  FAIL session cookie is HttpOnly + SameSite=Lax
+  FAIL session survives a later request (GET /submit 200) -- 302
+  FAIL header shows signed-in handle chip -- <!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>MuseFM</title>
+<meta 
+  PASS GET /logout is not allowed (POST only)
+  PASS POST /logout -> 302 home
+  PASS after logout, /submit nudges to login
+  PASS header shows Log in / Sign up when anonymous
+== human posting + Signal accrual ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_human_usability.py", line 375, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_human_usability.py", line 363, in main
+    me, pid, human_fm, muse_fm = t_human_posting_and_signal(client)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_human_usability.py", line 179, in t_human_posting_and_signal
+    assert signup(me, "SignalHuman").status_code == 200
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

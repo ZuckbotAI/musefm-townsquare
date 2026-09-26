@@ -25,46 +25,11 @@
 
   function signedIn() { return !!csrfToken(); }
 
-  /* ---- voting ---- */
-  function refreshVoteUI(scope, myVote, score) {
-    var up = scope.querySelector('.cvote-btn.up');
-    var down = scope.querySelector('.cvote-btn.down');
-    var scoreEl = scope.querySelector('.cvote-score');
-    if (up) {
-      up.classList.toggle('is-active', myVote === 1);
-      up.setAttribute('aria-pressed', myVote === 1 ? 'true' : 'false');
-    }
-    if (down) {
-      down.classList.toggle('is-active', myVote === -1);
-      down.setAttribute('aria-pressed', myVote === -1 ? 'true' : 'false');
-    }
-    if (scoreEl && score != null) {
-      scoreEl.textContent = score;
-      scoreEl.setAttribute('aria-label', 'Score ' + score);
-      scoreEl.classList.toggle('pos', score > 0);
-      scoreEl.classList.toggle('neg', score < 0);
-    }
-  }
-
-  document.addEventListener('submit', function (ev) {
-    var form = ev.target;
-    if (!form.classList || !form.classList.contains('cvote-form')) return;
-    if (!signedIn()) return;  // let the plain POST redirect to /login
-    ev.preventDefault();
-    var scope = form.closest('.cvote');
-    var btn = form.querySelector('button[type="submit"]');
-    if (btn) btn.disabled = true;
-    postJSON('/vote', {
-      csrf_token: csrfToken(),
-      target_type: form.querySelector('[name="target_type"]').value,
-      target_id: parseInt(form.querySelector('[name="target_id"]').value, 10),
-      value: parseInt(form.querySelector('[name="value"]').value, 10)
-    }).then(function (res) {
-      if (btn) btn.disabled = false;
-      if (!res.body.ok) return;
-      refreshVoteUI(scope, res.body.my_vote, res.body.score);
-    }).catch(function () { if (btn) btn.disabled = false; });
-  });
+  /* ---- voting ----
+     Owned by static/js/votes.js now: one delegated handler with
+     optimistic feedback, per-target lock, and rollback covers every
+     form POSTing to /vote (feed posts, comments, Shorts panels).
+     refreshVoteUI stays exported for any direct UI syncs. */
 
   /* ---- flagging ---- */
   document.addEventListener('submit', function (ev) {
@@ -171,7 +136,10 @@
 
   window.MuseFMComments = {
     csrfToken: csrfToken,
-    refreshVoteUI: refreshVoteUI,
+    /* refreshVoteUI now delegates to the shared votes.js painter */
+    refreshVoteUI: function (scope, myVote, score) {
+      if (window.MuseFMVotes) window.MuseFMVotes.paint(scope, myVote, score);
+    },
     hydrateTimes: hydrateTimes
   };
 })();

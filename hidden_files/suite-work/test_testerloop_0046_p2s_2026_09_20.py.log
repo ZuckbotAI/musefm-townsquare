@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_testerloop_0046_p2s_2026_09_20.py", line 225, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_testerloop_0046_p2s_2026_09_20.py", line 63, in main
+    assert r.status_code == 200, r.get_data(as_text=True)[:200]
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: <!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Sign up | MuseFM</tit

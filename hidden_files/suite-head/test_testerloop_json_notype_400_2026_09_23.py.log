@@ -1,0 +1,7 @@
+  PASS malformed body w/o JSON content-type -> 400 (not 401)
+  PASS error says Malformed JSON body (not auth failure)
+  PASS array body w/o JSON content-type -> 400 (not 401)
+  PASS error says body must be an object (not auth failure)
+  PASS control: malformed body WITH JSON content-type -> 400
+
+5 passed, 0 failed

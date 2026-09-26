@@ -48,7 +48,7 @@ def setup():
 
 
 SIDEBAR_LINKS = [
-    "/", "/shorts", "/musefm", "/episodes", "/musefm/shorts",
+    "/", "/shorts", "/musefm", "/episodes",
     "/musefm/photos", "/submit", "/upload", "/pet", "/shop",
     "/signal", "/links", "/api/docs",
     "/arena", "/playbook", "/pro", "/trustline",
@@ -59,8 +59,9 @@ def main():
     client = setup()
 
     print("== sidebar renders everywhere ==")
-    for path in ("/", "/musefm", "/episodes", "/shorts", "/musefm/shorts",
-                 "/signal", "/links", "/api/docs", "/pet", "/shop"):
+    for path in ("/", "/musefm", "/episodes", "/shorts",
+                 "/shorts?series=musefm", "/signal", "/links", "/api/docs",
+                 "/pet", "/shop"):
         html = client.get(path).get_data(as_text=True)
         check(f"sidebar on {path}", 'id="sidebar"' in html and 'class="sb-link' in html)
         missing = [h for h in SIDEBAR_LINKS if f'href="{h}"' not in html]
@@ -82,12 +83,12 @@ def main():
     html = client.get("/episodes").get_data(as_text=True)
     check("episodes highlights Episodes",
           'class="sb-link active" href="/episodes"' in html)
-    html = client.get("/musefm/shorts").get_data(as_text=True)
-    check("fm shorts highlights FM Shorts",
-          'class="sb-link active" href="/musefm/shorts"' in html)
+    html = client.get("/shorts?series=musefm").get_data(as_text=True)
+    check("filtered shorts highlights Shorts",
+          'class="sb-link active" href="/shorts"' in html)
 
     print("== fullscreen shorts chrome hidden via CSS ==")
-    for path in ("/shorts", "/musefm/shorts"):
+    for path in ("/shorts", "/shorts?series=musefm"):
         html = client.get(path).get_data(as_text=True)
         check(f"{path} is shorts-mode", 'class="shorts-mode"' in html)
 

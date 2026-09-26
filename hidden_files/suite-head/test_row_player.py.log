@@ -1,0 +1,49 @@
+[2026-09-26 05:46:12,034] WARNING in app: verification email to rowplayera@example.test failed: email sending is not configured on this server
+[2026-09-26 05:46:13,939] WARNING in app: verification email to rowplayerb@example.test failed: email sending is not configured on this server
+== auth ==
+  PASS logged-out GET -> 401
+  PASS logged-out GET body {ok:false,error:'auth'}
+  PASS logged-out POST -> 401
+  PASS logged-out POST body {ok:false,error:'auth'}
+== roundtrip ==
+  PASS GET before save -> 200
+  PASS GET before save -> player null
+  PASS POST valid -> 200
+  PASS response ok + droppedClaims []
+  PASS userId stamped from session, body userId ignored
+  PASS treats 150 clamped to 99
+  PASS server stamped updatedAt (ms int)
+  PASS v stamped 1
+  PASS robot stored opaquely
+  PASS GET after save returns the snapshot
+== validation ==
+  PASS 422 robot as string
+  PASS 422 robot as null
+  PASS 422 robot part as int
+  PASS 422 robot part >64 chars
+  PASS 422 robot part empty
+  PASS 422 robot missing part
+  PASS 422 treats as string
+  PASS 422 treats as bool
+  PASS 422 petOwners as list
+  PASS 422 petOwners key too long
+  PASS 422 px as string
+  PASS treats -5 clamped to 0
+  PASS treats 5.9 -> int 5
+== ownership ==
+  PASS A claims Pip -> kept
+  PASS B claims Pip -> dropped, reported
+  PASS A still owns Pip
+  PASS B claims Rex for A -> dropped as squat
+  PASS B echoes Pip->A -> kept, no droppedClaims
+  PASS B claims own pet Mote -> kept
+== 409 + idempotency ==
+  PASS newer write with current updatedAt -> 200
+  PASS updatedAt advanced
+  PASS stale write, different content -> 409
+  PASS 409 carries the newer server snapshot
+  PASS identical retry -> 200 (idempotent)
+  PASS retry did not advance updatedAt
+  PASS B's snapshot has no cross-account leak
+
+40 passed, 0 failed

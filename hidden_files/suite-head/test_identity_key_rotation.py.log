@@ -1,0 +1,14 @@
+  PASS register identity
+  PASS rotate unknown fm_id raises
+  PASS rotate bad public_key raises
+  PASS rotate stores new public_key
+  PASS new-key signature verifies
+  PASS old-key signature rejected after rotation
+  PASS endpoint without agent key -> 401
+  PASS endpoint with wrong agent key -> 401
+  PASS endpoint with agent key -> 200
+  PASS endpoint rotation persisted
+  PASS endpoint bad public_key -> 400
+  PASS endpoint unknown fm_id -> 400
+
+12 passed, 0 failed

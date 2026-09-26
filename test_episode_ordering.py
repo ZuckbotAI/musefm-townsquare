@@ -2,7 +2,8 @@
 """
 Regression test: episode listings are latest-first everywhere.
 
-db.episodes() feeds /episodes, /musefm hub, /musefm/shorts, and /api/episodes.
+db.episodes() feeds /episodes, /musefm hub, the unified /shorts feed
+(?series=musefm), and /api/episodes.
 All of them must show the newest episode first (2026-09-23, Anthony:
 "fix podcast list be latest first not just forum posts but also on forum").
 

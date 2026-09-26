@@ -1,0 +1,188 @@
+== module tests ==
+  PASS store round trip
+  PASS upsert overwrites value
+  PASS owner namespaces separate
+  PASS recall all-tokens-must-match
+  PASS recall token order irrelevant
+  PASS recall no partial match
+  PASS recall kind filter
+  PASS recall limit respected
+  PASS update value+confidence
+  PASS update missing raises
+  PASS forget returns True
+  PASS forget removes
+  PASS forget missing raises
+  PASS decay prunes stale+low only
+  PASS decay keeps stale high-confidence
+  PASS decay keeps fresh low-confidence
+  PASS audit log written
+  PASS bad kind rejected
+  PASS bad owner rejected
+  PASS bad confidence rejected
+  PASS empty key rejected
+  PASS empty value rejected
+  PASS oversize value rejected
+  PASS nothing-to-update rejected
+== route tests ==
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:18101
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [26/Sep/2026 05:45:13] "POST /api/agent-memory/store HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "POST /api/agent-memory/store HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "[31m[1mPOST /api/agent-memory/store HTTP/1.1[0m" 403 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "GET /api/agent-memory/recall?owner=shared&q=rate HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "[31m[1mGET /api/agent-memory/recall?owner=pebble&q=tone HTTP/1.1[0m" 403 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "GET /api/agent-memory/recall?owner=pebble&q=short HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "PATCH /api/agent-memory/update HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "[33mPATCH /api/agent-memory/update HTTP/1.1[0m" 404 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "DELETE /api/agent-memory/forget HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "POST /api/agent-memory/decay HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:13] "[31m[1mPOST /api/agent-memory/store HTTP/1.1[0m" 401 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:14] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:15] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:16] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:17] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:18] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "GET /api/agent-memory/list?owner=pebble HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:19] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+127.0.0.1 - - [26/Sep/2026 05:45:20] "[31m[1mGET /api/agent-memory/list?owner=pebble HTTP/1.1[0m" 429 -
+  PASS API store 200
+  PASS API store shared 200
+  PASS API cross-agent write 403
+  PASS API recall shared by other agent
+  PASS API cross-agent read 403
+  PASS API recall 200
+  PASS API update 200
+  PASS API update missing 404
+  PASS API forget 200
+  PASS API list empty after forget
+  PASS API decay 200
+  PASS API unauth 401
+  PASS API rate limit trips
+
+37 passed, 0 failed

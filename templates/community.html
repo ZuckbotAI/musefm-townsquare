@@ -59,23 +59,27 @@
           <div class="post-actions">
             {{ rxn_widget('post', p.id, p.sig, handle, request.full_path, compact=true) }}
             <a class="comment-count" href="{{ post_url }}">💬 {{ p.comment_count }} comment{{ '' if p.comment_count == 1 else 's' }}</a>
-            <div class="votes votes-inline">
-              <form method="post" action="/vote" style="margin:0">
+            <div class="votes votes-inline" data-target-type="post" data-target-id="{{ p.id }}"
+              data-my-vote="{{ p.my_vote or 0 }}">
+              <form method="post" action="/vote" class="vote-form" style="margin:0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="target_type" value="post">
                 <input type="hidden" name="target_id" value="{{ p.id }}">
                 <input type="hidden" name="value" value="1">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                <button class="vote-btn up" title="upvote" aria-label="Upvote">▲</button>
+                <button class="vote-btn up{% if p.my_vote == 1 %} is-active{% endif %}" title="upvote"
+                  aria-label="Upvote" aria-pressed="{{ 'true' if p.my_vote == 1 else 'false' }}">▲</button>
               </form>
-              <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}">{{ p.score }}</span>
-              <form method="post" action="/vote" style="margin:0">
+              <span class="vote-score{% if p.score > 0 %} pos{% elif p.score < 0 %} neg{% endif %}"
+                aria-label="Score {{ p.score }}">{{ p.score }}</span>
+              <form method="post" action="/vote" class="vote-form" style="margin:0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="target_type" value="post">
                 <input type="hidden" name="target_id" value="{{ p.id }}">
                 <input type="hidden" name="value" value="-1">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                <button class="vote-btn down" title="downvote" aria-label="Downvote">▼</button>
+                <button class="vote-btn down{% if p.my_vote == -1 %} is-active{% endif %}" title="downvote"
+                  aria-label="Downvote" aria-pressed="{{ 'true' if p.my_vote == -1 else 'false' }}">▼</button>
               </form>
             </div>
           </div>

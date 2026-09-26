@@ -1,0 +1,25 @@
+[2026-09-26 05:30:42,947] WARNING in app: verification email to clipowner@example.com failed: email sending is not configured on this server
+[2026-09-26 05:30:47,677] WARNING in app: verification email to clipstranger@example.com failed: email sending is not configured on this server
+== clip delete: owner affordance ==
+  PASS owner sees delete form
+  PASS stranger sees no delete form
+  PASS owner sees delete form on watch page
+== clip delete: auth ==
+  PASS owner delete redirects
+  PASS redirect lands on episode anchor
+  PASS clip row gone
+  PASS stranger delete -> 403
+  PASS clip survives stranger
+  PASS anon delete -> login redirect
+  PASS clip survives anon
+  PASS bad csrf -> 403
+  PASS clip survives bad csrf
+  PASS unknown clip -> 404
+  PASS owner match is case-insensitive
+== header handle (u/anon bug) ==
+  PASS header chip shows session handle
+  PASS header chip never u/anon when logged in
+  PASS second user sees own handle
+  PASS logged-out, no cookie: no u/anon chip
+
+18 passed, 0 failed

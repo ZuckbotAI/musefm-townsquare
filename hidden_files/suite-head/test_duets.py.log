@@ -1,0 +1,64 @@
+== legacy migration: duet_of column ==
+  PASS legacy video_uploads gained duet_of
+  PASS legacy row readable, duet_of NULL
+  PASS legacy upload has no duet parent
+  PASS legacy upload has no duet children
+== create_video_upload duet_of validation (function level) ==
+  PASS duet_of=999999 rejected
+  PASS duet_of=0 rejected
+  PASS duet_of=-3 rejected
+  PASS duet_of='abc' rejected
+  PASS duet_of='12.5' rejected
+  PASS duet_of deleted parent rejected
+  PASS duet with duration None accepted
+  PASS duet with duration '30' accepted
+  PASS duet with duration '180' accepted
+  PASS duet with 600s duration rejected
+  PASS blank duet_of -> original
+  PASS duet_of persisted on row
+== chain assembly ==
+  PASS duet_parent(b) == a
+  PASS duet_parent(a) is None
+  PASS duet_children(a) newest-first
+  PASS chain(e) parents root-first
+  PASS chain(e) has no children
+  PASS chain(a) no parents
+  PASS chain(a) children match all direct duets
+  PASS chain(a) nested: b -> c -> e
+  PASS chain nodes carry watch urls
+  PASS pending duet hidden from children
+  PASS duet_marks pending duet not counted
+  PASS duet_marks empty input -> {}
+== depth: API returns the FULL chain ==
+  PASS 5-deep chain returns all 4 ancestors
+  PASS child tree reaches full depth 4 (UI caps at 3)
+== delete orphans children ==
+  PASS deleted parent's child orphaned (duet_of NULL)
+  PASS grandchild still chains to orphaned parent
+== route-level: unsigned rejected, no Signal for duets ==
+  PASS signed video upload -> 200
+  PASS response has no signal_earned key
+  PASS upload added zero Signal rows
+  PASS unsigned upload -> 401
+== PATCH-GATED: route duet_of handling ==
+  PASS route: duet upload -> 200 + duet_of echoed
+  PASS route: duet_of persisted
+  PASS route: duet earns no Signal
+  PASS route: duet_of=999999 -> 404
+  PASS route: duet_of=abc -> 400
+  PASS route: duet_of=-3 -> 400
+  PASS route: long duet -> 400
+  PASS route: tampered duet_of -> 401
+  PASS route: unsigned duet -> 401
+  PASS route: duet of deleted parent -> 404
+== PATCH-GATED: feed marks ==
+  PASS feed item carries is_duet/duet_count
+  PASS parent tile: not a duet, duet_count=1
+  PASS duet tile: is_duet chip set
+== PATCH-GATED: GET /api/video/<uid>/duets ==
+  PASS chain endpoint -> 200
+  PASS chain endpoint payload
+  PASS parent chain lists the child
+  PASS unknown video -> 404
+
+53 passed, 0 failed

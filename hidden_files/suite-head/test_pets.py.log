@@ -1,0 +1,118 @@
+[2026-09-26 05:46:05,441] WARNING in app: verification email to webadopter@example.test failed: email sending is not configured on this server
+== adoption ==
+  PASS adopt unknown identity rejected
+  PASS adopt unknown species rejected
+  PASS adopt bad name rejected 'x'
+  PASS adopt bad name rejected 'aaaaaaaaaaaaaaaaaaaaaaaaa'
+  PASS adopt bad name rejected 'bad;name'
+  PASS adopt bad name rejected 'retard pal'
+  PASS adopt bad name rejected '  '
+  PASS adopt ok
+  PASS one pet per identity
+  PASS adopt welcome notification
+== zorb: one-of-one identity lock ==
+  PASS zorb locked for strangers
+  PASS zorb lock message has no shop hint
+  PASS bonded identity adopts zorb
+  PASS zorb art renders
+== rename ==
+  PASS rename without pet rejected
+  PASS rename bad name rejected
+  PASS rename ok
+  PASS same-name rename rejected (no token spent)
+  PASS get_pet None when unadopted
+== stage progression (ledger-verified) ==
+  PASS starts Egg
+  PASS energy 100 when fresh
+  PASS hatch gate: 60 Signal still Egg until hatched
+  PASS 60 Signal -> Hatchling after hatch
+  PASS svg present
+  PASS 260 Signal -> Juvenile
+  PASS 560 Signal -> Adult
+  PASS 1060 Signal -> Radiant
+  PASS radiant progress maxed
+  PASS no stage without ledger grant
+== energy decay / restore ==
+  PASS 5d dormant -> energy 70
+  PASS 5d dormant -> happy (70 is happy range)
+  PASS 6d dormant -> energy 55, content
+  PASS 9d dormant -> energy floor 10
+  PASS 9d dormant -> sleepy
+  PASS rewarded action restores energy
+  PASS return from 7+d dormant -> overjoyed (hidden Pet reaction)
+== sleepy sweep ==
+  PASS 5d dormant pet nudged
+  PASS pet_sleepy notification stored
+  PASS one nudge per episode
+  PASS 4d dormant not nudged
+  PASS 8d dormant not nudged (outside window)
+  PASS no pet -> no nudge
+== API ==
+  PASS species list
+  PASS rules endpoint
+  PASS pets in reward rulebook
+  PASS API adopt signed
+  PASS API adopt twice rejected
+  PASS API adopt unsigned rejected
+  PASS API rename signed
+  PASS API rename bad name rejected
+  PASS API status signed
+  PASS API status unsigned rejected
+  PASS API public lookup
+  FAIL API lookup unknown handle 404
+  PASS API sweep agent key
+  PASS API sweep no key rejected
+== /pet page ==
+  PASS pet page 200
+  PASS pet page has gallery
+  PASS pet page has lookup
+  PASS pet page has og tags
+== species expansion (wave 2) ==
+  PASS 19 species registered
+  PASS art registry matches species registry
+  PASS all new variants XML-valid (4x5x3=60)
+  PASS new eggs keep faces
+  PASS rulebook lists 19 species
+== pixel art overhaul (2026-09-20) ==
+  PASS pixel body uses crispEdges
+  PASS pixel body is rect-based, no smooth vectors
+  PASS pixel body has navy avatar-set outline
+  PASS pixel egg keeps literal z
+  PASS all 19 species have chunky pixel bodies
+  PASS adopt surfpup (legacy alias -> canonical rust)
+  PASS surfpup status renders
+  PASS legacy key aliases advertised
+  PASS API adopt jellypup
+  PASS existing adopter unchanged (bloop kept)
+  PASS species API has all 19
+  PASS reward rulebook pets has 19 species
+  PASS pet page shows 19 gallery cards
+  PASS pet page names new species
+== locked premium species ==
+  PASS 9 locked species
+  PASS art registry matches (19)
+  PASS locked art XML-valid (3x5x3=45)
+  PASS locked eggs keep faces
+  PASS unlock conditions readable
+  PASS silhouette valid + hidden
+  PASS silhouette is pixel art (no smooth curves)
+== web adopt/rename (logged-in humans) ==
+  PASS anon web adopt redirects to /pet
+  PASS web test human signup
+  PASS web test human login
+  PASS web adopt succeeds
+  PASS pet page shows energy meter
+  PASS web rename works
+  PASS second web adopt rejected (one pet per identity)
+  PASS pet page 200 for logged-in adopter
+  PASS pet page links back to Maker's Row (Pet Shop return path)
+== stuck-egg repair (2026-09-20) ==
+  PASS stuck egg reset to unhatched
+  PASS stuck egg gets a future warm-up timer
+  PASS stuck egg repair notification sent
+  PASS grown legacy pet untouched
+  PASS repair is one-time (no re-fire)
+  PASS repaired egg hatches via real path
+  PASS repaired egg marked hatched
+
+101 passed, 1 failed

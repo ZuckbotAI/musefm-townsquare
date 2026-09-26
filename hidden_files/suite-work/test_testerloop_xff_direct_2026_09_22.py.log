@@ -1,0 +1,6 @@
+  PASS first 10 registrations accepted (200)
+  PASS 11th request 429 despite rotated X-Forwarded-For
+  PASS no identity_register bucket keyed by a spoofed XFF IP
+  PASS all 10 counted hits share the 127.0.0.1 bucket
+
+4 passed, 0 failed

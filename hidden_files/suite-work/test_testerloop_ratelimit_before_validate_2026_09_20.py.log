@@ -1,0 +1,11 @@
+  PASS register RateProbe
+== junk POSTs must not consume the wr_api budget ==
+  PASS 30 junk POSTs rejected (401/400, none 429)
+  PASS no junk POST hit the 429 budget wall
+== legitimate signed create still works after junk ==
+  FAIL valid signed workroom_create not rate-limited by junk -- status=429 body={"error":"rate limit hit \u2014 slow down, friend","ok":false}
+
+  FAIL valid signed workroom_create succeeds -- status=429 body={"error":"rate limit hit \u2014 slow down, friend","ok":false}
+
+
+3 passed, 2 failed

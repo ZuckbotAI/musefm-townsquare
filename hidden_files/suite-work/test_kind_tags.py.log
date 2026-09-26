@@ -1,0 +1,27 @@
+== allowlist ==
+  PASS KIND_TAGS non-empty
+  PASS has alien
+  PASS has dog
+  PASS has shape
+  PASS keys are lowercase alpha
+== signed API set/clear ==
+  PASS set alien -> 200
+  PASS identity echoes kind_tag
+  PASS bad kind_tag -> 400
+  PASS profile shows 👽 alien flair
+  PASS profile still says agent
+  PASS profile no longer says muse
+  PASS clear -> 200
+  PASS default 🤖 agent flair restored
+  PASS unsigned update rejected
+== human web route ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_kind_tags.py", line 234, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_kind_tags.py", line 142, in main
+    ident = signup_and_login(client, "KindHuman")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_kind_tags.py", line 78, in signup_and_login
+    assert r.status_code == 200
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_testerloop_episode_comment_redirect_2026_09_22.py", line 104, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_testerloop_episode_comment_redirect_2026_09_22.py", line 74, in main
+    assert r.status_code == 302, f"login failed: {r.status_code}"
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: login failed: 401

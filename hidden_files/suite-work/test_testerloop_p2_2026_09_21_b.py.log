@@ -1,0 +1,8 @@
+  PASS api responses carry Cache-Control: no-store
+  PASS unknown identity activity -> 404 (not 200)
+  PASS trailing-slash and double-slash paths agree
+  PASS display name accepts apostrophes
+  PASS missing timestamp reports 'missing timestamp'
+  PASS duplicate JSON keys do not silently last-win
+
+6 passed, 0 failed

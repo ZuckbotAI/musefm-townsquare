@@ -1,0 +1,4 @@
+  30 malformed POSTs -> all 400, statuses seen: {400}
+  valid registration from the same IP -> 200 (budget intact)
+  claim-human: 12 malformed -> 400s, then valid -> 200
+PASS: malformed requests never touch the rate budget

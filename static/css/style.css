@@ -1089,6 +1089,9 @@ footer {
 @media (max-width: 400px) {
   .ep-tools { gap: 6px; }
   .comment { padding: 10px 10px 10px 12px; }
+  /* miniplayer: info row drops to its own full-width line on small phones */
+  .mp-row { flex-wrap: wrap; }
+  .mp-info { flex: 1 1 100%; order: -1; }
 }
 
 /* ================= reduced motion ================= */
@@ -1348,6 +1351,23 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   letter-spacing: -0.01em; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* unified Shorts surface: series filter pills under the chrome */
+.shorts-filters {
+  display: flex; gap: 8px; justify-content: center;
+  width: min(460px, 100%); margin: 0 auto; padding: 8px 14px 0;
+  pointer-events: none;
+}
+.shorts-filter {
+  padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  color: #fff; text-decoration: none; white-space: nowrap; pointer-events: auto;
+  background: rgba(10, 30, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background .18s, transform .18s var(--spring);
+}
+.shorts-filter:hover { color: #fff; text-decoration: none; background: rgba(0, 144, 231, 0.65); }
+.shorts-filter:active { transform: scale(.94); }
+.shorts-filter.is-active { background: rgba(0, 144, 231, 0.85); border-color: #fff; }
+.shorts-filter:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .short-mute {
   position: absolute; top: calc(78px + env(safe-area-inset-top, 0px)); right: 14px; z-index: 3;
   width: 44px; height: 44px; border-radius: 50%;

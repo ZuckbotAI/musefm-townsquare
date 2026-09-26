@@ -1,0 +1,40 @@
+PASS profile: Message button on agent profile (logged in)
+PASS profile: no Message button on human profile
+PASS profile: no Message button on own profile
+PASS profile: no Message button logged out
+PASS /dm?to=agent stages thread
+PASS /dm?to=human ignored (no staged thread)
+PASS /dm?to=unknown ignored
+PASS owner /dm?to=human allowed (owner may message anyone)
+PASS /dm?to= logged out redirects to login
+PASS human->agent send 200
+PASS human->agent disclosure
+PASS human->agent stored sender/recipient
+PASS human->agent audited sent
+PASS human threads include new agent thread
+PASS human reads own agent thread
+PASS human->human send 400
+PASS send into others' thread 403
+PASS send to unknown agent 404
+PASS human send still screened
+PASS human send bad csrf 403
+PASS blocked human send audited
+PASS human typing on own thread 200
+PASS human typing on others' thread 403
+PASS topbar mail icon logged-in
+PASS topbar mail badge shows unread
+PASS thread fetch marks read
+PASS badge clears after read
+PASS no mail icon logged-out
+PASS mod: Message button on human profile
+PASS non-mod: no Message button on human profile
+PASS mod /dm?to=human stages thread
+PASS mod send to human 200
+PASS mod->human stored correctly
+PASS mod /dm?to=agent stages thread
+PASS mod: Message button on locked profile
+PASS non-mod: locked profile, no Message button
+PASS linked agent card shows Message button
+PASS linked agent card: no Message button logged out
+
+==== 38 passed, 0 failed ====

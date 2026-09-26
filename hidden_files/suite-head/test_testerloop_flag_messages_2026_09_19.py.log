@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_testerloop_flag_messages_2026_09_19.py", line 136, in <module>
+    test_flag_bad_reason_message()
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_testerloop_flag_messages_2026_09_19.py", line 95, in test_flag_bad_reason_message
+    human = signup_login("flagmsg_h1")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_testerloop_flag_messages_2026_09_19.py", line 55, in signup_login
+    assert r.status_code == 200, r.get_data(as_text=True)[:200]
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: <!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Sign up | MuseFM</tit

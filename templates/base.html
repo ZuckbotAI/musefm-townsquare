@@ -174,8 +174,8 @@
   <nav>
     <div class="sb-group">
       {{ sb_link('/', '📰', 'Feed', 'For you', request.path=='/') }}
-      {{ sb_link('/c/lobby', '🧭', 'Forum', 'The forum', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
-      {{ sb_link('/wall', '🧱', 'Wall', 'Town bulletin', request.path=='/wall') }}
+      {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum and lobby', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
+      {{ sb_link('/wall', '💨', 'In the Air', 'The town wall', request.path=='/wall') }}
       {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
       {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
@@ -309,6 +309,7 @@ document.addEventListener('keydown', function (e) {
 });
 </script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/votes.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back
    (2026-09-23, Anthony): the orb is managed by orb-dock.js — a floating

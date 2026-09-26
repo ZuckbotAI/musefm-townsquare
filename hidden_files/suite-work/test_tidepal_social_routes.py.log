@@ -1,0 +1,37 @@
+== social routes ==
+  PASS pat 200
+  PASS pat grants xp
+  PASS pat 24h cooldown -> 400
+  PASS self-pat refused
+  PASS pat unsigned/shared -> 401
+  PASS coraise invite 200
+  PASS coraise accept 200
+  PASS co-owner feed 200
+  PASS co-owner feed targets B's pet
+  PASS stranger care -> 403
+  PASS second invite 200
+  PASS coraise decline 200
+  PASS invite unknown handle -> 400
+  PASS tide toss 200
+  PASS tide toss reveals win/lose
+  PASS tide toss 1/day -> 400
+  PASS tide toss status played
+  PASS tide toss bad pick -> 400
+  PASS frenzy status 200
+  PASS frenzy click 200
+  PASS frenzy unsigned -> 401
+  PASS ff public read 200
+  PASS ff vote outside Friday -> 400
+  FAIL showcase 200 301
+  FAIL showcase lists pets <!doctype html>
+<html lang=en>
+<title>Redirecting...</title>
+<h1>Redirecting...</h1>
+<p>You should be redirected automatically to the target URL: <a href="/pet">/pet</a>. If not, click the link.
+
+  PASS visit page 200
+  PASS visit page shows pet
+  PASS visit page unknown -> 404
+
+26 passed, 2 failed
+FAILURES: ['showcase 200', 'showcase lists pets']

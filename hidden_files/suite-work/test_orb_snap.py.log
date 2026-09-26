@@ -1,0 +1,43 @@
+  PASS base has #orb-home
+  PASS home carries the orb anchor
+  PASS home anchor sits next to the brand button
+  PASS old fixed dock div is gone
+  PASS draggable:true option set
+  PASS orb core honors draggable option
+  PASS drag moves via transform when dock-managed
+  PASS drag kills fly transition while dragging
+  PASS drop hands the offset to the dock
+  PASS no stale-position restore fighting the dock
+  PASS dock exposes the drag handoff
+  PASS dock skips placement mid-drag
+  PASS dock drops the offset on state change
+  PASS double-click clears the drag offset
+  PASS no 'drag me' copy
+  PASS dock manages 'hero' state
+  PASS dock manages 'dock' state
+  PASS dock manages 'follow' state
+  PASS hero snaps into #hero-orb-stage
+  FAIL hero sits at ~96px
+  PASS dock is viewport-fixed
+  PASS dock is ~64px (smaller than hero)
+  PASS follow breaks away past a second threshold
+  PASS follow is ~48px (smaller than dock)
+  PASS follow trails the scroll with a lag
+  PASS follow has a gentle drift animation
+  PASS double-click returns to the hero home
+  PASS no drag-yield logic remains
+  PASS reduced-motion = instant snaps
+  PASS no dashed dock ring in CSS
+  PASS no dashed stage ring in CSS
+  PASS no dashed borders on orb elements
+  PASS home placeholder is invisible
+  PASS no dock tag label
+  PASS index keeps hero stage
+  PASS sayings API still wired
+  PASS no standalone zuckbot-says template refs
+  PASS /zuckbot-says is a 301 to /
+  PASS sayings API route intact
+  PASS no banned orb anthropomorphism
+
+39 passed, 1 failed
+FAILURES: ['hero sits at ~96px']

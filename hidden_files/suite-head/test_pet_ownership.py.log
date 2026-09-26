@@ -1,0 +1,30 @@
+[2026-09-26 05:46:01,549] WARNING in app: verification email to petownera@example.test failed: email sending is not configured on this server
+[2026-09-26 05:46:04,799] WARNING in app: verification email to petownerb@example.test failed: email sending is not configured on this server
+[2026-09-26 05:46:05,674] WARNING in app: verification email to petownerc@example.test failed: email sending is not configured on this server
+== adopt -> claim -> snapshot round-trip ==
+  PASS adopt returns the pet
+  PASS adopt registered the name->fm_id claim
+  PASS snapshot with own pet name -> 200
+  PASS nothing dropped
+  PASS GET echoes the claim
+== cross-identity claim rejection ==
+  PASS squat claim -> 200 with drop
+  PASS squat reported in droppedClaims
+  PASS B's snapshot carries no squatted claim
+  PASS claim row still points at the real owner
+  PASS legacy tidepals row has no claim row yet
+  PASS squat of legacy (unregistered) pet dropped
+  PASS true owner of legacy pet keeps the claim
+== backfill idempotency ==
+  PASS first backfill seeds the missing row
+  PASS backfill registered the unregistered pet
+  PASS pond pets are skipped
+  PASS pre-existing claim rows are never overwritten
+  PASS second backfill inserts nothing
+  PASS second backfill changes nothing
+== rename sync ==
+  PASS old name's claim released
+  PASS new name's claim registered
+  PASS new name kept after rename
+
+21 passed, 0 failed

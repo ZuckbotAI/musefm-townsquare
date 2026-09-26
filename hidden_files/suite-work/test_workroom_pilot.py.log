@@ -1,0 +1,73 @@
+== schema ==
+  PASS table pilot_tasks exists
+  PASS table pilot_task_history exists
+  PASS table pilot_agent_keys exists
+== key issuance (runtime, never hardcoded) ==
+  PASS three distinct keys minted
+  PASS raw keys never stored in DB
+== auth gating ==
+  PASS no auth -> 401
+  PASS bad key -> 401
+  PASS bad key on claim -> 401
+== create task ==
+  PASS create 200 + task_id
+  PASS difficulty 9 -> 400
+  PASS empty title -> 400
+== list tasks (public read) ==
+  PASS public list shows task open
+  PASS list embeds history with created entry
+== claim ==
+  PASS claim 200 + lease expiry
+  PASS double claim -> 400
+  PASS claim missing task -> 400
+  PASS claimed filter shows claimer
+== updates ==
+  PASS update 200
+  PASS empty update -> 400
+  PASS history holds claim + update
+== abandon (public tag, back to queue) ==
+  PASS abandon 200
+  PASS abandoned task returns to open
+  PASS ABANDONED tag stays in permanent history
+== lease auto-expiry ==
+  PASS short-lease claim 200
+  PASS lapsed lease auto-returns to open
+  PASS expiry recorded in history
+== done (claimer-only, terminal) ==
+  PASS claim for done-flow 200
+  PASS done by non-claimer -> 400
+  PASS done by claimer 200
+  PASS done task stays done with result in history
+  PASS claim on done task -> 400
+  PASS done on done task -> 400
+  PASS done on open (unclaimed) task -> 400
+== per-key rate limits ==
+  PASS keyA read ok
+  PASS keyB read ok
+  PASS two keys get two distinct buckets
+  PASS exhausted keyA -> 429
+  PASS keyB unaffected by keyA exhaustion (same IP)
+== session auth path ==
+  FAIL human signup ok — 400
+  FAIL human login redirects — 401
+  FAIL session cookie auth works (no bearer) — {"error":"pilot auth required: Bearer key or login session","ok":false}
+
+  PASS cookieless client still 401
+== pilot web UI ==
+  PASS queue page 200
+  PASS done task listed
+  PASS task detail 200 with history
+  PASS missing task -> 404
+  PASS claim task2 for abandon-col test
+  PASS abandon task2
+  PASS abandoned column shows ghosted task
+  PASS detail shows ABANDONED tag
+  PASS anon web create -> login redirect
+  FAIL human web create -> 302 to detail — 302 /login?next=/workroom/pilot/tasks
+  FAIL bad csrf -> back to queue with flash — 302
+== regression: existing routes untouched ==
+  PASS GET /api/agents still 200
+  PASS GET /api/latest.json still 200
+
+PASS 50  FAIL 5
+failures: ['human signup ok', 'human login redirects', 'session cookie auth works (no bearer)', 'human web create -> 302 to detail', 'bad csrf -> back to queue with flash']

@@ -1,0 +1,67 @@
+[musefm] self-heal failed: OperationalError('no such table: ai_uploads')
+== streak bonus ==
+  PASS thread award works
+  PASS 6-day streak pays +2
+  PASS streak bonus once per day
+== streak grace (one missed day forgiven) ==
+  PASS gap of 1 day: streak survives (3 days -> +2)
+== streak reset (two-day gap) ==
+  PASS 10-day gap: no streak bonus
+== streak escalates ==
+  PASS 14-day streak pays +10
+  PASS streak_7 achievement unlocked
+== achievements ==
+  PASS post ok
+  PASS first_thread unlocked on first post
+  PASS first_thread paid +15
+  PASS threads_10 unlocked at 10 threads
+  PASS reactions_100 unlocked
+  PASS achievement never double-paid
+  PASS first_upload unlocked
+  PASS mentions_10 unlocked (10 distinct muses)
+== tier milestones ==
+  PASS Signal milestone +10 on crossing 50
+  PASS milestone paid once
+== referrals ==
+  PASS invite code issued
+  PASS invite code stable across calls
+  PASS newbie heartbeat works
+  PASS inviter earns +20 on newbie's first action
+  PASS referral notification sent
+  PASS referral payouts capped at 10
+  PASS unknown invite code rejected
+== comeback bonus ==
+  PASS return after 8d dormant pays +15
+  PASS comeback notification
+  PASS no second comeback in same episode
+  PASS new dormancy episode pays again
+== dormancy sweep ==
+  PASS 4d dormant -> gentle nudge
+  PASS gentle notification in inbox
+  PASS no duplicate nudge same episode+tier
+  PASS 8d dormant -> miss_you nudge
+  PASS 7-day quiet period respected
+  PASS 15d dormant -> calling_all nudge
+  PASS roundup thread created
+  PASS roundup lives in lobby
+  PASS roundup mentions the dormant muse
+  PASS mentioned muse notified
+  PASS opt-out still gets in-app nudge
+  PASS opt-out muse NOT in roundup
+  PASS registered-but-never-active not nudged
+== weekly challenges ==
+  PASS best thread wins
+  PASS best reply wins
+  PASS settle is idempotent
+  PASS live week settle refused (bad key -> 401 first)
+  PASS challenges status endpoint
+  PASS last week winners listed
+== rules + guide ==
+  PASS rules endpoint
+  PASS /signal guide renders
+  PASS achievements endpoint
+  PASS pending nudges endpoint
+  PASS unsigned nudges rejected
+  PASS sweep without key rejected
+
+53 passed, 0 failed

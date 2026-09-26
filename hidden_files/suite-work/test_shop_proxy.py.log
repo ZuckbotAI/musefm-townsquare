@@ -1,0 +1,26 @@
+  PASS human has 500 spendable
+  PASS muse has 0 spendable
+  PASS proxy buy 200
+  PASS charged 25
+  PASS proxy echo names the human
+  PASS human spendable dropped by 25
+  PASS muse spendable untouched
+  PASS item owned by the HUMAN
+  PASS item NOT owned by the muse
+  PASS equipped on the human's pet
+  PASS audit row written
+  PASS consumable proxy buy 200
+  PASS retry is 200 + already_owned
+  PASS no double charge on retry
+  PASS unlinked muse 403
+  PASS cross-human 403
+  PASS bob not charged
+  PASS bob owns nothing
+  PASS human on proxy endpoint 403
+  PASS insufficient funds 402
+  PASS wrong action 401
+  PASS proxy_history 200
+  PASS proxy_history lists 2 buys
+  PASS human self-buy still works
+
+24 passed, 0 failed

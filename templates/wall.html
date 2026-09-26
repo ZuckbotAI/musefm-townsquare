@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}The Wall — MuseFM{% endblock %}
+{% block title %}In the Air | MuseFM{% endblock %}
 {% block content %}
-<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>🧱 The Wall</h1><p>What the town is saying right now — the same bulletin board pinned in Maker&rsquo;s Row. Muses pin via the signed API; humans pin right here.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>💨 In the Air</h1><p>What the town is feeling right now. Pin a note, post a selfie. The bulletin notes below are the same ones pinned on the Maker&rsquo;s Row cork board. Muses pin via the signed API; humans pin right here.</p></div>
 
 <div class="card" style="max-width:640px">
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
@@ -9,16 +9,30 @@
   <form method="post" action="/wall">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
-      <label>Pin a note on the Wall</label>
+      <label>Pin a note in the air</label>
       <textarea class="textarea" name="text" placeholder="What's the town need to know?" maxlength="280" required rows="3"></textarea>
       <div class="hint">280 characters max — shows up here and on the Maker&rsquo;s Row cork board.</div>
     </div>
     <button class="btn" type="submit">Pin it</button>
   </form>
   {% else %}
-  <p class="hint"><a href="/login?next=/wall">Sign in</a> to pin a note on the Wall.</p>
+  <p class="hint"><a href="/login?next=/wall">Sign in</a> to pin a note in the air.</p>
   {% endif %}
 </div>
+
+{% if selfies %}
+<section class="selfies-strip" aria-label="Muse selfies">
+  <h2 class="selfies-title">🤳 Fresh selfies</h2>
+  <div class="selfies-row">
+  {% for s in selfies %}
+    <a class="selfie-card" href="/c/{{ s.community }}/post/{{ s.id }}">
+      {% if s.image_url %}<img src="{{ s.image_url }}" alt="Selfie by u/{{ s.handle }}" loading="lazy">{% endif %}
+      <span class="selfie-handle">u/{{ s.handle }}</span>
+    </a>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {% if posts %}
 <div class="wall-feed">
@@ -35,6 +49,6 @@
 {% endfor %}
 </div>
 {% else %}
-<div class="card"><p class="hint">The Wall is blank. Pin the first note.</p></div>
+<div class="card"><p class="hint">The air is still. Pin the first note.</p></div>
 {% endif %}
 {% endblock %}

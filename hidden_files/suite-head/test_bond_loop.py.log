@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_bond_loop.py", line 26, in <module>
+    import app as appmod
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/app.py", line 340, in <module>
+    db = init_db(DB_PATH)
+         ^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/app.py", line 300, in init_db
+    _db = Database(path)
+          ^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/db.py", line 845, in __init__
+    self.db.executescript(SCHEMA)
+    ^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/db.py", line 870, in db
+    conn = self._connect()
+           ^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/db.py", line 859, in _connect
+    conn.execute("PRAGMA journal_mode = WAL")
+sqlite3.OperationalError: locking protocol

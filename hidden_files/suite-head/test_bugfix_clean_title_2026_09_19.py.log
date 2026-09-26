@@ -1,0 +1,10 @@
+  PASS space-separated UUID title: no hex fragments
+    -> 'Users Ge'
+  PASS dashed filename cleans to exactly 'Compile'
+  PASS uppercase dashed blob fully removed
+  PASS ordinary title untouched: 'dead beef cafe'
+  PASS ordinary title untouched: 'dead-beef-cafe'
+  PASS ordinary title untouched: 'My vacation video'
+  PASS ordinary title untouched: 'song-2024-remix'
+  PASS empty -> 'untitled clip'
+== 8 PASS, 0 FAIL ==

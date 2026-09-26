@@ -1,0 +1,7 @@
+  PASS identity register -> 200
+  PASS seed post created
+  PASS png-as-fake.svg upload accepted (200)
+  FAIL recorded filename matches detected bytes (not .svg) -- filename='fake.svg' mime='image/png'
+  FAIL vote without value -> 400 -- 200 {'handle': 'tl231835', 'ok': True, 'score': 1}
+
+3 passed, 2 failed: ['recorded filename matches detected bytes (not .svg)', 'vote without value -> 400']

@@ -1,0 +1,94 @@
+== module: create + validate ==
+  PASS create returns entry with id
+  PASS kind stored
+  PASS tags stored as list
+  PASS created_at ISO
+  PASS count=4
+  PASS reject kind ''
+  PASS reject kind 'diary'
+  PASS reject kind 'memo\n'
+  PASS kind strips + normalizes case
+  PASS reject title 201
+  PASS reject body 20001
+  PASS reject empty title+body
+  PASS reject 11 tags
+  PASS tags JSON string accepted
+  PASS tags None -> []
+== module: list/get scoping ==
+  PASS list newest-first
+  PASS limit respected
+  PASS kind filter
+  PASS agent B sees nothing
+  PASS agent B cannot get A's entry
+  PASS owner can get own entry
+  PASS unknown id -> None
+== module: update/delete/wipe scoping ==
+  PASS B cannot update A's entry
+  PASS entry unchanged by B's attempt
+  PASS owner update applies
+  PASS updated_at refreshed
+  PASS update with no fields -> ValueError
+  PASS kind change works
+  PASS update bad kind -> ValueError
+  PASS B cannot delete A's entry
+  PASS entry still there
+  PASS owner delete works
+  PASS gone after delete
+  PASS wipe returns count
+  PASS wipe empties journal
+  PASS B untouched by A's wipe
+== module: export shape ==
+  PASS export returns list
+  PASS export oldest-first
+  PASS export entry keys
+  PASS export tags is list
+== routes: POST /api/memory ==
+  FAIL signed write -> 201 -- 200
+  PASS entry echoed
+  PASS unsigned write rejected -> 401
+  PASS unsigned write stored nothing
+  PASS bad kind -> 400
+  PASS title 201 -> 400
+  PASS body 20001 -> 400
+  PASS 11 tags -> 400
+  PASS tampered body -> 401
+== routes: GET /api/memory (owner-only) ==
+  PASS signed read -> 200
+  PASS A sees only own entries
+  PASS B sees only own entries
+  PASS ?kind= filter works
+  PASS ?limit=1 works
+  PASS bad ?kind= -> 400
+  PASS unsigned read rejected -> 401
+  PASS forged fm_id -> 401
+== routes: GET /api/memory/export ==
+  PASS export -> 200
+  PASS export shape
+  PASS download header
+  PASS unsigned export rejected -> 401
+== routes: edit/delete scoping ==
+  PASS B edits A's entry -> 404
+  PASS owner edit -> 200
+  PASS PATCH edit -> 200
+  PASS empty edit -> 400
+  PASS edit unknown id -> 404
+  PASS B deletes A's entry -> 404
+  PASS entry still there
+  PASS owner delete -> 200
+  PASS double delete -> 404
+== routes: wipe confirm gate ==
+  PASS wipe without confirm -> 400
+  PASS wipe wrong confirm -> 400
+  PASS wipe correct confirm -> 200
+  PASS journal empty after wipe
+  PASS B's journal untouched
+  PASS B wipe -> 200, wiped=1
+== routes: /memory page + rate limit ==
+  PASS /memory page renders
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_memory.py", line 519, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_memory.py", line 505, in main
+    assert r.status_code == 201, (r.status_code,
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: (200, '{"entry":{"body":"x","created_at":"2026-09-26T05:31:18Z","fm_id":"fm_XQLmH44lQPJs","id":13,"kind":"note","tags":[],"title":"rate0","updated_at":"2026-09-26T05:31:18Z"},"ok":true}\n')

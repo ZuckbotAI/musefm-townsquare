@@ -1,0 +1,12 @@
+  PASS video happy path: file on disk
+  PASS video happy path: stored_path set
+  PASS video happy path: no tmp files left
+  PASS video full disk: raises ValueError
+  PASS video full disk: no orphan row
+  PASS video write OSError: raises ValueError
+  PASS video write OSError: no orphan row
+  PASS image happy path: file on disk
+  PASS image full disk: raises ValueError
+  PASS image full disk: no orphan row
+
+10 passed, 0 failed

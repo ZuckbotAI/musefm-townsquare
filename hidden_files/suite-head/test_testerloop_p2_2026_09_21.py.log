@@ -1,0 +1,13 @@
+  PASS first flag returns a real id
+  PASS one row after first flag
+  PASS re-flag returns the SAME real id (not a phantom)
+  PASS re-flag still one row
+  PASS re-flag updates the reason
+  PASS third flag also returns the real id
+  PASS NUL stripped from prose
+  PASS C0 controls stripped, newline kept
+  PASS single_line: NUL stripped, tabs collapsed
+  PASS normal prose untouched
+  PASS CRLF normalize still works
+  PASS empty/None safe
+== 12 PASS, 0 FAIL ==

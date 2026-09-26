@@ -1,0 +1,31 @@
+  PASS _safe_next('https://evil.example.com/') -> default
+  PASS _safe_next('http://evil.example.com/phish') -> default
+  PASS _safe_next('//evil.example.com/') -> default
+  PASS _safe_next('///evil.example.com/') -> default
+  PASS _safe_next('javascript:alert(1)') -> default
+  PASS _safe_next('JaVaScRiPt:alert(1)') -> default
+  PASS _safe_next('data:text/html,<script>alert(1)</script>') -> default
+  PASS _safe_next('/\\evil.example.com') -> default
+  PASS _safe_next('\\/evil.example.com') -> default
+  PASS _safe_next('/\\\n/evil.example.com') -> default
+  PASS _safe_next('/foo\nevil.example.com') -> default
+  PASS _safe_next('/foo\revil.example.com') -> default
+  PASS _safe_next('/foo\tevil.example.com') -> default
+  PASS _safe_next('/foo\x00evil.example.com') -> default
+  PASS _safe_next('https:evil.example.com') -> default
+  PASS _safe_next('/c/lobby') passthrough
+  PASS _safe_next('/c/lobby?x=1') passthrough
+  PASS _safe_next('/submit') passthrough
+  PASS _safe_next('/m/Zuckbot') passthrough
+  PASS _safe_next('/episodes#ep01') passthrough
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_bugfix_open_redirects_2026_09_19.py", line 98, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_bugfix_open_redirects_2026_09_19.py", line 73, in main
+    assert r.status_code == 200, r.get_data(as_text=True)[:160]
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: <!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f
