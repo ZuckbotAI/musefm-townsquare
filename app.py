@@ -6241,7 +6241,10 @@ def comment_react_web():
         target_type = _fs(data, "target_type", "comment")
         target_id = _int_field(data, "target_id")
         emoji = _fs(data, "emoji")
-        toggle = str(data.get("action", "")).lower() == "remove"
+        # P1 2026-09-26: tap-toggle. Tapping the same emoji twice removes
+        # the reaction even without an explicit action=remove, matching the
+        # docstring. Explicit action=remove still works as before.
+        explicit_remove = str(data.get("action", "")).lower() == "remove"
         if target_type not in COMMENT_RXN_TYPES:
             raise ValueError("target_type must be comment or episode_comment")
         if emoji not in REACT_EMOJIS:
@@ -6249,6 +6252,11 @@ def comment_react_web():
         table = COMMENT_RXN_TABLES[target_type]
         if not db._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
             raise ValueError("unknown target")
+        already = db._one(
+            "SELECT 1 FROM reactions WHERE target_type=? AND target_id=? "
+            "AND reactor=? AND emoji=?",
+            (target_type, target_id, fm_id, emoji))
+        toggle = explicit_remove or bool(already)
         hit = check_limit("comment_react_web", 120)
         if hit:
             if request.is_json:
