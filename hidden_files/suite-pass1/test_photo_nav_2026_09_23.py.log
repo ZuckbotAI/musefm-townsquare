@@ -1,0 +1,16 @@
+  PASS grid order newest-first
+  PASS newest: no prev
+  PASS newest: next is middle
+  PASS middle: prev is newest
+  PASS middle: next is oldest
+  PASS oldest: prev is middle
+  PASS oldest: next is None
+  PASS unknown id -> (None, None)
+  PASS watch 200
+  PASS prev arrow links newest
+  PASS next arrow links oldest
+  PASS first photo: no prev arrow
+  PASS first photo: next arrow present
+  PASS unknown photo 404
+
+14 passed, 0 failed

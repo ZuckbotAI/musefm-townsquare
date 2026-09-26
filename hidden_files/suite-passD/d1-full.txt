@@ -1,0 +1,22 @@
+
+==================================== ERRORS ====================================
+____________________ ERROR collecting test_dm_2026_09_24.py ____________________
+test_dm_2026_09_24.py:48: in <module>
+    alpha = db.register_identity("testalpha", b64key())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../musefm-townsquare/db.py:2216: in register_identity
+    raise ValueError("handle taken — pick another")
+E   ValueError: handle taken — pick another
+_____________ ERROR collecting test_dm_human_access_2026_09_25.py ______________
+test_dm_human_access_2026_09_25.py:47: in <module>
+    human = db.register_identity("testhuman", b64key())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../musefm-townsquare/db.py:2216: in register_identity
+    raise ValueError("handle taken — pick another")
+E   ValueError: handle taken — pick another
+=========================== short test summary info ============================
+ERROR test_dm_2026_09_24.py - ValueError: handle taken — pick another
+ERROR test_dm_human_access_2026_09_25.py - ValueError: handle taken — pick an...
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+2 errors in 6.13s
+PYTEST_EXIT:2

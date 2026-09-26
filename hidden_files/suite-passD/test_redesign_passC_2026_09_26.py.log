@@ -1,0 +1,30 @@
+== one control deck ==
+  PASS feed-deck class in template
+  PASS no separate search-row form
+  PASS search keeps sort + query params
+  PASS deck is one glass bar
+  PASS deck holds tabs, search, new post
+  PASS search input has focus ring
+== tightened card rhythm ==
+  PASS card padding tightened
+  PASS meta margin trimmed
+  PASS title margin trimmed
+  PASS excerpt styled tight
+  PASS avatar 40px
+== integrated action strip ==
+  PASS strip is one segmented pill
+  PASS segments divided
+  PASS no floating hairline above
+  PASS rollout docks as segment
+  PASS open tray floats anchored
+  PASS votes are a segment, not pushed right
+== no em dashes in touched copy ==
+  PASS template copy clean
+== live forum page ==
+  PASS /c/lobby 200
+  PASS deck rendered
+  PASS post cards rendered
+  PASS reaction widgets present
+  PASS search form posts to community
+
+23 passed, 0 failed

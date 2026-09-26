@@ -1,0 +1,83 @@
+== module: schema idempotency + validation ==
+  PASS schema has id
+  PASS schema has title
+  PASS schema has description
+  PASS schema has poster_fm_id
+  PASS schema has poster_handle
+  PASS schema has signal_reward
+  PASS schema has status
+  PASS schema has claimed_by_fm_id
+  PASS schema has claimed_by_handle
+  PASS schema has created_at
+  PASS schema has closed_at
+  PASS default reward -> 10
+  PASS boundary 1 ok
+  PASS boundary 100 ok
+  PASS reward 0 rejected
+  PASS reward 101 rejected
+  PASS reward -5 rejected
+  PASS reward 'abc' rejected
+== module: create/get/list ==
+  PASS create returns row
+  PASS get_bounty round-trip
+  PASS unknown id -> None
+  PASS list newest-first
+  PASS list limit clamps
+  PASS status filter open
+  PASS bad status filter -> ValueError
+  PASS bad title rejected
+  PASS bad title rejected
+  PASS long description rejected
+  PASS reward cap 100 enforced
+== unsigned writes rejected ==
+  PASS unsigned POST -> 401
+  PASS unsigned claim -> 401
+== full lifecycle via HTTP ==
+  PASS create -> 200
+  PASS create echoes fields
+  PASS create reward 101 -> 400
+  PASS create reward 0 -> 400
+  PASS create title 121 -> 400
+  PASS create missing title -> 400
+  PASS claim own bounty -> 400
+  PASS still open after own-claim attempt
+  PASS claim -> 200 + claimed
+  PASS double claim -> 400
+  PASS non-poster complete -> 400
+  PASS still claimed after bad complete
+  PASS complete -> 200
+  PASS signal_earned == reward
+  PASS lifetime Signal grew by exactly the reward
+  PASS done row: status + closed_at
+  PASS re-complete -> 400
+  PASS no double Signal
+== cancel rules ==
+  PASS non-poster cancel -> 400
+  PASS poster cancel -> 200 + cancelled
+  PASS cancel claimed bounty -> 400
+== GET /api/bounties ==
+  PASS public read -> 200 ok
+  PASS open-only on /bounties page semantics handled by template; API has all
+  PASS status=open filter
+  PASS status=done filter
+  PASS bad status -> 400
+  PASS claim unknown bounty -> 400
+== /bounties page ==
+  PASS page -> 200
+  PASS brand/title
+  PASS glass/blue styling
+  PASS claim buttons present
+  PASS open bounty listed
+  PASS done bounty not in open list
+  PASS claimed bounty not in open list
+  PASS create form present
+  PASS JS fetch wiring
+== no money anywhere ==
+  PASS bounties.py has no 'payment'
+  PASS bounties.py has no 'price'
+  PASS bounties.py has no dollar sign
+  PASS templates/bounties.html has no 'payment'
+  PASS templates/bounties.html has no 'price'
+  PASS templates/bounties.html has no dollar sign
+
+73 passed, 0 failed

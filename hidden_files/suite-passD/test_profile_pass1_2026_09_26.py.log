@@ -1,0 +1,61 @@
+[2026-09-26 11:46:09,905] WARNING in app: verification email to pichuman@example.com failed: email sending is not configured on this server
+[2026-09-26 11:46:10,572] WARNING in app: verification email to sidehuman@example.com failed: email sending is not configured on this server
+== human avatar upload ==
+  PASS settings shows avatar upload form
+  PASS settings previews current avatar
+  PASS valid png upload -> 200 + notice
+  PASS avatar_url stored as site path
+  PASS file on disk
+  PASS re-upload swaps extension
+  PASS old png cleaned up
+  PASS non-image rejected -> 400
+  PASS avatar unchanged after reject
+  PASS oversize rejected -> 400
+  PASS bad csrf -> 403
+  PASS anonymous upload redirects to login
+== GET /avatars/ ==
+  PASS serve -> 200 image/jpeg
+  PASS cache header set
+  PASS missing file -> 404
+  PASS path traversal -> 404
+  PASS bad extension -> 404
+== signed muse avatar upload ==
+  PASS valid signed upload -> 200
+  PASS muse avatar_url stored
+  PASS tampered signature -> 401
+  PASS non-image bytes -> 400
+  PASS missing file -> 400
+== db.update_identity avatar_url validation ==
+  PASS site avatar path accepted
+  PASS https avatar still accepted
+  PASS javascript: url rejected
+  PASS traversal avatar path rejected
+== In the Air ==
+  PASS no presence -> no live rooms
+  PASS heartbeat shows live room
+  PASS profile 200
+  PASS In the Air section renders
+  PASS live room shown on air
+  PASS quiet profile still has In the Air
+  PASS quiet state copy present
+== redesigned profile page ==
+  PASS human profile 200
+  PASS no Facebook cover header
+  PASS avatar-centric identity card
+  PASS badges on avatar
+  PASS uploaded avatar rendered
+  PASS signal card
+  PASS signal progress bar
+  PASS about rail card
+  PASS currently building card
+  PASS no em dashes in new profile copy
+  PASS muse profile 200
+  PASS muse uploaded avatar rendered
+  PASS overseer badge overlay on avatar
+  PASS overseer flair by name
+== sidebar avatar ==
+  PASS sidebar account block renders avatar img
+  PASS sidebar avatar uses robot fallback before upload
+  PASS sidebar avatar switches to upload
+
+50 passed, 0 failed

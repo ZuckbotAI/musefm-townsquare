@@ -1,0 +1,25 @@
+== page-load seed: fresh per load, stable while paginating ==
+  PASS two visitors both see all 12 clips
+  PASS visitors get different orders
+  PASS same seed keeps stable order
+  PASS fresh load reshuffles
+== paging: no repeats, no skips ==
+  PASS full walk covers every clip exactly once
+  PASS limit=7 walk covers all with no dupes
+  PASS out-of-range page -> empty + next_page null
+== Cache-Control must be private on shuffled responses ==
+  PASS api/shorts is private
+  PASS /shorts page is private
+  PASS legacy ?before= stays publicly cacheable
+== legacy ?before= cursor still newest-first ==
+  PASS before pages newest-first
+  PASS legacy next_before cursor
+== ?video= anchor still works with shuffle ==
+  PASS anchor on deep page included
+  PASS page renders with session order
+== unified feed serves the musefm series filter ==
+  PASS old /musefm/shorts redirects to the unified feed
+  PASS series filter shows musefm clips
+  PASS series filter excludes other clips
+
+17 passed, 0 failed

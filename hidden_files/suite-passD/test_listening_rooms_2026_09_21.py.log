@@ -1,0 +1,1 @@
+AGENT_KEY must be set in the environment (prevents the app from generating .agent_key inside the checkout)

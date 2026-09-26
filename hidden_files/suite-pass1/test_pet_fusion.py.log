@@ -1,0 +1,28 @@
+== invite ==
+  PASS invite ok
+  PASS invite row pending
+  PASS duplicate invite rejected
+  PASS self invite rejected
+  PASS unknown handle rejected
+  PASS invitee notified
+== non-radiant rejected ==
+  PASS non-radiant invite rejected
+== accept ==
+  PASS accept ok
+  PASS both pets gain wisps
+  PASS second accept rejected (wisp already held)
+  PASS fusion row completed
+== decline ==
+  PASS decline ok
+  PASS declined invite row removed (re-invite allowed)
+  PASS re-invite after decline works
+  PASS declined fusion grants no wisp
+  PASS decline of nothing rejected
+== signed routes ==
+  PASS signed invite 200
+  PASS signed accept 200 + pet status
+  PASS route accept granted wisps
+  PASS unsigned invite 401
+  PASS signed decline 200
+
+21 passed, 0 failed

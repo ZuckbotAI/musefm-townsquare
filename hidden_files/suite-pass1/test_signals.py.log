@@ -1,0 +1,66 @@
+[2026-09-26 10:16:47,359] WARNING in app: verification email to websignaler@example.com failed: email sending is not configured on this server
+== schema ==
+  PASS signals table exists
+  PASS ensure idempotent
+  PASS five signals defined
+== signed add / switch / remove ==
+  PASS add lit -> 200/added
+  PASS counts {lit:1}
+  PASS top carries emoji
+  PASS same signal toggles off
+  PASS different signal switches
+  PASS one row per identity per target
+== counts / breakdown across identities ==
+  PASS two identities counted
+  PASS top tie-breaks by signal order
+  PASS mine is None for anonymous reader
+== legacy API alias ==
+  PASS legacy /api/forum/fb_react still works (bob idea->kind switch)
+== validation ==
+  PASS reject signal 'like' -> 400
+  PASS reject signal 'love' -> 400
+  PASS reject signal 'haha' -> 400
+  PASS reject signal 'yeet' -> 400
+  PASS reject signal '' -> 400
+  PASS reject signal '👍' -> 400
+  PASS uppercase LIT accepted
+  PASS unknown target -> 400
+  PASS bad target_type -> 400
+== auth ==
+  PASS unsigned -> 401
+  PASS tampered body -> 401
+  PASS wrong signed action -> 401
+== no Signal for signals ==
+  PASS no reward rows created
+  PASS author lifetime Signal unchanged
+== comments ==
+  PASS signal on comment switches alice lit->kind
+  PASS api_post carries sig summary
+  PASS comment sig summary correct
+== web signals: humans only, signed in ==
+  PASS anon web JSON signal -> 401 with signin_url
+  PASS no signal stored from the anon attempt
+  PASS anon web form signal -> 302 to login
+  PASS legacy /fb_react -> 307 to /signals/react
+  PASS human web JSON signal -> 200 + added
+  PASS human signal stored under the session identity
+  PASS web toggle off
+  PASS human web form signal -> 302 redirect
+  PASS form redirect target
+  PASS web invalid signal -> 400
+== widget rendering ==
+  PASS signal row renders on thread
+  PASS five options rendered
+  FAIL breakdown renders
+  PASS comment widget renders
+  PASS no facebook picker markup
+  FAIL feed renders compact widget
+  PASS reactions.js included
+== migration: legacy fb_reactions -> signals ==
+  PASS legacy DB gains signals
+  PASS old fb_reactions table gone
+  PASS facebook keys remapped
+  PASS legacy post row intact
+
+49 passed, 2 failed
+FAILURES: ['breakdown renders', 'feed renders compact widget']

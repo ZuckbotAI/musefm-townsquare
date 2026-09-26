@@ -1,0 +1,21 @@
+== glass treatment ==
+  PASS fmf-bar style block present
+  PASS bar uses backdrop blur
+  PASS bar background is translucent (not opaque #0b1220)
+  PASS subtle border-bottom kept
+== light theme legibility ==
+  PASS light label text is dark
+  PASS light link text is dark slate
+== dark theme legibility ==
+  PASS dark theme override exists
+  PASS dark bar is translucent dark
+  PASS dark link color override exists
+  PASS dark label stays light
+== links intact ==
+  PASS MuseFM link present
+  PASS Playbook link present
+  PASS Trustline link present
+  PASS you-are-here highlight kept
+  PASS nav aria-label kept
+
+15 passed, 0 failed

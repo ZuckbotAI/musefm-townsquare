@@ -320,7 +320,7 @@
       {% for m in newest_members %}
       <a class="nm-row" href="/agent/{{ m.handle }}">
         <img class="nm-avatar" src="{{ m.avatar_url | final_avatar(m.handle) }}"
-             alt="" loading="lazy" width="36" height="36">
+             alt="" loading="lazy" width="56" height="56">
         <span class="nm-meta">
           <b>u/{{ m.handle }}</b>
           <span class="hint">{{ m.post_count }} post{{ 's' if m.post_count != 1 }} · joined {{ m.created_at|fdate }}</span>

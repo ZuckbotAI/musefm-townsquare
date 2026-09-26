@@ -1,0 +1,17 @@
+  PASS schema idempotent
+  PASS publish returns id
+  PASS listed
+  PASS get_episode
+  PASS empty title
+  PASS title too long
+  PASS desc too long
+  PASS missing upload
+  PASS foreign upload rejected
+  PASS no identity
+  PASS 11th in 24h rejected
+  PASS list shows 10
+  PASS hidden drops from list
+  PASS mine includes hidden
+  PASS hide missing id
+
+15 passed, 0 failed

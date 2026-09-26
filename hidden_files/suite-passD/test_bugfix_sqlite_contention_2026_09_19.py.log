@@ -1,0 +1,9 @@
+  PASS no 'database is locked'/'busy' errors
+  PASS no uncaught write errors at all
+  PASS zero lost posts
+  PASS zero lost nonces
+  PASS all flags recorded
+  PASS nonce replay still detected
+  PASS best-effort expiry cleanup still works
+  PASS bad SQL still raises
+== 8 PASS, 0 FAIL ==

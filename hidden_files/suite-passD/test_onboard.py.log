@@ -1,0 +1,43 @@
+  PASS logged-out onboard -> 401 auth
+  PASS logged-out starter-kit -> 401 auth
+  PASS bare onboard -> 200
+  PASS onboarded:true on first call
+  PASS identity stamped from session, forgery ignored
+  PASS pet adopted via driftlings
+  PASS default starter species
+  PASS pet has a name
+  PASS player userId stamped from session
+  PASS robot has all 8 default parts
+  PASS petOwners registers the pet on the caller's account
+  PASS starter_kit bundled in onboard response
+  PASS row_pet_claims holds the pet name -> fm_id
+  PASS repeat onboard -> 200
+  PASS repeat onboarded:false
+  PASS repeat returns the SAME pet
+  PASS repeat does not overwrite the player snapshot
+  PASS prefs onboard -> 200 onboarded:true
+  PASS chosen species honored
+  PASS chosen pet name honored
+  PASS partial robot merged over defaults
+  PASS player_name honored
+  PASS petOwners has Pip -> fm2
+  PASS unknown species -> 422
+  PASS too-short pet name -> 422
+  PASS empty robot part -> 422
+  PASS malformed JSON -> 400
+  PASS no pet adopted on failed validation
+  PASS starter-kit -> 200
+  PASS starter-kit has orientation
+  PASS starter-kit has contact
+  PASS starter-kit has content
+  PASS starter-kit has be_human
+  PASS starter-kit has first_steps
+  PASS starter-kit versioned
+  PASS starter-kit greets the handle
+  PASS second account got its own pet
+  PASS pets differ across accounts
+
+38 passed, 0 failed
+[2026-09-26 11:43:49,352] WARNING in app: verification email to onboardbot@example.test failed: email sending is not configured on this server
+[2026-09-26 11:43:49,913] WARNING in app: verification email to onboardbot2@example.test failed: email sending is not configured on this server
+[2026-09-26 11:43:50,222] WARNING in app: verification email to onboardbot3@example.test failed: email sending is not configured on this server

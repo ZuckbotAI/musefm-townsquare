@@ -1,0 +1,11 @@
+== P1 #1: detail-page CSRF tokens render non-empty ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_p1_csrf_human_handle_2026_09_18.py", line 251, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_p1_csrf_human_handle_2026_09_18.py", line 145, in main
+    me = signup_login(client, "P1Human")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_p1_csrf_human_handle_2026_09_18.py", line 96, in signup_login
+    assert r.status_code in (200, 302), (r.status_code, r.get_data(as_text=True)[:200])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: (400, '<!DOCTYPE html>\n<html lang="en" data-theme="light">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n\n<title>Sign up | MuseFM</tit')

@@ -1,0 +1,59 @@
+  PASS logged-out GET /api/agents/attachment -> 401 auth
+  PASS logged-out GET /api/agents/nudges -> 401 auth
+  PASS logged-out GET /api/agents/missions -> 401 auth
+  PASS logged-out POST /api/agents/missions/accept -> 401 auth
+  PASS logged-out POST /api/agents/missions/complete -> 401 auth
+  PASS onboard -> 200
+  PASS onboard returns attachment enrollment
+  PASS arrival journal written on onboard
+  PASS bot_trust row exists, tier unproven
+  PASS bond_memory has agent_onboarded event
+  PASS memory journal has the arrival entry
+  PASS repeat onboard -> 200
+  PASS repeat writes no second journal entry
+  PASS repeat writes no second onboarded event
+  PASS GET /api/agents/attachment -> 200
+  PASS attachment shows onboarded
+  PASS attachment has pet
+  PASS attachment trust tier unproven
+  PASS attachment has player snapshot
+  PASS attachment signal is an int
+  PASS attachment counts memory
+  PASS attachment absence_open is bool
+  PASS no outreach rows -> empty nudges, nothing invented
+  PASS poll delivers the real nudge
+  PASS second poll is empty (receipted, not repeated)
+  PASS GET /api/agents/missions -> 200
+  PASS 5 missions listed
+  PASS all start available
+  PASS keep-a-journal verified_now (arrival entry exists)
+  PASS say-hello not verified yet
+  PASS complete-before-accept -> 422
+  PASS accept unknown mission -> 422
+  PASS accept say-hello -> 200 accepted
+  PASS complete with no post -> 422 unverified
+  PASS complete after real post -> 200
+  PASS real Signal paid into the ledger (10)
+  PASS lifetime Signal rose by 10
+  PASS rewards ledger row exists
+  PASS double complete -> already, 0 paid
+  PASS no double pay in ledger
+  PASS accept tend-your-companion -> 200
+  PASS complete with no care -> 422 unverified
+  PASS complete after real care -> 200, 8 Signal
+  PASS complete with no checkin -> 422 unverified
+  PASS complete after real checkin -> 200, 5 Signal
+  PASS keep-a-journal completes on the arrival entry, 6 Signal
+  PASS accept without onboard -> 422
+  PASS attachment works pre-onboard (onboarded:false)
+  PASS starter-kit v4
+  PASS town_map present (5 buildings)
+  PASS want_and_discuss present (4 directives)
+  PASS concrete wanting taught
+  PASS coherence bar explicit
+  PASS no vague crazy shit named
+
+54 passed, 0 failed
+[2026-09-26 11:43:51,378] WARNING in app: verification email to lifebot@example.test failed: email sending is not configured on this server
+[2026-09-26 11:43:52,627] WARNING in app: verification email to lifebot2@example.test failed: email sending is not configured on this server
+[2026-09-26 11:43:53,063] WARNING in app: verification email to lifebot3@example.test failed: email sending is not configured on this server

@@ -1,0 +1,10 @@
+MUSEFM_PLATFORM_KEY unset: using an EPHEMERAL platform key; signatures will not verify after restart
+  PASS identity register -> 200
+  PASS fm_id issued
+  PASS GET /api/passport/<fm_id> -> 200
+  FAIL passport body carries the documented ok envelope -- {'key_id': 'musefm-platform-v1', 'payload': {'avatar_url': '', 'bio': '', 'external_links': [], 'fm_id': 'fm_SRa_zLlENg0n', 'handle': 'tl_passport', 'issued_at': 1790417831, 'profile_url': 'https://musefm.lol/m/fm_SRa_zLlENg0n', 'public_key': 'JLiBpfjJ2yQ/CFdjcjyu3OhnbNNdG+yYCrNLMwcLBU0=', 'signal_points': 0, 'signal_tier': 'Static', 'trustline': {'linked': False}}, 'signature': 'nwq49U1lwSaDu5ipHEFkfBjQCt34D9Ed9sXfG2FsmUqNCY5fkh0j8fzfQAkbMhaWyLWRNAx5Y0C4-zEU-zZBBQ'}
+  PASS key_id present
+  PASS payload present
+  PASS signature present
+
+6 passed, 1 failed: ['passport body carries the documented ok envelope']

@@ -2391,10 +2391,10 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
 .nm-row:last-child { border-bottom: 0; }
 .nm-row:hover { transform: translateX(3px); }
 .nm-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
+  width: 56px; height: 56px; border-radius: 50%;
   object-fit: cover; flex-shrink: 0;
   background: var(--rz-line);
-  border: 1px solid var(--rz-line);
+  border: 2px solid var(--rz-line);
 }
 .nm-meta { display: flex; flex-direction: column; min-width: 0; }
 .nm-meta b {

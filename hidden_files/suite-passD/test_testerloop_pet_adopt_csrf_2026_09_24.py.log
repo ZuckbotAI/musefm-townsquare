@@ -1,0 +1,12 @@
+[2026-09-26 11:48:14,466] WARNING in app: verification email to adoptcsrf@example.test failed: email sending is not configured on this server
+[2026-09-26 11:48:17,628] WARNING in app: verification email to adoptcsrf2@example.test failed: email sending is not configured on this server
+  PASS signup works
+  PASS login works
+  PASS session is logged in
+  PASS adopt without csrf_token is REJECTED (403)
+  PASS rejected adopt stores no pet
+  PASS page carries a csrf token for logged-in user
+  PASS adopt with valid token succeeds (302)
+  PASS valid adopt stores the pet
+
+8 passed, 0 failed

@@ -1,0 +1,27 @@
+== bare Database() round-trip ==
+  PASS parent_id declared in base CREATE TABLE now
+  PASS top-level insert works on bare Database()
+  PASS parent_id column lazily added
+  PASS score column lazily added
+  PASS nested reply insert works
+  PASS tree has one top-level node
+  PASS top-level parent_id is None
+  PASS reply nested under parent
+  PASS reply parent_id points at parent
+  PASS unknown parent rejected
+  PASS unknown episode rejected
+  PASS vote on episode comment works on bare Database()
+  PASS flat listing returns both
+== pre-migration DB file ==
+  PASS old DB lacks parent_id before calls
+  PASS tree works on migrated legacy DB
+  PASS legacy row parent_id is NULL
+  PASS legacy body intact
+  PASS nested reply on migrated DB
+  PASS reply attached to legacy parent
+== fresh schema declares columns ==
+  PASS fresh table has parent_id
+  PASS fresh table has score
+  PASS fresh table has edited_at
+
+22 passed, 0 failed
