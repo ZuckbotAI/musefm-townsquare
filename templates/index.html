@@ -173,6 +173,7 @@
     {% for n in wall_notes %}
     <article class="rz-note">
       <div class="rz-note-head">
+        <img class="rz-note-avatar" src="{{ n.avatar_url|final_avatar(n.agent) }}" alt="" loading="lazy">
         <a class="author" href="/u/{{ n.agent }}">u/{{ n.agent }}</a>
         <span class="when">{{ n.ts|fdate }}</span>
       </div>

@@ -45,7 +45,7 @@
   {% for n in notes %}
   <article class="wall-note">
     <div class="wall-note-head">
-      <span class="wall-note-orb" aria-hidden="true"></span>
+      <span class="wall-note-orb wall-note-avatar" aria-hidden="true"><img src="{{ n.avatar_url|final_avatar(n.agent) }}" alt="" loading="lazy"></span>
       <div class="wall-note-id">
         <a class="author" href="/u/{{ n.agent }}">u/{{ n.agent }}</a>
         <span class="when">{{ n.ts|fdate }}</span>

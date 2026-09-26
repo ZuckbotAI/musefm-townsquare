@@ -1153,6 +1153,20 @@ def _pp_badge(verified):
         "🔒 Passport locked</span>")
 
 
+def _annotate_avatars(items, key="handle"):
+    """Bulk-attach author avatar URLs for the final_avatar filter (D4,
+    2026-09-26): custom uploads win, generated robot avatars fill the rest.
+    One query no matter how many items."""
+    try:
+        avatars = db.avatars_for_handles(
+            [it.get(key) for it in items if it.get(key)])
+    except Exception:
+        avatars = {}
+    for it in items:
+        it["avatar_url"] = avatars.get(it.get(key))
+    return items
+
+
 def _annotate_passport(items, key="handle", out_key="passport_verified"):
     """Batch-attach Trustline passport status to post/comment/photo dicts.
 
@@ -1368,6 +1382,7 @@ def home():
     shorts = _short_items(shorts)
     _attach_short_sig(shorts, _sig_web_reactor())
     _annotate_passport(shorts)  # Trustline badge by author name
+    _annotate_avatars(shorts)  # D4: author avatars on short cards
     _shorts_mark_seen([s["id"] for s in shorts])
     # Hero dialogue bubble: a server-rendered Zuckbot saying next to the orb.
     # Clicking the orb swaps in a fresh one via /api/zuckbot-says/random.
@@ -2249,6 +2264,7 @@ def musefm_hub():
         for u in shorts:
             u["sig"] = vsums[("video", u["id"])]
             u["display_title"] = videos.clean_title(u["title"], u["filename"])
+    _annotate_avatars(shorts)  # D4: author avatars on short cards
     photos = db.list_photos(limit=6)
     return render_template("musefm.html", episodes=eps, shorts=shorts,
                            photos=photos, handle=_musefm_handle(),
@@ -3018,6 +3034,8 @@ def profile_page(fm_id):
         " ORDER BY id DESC LIMIT 12",
         (fm_id, videos.SHORTS_MAX_SECS)).fetchall()]
     profile_shorts = _short_items(short_rows) if (show_posts and short_rows) else []
+    if profile_shorts:
+        _annotate_avatars(profile_shorts)  # D4: author avatars on short cards
     # Profile icons (2026-09-25, Anthony): the user's picked collectible
     # icons, rendered at the profile top. Separate from badges/people tags.
     profile_icons = [ICON_BY_ID[i] for i in get_icon_picks(db, fm_id)
@@ -6815,6 +6833,19 @@ def _dm_display(pkey):
     return ident["handle"] if ident else fm_id
 
 
+def _dm_peer_avatar(pkey):
+    """Avatar URL for a DM participant: custom upload wins, otherwise the
+    handle's generated robot (D4, 2026-09-26)."""
+    kind, fm_id = dm.parse_participant(pkey or "")
+    if not kind:
+        return ""
+    ident = db.get_identity(fm_id)
+    if not ident:
+        return ""
+    return robot_avatar.resolve_avatar(ident["handle"],
+                                        ident.get("avatar_url"))
+
+
 def _dm_thread_exists(tkey):
     return bool(db._one("SELECT id FROM dms WHERE thread_key=? LIMIT 1",
                         (tkey,)))
@@ -6837,6 +6868,9 @@ def _dm_serialize_threads(rows, me):
             "peer": peer,
             "peer_handle": peer_handle,
             "peer_kind": kind,
+            "peer_avatar_url": _dm_peer_avatar(
+                peer if peer is not None
+                else r["thread_key"].split("|")[0]),
             "preview": (r["last_body"] or "")[:140],
             "preview_mine": r["last_sender"] == me,
             "last_at": r["last_at"],
@@ -7176,6 +7210,7 @@ def api_dm_web_thread():
     return jsonify({"ok": True, "thread_key": tkey,
                     "peer_handle": _dm_display(peer),
                     "peer": peer,
+                    "peer_avatar_url": _dm_peer_avatar(peer),
                     "messages": _dm_serialize_messages(msgs, me),
                     "my_last_read_at": my_last["read_at"] if my_last else None,
                     "typing": typing,
@@ -8958,6 +8993,7 @@ def api_shorts():
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
+    _annotate_avatars(items)  # D4: author avatars on short cards
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
@@ -9010,6 +9046,7 @@ def api_shorts_cards():
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
+    _annotate_avatars(items)  # D4: author avatars on short cards
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     html = render_template_string(
@@ -9163,6 +9200,7 @@ def shorts_page():
             items.insert(0, _short_items([au])[0])
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
+    _annotate_avatars(items)  # D4: author avatars on short cards (covers anchor too)
     resp = app.make_response(render_template(
         "shorts.html", items=items, anchor_id=anchor_id,
         shorts_seed=seed, series=series or "",

@@ -33,7 +33,7 @@
     {% set thumb = p.image_url if p.image_url and (p.image_url|media_visible) else (p.gif_url or (p.video_url if p.video_url and (p.video_url|media_visible) else None)) %}
     <article class="card rz-post rz-forum-post">
       <div class="post-row">
-        <a class="post-avatar" href="/u/{{ p.handle }}" aria-label="u/{{ p.handle }}'s profile"></a>
+        <a class="post-avatar" href="/u/{{ p.handle }}" aria-label="u/{{ p.handle }}'s profile"><img src="{{ p.avatar_url|final_avatar(p.handle) }}" alt="" loading="lazy"></a>
         <div class="post-main">
           <div class="post-meta">
             <a class="author" href="/u/{{ p.handle }}">u/{{ p.handle }}</a>

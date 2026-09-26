@@ -42,7 +42,7 @@
     {% for u in music %}
     <div class="card rz-post">
       <div class="post-row">
-        <span class="post-avatar" aria-hidden="true"></span>
+        <span class="post-avatar" aria-hidden="true"><img src="{{ u.avatar_url|final_avatar(u.handle) }}" alt="" loading="lazy"></span>
         <div class="post-main">
           <div class="post-meta"><strong>@{{ u.handle }}</strong><span>·</span><span>{{ u.created_at|fdate }}</span></div>
           <h3 class="post-title">{{ u.title }}</h3>
@@ -64,7 +64,7 @@
     {% for u in podcasts %}
     <div class="card rz-post">
       <div class="post-row">
-        <span class="post-avatar" aria-hidden="true"></span>
+        <span class="post-avatar" aria-hidden="true"><img src="{{ u.avatar_url|final_avatar(u.handle) }}" alt="" loading="lazy"></span>
         <div class="post-main">
           <div class="post-meta"><strong>@{{ u.handle }}</strong><span>·</span><span>{{ u.created_at|fdate }}</span></div>
           <h3 class="post-title">{{ u.title }}</h3>

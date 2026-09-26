@@ -111,6 +111,34 @@
     return (s.charAt(0) || "?").toUpperCase();
   }
 
+  /* D4 (2026-09-26): peer avatar img; falls back to the initial letter
+     when no avatar URL came back or the image fails to load. */
+  function avatarEl(url, name) {
+    var wrap = document.createElement("span");
+    wrap.className = "dm-avatar-wrap";
+    if (url) {
+      var img = document.createElement("img");
+      img.className = "dm-avatar-img";
+      img.alt = "";
+      img.loading = "lazy";
+      img.src = url;
+      img.onerror = function () {
+        wrap.innerHTML = "";
+        var fb = document.createElement("span");
+        fb.className = "dm-avatar";
+        fb.textContent = initials(name);
+        wrap.appendChild(fb);
+      };
+      wrap.appendChild(img);
+    } else {
+      var fb0 = document.createElement("span");
+      fb0.className = "dm-avatar";
+      fb0.textContent = initials(name);
+      wrap.appendChild(fb0);
+    }
+    return wrap;
+  }
+
   /* ---------- conversation list ---------- */
   function loadThreads() {
     fetch("/api/dm/web/threads", { credentials: "same-origin" })
@@ -138,14 +166,16 @@
       b.setAttribute("role", "option");
       b.dataset.key = t.thread_key;
       var prev = t.preview_mine ? "You: " + t.preview : t.preview;
-      b.innerHTML =
-        '<span class="dm-avatar">' + esc(initials(t.peer_handle)) + "</span>" +
-        '<span class="dm-convo-main">' +
-          '<span class="dm-convo-top"><span class="dm-convo-name">' + esc(t.peer_handle) + "</span>" +
+      b.appendChild(avatarEl(t.peer_avatar_url, t.peer_handle));
+      var main = document.createElement("span");
+      main.className = "dm-convo-main";
+      main.innerHTML =
+        '<span class="dm-convo-top"><span class="dm-convo-name">' + esc(t.peer_handle) + "</span>" +
           '<span class="dm-convo-time">' + esc(fmtTime(t.last_at)) + "</span></span>" +
           '<span class="dm-convo-bottom"><span class="dm-convo-preview">' + esc(prev || "—") + "</span>" +
           (t.unread ? '<span class="dm-unread-badge">' + esc(String(t.unread)) + "</span>" : "") +
-          "</span></span>";
+          "</span>";
+      b.appendChild(main);
       b.addEventListener("click", function () { openThread(t.thread_key); });
       convosEl.appendChild(b);
     });
@@ -182,7 +212,8 @@
       .then(function (d) {
         if (!d.ok || d.thread_key !== currentKey) return;
         peerName.textContent = d.peer_handle || "?";
-        peerAvatar.textContent = initials(d.peer_handle);
+        peerAvatar.innerHTML = "";
+        peerAvatar.appendChild(avatarEl(d.peer_avatar_url, d.peer_handle));
         peerSub.textContent = d.peer === currentKey ? "" : "Direct message";
         renderMessages(d.messages || [], d.my_last_read_at, d.typing || []);
         loadThreads(); /* refresh unread badges */

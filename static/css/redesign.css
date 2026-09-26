@@ -2902,3 +2902,22 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .feed-search .input { transition: none; }
 }
+
+/* ============================================================
+   D4 (2026-09-26, Anthony): custom avatars everywhere.
+   Every member surface renders the uploaded picture through the
+   final_avatar filter; the generated robot avatar is the fallback.
+   Avatar photos are theme-independent: no dark-mode overrides hide
+   or recolor them.
+   ============================================================ */
+.post-avatar { overflow: hidden; }
+.post-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wall-note-avatar { overflow: hidden; }
+.wall-note-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rz-note-head { display: flex; align-items: center; gap: 8px; }
+.rz-note-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
+.short-author { display: flex; align-items: center; gap: 8px; }
+.short-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; }
+.dm-avatar-wrap { flex: none; display: inline-flex; line-height: 0; }
+.dm-avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: block; }
+.dm-thread-peer .dm-avatar-img { width: 40px; height: 40px; }

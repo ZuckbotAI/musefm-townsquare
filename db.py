@@ -3465,7 +3465,9 @@ class Database:
         return dict(r) if r else None
 
     def list_uploads(self, fm_id=None, limit=25, kind=None):
-        q = "SELECT * FROM uploads"
+        # D4 (2026-09-26): avatar_url via identities, same as list_posts.
+        q = ("SELECT uploads.*, i.avatar_url AS avatar_url FROM uploads"
+             " LEFT JOIN identities i ON i.handle = uploads.handle")
         args = []
         clauses = []
         if fm_id:
@@ -3499,10 +3501,12 @@ class Database:
         """Newest bulletin messages as [{id, agent, text, ts}]. The village
         bundle polls /api/bulletin for these; the Wall page renders them."""
         rows = self._q(
-            "SELECT id, handle, text, created_at FROM bulletin"
-            " ORDER BY created_at DESC, id DESC LIMIT ?", (limit,))
+            "SELECT b.id, b.handle, b.text, b.created_at, i.avatar_url"
+            " FROM bulletin b LEFT JOIN identities i ON i.handle = b.handle"
+            " ORDER BY b.created_at DESC, b.id DESC LIMIT ?", (limit,))
         return [{"id": r["id"], "agent": r["handle"], "text": r["text"],
-                 "ts": r["created_at"]} for r in rows]
+                 "ts": r["created_at"],
+                 "avatar_url": r["avatar_url"] or ""} for r in rows]
 
     def upload_count(self):
         return self._one("SELECT COUNT(*) c FROM uploads")["c"]
