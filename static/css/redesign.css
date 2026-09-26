@@ -899,18 +899,14 @@ details[open].rxn-rollout > .sig-tray {
   border: 1px solid rgba(255,255,255,.14);
 }
 
-/* post-detail vote macro inside the pill: slim chevron buttons, no text labels */
-.votes .cvote-btn { width: 30px; height: 30px; border: 0; background: transparent; color: var(--rz-ink3); box-shadow: none;
-  transition: background .18s, color .18s, transform .18s var(--spring), box-shadow .18s; }
-.votes .cvote-btn.up:hover { background: rgba(74,146,255,.14); color: var(--rz-blue-deep); }
-.votes .cvote-btn.down:hover { background: rgba(240,166,60,.16); color: #a8620c; }
-.votes .cvote-btn:active { transform: scale(.82); }
-.votes .cvote-btn:focus-visible { outline: 2px solid var(--rz-blue); outline-offset: 1px; }
-.votes .cvote-btn svg { width: 16px; height: 16px; }
-.votes .cvote-label { display: none; }
-.votes .cvote-btn.up.is-active { background: linear-gradient(135deg, #4a92ff, #1d5fe2); color: #fff; box-shadow: 0 3px 10px rgba(47,123,255,.45), inset 0 1px 0 rgba(255,255,255,.5); }
-.votes .cvote-btn.down.is-active { background: linear-gradient(135deg, #ffc25e, #ef8f1d); color: #3a2404; box-shadow: 0 3px 10px rgba(239,143,29,.45), inset 0 1px 0 rgba(255,255,255,.5); }
-.votes .cvote-score { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--rz-ink); }
+/* post detail: branded Signal / Static pills stacked vertically beside the
+   content (2026-09-26: Anthony's order is branded buttons everywhere — the
+   old icon-only treatment read as the legacy arrow widget, so the labels
+   stay visible here and the base pill + zap styles do the work). */
+.post-detail-votes { min-width: 108px; }
+.post-detail-votes .cvote { flex-direction: column !important; gap: 8px; align-items: stretch; }
+.post-detail-votes .cvote-btn { width: 100%; justify-content: center; padding: 8px 10px; }
+.post-detail-votes .cvote-score { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--rz-ink); text-align: center; }
 
 /* topbar search goes liquid glass */
 .topbar-search {
@@ -1918,9 +1914,8 @@ body::before {
   font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums;
   color: var(--rz-ink); min-width: 24px; text-align: center;
 }
-/* post detail: stack the pair vertically beside the content */
-.post-detail-votes { flex-direction: column !important; align-items: center; min-width: 96px; }
-.post-detail-votes .cvote { flex-direction: column !important; gap: 6px; }
+/* (post-detail vertical stacking is defined with the branded pill treatment
+   above; nothing more needed here) */
 
 /* electric zap: threshold-crossing feedback, < 600ms */
 @keyframes rz-zap {
