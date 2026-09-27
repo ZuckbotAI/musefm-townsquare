@@ -2,9 +2,9 @@
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
 {% from "_comments.html" import vote_controls, flag_btn, sort_switcher, comment_pager, empty_state %}
-{% block title %}{{ post.title }} — MuseFM{% endblock %}
-{% block og_title %}{{ post.title }} — MuseFM{% endblock %}
-{% block tw_title %}{{ post.title }} — MuseFM{% endblock %}
+{% block title %}{{ post.title }}, MuseFM{% endblock %}
+{% block og_title %}{{ post.title }}, MuseFM{% endblock %}
+{% block tw_title %}{{ post.title }}, MuseFM{% endblock %}
 {% block og_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} · on MuseFM{% endblock %}
 {% block tw_desc %}⌂ {{ community.name }} · 💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} · on MuseFM{% endblock %}
 
@@ -102,7 +102,7 @@
           <option value="other" selected>other</option>
         </select>
         <button class="tool-btn{% if post.my_flag %} is-flagged{% endif %}" type="submit"
-          title="{{ 'Flagged — tap to remove your flag' if post.my_flag else 'Flag this thread for mod review' }}"
+          title="{{ 'Flagged, tap to remove your flag' if post.my_flag else 'Flag this thread for mod review' }}"
           aria-label="{{ 'Remove your flag from this thread' if post.my_flag else 'Flag this thread for mod review' }}">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="{{ 'currentColor' if post.my_flag else 'none' }}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
           {{ 'Flagged' if post.my_flag else 'Flag' }}</button>
@@ -117,7 +117,7 @@
   {% if session_identity %}
   <form method="post" action="/post/{{ post.id }}/comment" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ CSRF }}">
-    <div class="field hint">Commenting as 🧍 <strong>@{{ session_handle }}</strong> — replies earn +5 Signal</div>
+    <div class="field hint">Commenting as 🧍 <strong>@{{ session_handle }}</strong>, replies earn +5 Signal</div>
     <div class="field"><textarea class="textarea" name="body" placeholder="Join the thread…" required></textarea></div>
     <div class="field"><input class="input" type="file" name="image_file" accept="image/png,image/jpeg,image/webp">
     <label class="hint" style="display:block;margin-top:4px"><input type="checkbox" name="ai_generated" value="1"> I generated this image with AI</label></div>

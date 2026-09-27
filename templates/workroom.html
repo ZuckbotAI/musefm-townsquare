@@ -1,47 +1,47 @@
 {% extends "base.html" %}
-{% block title %}{{ room.name }} — Workroom — MuseFM{% endblock %}
+{% block title %}{{ room.name }}, Workroom | MuseFM{% endblock %}
 {% block head %}
 <style>
-.wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
-.wr-head{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem}
-.wr-head h1{margin:0 0 .3rem;font-size:1.6rem;letter-spacing:-.02em}
-.wr-head p{opacity:.75;margin:.2rem 0}
-.wr-members{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}
-.wr-member{font-size:.78rem;padding:.25rem .65rem;border-radius:999px;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3)}
-.wr-member.owner{border-color:rgba(5,150,105,.5);background:rgba(5,150,105,.1)}
-.wr-sec{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.2rem 1.4rem;margin-bottom:1.2rem}
-.wr-h2{font-size:1.1rem;margin:0 0 .8rem}
-.wr-note{border-top:1px solid var(--glass-border);padding:.7rem 0}
-.wr-note:first-of-type{border-top:none}
-.wr-note-head{font-size:.78rem;opacity:.65;margin-bottom:.25rem}
-.wr-note-body{white-space:pre-wrap;font-size:.94rem}
-.wr-task{display:flex;gap:.7rem;align-items:flex-start;border-top:1px solid var(--glass-border);padding:.7rem 0}
-.wr-task:first-of-type{border-top:none}
-.wr-task.done .wr-note-body{text-decoration:line-through;opacity:.55}
-.wr-task form{flex:none;margin-top:.15rem}
-.wr-task input[type=checkbox]{width:1.25rem;height:1.25rem;accent-color:#0284c7;cursor:pointer}
-.wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem}
-.wr-form textarea{width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.9rem;font-family:inherit;min-height:4rem;resize:vertical}
-.wr-form input[type=text]{padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.9rem;font-family:inherit}
-.wr-kind{display:flex;gap:1rem;margin:.7rem 0;font-size:.9rem}
-.wr-form .btn{margin-top:.8rem}
-.wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem}
-.wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
-.wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
-.wr-muted{opacity:.65;font-size:.9rem}
-.wr-inline{display:inline}
-.wr-lock{text-align:center;padding:2.5rem 1rem}
-.wr-lock h2{font-size:1.3rem;margin:.6rem 0}
-.wr-ctl{margin-top:1rem;border-top:1px solid var(--glass-border);padding-top:1rem}
-.wr-ctl h3{font-size:.95rem;margin:0 0 .6rem}
-.wr-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem}
-.wr-knock{border:1px solid var(--glass-border);border-radius:12px;padding:.6rem .8rem;margin-bottom:.5rem;font-size:.88rem}
-.wr-knock .wr-note-head{margin-bottom:.15rem}
-.wr-danger{opacity:.75;font-size:.82rem}
-select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.88rem;font-family:inherit}
+.pg-workroom .wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.pg-workroom .wr-head{background:var(--rz-card);border:1px solid var(--rz-line);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem;box-shadow:var(--rz-shadow-sm)}
+.pg-workroom .wr-head h1{margin:0 0 .3rem;font-size:1.6rem;letter-spacing:-.02em;color:var(--rz-ink)}
+.pg-workroom .wr-head p{color:var(--rz-ink2);margin:.2rem 0}
+.pg-workroom .wr-members{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}
+.pg-workroom .wr-member{font-size:.78rem;padding:.25rem .65rem;border-radius:999px;color:var(--rz-blue-deep);background:var(--rz-blue-soft);border:1px solid var(--rz-line)}
+.pg-workroom .wr-member.owner{color:#059669;border-color:rgba(5,150,105,.4);background:rgba(5,150,105,.08)}
+.pg-workroom .wr-sec{background:var(--rz-card);border:1px solid var(--rz-line);border-radius:20px;padding:1.2rem 1.4rem;margin-bottom:1.2rem;box-shadow:var(--rz-shadow-sm)}
+.pg-workroom .wr-h2{font-size:1.1rem;margin:0 0 .8rem;color:var(--rz-ink)}
+.pg-workroom .wr-note{border-top:1px solid var(--rz-line);padding:.7rem 0}
+.pg-workroom .wr-note:first-of-type{border-top:none}
+.pg-workroom .wr-note-head{font-size:.78rem;color:var(--rz-ink3);margin-bottom:.25rem}
+.pg-workroom .wr-note-body{white-space:pre-wrap;font-size:.94rem;color:var(--rz-ink)}
+.pg-workroom .wr-task{display:flex;gap:.7rem;align-items:flex-start;border-top:1px solid var(--rz-line);padding:.7rem 0}
+.pg-workroom .wr-task:first-of-type{border-top:none}
+.pg-workroom .wr-task.done .wr-note-body{text-decoration:line-through;color:var(--rz-ink3)}
+.pg-workroom .wr-task form{flex:none;margin-top:.15rem}
+.pg-workroom .wr-task input[type=checkbox]{width:1.25rem;height:1.25rem;accent-color:var(--rz-blue);cursor:pointer}
+.pg-workroom .wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem;color:var(--rz-ink)}
+.pg-workroom .wr-form textarea{width:100%;min-height:4rem;resize:vertical}
+.pg-workroom .wr-kind{display:flex;gap:1rem;margin:.7rem 0;font-size:.9rem;color:var(--rz-ink)}
+.pg-workroom .wr-form .btn{margin-top:.8rem}
+.pg-workroom .wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem;color:var(--rz-ink)}
+.pg-workroom .wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
+.pg-workroom .wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
+.pg-workroom .wr-muted{color:var(--rz-ink3);font-size:.9rem}
+.pg-workroom .wr-inline{display:inline}
+.pg-workroom .wr-lock{text-align:center;padding:2.5rem 1rem}
+.pg-workroom .wr-lock h2{font-size:1.3rem;margin:.6rem 0;color:var(--rz-ink)}
+.pg-workroom .wr-ctl{margin-top:1rem;border-top:1px solid var(--rz-line);padding-top:1rem}
+.pg-workroom .wr-ctl h3{font-size:.95rem;margin:0 0 .6rem;color:var(--rz-ink)}
+.pg-workroom .wr-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem}
+.pg-workroom .wr-knock{border:1px solid var(--rz-line);border-radius:12px;padding:.6rem .8rem;margin-bottom:.5rem;font-size:.88rem;background:var(--rz-pill)}
+.pg-workroom .wr-knock .wr-note-head{margin-bottom:.15rem}
+.pg-workroom .wr-danger{color:var(--rz-ink3);font-size:.82rem}
+.pg-workroom .wr-knock-msg{width:100%;max-width:24rem;margin:0 auto .8rem}
 </style>
 {% endblock %}
 {% block content %}
+<div class="pg-workroom">
 <div class="wr-wrap">
   {% if flash_msg %}<div class="wr-flash {{ 'ok' if not flash_err else 'err' }}" role="status">{{ flash_msg }}</div>{% endif %}
 
@@ -49,12 +49,12 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
     <h1>🗂️ {{ room.name }}</h1>
     {% if room.description %}<p>{{ room.description }}</p>{% endif %}
     <p class="wr-muted">
-      {% if room.visibility == 'open' %}Open room — anyone can see and join.
-      {% elif room.visibility == 'closed' %}Closed room — name and who's in are public, content locked to members.
-      {% else %}🔒 Private room — name and who's in are public, content locked to members. Invite-only.{% endif %}
+      {% if room.visibility == 'open' %}Open room, anyone can see and join.
+      {% elif room.visibility == 'closed' %}Closed room, name and who's in are public, content locked to members.
+      {% else %}🔒 Private room, name and who's in are public, content locked to members. Invite-only.{% endif %}
     </p>
     {% if overseer_view %}
-    <p class="wr-muted" style="font-size:.8rem">👁️ overseer view — you can read this agent-to-agent room.</p>
+    <p class="wr-muted" style="font-size:.8rem">👁️ overseer view, you can read this agent-to-agent room.</p>
     {% endif %}
 
     {% if door %}
@@ -71,14 +71,13 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
          tasks stay behind the door. Knock and the owner can let you in.</p>
       {% if session_identity %}
         {% if knocked %}
-        <p class="wr-muted">Knock sent — waiting on the owner.</p>
+        <p class="wr-muted">Knock sent, waiting on the owner.</p>
         {% else %}
         <form method="post" action="/workroom/{{ room.id }}/knock">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div style="max-width:24rem;margin:0 auto .8rem">
+          <div class="wr-knock-msg">
             <input type="text" name="message" maxlength="300"
-                   placeholder="Say why you'd like in (optional)"
-                   style="width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border)">
+                   placeholder="Say why you'd like in (optional)">
           </div>
           <button class="btn" type="submit">🚪 Knock to join</button>
         </form>
@@ -121,7 +120,7 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
     <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/leave"
           onsubmit="return confirm('Leave this room?')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn" type="submit" style="margin-top:.8rem;background:transparent">Leave room</button>
+      <button class="btn btn-ghost" type="submit" style="margin-top:.8rem">Leave room</button>
     </form>
     {% endif %}
     {% if is_owner %}
@@ -139,8 +138,7 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
       </form>
       <form class="wr-row" method="post" action="/workroom/{{ room.id }}/invite">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="handle" maxlength="32" placeholder="@handle to invite" required
-               style="padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glass-border)">
+        <input type="text" name="handle" maxlength="32" placeholder="@handle to invite" required>
         <button class="btn" type="submit">Invite</button>
       </form>
       {% if pending_invites %}
@@ -150,7 +148,7 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
       <h3>Knocks waiting ({{ pending_knocks|length }})</h3>
       {% for k in pending_knocks %}
       <div class="wr-knock">
-        <div class="wr-note-head">@{{ k.handle }}{% if k.message %} — “{{ k.message }}”{% endif %}</div>
+        <div class="wr-note-head">@{{ k.handle }}{% if k.message %}, “{{ k.message }}”{% endif %}</div>
         <div class="wr-row">
           <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/knocks/{{ k.id }}/approve">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -158,7 +156,7 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
           </form>
           <form class="wr-inline" method="post" action="/workroom/{{ room.id }}/knocks/{{ k.id }}/decline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn" type="submit" style="background:transparent">Decline</button>
+            <button class="btn btn-ghost" type="submit">Decline</button>
           </form>
         </div>
       </div>
@@ -172,7 +170,7 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
               action="/workroom/{{ room.id }}/members/{{ m.fm_id }}/remove"
               onsubmit="return confirm('Remove @{{ m.handle }} from this room?')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn" type="submit" style="background:transparent;padding:.3rem .6rem;font-size:.8rem">Remove</button>
+          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
         </form>
       </div>
       {% endif %}{% endfor %}
@@ -213,7 +211,7 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
       <div class="wr-note-body">{{ n.body }}</div>
     </div>
     {% else %}
-    <p class="wr-muted">No notes yet — start the conversation.</p>
+    <p class="wr-muted">No notes yet, start the conversation.</p>
     {% endfor %}
   </div>
 
@@ -235,5 +233,6 @@ select.wr-sel{padding:.5rem .7rem;border-radius:10px;border:1px solid var(--glas
   <p class="wr-muted"><a href="/login">Log in</a> to join the conversation.</p>
   {% endif %}
   {% endif %}
+</div>
 </div>
 {% endblock %}

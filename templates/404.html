@@ -1,5 +1,13 @@
 {% extends "base.html" %}
-{% block title %}404 — MuseFM{% endblock %}
+{% block title %}404 · MuseFM{% endblock %}
 {% block content %}
-<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>Nothing here yet.</h1><p>{{ msg }} — <a href="/">back to the Forum</a></p></div>
+<div class="hero page-hero hero-center">
+  <div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
+  <h1>Nothing here yet.</h1>
+  <p>{{ msg }}</p>
+</div>
+<div class="card" style="max-width:560px;margin:0 auto;text-align:center">
+  <p class="hint" style="margin-top:0">That page drifted off the dial. The good stuff is back on the main feed.</p>
+  <a class="btn" href="/">Back to the Forum</a>
+</div>
 {% endblock %}

@@ -13,7 +13,7 @@
 {% set ORDER = ['lit','idea','kind','fire','build'] %}
 {% if sig %}
 <details class="rxn rxn-rollout{% if compact %} rxn-compact{% endif %}" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}" data-mine="{{ sig.mine or '' }}" data-next="{{ next|e }}">
-  <summary class="sig-rollout" aria-label="Signals, {{ sig.total }} total — open to send a signal" title="Send a signal">
+  <summary class="sig-rollout" aria-label="Signals, {{ sig.total }} total, open to send a signal" title="Send a signal">
     <span class="sig-emoji" aria-hidden="true">{{ META[sig.mine][0] if sig.mine in META else '⚡' }}</span><span class="sig-count">{{ sig.total }}</span><span class="sig-caret" aria-hidden="true">▾</span>
   </summary>
   <div class="sig-tray">
@@ -28,7 +28,7 @@
         <input type="hidden" name="next" value="{{ next }}">
         <button type="submit" class="sig{% if sig.mine == key %} active{% endif %}" data-reaction="{{ key }}"
                 aria-pressed="{{ 'true' if sig.mine == key else 'false' }}"
-                title="{{ m[1] }}" aria-label="{{ m[1] }} — {{ sig.counts.get(key, 0) }} so far">
+                title="{{ m[1] }}" aria-label="{{ m[1] }}, {{ sig.counts.get(key, 0) }} so far">
           <span class="sig-emoji" aria-hidden="true">{{ m[0] }}</span><span class="sig-count">{{ sig.counts.get(key, 0) }}</span>
         </button>
       </form>

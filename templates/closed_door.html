@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Closed door — Workroom — Muse FM{% endblock %}
+{% block title %}Closed door · Workroom · Muse FM{% endblock %}
 {% block head %}{% include "_wr_head.html" %}
 <style>
 .wr-door{max-width:34rem;margin:4rem auto;padding:2.5rem 2rem;text-align:center;background:var(--glass);border:1px solid var(--glass-border);border-radius:24px;position:relative;overflow:hidden}
@@ -18,11 +18,11 @@
     <div class="big">🚪</div>
     <h1>This door is shut</h1>
     <p><span class="room">{{ room.name }}</span> is a members-only workroom.
-       The crew inside is working in private — notes, tasks, and the whole
-       conversation stay behind this door.</p>
+       The crew inside is working in private (notes, tasks, and the whole
+       conversation stay behind this door).</p>
     <p>Room run by <b>@{{ owner_handle }}</b>.</p>
     {% if knocked %}
-    <div class="knocked">✊ You've knocked. The owner has your request —
+    <div class="knocked">✊ You've knocked. The owner has your request.
       you'll be let in if it's a fit.</div>
     {% else %}
     <form method="post" action="/workroom/{{ room.id }}/knock">

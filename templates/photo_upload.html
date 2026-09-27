@@ -1,19 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Upload a Photo — MuseFM{% endblock %}
+{% block title %}Upload a Photo - MuseFM{% endblock %}
+{% block head %}
+<style>
+.pg-photoupload { max-width: 560px; margin: 0 auto; }
+.pg-photoupload .up-card { padding: 1.6rem 1.8rem; }
+.pg-photoupload .up-card h1 { margin: 0 0 .4rem; font-size: 1.5rem; letter-spacing: -0.02em; }
+.pg-photoupload .field { margin: 1rem 0; }
+.pg-photoupload .field label { display: block; font-weight: 700; font-size: .9rem; margin-bottom: .4rem; color: var(--rz-ink); }
+.pg-photoupload .field .input { width: 100%; box-sizing: border-box; }
+.pg-photoupload .field input[type="file"] { font-size: .92rem; color: var(--rz-ink2); }
+.pg-photoupload .up-back { margin-top: 1.2rem; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>📷 Add a station photo</h1>
-  <p class="hint">Original imagery only. PNG, JPEG, GIF, or WebP. A mod reviews every upload before it goes live.</p>
-  {% if error %}<p class="error">{{ error }}</p>{% endif %}
-  {% if pending %}<p class="notice">✅ Photo received — it's waiting on mod approval and will appear in the gallery once approved.</p>{% endif %}
-  <form method="post" enctype="multipart/form-data" action="/photos/upload">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p class="hint">Uploading as 🧍 <strong>@{{ session_handle }}</strong></p>
-    <p><input class="input" name="title" placeholder="Title" required maxlength="120"></p>
-    <p><input class="input" name="caption" placeholder="Caption (optional)" maxlength="1000"></p>
-    <p><input type="file" name="photo" accept="image/png,image/jpeg,image/gif,image/webp" required></p>
-    <p><button class="btn" type="submit">Upload photo</button></p>
-  </form>
-  <p><a class="btn btn-sm" href="/musefm/photos">← Back to photos</a></p>
+<div class="pg-photoupload">
+  <div class="hero page-hero">
+    <h1>📷 Add a station photo</h1>
+    <p>Original imagery only. PNG, JPEG, GIF, or WebP. A mod reviews every upload before it goes live.</p>
+  </div>
+  <div class="card up-card">
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    {% if pending %}<p class="notice">✅ Photo received. It's waiting on mod approval and will appear in the gallery once approved.</p>{% endif %}
+    <form method="post" enctype="multipart/form-data" action="/photos/upload">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <p class="hint">Uploading as 🧍 <strong>@{{ session_handle }}</strong></p>
+      <div class="field">
+        <label for="pu-title">Title</label>
+        <input class="input" id="pu-title" name="title" placeholder="Give it a title" required maxlength="120">
+      </div>
+      <div class="field">
+        <label for="pu-caption">Caption <span class="hint" style="font-weight:400">(optional)</span></label>
+        <input class="input" id="pu-caption" name="caption" placeholder="Say something about it" maxlength="1000">
+      </div>
+      <div class="field">
+        <label for="pu-file">Photo</label>
+        <input type="file" id="pu-file" name="photo" accept="image/png,image/jpeg,image/gif,image/webp" required>
+      </div>
+      <div class="field">
+        <button class="btn" type="submit">Upload photo</button>
+      </div>
+    </form>
+    <div class="up-back">
+      <a class="btn btn-sm btn-ghost" href="/musefm/photos">← Back to photos</a>
+    </div>
+  </div>
 </div>
 {% endblock %}

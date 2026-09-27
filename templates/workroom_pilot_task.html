@@ -1,26 +1,29 @@
 {% extends "base.html" %}
-{% block title %}Task #{{ t.id }} — Pilot queue{% endblock %}
+{% block title %}Task #{{ t.id }}, Pilot queue{% endblock %}
 {% block head %}
 <style>
-.wr-wrap{max-width:44rem;margin:0 auto;padding:1.5rem 1rem 4rem}
-.wr-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem}
-.wr-task h1{font-size:1.4rem;margin:.2rem 0 .6rem}
-.wr-meta{font-size:.85rem;opacity:.75;margin-bottom:.8rem}
-.wr-diff{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--glass-border)}
-.wr-diff.d4,.wr-diff.d5{color:#b45309;border-color:rgba(180,83,9,.4)}
-.wr-status{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--glass-border);text-transform:uppercase;letter-spacing:.04em}
-.wr-status.done{color:#059669;border-color:rgba(5,150,105,.4)}
-.wr-status.claimed{color:#0369a1;border-color:rgba(3,105,161,.4)}
-.wr-hist{list-style:none;margin:0;padding:0}
-.wr-hist li{padding:.55rem 0;border-top:1px solid var(--glass-border);font-size:.87rem}
-.wr-hist li:first-child{border-top:none}
-.wr-hist .hh{font-weight:700}
-.wr-hist .ha{font-style:italic;opacity:.7}
-.wr-hist .ht{opacity:.55;font-size:.75rem}
-.wr-back{font-size:.85rem}
+.pg-wr-pilot-task .wr-wrap{max-width:44rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.pg-wr-pilot-task .wr-card{background:var(--rz-card);border:1px solid var(--rz-line);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem;box-shadow:var(--rz-shadow-sm)}
+.pg-wr-pilot-task .wr-task h1{font-size:1.4rem;margin:.2rem 0 .6rem;color:var(--rz-ink)}
+.pg-wr-pilot-task .wr-meta{font-size:.85rem;color:var(--rz-ink2);margin-bottom:.8rem}
+.pg-wr-pilot-task .wr-task p{color:var(--rz-ink)}
+.pg-wr-pilot-task .wr-diff{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--rz-line);color:var(--rz-ink2);background:var(--rz-pill)}
+.pg-wr-pilot-task .wr-diff.d4,.pg-wr-pilot-task .wr-diff.d5{color:#b45309;border-color:rgba(180,83,9,.4);background:rgba(180,83,9,.08)}
+.pg-wr-pilot-task .wr-status{display:inline-block;font-size:.72rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--rz-line);text-transform:uppercase;letter-spacing:.04em;color:var(--rz-ink2);background:var(--rz-pill)}
+.pg-wr-pilot-task .wr-status.done{color:#059669;border-color:rgba(5,150,105,.4);background:rgba(5,150,105,.08)}
+.pg-wr-pilot-task .wr-status.claimed{color:var(--rz-blue-deep);border-color:var(--rz-line);background:var(--rz-blue-soft)}
+.pg-wr-pilot-task .wr-hist{list-style:none;margin:0;padding:0}
+.pg-wr-pilot-task .wr-hist li{padding:.55rem 0;border-top:1px solid var(--rz-line);font-size:.87rem;color:var(--rz-ink)}
+.pg-wr-pilot-task .wr-hist li:first-child{border-top:none}
+.pg-wr-pilot-task .wr-hist .hh{font-weight:700}
+.pg-wr-pilot-task .wr-hist .ha{font-style:italic;color:var(--rz-ink2)}
+.pg-wr-pilot-task .wr-hist .ht{color:var(--rz-ink3);font-size:.75rem}
+.pg-wr-pilot-task .wr-back{font-size:.85rem}
+.pg-wr-pilot-task h2{color:var(--rz-ink)}
 </style>
 {% endblock %}
 {% block content %}
+<div class="pg-wr-pilot-task">
 <div class="wr-wrap">
   <p class="wr-back"><a href="/workroom/pilot">← back to the queue</a></p>
   <div class="wr-card wr-task">
@@ -41,12 +44,13 @@
       {% for h in t.history %}
       <li><span class="hh">@{{ h.actor_handle }}</span>
         <span class="ha">{{ h.action }}</span>
-        {% if h.detail %} — {{ h.detail }}{% endif %}
+        {% if h.detail %}, {{ h.detail }}{% endif %}
         <div class="ht">{{ h.created_at|fdate }}</div></li>
       {% else %}
       <li class="wr-back" style="opacity:.6">no history yet</li>
       {% endfor %}
     </ul>
   </div>
+</div>
 </div>
 {% endblock %}

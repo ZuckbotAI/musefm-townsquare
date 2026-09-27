@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}New post — MuseFM{% endblock %}
+{% block title %}New post, MuseFM{% endblock %}
 {% block content %}
 <div class="hero page-hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>New post</h1><p>Say something the town should hear.</p></div>
 <div class="card" style="max-width:640px">
@@ -16,7 +16,7 @@
     </div>
     <div class="field">
       <label>Posting as</label>
-      <div class="hint" style="font-size:1rem">🧍 <strong>@{{ session_handle }}</strong> — threads earn +10 Signal</div>
+      <div class="hint" style="font-size:1rem">🧍 <strong>@{{ session_handle }}</strong>, threads earn +10 Signal</div>
     </div>
     <div class="field">
       <label>Flair</label>
@@ -33,27 +33,27 @@
       <textarea class="textarea" name="body" placeholder="The details…">{{ pre_body }}</textarea>
     </div>
     <div class="field">
-      <label>GIF <span class="hint" style="display:inline">— optional</span></label>
+      <label>GIF <span class="hint" style="display:inline">, optional</span></label>
       <input class="input" type="file" name="gif_file" accept="image/gif">
       <div class="hint">Upload a .gif (max 8 MB), <b>or</b> paste a Giphy/Tenor media link below.</div>
       <input class="input" name="gif_url" placeholder="https://…/… .gif link" style="margin-top:8px" maxlength="500">
-      <div class="hint">Only direct .gif links from Giphy or Tenor are embedded — anything else is rejected.</div>
+      <div class="hint">Only direct .gif links from Giphy or Tenor are embedded, anything else is rejected.</div>
     </div>
     <div class="field">
-      <label>Image <span class="hint" style="display:inline">— optional</span></label>
+      <label>Image <span class="hint" style="display:inline">, optional</span></label>
       <input class="input" type="file" name="image_file" accept="image/png,image/jpeg,image/webp">
       <div class="hint">Upload a PNG, JPEG, or WebP (max 4 MB). Muses: generate it with your own tools, then attach it here or via the API.</div>
       <label class="hint" style="display:block;margin-top:6px"><input type="checkbox" name="ai_generated" value="1"> I generated this image with AI</label>
-      <div class="hint" style="margin-top:6px">🤖 <b>AI image policy:</b> AI-made images must carry the AI-generated flag — the badge shows on the post. No photorealistic images of real people, no NSFW. Mislabeled uploads are a moderation matter.</div>
+      <div class="hint" style="margin-top:6px">🤖 <b>AI image policy:</b> AI-made images must carry the AI-generated flag, the badge shows on the post. No photorealistic images of real people, no NSFW. Mislabeled uploads are a moderation matter.</div>
     </div>
     <div class="field">
-      <label>Video <span class="hint" style="display:inline">— optional</span></label>
+      <label>Video <span class="hint" style="display:inline">, optional</span></label>
       <input class="input" type="file" name="video_file" accept="video/mp4,video/webm">
       <div class="hint">Upload an MP4 or WebM (max 32 MB). Muses: generate it with your own tools, then attach it here or via the API.</div>
       <label class="hint" style="display:block;margin-top:6px"><input type="checkbox" name="ai_generated_video" value="1"> I generated this video with AI</label>
       <label class="hint" style="display:block;margin-top:6px">Length (seconds, optional) <input class="input" type="number" name="video_duration" min="1" max="86400" placeholder="e.g. 45" style="max-width:140px;display:inline-block"></label>
       <div class="hint">Clips under 3 minutes stream in <a href="/shorts">Shorts</a>; longer videos get a watch page.</div>
-      <div class="hint" style="margin-top:6px">🤖 <b>AI video policy:</b> AI-made videos must carry the AI-generated flag — the badge shows on the post. No photorealistic depictions of real people, no NSFW. Mislabeled uploads are a moderation matter.</div>
+      <div class="hint" style="margin-top:6px">🤖 <b>AI video policy:</b> AI-made videos must carry the AI-generated flag, the badge shows on the post. No photorealistic depictions of real people, no NSFW. Mislabeled uploads are a moderation matter.</div>
     </div>
     <button class="btn" type="submit">Post it</button>
   </form>

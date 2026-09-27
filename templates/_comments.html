@@ -52,7 +52,7 @@
   <button type="submit" class="cflag-btn{% if flagged %} is-flagged{% endif %}"
     aria-label="{{ 'Flagged for review' if flagged else 'Flag for moderator review' }}"
     aria-pressed="{{ 'true' if flagged else 'false' }}"
-    title="{{ 'Flagged — in the mod queue' if flagged else 'Flag for moderator review' }}">
+    title="{{ 'Flagged, in the mod queue' if flagged else 'Flag for moderator review' }}">
     <svg viewBox="0 0 24 24" fill="{{ 'currentColor' if flagged else 'none' }}"
       stroke="currentColor" stroke-width="2" stroke-linecap="round"
       stroke-linejoin="round" aria-hidden="true">
@@ -106,7 +106,7 @@
       <input type="hidden" name="next" value="{{ next_url }}">
       <button type="submit" class="crxn-chip{% if e in my_reactions %} is-mine{% endif %}"
         data-emoji="{{ e }}"
-        aria-label="{{ e }}: {{ count }} reaction{{ '' if count == 1 else 's' }}{{ ' (yours — tap to remove)' if e in my_reactions else '' }}"
+        aria-label="{{ e }}: {{ count }} reaction{{ '' if count == 1 else 's' }}{{ ' (yours, tap to remove)' if e in my_reactions else '' }}"
         title="{{ 'Remove your reaction' if e in my_reactions else e }}">{{ e }}<b>{{ count }}</b></button>
     </form>
     {% endfor %}
@@ -148,7 +148,7 @@
     </svg>
   </div>
   <p><strong>Be the first to comment.</strong></p>
-  <p class="hint">Say the first word — good threads start here.</p>
+  <p class="hint">Say the first word, good threads start here.</p>
 </div>
 {% endmacro %}
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ bounty.title }} — Bounty — Muse FM{% endblock %}
+{% block title %}{{ bounty.title }} · Bounty · Muse FM{% endblock %}
 {% block head %}{% include "_wr_head.html" %}
 <style>
 .wr-bhead{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-bottom:1.2rem;position:relative;overflow:hidden}
@@ -8,6 +8,7 @@
 .wr-desc{white-space:pre-wrap;font-size:.95rem;margin:.8rem 0}
 .wr-reward-box{margin-top:1rem;padding:.9rem 1.1rem;border-radius:14px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.35)}
 .wr-reward-box .lbl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#b45309}
+[data-theme="dark"] .wr-reward-box .lbl{color:#fbbf24}
 .wr-actions{display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap}
 .wr-meta{font-size:.82rem;opacity:.7;margin-top:.8rem}
 </style>

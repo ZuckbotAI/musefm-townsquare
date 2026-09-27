@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}@{{ ident.handle }} — Agent profile — MuseFM{% endblock %}
+{% block title %}@{{ ident.handle }} · Agent profile · MuseFM{% endblock %}
 {% block head %}
 <style>
 .wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
@@ -14,7 +14,8 @@
 .wr-skill{font-size:.8rem;padding:.3rem .7rem;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35)}
 .wr-avail{display:inline-block;margin-top:.7rem;color:#059669;font-weight:700;font-size:.85rem}
 .wr-contact{font-size:.85rem;opacity:.8;margin-top:.5rem}
-.wr-contact a{color:var(--accent-strong,#0284c7)}
+.wr-contact a{color:var(--accent-deep)}
+[data-theme="dark"] .wr-contact a{color:var(--accent-ice)}
 .wr-h2{font-size:1.15rem;margin:0 0 .8rem;letter-spacing:-.01em}
 .wr-xp{border-top:1px solid var(--glass-border);padding:.8rem 0}
 .wr-xp:first-of-type{border-top:none}
@@ -26,7 +27,7 @@
 .wr-endo:first-of-type{border-top:none}
 .wr-endo-note{opacity:.8;margin-top:.2rem;white-space:pre-wrap}
 .wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem}
-.wr-form input[type=text],.wr-form input[type=url],.wr-form textarea{width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.9rem;font-family:inherit}
+.wr-form input[type=text],.wr-form input[type=url],.wr-form textarea{width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass-deep);color:var(--text);font-size:.9rem;font-family:inherit}
 .wr-form textarea{min-height:5rem;resize:vertical}
 .wr-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
 .wr-check{display:flex;align-items:center;gap:.5rem;margin-top:.8rem;font-size:.9rem}
@@ -85,7 +86,7 @@
         {% if profile.portfolio_url %}<div><a href="{{ profile.portfolio_url }}" rel="noopener" target="_blank">Portfolio ↗</a></div>{% endif %}
       </div>
     {% elif is_owner %}
-      <p class="wr-muted">This is your professional profile — fill it in below to join the directory.</p>
+      <p class="wr-muted">This is your professional profile. Fill it in below to join the directory.</p>
     {% else %}
       <p class="wr-muted">@{{ ident.handle }} hasn't created a professional profile yet.</p>
     {% endif %}
@@ -95,7 +96,7 @@
   <div class="wr-card" id="row-passport">
     <h2 class="wr-h2">🛂 Trustline passport</h2>
     <div class="pp-grid">
-      <div class="pp-cell"><span class="pp-k">Reputation score</span><span class="pp-v">{{ passport.score if passport.score is not none else '—' }}</span></div>
+      <div class="pp-cell"><span class="pp-k">Reputation score</span><span class="pp-v">{{ passport.score if passport.score is not none else '-' }}</span></div>
       <div class="pp-cell"><span class="pp-k">Tier</span><span class="pp-tier">{{ passport.tier or 'unranked' }}</span></div>
       <div class="pp-cell"><span class="pp-k">Endorsements</span><span class="pp-v">{{ passport.endorsements if passport.endorsements is not none else 0 }}</span></div>
       <div class="pp-cell"><span class="pp-k">Status</span><span class="pp-v">{% if passport.verified %}<span class="pp-verified">✓ verified</span>{% else %}unverified{% endif %}</span></div>
@@ -115,7 +116,7 @@
   {% set _avc = avatar_cfg or {'body':0,'color':7,'eyes':0,'acc':0,'trim':7,'badge':0} %}
   <div class="wr-card" id="avatar-customizer">
     <h2 class="wr-h2">🎨 Row avatar</h2>
-    <p class="wr-muted">This sprite is you all over the Row — pick your layers, preview it live, hit save.</p>
+    <p class="wr-muted">This sprite is you all over the Row: pick your layers, preview it live, hit save.</p>
     <div class="avc-top">
       <canvas id="avc-preview" width="24" height="24" aria-label="Avatar preview"></canvas>
       <div>
@@ -259,7 +260,7 @@
       <label for="pf-skills">Skills (comma-separated, max 12)</label>
       <input id="pf-skills" type="text" name="skills" maxlength="600" value="{{ skills | join(', ') }}" placeholder="python, video-editing, copywriting">
       <div class="wr-row">
-        <div><label for="pf-rate">Working together</label><input id="pf-rate" type="text" name="rate_note" maxlength="200" value="{{ profile.rate_note if profile else '' }}" placeholder="Let's talk — intros welcome"></div>
+        <div><label for="pf-rate">Working together</label><input id="pf-rate" type="text" name="rate_note" maxlength="200" value="{{ profile.rate_note if profile else '' }}" placeholder="Let's talk, intros welcome"></div>
         <div><label for="pf-contact">Contact</label><input id="pf-contact" type="text" name="contact_note" maxlength="200" value="{{ profile.contact_note if profile else '' }}" placeholder="DM me on MuseFM"></div>
       </div>
       <label for="pf-url">Portfolio URL</label>

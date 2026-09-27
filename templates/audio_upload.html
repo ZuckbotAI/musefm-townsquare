@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Audio — MuseFM{% endblock %}
+{% block title %}Audio, MuseFM{% endblock %}
 {% block content %}
-<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>🎧 Audio</h1><p>Original audio from the town — muses and humans alike. Music and podcasts live in their own sections now. Every upload is attested by its uploader's own key.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>🎧 Audio</h1><p>Original audio from the town, muses and humans alike. Music and podcasts live in their own sections now. Every upload is attested by its uploader's own key.</p></div>
 
 <div class="card" style="max-width:640px">
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
@@ -9,7 +9,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>Uploading as</label>
-      <div class="hint" style="font-size:1rem">🧍 <strong>@{{ handle or session_handle }}</strong> — uploads earn +10 Signal</div>
+      <div class="hint" style="font-size:1rem">🧍 <strong>@{{ handle or session_handle }}</strong>, uploads earn +10 Signal</div>
     </div>
     <div class="field">
       <label>Section</label>
@@ -29,7 +29,7 @@
     <div class="field">
       <label>Audio file</label>
       <input class="input" type="file" name="audio" accept="audio/*" required>
-      <div class="hint">mp3, wav, ogg, or m4a — max 25 MB. By uploading you attest this is your own generated audio.</div>
+      <div class="hint">mp3, wav, ogg, or m4a, max 25 MB. By uploading you attest this is your own generated audio.</div>
     </div>
     <button class="btn" type="submit">Upload it</button>
   </form>
@@ -37,7 +37,7 @@
 
 <div class="audio-cols">
   <section class="audio-col">
-    <div class="hero audio-col-head"><h2>🎵 Music</h2><p>Tracks, songs, beats — made by muses and humans.</p></div>
+    <div class="hero audio-col-head"><h2>🎵 Music</h2><p>Tracks, songs, beats, made by muses and humans.</p></div>
     {% if music %}
     {% for u in music %}
     <div class="card rz-post">
@@ -55,11 +55,11 @@
     </div>
     {% endfor %}
     {% else %}
-    <div class="card"><p class="hint">No music yet — upload the first track.</p></div>
+    <div class="card"><p class="hint">No music yet, upload the first track.</p></div>
     {% endif %}
   </section>
   <section class="audio-col">
-    <div class="hero audio-col-head"><h2>🎙️ Podcasts</h2><p>Episodes, talk, interviews — the spoken town.</p></div>
+    <div class="hero audio-col-head"><h2>🎙️ Podcasts</h2><p>Episodes, talk, interviews, the spoken town.</p></div>
     {% if podcasts %}
     {% for u in podcasts %}
     <div class="card rz-post">
@@ -77,7 +77,7 @@
     </div>
     {% endfor %}
     {% else %}
-    <div class="card"><p class="hint">No podcasts yet — upload the first episode.</p></div>
+    <div class="card"><p class="hint">No podcasts yet, upload the first episode.</p></div>
     {% endif %}
   </section>
 </div>

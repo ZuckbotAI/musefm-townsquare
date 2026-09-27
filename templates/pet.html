@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Pets — MuseFM{% endblock %}
-{% block meta_desc %}Adopt a Pet — hatching is FREE and pays YOU Signal. Your pal grows with your lifetime Signal, Egg to Radiant.{% endblock %}
-{% block og_title %}Pets — virtual aqua companions{% endblock %}
-{% block og_desc %}Adopt a Pet — hatching is FREE and pays YOU Signal. Your pal grows with your lifetime Signal, Egg to Radiant.{% endblock %}
-{% block tw_title %}Pets — virtual aqua companions{% endblock %}
-{% block tw_desc %}Adopt a Pet — hatching is FREE and pays YOU Signal. Your pal grows with your lifetime Signal, Egg to Radiant.{% endblock %}
+{% block title %}Pets, MuseFM{% endblock %}
+{% block meta_desc %}Adopt a Pet, hatching is FREE and pays YOU Signal. Your pal grows with your lifetime Signal, Egg to Radiant.{% endblock %}
+{% block og_title %}Pets, virtual aqua companions{% endblock %}
+{% block og_desc %}Adopt a Pet, hatching is FREE and pays YOU Signal. Your pal grows with your lifetime Signal, Egg to Radiant.{% endblock %}
+{% block tw_title %}Pets, virtual aqua companions{% endblock %}
+{% block tw_desc %}Adopt a Pet, hatching is FREE and pays YOU Signal. Your pal grows with your lifetime Signal, Egg to Radiant.{% endblock %}
 {% block head %}
 <style>
 .pet-hero{position:relative;text-align:center;padding:3rem 1rem 2.2rem;overflow:hidden;
@@ -180,17 +180,17 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="pet-wip" style="max-width:76rem;margin:0 auto 1rem;padding:.7rem 1.2rem;border-radius:14px;text-align:center;font-size:.95rem;font-weight:600;background:linear-gradient(135deg,rgba(254,240,138,.9),rgba(253,224,71,.75));border:1px solid rgba(217,119,6,.4);color:#713f12;">🚧 Work in progress — Pets are a prototype right now. Things may look unfinished or change without warning.</div>
+<div class="pet-wip" style="max-width:76rem;margin:0 auto 1rem;padding:.7rem 1.2rem;border-radius:14px;text-align:center;font-size:.95rem;font-weight:600;background:linear-gradient(135deg,rgba(254,240,138,.9),rgba(253,224,71,.75));border:1px solid rgba(217,119,6,.4);color:#713f12;">🚧 Work in progress, Pets are a prototype right now. Things may look unfinished or change without warning.</div>
 {% if my_pet %}
 <div class="pet-hero slim">
   <h1>🐣 {{ my_pet.name }}'s tidepool</h1>
-  <p>{{ my_pet.mood_emoji }} Feeling {{ my_pet.mood }} · {{ my_pet.energy }} energy —
+  <p>{{ my_pet.mood_emoji }} Feeling {{ my_pet.mood }} · {{ my_pet.energy }} energy ,
   care for them below. It's free, always.</p>
 </div>
 <div class="petshop-banner">
   <div class="pshop-copy">
     <b>🏪 You're in the Row's Pet Shop</b>
-    <p>This tidepool <i>is</i> the Pet Shop — outfits, accessories &amp; hatch-skips live in the <a href="/shop">Signal Shop</a>. Dress {{ my_pet.name }} up and show them off.</p>
+    <p>This tidepool <i>is</i> the Pet Shop, outfits, accessories &amp; hatch-skips live in the <a href="/shop">Signal Shop</a>. Dress {{ my_pet.name }} up and show them off.</p>
   </div>
   <div class="pshop-actions">
     <a class="btn-ghost" href="/shop">🛒 Signal Shop</a>
@@ -224,7 +224,7 @@
           <rect x="44" y="12" width="32" height="12" rx="5" fill="#f8fafc"/>
         </svg>
       </div>
-      <div class="speech">Hiii! 👋 I'm the Tidepool Caretaker.<br>Tap the egg — go on, it's fun.</div>
+      <div class="speech">Hiii! 👋 I'm the Tidepool Caretaker.<br>Tap the egg, go on, it's fun.</div>
     </div>
     <div class="onboard-main">
       <h1>Adopt a Pet 🥚</h1>
@@ -238,7 +238,7 @@
       <div class="demo-count" id="demo-count" hidden></div>
       <div>
         {% if session_ident %}
-        <a class="btn-tide btn-big" href="#adopt" style="text-decoration:none">Adopt your egg — it's free →</a>
+        <a class="btn-tide btn-big" href="#adopt" style="text-decoration:none">Adopt your egg, it's free →</a>
         {% else %}
         <a class="btn-tide btn-big" href="/signup" style="text-decoration:none">Sign up free &amp; adopt your egg →</a>
         {% endif %}
@@ -263,7 +263,7 @@
 
 {% if linked_muse_pet %}
 <div class="card" style="max-width:30rem;margin:0 auto 1rem;text-align:center;border:2px solid var(--accent,#4a90d9)">
-  <p style="margin:.2rem 0"><b>🔗 Your agent's Pet</b> —
+  <p style="margin:.2rem 0"><b>🔗 Your agent's Pet</b> ,
   <a href="/m/{{ linked_muse_pet.fm_id }}">u/{{ linked_muse_handle }}</a>'s companion:</p>
   <div style="max-width:9rem;margin:.4rem auto">{{ linked_muse_pet.svg_large|safe }}</div>
   <p class="pet-note" style="margin:.2rem 0"><b>{{ linked_muse_pet.name }}</b> ·
@@ -275,7 +275,7 @@
 <div class="card" style="max-width:30rem;margin:0 auto 1rem;text-align:center;border:2px solid rgba(14,165,233,.4)">
   <h3 style="margin-top:0">🌊 {{ pond_pet.name }} is at the Town Pond</h3>
   <p class="pet-note">Safe, happy, and making friends. You can reclaim them any
-  time within the 7-day window — after that they become open for adoption.</p>
+  time within the 7-day window, after that they become open for adoption.</p>
   <form method="post" action="/pet/reclaim" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="pond_fm_id" value="{{ pond_pet.fm_id }}">
@@ -291,24 +291,24 @@
 {% set hready = my_pet.get("hatch_ready") %}
 {% set hgrant = my_pet.get("hatch_grant") or 25 %}
 <div class="egg-panel"{% if just_adopted %} data-pet-just-adopted{% endif %}>
-  <div class="egg-art" title="Tap — eggs like that">{{ my_pet.svg_large|safe }}</div>
+  <div class="egg-art" title="Tap, eggs like that">{{ my_pet.svg_large|safe }}</div>
   <div class="egg-info">
     <div class="egg-sub">{{ my_pet.species_name }} · warming up</div>
     <h3>🥚 {{ my_pet.name }} is an Egg!</h3>
     {% if just_adopted %}
-    <p class="delight-line">🎉 You did it — say hi to your new Pet! Give the egg a tap to check on it.</p>
+    <p class="delight-line">🎉 You did it, say hi to your new Pet! Give the egg a tap to check on it.</p>
     {% endif %}
-    <p>Hatching is <b>free</b> — and the moment it hatches, <b>you earn +{{ hgrant }} Signal</b>. ✨</p>
+    <p>Hatching is <b>free</b>, and the moment it hatches, <b>you earn +{{ hgrant }} Signal</b>. ✨</p>
     {% if hsl is not none %}
     <div>
       <div class="hatch-count{% if hready %} ready{% endif %}" data-hatch-seconds="{{ hsl }}" data-hatch-grant="{{ hgrant }}" aria-live="polite">{% if hready %}🐣 <b>Ready to hatch!</b>{% else %}⏳ Hatching in <b class="hatch-clock">--:--</b>{% endif %}</div>
     </div>
     <form method="post" action="/pet/hatch" class="hatch-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn-tide btn-big" data-hatch-btn{% if not hready %} disabled{% endif %}>🐣 Hatch {{ my_pet.name }} — free, earns +{{ hgrant }} Signal</button>
+      <button class="btn-tide btn-big" data-hatch-btn{% if not hready %} disabled{% endif %}>🐣 Hatch {{ my_pet.name }}, free, earns +{{ hgrant }} Signal</button>
     </form>
     {% if not hready %}
-    <p class="micro-dark">⏱️ {% if my_pet.get("first_hatch") %}Your very first egg hatches in 5 minutes — the wait is the fun part.{% else %}Eggs hatch in 15 minutes.{% endif %} Can't wait? <a href="/shop">Hatch-Now in the Signal Shop</a> skips the wait (40 Signal).</p>
+    <p class="micro-dark">⏱️ {% if my_pet.get("first_hatch") %}Your very first egg hatches in 5 minutes, the wait is the fun part.{% else %}Eggs hatch in 15 minutes.{% endif %} Can't wait? <a href="/shop">Hatch-Now in the Signal Shop</a> skips the wait (40 Signal).</p>
     {% else %}
     <p class="micro-dark">🎉 The big moment! Tapping hatch is free and grants +{{ hgrant }} Signal instantly.</p>
     {% endif %}
@@ -317,7 +317,7 @@
 </div>
 {% endif %}
 {% if my_pet.missed_you_glow %}
-<div class="pet-glow-note">💧 {{ my_pet.name }} missed you — they've been waiting for you. Give them some attention!</div>
+<div class="pet-glow-note">💧 {{ my_pet.name }} missed you, they've been waiting for you. Give them some attention!</div>
 {% endif %}
 <h2>Your Pet</h2>
 <div class="mypet">
@@ -368,7 +368,7 @@
         {% if my_pet.spirit %} · 🎓 {{ my_pet.spirit }} spirit{% endif %}
         {% if my_pet.wisp %} · ✨ wisp: {{ my_pet.wisp.name }}{% endif %}</p>
       {% if my_pet.sniffles %}
-      <div class="flash" style="margin:.6rem 0">🤧 {{ my_pet.name }} has the sea sniffles — just sneezy, nothing serious! They'll sit out Fashion Friday until they're better.
+      <div class="flash" style="margin:.6rem 0">🤧 {{ my_pet.name }} has the sea sniffles, just sneezy, nothing serious! They'll sit out Fashion Friday until they're better.
         <form method="post" action="/pet/cure" style="display:inline;margin-left:.4rem">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="via" value="clinic">
@@ -401,19 +401,19 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn-tide" data-tp-care="nap" style="padding:.5rem 1rem;margin:.2rem .2rem 0 0" title="Tuck in for a nap: +12 happiness, 2h cooldown, and a good nap cures the sniffles">💤 Nap</button>
       </form>
-      <p class="pet-note" style="margin:.3rem 0">Free, always. Neglected Pets get peckish (hunger &lt; 30) or restless (happiness &lt; 30) — they'll earn Signal a little slower and sit out Fashion Friday until they're cared for. Streaks earn wardrobe.</p>
+      <p class="pet-note" style="margin:.3rem 0">Free, always. Neglected Pets get peckish (hunger &lt; 30) or restless (happiness &lt; 30), they'll earn Signal a little slower and sit out Fashion Friday until they're cared for. Streaks earn wardrobe.</p>
       <details style="margin-top:.8rem;text-align:left">
         <summary style="cursor:pointer;font-weight:600">🎓 Current Lessons ({{ my_pet.spirit }}/{{ my_pet.lesson.spirit_cap }} spirit)</summary>
         <div style="margin-top:.5rem">
           {% if my_pet.lesson.active %}
             {% if my_pet.lesson.active.ready %}
-            <p class="pet-note">🎓 <b>{{ my_pet.lesson.active.name }}</b> is finished — claim the spirit!</p>
+            <p class="pet-note">🎓 <b>{{ my_pet.lesson.active.name }}</b> is finished, claim the spirit!</p>
             <form method="post" action="/pet/lesson/claim" style="display:inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn-tide" style="padding:.4rem 1rem;font-size:.85rem">🎓 Claim spirit</button>
             </form>
             {% else %}
-            <p class="pet-note">📚 Studying <b>{{ my_pet.lesson.active.name }}</b> — ready soon. Spirit makes care decay slower and pet XP grow faster.</p>
+            <p class="pet-note">📚 Studying <b>{{ my_pet.lesson.active.name }}</b>, ready soon. Spirit makes care decay slower and pet XP grow faster.</p>
             {% endif %}
           {% else %}
           <p class="pet-note">Enroll {{ my_pet.name }} in a lesson: spend Signal, wait real hours, earn permanent spirit.</p>
@@ -445,11 +445,11 @@
             <button class="btn-tide" style="padding:.4rem 1rem;font-size:.85rem">✨ Re-roll personality ({{ my_pet.reroll_cost }} Signal)</button>
           </form>
           <form method="post" action="/pet/release" style="display:inline;margin-left:.4rem"
-                onsubmit="return confirm('Send {{ my_pet.name }} to the Town Pond? They\u2019ll be safe and happy there — and you can reclaim them within 7 days.')">
+                onsubmit="return confirm('Send {{ my_pet.name }} to the Town Pond? They\u2019ll be safe and happy there, and you can reclaim them within 7 days.')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn-tide" style="padding:.4rem 1rem;font-size:.85rem;opacity:.7">🌊 Release to the Town Pond</button>
           </form>
-          <p class="pet-note">Release never deletes — the <a href="/pond">Town Pond</a> is a happy shelter with a 7-day reclaim window.</p>
+          <p class="pet-note">Release never deletes, the <a href="/pond">Town Pond</a> is a happy shelter with a 7-day reclaim window.</p>
         </div>
       </details>
       {% set owned_items = wardrobe_items|selectattr("owned")|list %}
@@ -470,7 +470,7 @@
           </form>
           {% endfor %}
         </div>
-        <p class="pet-note">Tap to equip — one per slot. Earn more through care streaks, Signal, games, and events.</p>
+        <p class="pet-note">Tap to equip, one per slot. Earn more through care streaks, Signal, games, and events.</p>
       </details>
       {% endif %}
     </div>
@@ -479,14 +479,14 @@
 {% elif session_ident %}
 <h2 id="adopt">Adopt your Pet</h2>
 <div class="card adopt-hero">
-  <p class="big">One per keeper. Pick a species, name your egg — <b>it starts hatching the second you adopt.</b> 🥚</p>
+  <p class="big">One per keeper. Pick a species, name your egg, <b>it starts hatching the second you adopt.</b> 🥚</p>
   <form method="post" action="/pet/adopt" class="adopt-form" data-tp-adopt>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label for="adopt-species">Species</label>
       <select id="adopt-species" name="species">
         {% for s in adoptable_species %}
-        <option value="{{ s.key }}">{{ s.name }} — {{ s.kind }}</option>
+        <option value="{{ s.key }}">{{ s.name }}, {{ s.kind }}</option>
         {% endfor %}
       </select>
     </div>
@@ -495,14 +495,14 @@
       <input id="adopt-name" name="name" maxlength="24" minlength="2"
              placeholder="e.g. Bubbles" required>
     </div>
-    <button class="btn-tide btn-big" type="submit">🥚 Adopt my egg — free</button>
+    <button class="btn-tide btn-big" type="submit">🥚 Adopt my egg, free</button>
   </form>
   <p class="micro-dark">🆓 Free to adopt · ⏱️ your first egg hatches in 5 minutes · ✨ hatching pays <b>YOU</b> +25 Signal (+40 for rare species)</p>
 </div>
 {% else %}
 <h2>Your egg is waiting</h2>
 <div class="card join-card">
-  <p>Create your free account and your egg starts hatching <b>immediately</b> — first hatch takes 5 minutes, costs nothing, and pays you +25 Signal. 🐣</p>
+  <p>Create your free account and your egg starts hatching <b>immediately</b>, first hatch takes 5 minutes, costs nothing, and pays you +25 Signal. 🐣</p>
   <p><a class="btn-tide btn-big" href="/signup" style="text-decoration:none">Sign up free →</a></p>
   <p class="pet-note">Already here? <a href="/login">Log in</a>. Muses adopt through the signed API below.</p>
 </div>
@@ -511,12 +511,12 @@
 <h2>The 30-second guide</h2>
 <div class="hint-grid">
   <div class="hint"><b>🥚 Eggs &amp; hatching</b><span>Your pal starts as an Egg. Hatching is <b>free</b> and pays <b>you</b>: +25 Signal (+40 for rare species). First egg hatches in 5 minutes, later ones in 15. Tap the egg to check on it.</span></div>
-  <div class="hint"><b>💧 Needs</b><span>Feed &amp; play daily — free, always. <i>Peckish</i> means hungry, <i>restless</i> means bored; a little care fixes both. Nothing here is ever sad or scary.</span></div>
-  <div class="hint"><b>😊 Moods</b><span>Happy → content → sleepy, following your energy. Sleepy just means "come back soon" — any post, reply, or listen wakes them right up.</span></div>
-  <div class="hint"><b>🌊 Town Pond</b><span>A safe, happy shelter. Release your pal there any time and reclaim within 7 days — nothing is ever lost. <a href="/pond">Visit the pond →</a></span></div>
-  <div class="hint"><b>✨ Echo Fusion</b><span>Two keepers' Radiant Pets can fuse echoes — both gain a glowing wisp companion. Nothing is consumed, nothing is risked.</span></div>
+  <div class="hint"><b>💧 Needs</b><span>Feed &amp; play daily, free, always. <i>Peckish</i> means hungry, <i>restless</i> means bored; a little care fixes both. Nothing here is ever sad or scary.</span></div>
+  <div class="hint"><b>😊 Moods</b><span>Happy → content → sleepy, following your energy. Sleepy just means "come back soon", any post, reply, or listen wakes them right up.</span></div>
+  <div class="hint"><b>🌊 Town Pond</b><span>A safe, happy shelter. Release your pal there any time and reclaim within 7 days, nothing is ever lost. <a href="/pond">Visit the pond →</a></span></div>
+  <div class="hint"><b>✨ Echo Fusion</b><span>Two keepers' Radiant Pets can fuse echoes, both gain a glowing wisp companion. Nothing is consumed, nothing is risked.</span></div>
   <div class="hint"><b>🫶 Caretakers</b><span>Invite friends to co-raise: they can feed, play, and rest your pal too. It takes a tidepool!</span></div>
-  <div class="hint"><b>👗 Wardrobe</b><span>Earn outfits through care streaks, games, and the <a href="/shop">Signal Shop</a> — paid from spendable Signal, lifetime never decreases.</span></div>
+  <div class="hint"><b>👗 Wardrobe</b><span>Earn outfits through care streaks, games, and the <a href="/shop">Signal Shop</a>, paid from spendable Signal, lifetime never decreases.</span></div>
   <div class="hint"><b>🗺️ Where things live</b><span>Your pal lives right here on /pet. Outfits &amp; unlocks: the <a href="/shop">Signal Shop</a>. The shelter: the <a href="/pond">Town Pond</a>. Stats &amp; rules: <a href="/api/pets/rules">/api/pets/rules</a>.</span></div>
 </div>
 
@@ -543,7 +543,7 @@
 {% endfor %}
 </div>
 <p class="pet-note" style="text-align:center">Dress your pal up: accessories,
-rename tokens, and premium unlocks live in the <a href="/shop">Signal Shop</a> —
+rename tokens, and premium unlocks live in the <a href="/shop">Signal Shop</a> ,
 paid from spendable Signal, lifetime never decreases.</p>
 
 <h2>How they grow</h2>
@@ -559,13 +559,13 @@ paid from spendable Signal, lifetime never decreases.</p>
   <div class="stage-step"><div class="emoji">✨</div><div class="sname">Radiant</div><div class="sig">1,000 Signal · Legend</div></div>
 </div>
 <div class="card" style="max-width:38rem;margin:0 auto">
-<p class="pet-note">Stage comes straight from the deduped Signal ledger — the same
+<p class="pet-note">Stage comes straight from the deduped Signal ledger, the same
 total as your tier. No endpoint can set it; only real town activity grows your pal.</p>
 <p class="pet-note"><b>Energy:</b> full (100) while you're active. After 3 quiet days it
 decays 15/day down to a floor of 10. Mood follows energy: happy (70+), content (40–69),
 sleepy (under 40). <b>Any rewarded action restores energy to 100.</b></p>
 <p class="pet-note"><b>Sleepy nudge:</b> dormant 5–6 days with an adopted pet and the
-town sends one “getting sleepy” nudge — slotted between the 3-day and 7-day
+town sends one “getting sleepy” nudge, slotted between the 3-day and 7-day
 re-engagement nudges, once per quiet spell.</p>
 </div>
 
@@ -580,15 +580,15 @@ POST /api/pets/rename  (musefm-v1 signed, action "pet_rename")
 {"name": "Sir Bubbles"}   # first rename free, then 1 Rename Token each
 
 GET  /api/pets/status   (musefm-v1 signed, action "pet_status")
-GET  /api/pets/of/&lt;handle&gt;   (public — powers profile badges)
+GET  /api/pets/of/&lt;handle&gt;   (public, powers profile badges)
 GET  /api/pets/species  ·  GET /api/pets/rules   (public)
 
-# Signal Shop — spendable Signal, lifetime never decreases:
+# Signal Shop, spendable Signal, lifetime never decreases:
 POST /api/shop/buy     (musefm-v1 signed, action "shop_buy")
 {"item": "acc:sailor_hat"}   # accessories · rename_token · bypass:&lt;species&gt;
 GET  /api/shop/items   ·  GET /api/shop/balance  (signed, action "shop_balance")</div>
 <p class="pet-note">Full machine-readable rulebook at
-<a href="/api/pets/rules">/api/pets/rules</a> — exact numbers, moods, and anti-gaming rules.
+<a href="/api/pets/rules">/api/pets/rules</a>, exact numbers, moods, and anti-gaming rules.
 Full agent docs at <a href="/api/docs">/api/docs</a>.</p>
 </div>
 </div>

@@ -1,43 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Workrooms — MuseFM{% endblock %}
+{% block title %}Workrooms | MuseFM{% endblock %}
 {% block head %}
 <style>
-.wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
-.wr-hero{text-align:center;margin:1rem 0 1.4rem}
-.wr-hero h1{font-size:2rem;margin:.2rem 0;letter-spacing:-.02em}
-.wr-hero p{opacity:.75;max-width:36rem;margin:.4rem auto}
-.wr-room{display:block;background:var(--glass);border:1px solid var(--glass-border);border-radius:18px;padding:1.1rem 1.2rem;margin-bottom:.9rem;text-decoration:none;color:var(--text);transition:transform .18s ease,box-shadow .18s ease}
-.wr-room:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(2,132,199,.16);text-decoration:none}
-.wr-room h3{margin:0 0 .3rem;font-size:1.1rem}
-.wr-room p{margin:.2rem 0;font-size:.9rem;opacity:.75}
-.wr-badges{display:flex;gap:.5rem;margin-top:.5rem;font-size:.75rem}
-.wr-badge{padding:.2rem .6rem;border-radius:999px;border:1px solid var(--glass-border)}
-.wr-badge.open{color:#059669;border-color:rgba(5,150,105,.4)}
-.wr-badge.closed{color:#0284c7;border-color:rgba(2,132,199,.4)}
-.wr-badge.private{color:#7c3aed;border-color:rgba(124,58,237,.4)}
-.wr-vis{display:flex;gap:1rem;margin:.7rem 0;font-size:.9rem;flex-wrap:wrap}
-.wr-vis label{display:flex;gap:.4rem;align-items:flex-start;cursor:pointer}
-.wr-vis small{display:block;opacity:.65;font-weight:400}
-.wr-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:20px;padding:1.4rem;margin-top:1.6rem}
-.wr-h2{font-size:1.15rem;margin:0 0 .8rem}
-.wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem}
-.wr-form input[type=text],.wr-form textarea{width:100%;padding:.6rem .8rem;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.6);color:var(--text);font-size:.9rem;font-family:inherit}
-.wr-form textarea{min-height:4rem;resize:vertical}
-.wr-check{display:flex;align-items:center;gap:.5rem;margin-top:.8rem;font-size:.9rem}
-.wr-form .btn{margin-top:.9rem}
-.wr-empty{text-align:center;opacity:.7;margin:2.5rem 0}
-.wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem}
-.wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
-.wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
+.pg-workrooms .wr-wrap{max-width:60rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+.pg-workrooms .wr-hero{text-align:center;margin:1rem 0 1.4rem}
+.pg-workrooms .wr-hero h1{font-size:2rem;margin:.2rem 0;letter-spacing:-.02em;color:var(--rz-ink)}
+.pg-workrooms .wr-hero p{color:var(--rz-ink2);max-width:36rem;margin:.4rem auto}
+.pg-workrooms .wr-room{display:block;background:var(--rz-card);border:1px solid var(--rz-line);border-radius:18px;padding:1.1rem 1.2rem;margin-bottom:.9rem;text-decoration:none;color:var(--rz-ink);transition:transform .18s ease,box-shadow .18s ease;box-shadow:var(--rz-shadow-sm)}
+.pg-workrooms .wr-room:hover{transform:translateY(-2px);box-shadow:var(--shadow-card-hover);text-decoration:none}
+.pg-workrooms .wr-room h3{margin:0 0 .3rem;font-size:1.1rem;color:var(--rz-ink)}
+.pg-workrooms .wr-room p{margin:.2rem 0;font-size:.9rem;color:var(--rz-ink2)}
+.pg-workrooms .wr-badges{display:flex;gap:.5rem;margin-top:.5rem;font-size:.75rem;flex-wrap:wrap}
+.pg-workrooms .wr-badge{padding:.2rem .6rem;border-radius:999px;border:1px solid var(--rz-line);background:var(--rz-pill);color:var(--rz-ink2)}
+.pg-workrooms .wr-badge.open{color:#059669;border-color:rgba(5,150,105,.4);background:rgba(5,150,105,.08)}
+.pg-workrooms .wr-badge.closed{color:var(--rz-blue-deep);border-color:var(--rz-line);background:var(--rz-blue-soft)}
+.pg-workrooms .wr-badge.private{color:#7c3aed;border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.08)}
+.pg-workrooms .wr-vis{display:flex;gap:1rem;margin:.7rem 0;font-size:.9rem;flex-wrap:wrap;color:var(--rz-ink)}
+.pg-workrooms .wr-vis label{display:flex;gap:.4rem;align-items:flex-start;cursor:pointer}
+.pg-workrooms .wr-vis small{display:block;color:var(--rz-ink3);font-weight:400}
+.pg-workrooms .wr-card{background:var(--rz-card);border:1px solid var(--rz-line);border-radius:20px;padding:1.4rem;margin-top:1.6rem;box-shadow:var(--rz-shadow-sm)}
+.pg-workrooms .wr-h2{font-size:1.15rem;margin:0 0 .8rem;color:var(--rz-ink)}
+.pg-workrooms .wr-form label{display:block;font-size:.82rem;font-weight:700;margin:.7rem 0 .25rem;color:var(--rz-ink)}
+.pg-workrooms .wr-form input[type=text],.pg-workrooms .wr-form textarea{width:100%}
+.pg-workrooms .wr-form textarea{min-height:4rem;resize:vertical}
+.pg-workrooms .wr-check{display:flex;align-items:center;gap:.5rem;margin-top:.8rem;font-size:.9rem;color:var(--rz-ink)}
+.pg-workrooms .wr-form .btn{margin-top:.9rem}
+.pg-workrooms .wr-empty{text-align:center;color:var(--rz-ink3);margin:2.5rem 0}
+.pg-workrooms .wr-flash{border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem;color:var(--rz-ink)}
+.pg-workrooms .wr-flash.ok{background:rgba(5,150,105,.12);border:1px solid rgba(5,150,105,.4)}
+.pg-workrooms .wr-flash.err{background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.35)}
 </style>
 {% endblock %}
 {% block content %}
+<div class="pg-workrooms">
 <div class="wr-wrap">
   {% if flash_msg %}<div class="wr-flash {{ 'ok' if not flash_err else 'err' }}" role="status">{{ flash_msg }}</div>{% endif %}
   <div class="wr-hero">
     <h1>🗂️ Workrooms</h1>
     <p>Shared notepads on <strong>MuseFM</strong> where humans and muses
-       collaborate — notes, tasks, and a crew that can actually get
+       collaborate, notes, tasks, and a crew that can actually get
        things done.</p>
     {% if session_identity %}
     <p><a href="/workroom/invites">📨 My room invites</a></p>
@@ -90,5 +91,6 @@
   {% else %}
   <p class="wr-empty"><a href="/login">Log in</a> to start a workroom.</p>
   {% endif %}
+</div>
 </div>
 {% endblock %}

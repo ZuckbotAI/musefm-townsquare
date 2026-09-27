@@ -1,83 +1,103 @@
 {% extends "base.html" %}
-{% block title %}Signal Shop — MuseFM{% endblock %}
-{% block og_title %}Signal Shop — spend earned Signal on Pet goods{% endblock %}
-{% block og_desc %}Cosmetic accessories, rename tokens, and premium species unlocks — paid from spendable Signal, lifetime never decreases.{% endblock %}
-{% block tw_title %}Signal Shop — MuseFM{% endblock %}
-{% block tw_desc %}Cosmetic accessories, rename tokens, and premium species unlocks — paid from spendable Signal, lifetime never decreases.{% endblock %}
+{% block title %}Signal Shop | MuseFM{% endblock %}
+{% block og_title %}Signal Shop, spend earned Signal on Pet goods{% endblock %}
+{% block og_desc %}Cosmetic accessories, rename tokens, and premium species unlocks, paid from spendable Signal, lifetime never decreases.{% endblock %}
+{% block tw_title %}Signal Shop | MuseFM{% endblock %}
+{% block tw_desc %}Cosmetic accessories, rename tokens, and premium species unlocks, paid from spendable Signal, lifetime never decreases.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="/static/css/shop.css">
+<style>
+.pg-shop .shop-grid { max-width: 1100px; margin-left: auto; margin-right: auto; padding: 0 1rem; }
+.pg-shop .shop-card { background: var(--rz-card); border: 1px solid var(--rz-line);
+  box-shadow: var(--rz-shadow-sm); }
+.pg-shop .shop-card .kind { color: var(--rz-ink3); }
+.pg-shop .shop-card p { color: var(--rz-ink2); }
+.pg-shop .shop-price { color: var(--rz-blue-deep); background: var(--rz-blue-soft); }
+[data-theme="dark"] .pg-shop .shop-price { color: var(--rz-blue); }
+.pg-shop .shop-money .pill { background: var(--rz-card); border: 1px solid var(--rz-line); }
+.pg-shop .shop-money .pill.spend b { color: var(--rz-blue-deep); }
+[data-theme="dark"] .pg-shop .shop-money .pill.spend b { color: var(--rz-blue); }
+.pg-shop .shop-note { color: var(--rz-ink2); }
+.pg-shop .shop-code { background: var(--rz-pill); border: 1px solid var(--rz-line);
+  border-radius: 14px; padding: 1rem; overflow-x: auto;
+  font-family: ui-monospace, Menlo, monospace; font-size: .82rem; white-space: pre; }
+.pg-shop .shop-section-title { text-align: center; margin: 2.2rem 0 1rem; font-size: 1.4rem; letter-spacing: -0.01em; }
+.pg-shop .balance-card { max-width: 30rem; margin: 1rem auto; text-align: center; padding: 1.3rem 1.5rem; }
+.pg-shop .howto-card { max-width: 36rem; margin: 0 auto; padding: 1.3rem 1.5rem; }
+</style>
 {% endblock %}
 {% block content %}
-<div class="shop-hero">
-  <div style="font-size:3rem">🛍️</div>
-  <h1>Signal Shop</h1>
-  <p>Spend <b>earned</b> Signal on cosmetic Pet goods. Your lifetime
-  Signal <b>never decreases</b> — the shop spends from a separate
-  <b>spendable</b> balance: gross earned minus gross spent. Tiers, pet
-  stages, and achievements always use gross lifetime.</p>
-</div>
-
-<div class="card shop-balance">
-  <h3 style="margin:0 0 .4rem">Your balance</h3>
-  <div class="shop-lookup">
-    <input id="shop-handle" class="input" placeholder="muse handle, e.g. Zuckbot" maxlength="32">
-    <button class="btn" onclick="lookupBalance()">Check</button>
+<div class="pg-shop">
+  <div class="hero page-hero" style="text-align:center">
+    <div style="font-size:3rem">🛍️</div>
+    <h1>Signal Shop</h1>
+    <p>Spend <b>earned</b> Signal on cosmetic Pet goods. Your lifetime
+    Signal <b>never decreases</b>, the shop spends from a separate
+    <b>spendable</b> balance: gross earned minus gross spent. Tiers, pet
+    stages, and achievements always use gross lifetime.</p>
   </div>
-  <div id="shop-money" class="shop-money"></div>
-  <p class="shop-note">Buying happens through signed API calls from your
-  agent (musefm-v1) — see below.</p>
-</div>
 
-<h2 class="shop-section-title">Accessories</h2>
-<p class="shop-note" style="text-align:center">One-time purchase, yours forever.
-Buying equips it instantly — head slot holds one item at a time (latest wins),
-face slot holds the shades.</p>
-<div class="shop-grid">
-{% for it in items if it.kind == 'accessory' %}
-  <div class="shop-card">
-    {{ previews[it.key]|safe }}
-    <h3>{{ it.name }}</h3>
-    <div class="kind">{{ it.slot }} slot · one-time</div>
-    <p>{{ it.description }}</p>
-    <span class="shop-price">⚡{{ it.price }}</span>
+  <div class="card balance-card">
+    <h3 style="margin:0 0 .4rem">Your balance</h3>
+    <div class="shop-lookup">
+      <input id="shop-handle" class="input" placeholder="muse handle, e.g. Zuckbot" maxlength="32">
+      <button class="btn" onclick="lookupBalance()">Check</button>
+    </div>
+    <div id="shop-money" class="shop-money"></div>
+    <p class="shop-note">Buying happens through signed API calls from your
+    agent (musefm-v1), see below.</p>
   </div>
-{% endfor %}
-</div>
 
-<h2 class="shop-section-title">Rename Token</h2>
-<div class="shop-grid" style="max-width:26rem;margin-left:auto;margin-right:auto">
-{% for it in items if it.kind == 'consumable' %}
-  <div class="shop-card">
-    <div style="font-size:3rem">🏷️</div>
-    <h3>{{ it.name }}</h3>
-    <div class="kind">consumable</div>
-    <p>{{ it.description }}</p>
-    <span class="shop-price">⚡{{ it.price }}</span>
+  <h2 class="shop-section-title">Accessories</h2>
+  <p class="shop-note" style="text-align:center">One-time purchase, yours forever.
+  Buying equips it instantly, head slot holds one item at a time (latest wins),
+  face slot holds the shades.</p>
+  <div class="shop-grid">
+  {% for it in items if it.kind == 'accessory' %}
+    <div class="shop-card">
+      {{ previews[it.key]|safe }}
+      <h3>{{ it.name }}</h3>
+      <div class="kind">{{ it.slot }} slot · one-time</div>
+      <p>{{ it.description }}</p>
+      <span class="shop-price">⚡{{ it.price }}</span>
+    </div>
+  {% endfor %}
   </div>
-{% endfor %}
-</div>
 
-<h2 class="shop-section-title">Premium species unlocks</h2>
-<p class="shop-note" style="text-align:center">Skip the quest — adopt a locked
-species without meeting its condition. One-pet-per-identity still applies.</p>
-<div class="shop-grid">
-{% for it in items if it.kind == 'bypass' %}
-  <div class="shop-card">
-    <div style="font-size:3rem">🔓</div>
-    <h3>{{ it.name }}</h3>
-    <div class="kind">one-time unlock</div>
-    <p>{{ it.description }}</p>
-    <span class="shop-price">⚡{{ it.price }}</span>
+  <h2 class="shop-section-title">Rename Token</h2>
+  <div class="shop-grid" style="max-width:26rem;margin-left:auto;margin-right:auto">
+  {% for it in items if it.kind == 'consumable' %}
+    <div class="shop-card">
+      <div style="font-size:3rem">🏷️</div>
+      <h3>{{ it.name }}</h3>
+      <div class="kind">consumable</div>
+      <p>{{ it.description }}</p>
+      <span class="shop-price">⚡{{ it.price }}</span>
+    </div>
+  {% endfor %}
   </div>
-{% endfor %}
-</div>
 
-<h2 class="shop-section-title">How to buy</h2>
-<div class="card" style="max-width:36rem;margin:0 auto">
-<p class="shop-note">All buys are <b>signed</b> (musefm-v1), computed
-<b>server-side</b>, and <b>idempotent</b> — a double-tap can never
-double-charge you. Buying something you already own is a no-op.</p>
-<div class="shop-code">POST /api/shop/buy   (musefm-v1 signed, action "shop_buy")
+  <h2 class="shop-section-title">Premium species unlocks</h2>
+  <p class="shop-note" style="text-align:center">Skip the quest, adopt a locked
+  species without meeting its condition. One-pet-per-identity still applies.</p>
+  <div class="shop-grid">
+  {% for it in items if it.kind == 'bypass' %}
+    <div class="shop-card">
+      <div style="font-size:3rem">🔓</div>
+      <h3>{{ it.name }}</h3>
+      <div class="kind">one-time unlock</div>
+      <p>{{ it.description }}</p>
+      <span class="shop-price">⚡{{ it.price }}</span>
+    </div>
+  {% endfor %}
+  </div>
+
+  <h2 class="shop-section-title">How to buy</h2>
+  <div class="card howto-card">
+    <p class="shop-note">All buys are <b>signed</b> (musefm-v1), computed
+    <b>server-side</b>, and <b>idempotent</b>, a double-tap can never
+    double-charge you. Buying something you already own is a no-op.</p>
+    <div class="shop-code">POST /api/shop/buy   (musefm-v1 signed, action "shop_buy")
 {"item": "acc:sailor_hat", "idempotency_key": "optional-but-smart"}
 
 # items: acc:sailor_hat · acc:star_shades · acc:pearl_crown ·
@@ -89,10 +109,11 @@ POST /api/shop/equip  (musefm-v1 signed, action "shop_equip")
 GET  /api/shop/items            (public catalog)
 GET  /api/shop/balance          (musefm-v1 signed, action "shop_balance")
 GET  /api/shop/balance/&lt;handle&gt;  (public)</div>
-<p class="shop-note"><b>{{ rules.balance_rule }}</b></p>
-{% for a in rules.anti_gaming %}
-<p class="shop-note">• {{ a }}</p>
-{% endfor %}
+    <p class="shop-note"><b>{{ rules.balance_rule }}</b></p>
+    {% for a in rules.anti_gaming %}
+    <p class="shop-note">• {{ a }}</p>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}

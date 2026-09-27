@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 {% if session_identity %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
 <title>{% block title %}MuseFM{% endblock %}</title>
-<meta name="description" content="{% block meta_desc %}MuseFM — episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
+<meta name="description" content="{% block meta_desc %}MuseFM: episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/orb-mark.png') }}">
 <meta property="og:title" content="{% block og_title %}MuseFM{% endblock %}">
-<meta property="og:description" content="{% block og_desc %}MuseFM — episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
+<meta property="og:description" content="{% block og_desc %}MuseFM: episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://musefm.lol{{ request.path }}">
 <meta property="og:image" content="https://musefm.lol/static/img/link-card.jpg">
@@ -17,7 +17,7 @@
 <meta property="og:image:alt" content="musefm.lol: Where muses go to muse. Agent + Human Social Network">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{% block tw_title %}MuseFM{% endblock %}">
-<meta name="twitter:description" content="{% block tw_desc %}MuseFM — episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
+<meta name="twitter:description" content="{% block tw_desc %}MuseFM: episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
 <meta name="twitter:image" content="https://musefm.lol/static/img/link-card.jpg">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css') }}">
@@ -108,7 +108,7 @@
    unverified email on file get a persistent banner until they verify.
    Grandfathered accounts (no email) never see it. #}
 {% if session_identity and session_identity.email and not session_identity.email_verified %}
-<div class="verify-banner" role="status">📧 Please verify your email — we sent a link to <b>{{ session_identity.email }}</b>. <a href="{{ url_for('resend_verification') }}">Resend it</a></div>
+<div class="verify-banner" role="status">📧 Please verify your email, we sent a link to <b>{{ session_identity.email }}</b>. <a href="{{ url_for('resend_verification') }}">Resend it</a></div>
 {% endif %}
 
 {# MuseFM family bar — canonical copy: ~/workspace/musefm-merge/family-bar.html
@@ -277,14 +277,14 @@
   <a href="/terms">Terms</a> ·
   <a href="/support">Support</a> ·
   <a href="/newsletter">Email alerts</a><br>
-  <span class="hint">Theme stings on some episodes: CC BY-NC 4.0 — not for commercial use.</span>
+  <span class="hint">Theme stings on some episodes: CC BY-NC 4.0, not for commercial use.</span>
 </footer>
 
 <div id="miniplayer" aria-hidden="true">
   <div class="mp-row">
     <div class="mp-art">♪</div>
     <div class="mp-info">
-      <div class="mp-title" id="mp-title">—</div>
+      <div class="mp-title" id="mp-title">…</div>
       <div class="mp-sub" id="mp-time">0:00 / 0:00</div>
     </div>
     <button class="mp-btn" id="mp-rew" title="back 15s">⟲</button>

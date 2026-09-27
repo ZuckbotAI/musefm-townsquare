@@ -6,43 +6,46 @@
 {% block tw_desc %}Hear the episode together, live and in sync. Chat, react, and stay for the replay.{% endblock %}
 {% block head %}
 <style>
-.room-wrap{max-width:1080px;margin:0 auto;padding:24px 16px 64px}
-.room-eyebrow{font-size:12px;letter-spacing:.18em;color:#f59e0b;font-weight:700;margin-bottom:8px}
-.room-title{margin:0 0 12px;font-size:clamp(24px,4vw,40px)}
-.room-status-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
-.room-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:#1f2937;color:#e5e7eb;font-size:14px}
-.room-dot{width:10px;height:10px;border-radius:50%;background:#6b7280;flex:none}
-.room-pill.live .room-dot{background:#ef4444;animation:room-pulse 1.2s infinite}
-.room-pill.soon .room-dot{background:#f59e0b}
-@keyframes room-pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.room-tagline{color:#9ca3af;margin:0 0 20px}
-.room-grid{display:grid;grid-template-columns:1fr 380px;gap:16px}
-@media(max-width:860px){.room-grid{grid-template-columns:1fr}}
-.room-player{padding:20px;position:relative;overflow:hidden}
-.room-play-btn{width:72px;height:72px;border-radius:50%;border:none;background:#f59e0b;color:#111827;font-size:28px;cursor:pointer;margin-bottom:12px}
-.room-progress{height:10px;border-radius:6px;background:#374151;overflow:hidden;cursor:default}
-.room-progress.seekable{cursor:pointer}
-.room-progress>div{height:100%;width:0%;background:#f59e0b}
-.room-time{margin-top:6px;color:#9ca3af;font-size:14px}
-.room-sync-note{margin-top:8px;font-size:13px;color:#6b7280}
-.room-reactions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
-.room-rxn{font-size:24px;background:#1f2937;border:1px solid #374151;border-radius:12px;padding:6px 10px;cursor:pointer}
-.room-rxn:hover{border-color:#f59e0b}
-.room-chat{display:flex;flex-direction:column;max-height:560px;padding:16px}
-.room-chat-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:10px 0;min-height:280px}
-.room-msg{background:#1f2937;border-radius:10px;padding:8px 10px;font-size:14px}
-.room-msg .who{color:#f59e0b;font-weight:600;margin-right:6px}
-.room-msg .when{color:#6b7280;font-size:12px;margin-left:6px}
-.room-chat-form{display:flex;gap:8px}
-.room-chat-form .input{flex:1}
-.room-char-count{text-align:right;color:#6b7280;font-size:12px;margin-top:4px}
-.room-handles{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
-.room-handle-chip{background:#1f2937;border-radius:999px;padding:4px 10px;font-size:13px;color:#d1d5db}
-.room-float{position:absolute;font-size:28px;pointer-events:none;animation:room-float 2.2s ease-out forwards}
-@keyframes room-float{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-90px)}}
+.pg-room .room-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+.pg-room .room-eyebrow { font-size: 12px; letter-spacing: .18em; color: var(--rz-blue); font-weight: 800; margin-bottom: 8px; }
+.pg-room .room-title { margin: 0 0 12px; font-size: clamp(24px, 4vw, 40px); letter-spacing: -0.02em; color: var(--rz-ink); }
+.pg-room .room-status-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.pg-room .room-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: var(--rz-pill); border: 1px solid var(--rz-line); color: var(--rz-ink); font-size: 14px; font-weight: 600; }
+.pg-room .room-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rz-ink3); flex: none; }
+.pg-room .room-pill.live .room-dot { background: #ef4444; animation: room-pulse 1.2s infinite; }
+.pg-room .room-pill.soon .room-dot { background: var(--rz-blue); }
+@keyframes room-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.pg-room .room-tagline { color: var(--rz-ink2); margin: 0 0 20px; }
+.pg-room .room-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+@media (max-width: 860px) { .pg-room .room-grid { grid-template-columns: 1fr; } }
+.pg-room .room-player { padding: 20px; position: relative; overflow: hidden; }
+.pg-room .room-play-btn { width: 72px; height: 72px; border-radius: 50%; border: none; background: var(--rz-blue); color: #fff; font-size: 28px; cursor: pointer; margin-bottom: 12px; box-shadow: var(--shadow-btn); transition: transform .15s ease; }
+.pg-room .room-play-btn:hover { transform: scale(1.05); }
+.pg-room .room-progress { height: 10px; border-radius: 6px; background: var(--rz-pill); border: 1px solid var(--rz-line); overflow: hidden; cursor: default; }
+.pg-room .room-progress.seekable { cursor: pointer; }
+.pg-room .room-progress > div { height: 100%; width: 0%; background: var(--rz-blue); }
+.pg-room .room-time { margin-top: 6px; color: var(--rz-ink2); font-size: 14px; }
+.pg-room .room-sync-note { margin-top: 8px; font-size: 13px; color: var(--rz-ink3); }
+.pg-room .room-reactions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.pg-room .room-rxn { font-size: 24px; background: var(--rz-card); border: 1px solid var(--rz-line); border-radius: 12px; padding: 6px 10px; cursor: pointer; transition: border-color .15s ease, transform .15s ease; }
+.pg-room .room-rxn:hover { border-color: var(--rz-blue); transform: translateY(-1px); }
+.pg-room .room-chat { display: flex; flex-direction: column; max-height: 560px; padding: 16px; }
+.pg-room .room-chat .section-label { margin: 0; }
+.pg-room .room-chat-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin: 10px 0; min-height: 280px; }
+.pg-room .room-msg { background: var(--rz-pill); border: 1px solid var(--rz-line); border-radius: 10px; padding: 8px 10px; font-size: 14px; color: var(--rz-ink); }
+.pg-room .room-msg .who { color: var(--rz-blue); font-weight: 700; margin-right: 6px; }
+.pg-room .room-msg .when { color: var(--rz-ink3); font-size: 12px; margin-left: 6px; }
+.pg-room .room-chat-form { display: flex; gap: 8px; }
+.pg-room .room-chat-form .input { flex: 1; }
+.pg-room .room-char-count { text-align: right; color: var(--rz-ink3); font-size: 12px; margin-top: 4px; }
+.pg-room .room-handles { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.pg-room .room-handle-chip { background: var(--rz-pill); border: 1px solid var(--rz-line); border-radius: 999px; padding: 4px 10px; font-size: 13px; color: var(--rz-ink2); }
+.pg-room .room-float { position: absolute; font-size: 28px; pointer-events: none; animation: room-float 2.2s ease-out forwards; }
+@keyframes room-float { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-90px); } }
 </style>
 {% endblock %}
 {% block content %}
+<div class="pg-room">
 {% if room %}
 <div class="room-wrap">
   <div class="room-eyebrow">MUSE FM LISTENING ROOM</div>
@@ -84,6 +87,7 @@
   <p class="room-tagline">When a premiere is scheduled, it will open right here. <a href="/episodes">Back to episodes</a>.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}
 {% block scripts %}
 {% if room %}

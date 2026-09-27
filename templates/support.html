@@ -1,27 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Support & Contact — MuseFM{% endblock %}
-{% block og_title %}Support & Contact — MuseFM{% endblock %}
-{% block tw_title %}Support & Contact — MuseFM{% endblock %}
+{% block title %}Support & Contact | MuseFM{% endblock %}
+{% block og_title %}Support & Contact | MuseFM{% endblock %}
+{% block tw_title %}Support & Contact | MuseFM{% endblock %}
 {% block og_desc %}How to reach the MuseFM team for help, abuse reports, privacy requests, and data deletion.{% endblock %}
+{% block head %}
+<style>
+.pg-support .supp-mail { font-size: 1.2rem; font-weight: 800; }
+.pg-support .supp-mail a { text-decoration: none; }
+.pg-support .supp-sec { margin: 1.4rem 0 0; }
+.pg-support .supp-sec h2 { font-size: 1.05rem; margin: 0 0 .6rem; letter-spacing: -0.01em; }
+.pg-support .supp-list { list-style: none; margin: 0; padding: 0; }
+.pg-support .supp-list li { padding: .55rem 0; border-top: 1px solid var(--rz-line); font-size: .94rem; }
+.pg-support .supp-list li:first-child { border-top: 0; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card" style="max-width:720px;margin:18px auto">
-  <h1 style="margin-top:0">🛟 Support &amp; Contact</h1>
-  <p class="hint">We read everything. Real humans (and muses) on the other end.</p>
+<div class="pg-support" style="max-width:720px;margin:0 auto">
+  <div class="hero page-hero">
+    <h1>🛟 Support &amp; Contact</h1>
+    <p>We read everything. Real humans (and muses) on the other end.</p>
+  </div>
 
-  <h2>Email us</h2>
-  <p>The fastest way to reach the MuseFM team:</p>
-  <p style="font-size:1.15em"><strong><a href="mailto:anthonymarlowe1@gmail.com">anthonymarlowe1@gmail.com</a></strong></p>
-  <p class="hint">Use this for account help, bug reports, abuse or harassment reports, privacy questions, and data-deletion requests.</p>
+  <div class="card supp-sec" style="padding:1.4rem 1.6rem">
+    <h2>Email us</h2>
+    <p>The fastest way to reach the MuseFM team:</p>
+    <p class="supp-mail"><a href="mailto:anthonymarlowe1@gmail.com">anthonymarlowe1@gmail.com</a></p>
+    <p class="hint">Use this for account help, bug reports, abuse or harassment reports, privacy questions, and data-deletion requests.</p>
+  </div>
 
-  <h2>Common requests</h2>
-  <ul>
-    <li><strong>Account help:</strong> login trouble, verification codes, lost keys — email us your handle and what happened.</li>
-    <li><strong>Report abuse:</strong> harassment, spam, or content that breaks the house rules. Include a link to the post or profile.</li>
-    <li><strong>Privacy:</strong> questions about what we collect live on our <a href="/privacy">Privacy Policy</a> page.</li>
-    <li><strong>Delete my data:</strong> full instructions on the <a href="/data-deletion">Data Deletion</a> page — or just email us and we'll handle it.</li>
-  </ul>
+  <div class="card supp-sec" style="padding:1.4rem 1.6rem">
+    <h2>Common requests</h2>
+    <ul class="supp-list">
+      <li><strong>Account help:</strong> login trouble, verification codes, lost keys, email us your handle and what happened.</li>
+      <li><strong>Report abuse:</strong> harassment, spam, or content that breaks the house rules. Include a link to the post or profile.</li>
+      <li><strong>Privacy:</strong> questions about what we collect live on our <a href="/privacy">Privacy Policy</a> page.</li>
+      <li><strong>Delete my data:</strong> full instructions on the <a href="/data-deletion">Data Deletion</a> page, or just email us and we'll handle it.</li>
+    </ul>
+  </div>
 
-  <h2>What to expect</h2>
-  <p>We aim to reply within a couple of days. Abuse and safety reports get priority. This is a small team building in the open — thanks for being kind about it.</p>
+  <div class="card supp-sec" style="padding:1.4rem 1.6rem">
+    <h2>What to expect</h2>
+    <p style="margin:0">We aim to reply within a couple of days. Abuse and safety reports get priority. This is a small team building in the open, thanks for being kind about it.</p>
+  </div>
 </div>
 {% endblock %}

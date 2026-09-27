@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Maker's Row — MuseFM{% endblock %}
-{% block meta_desc %}Maker's Row — a street of little workshops. Every MuseFM product is a shop with its lights on. Meet me on the Row.{% endblock %}
+{% block title %}Maker's Row | MuseFM{% endblock %}
+{% block meta_desc %}Maker's Row: a street of little workshops. Every MuseFM product is a shop with its lights on. Meet me on the Row.{% endblock %}
 {% block head %}
 {# Guests need the JSON-POST CSRF token too: the checkin heartbeat POSTs
    JSON {building, csrf_token} (same convention as comments.js). base.html
    only emits this meta for logged-in users. #}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
-.row-hero { text-align: center; margin: 1.2rem 0 .6rem; }
-.row-hero h1 { margin: 0 0 .25rem; font-size: 1.7rem; }
-.row-hero p { margin: 0; }
+.pg-row .row-hero { text-align: center; }
+.pg-row .row-hero h1 { letter-spacing: -0.02em; }
+.pg-row .row-hero p { color: var(--rz-ink2); }
 .row-canvas-wrap { position: relative; max-width: 76rem; margin: 0 auto; }
 .row-canvas-wrap canvas {
   width: 100%; height: auto; display: block; border-radius: 12px;
@@ -17,6 +17,9 @@
   box-shadow: 0 8px 32px rgba(0,0,0,.35), 0 0 0 1px rgba(232,169,61,.35);
   image-rendering: pixelated;
 }
+.pg-row .row-wip { max-width: 76rem; margin: 0 auto 1rem; padding: .7rem 1.2rem; border-radius: 14px;
+  text-align: center; font-size: .95rem; font-weight: 600;
+  background: var(--rz-blue-soft); border: 1px solid var(--rz-line); color: var(--rz-ink); }
 .row-tip {
   display: none; position: absolute; z-index: 5; max-width: 300px;
   background: rgba(26,18,10,.96); color: #f0e6cc; border: 1px solid #8a6d3f;
@@ -62,17 +65,21 @@
 }
 .row-chip:hover { background: #2b1f12; border-color: #e8a93d; color: #ffe9a3; }
 .row-chip.active { background: #e8a93d; color: #1d150e; border-color: #ffe9a3; font-weight: 700; }
-.row-links { text-align: center; margin: .8rem 0 1.4rem; }
-.row-links a { margin: 0 .7rem; }
-.row-legend { max-width: 76rem; margin: 0 auto 2rem; }
-.row-legend summary { cursor: pointer; color: var(--accent-deep, #0070c0); }
+.pg-row .row-links { text-align: center; margin: .8rem 0 1.4rem; display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+.pg-row .row-links a:not(.btn) { align-self: center; }
+.pg-row .row-legend { max-width: 76rem; margin: 0 auto 2rem; }
+.pg-row .row-legend details { background: var(--rz-card); border: 1px solid var(--rz-line);
+  border-radius: var(--rz-r); box-shadow: var(--rz-shadow-sm); padding: 1rem 1.3rem; }
+.pg-row .row-legend summary { cursor: pointer; font-weight: 700; color: var(--rz-ink); }
+.pg-row .row-legend p { color: var(--rz-ink2); margin: .6rem 0 0; font-size: .92rem; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="row-wip" style="max-width:76rem;margin:0 auto 1rem;padding:.7rem 1.2rem;border-radius:14px;text-align:center;font-size:.95rem;font-weight:600;background:linear-gradient(135deg,rgba(254,240,138,.9),rgba(253,224,71,.75));border:1px solid rgba(217,119,6,.4);color:#713f12;">🚧 Work in progress — Maker's Row is a prototype right now. Things may look unfinished or change without warning.</div>
-<div class="row-hero">
+<div class="pg-row">
+<div class="row-wip">🚧 Work in progress, Maker's Row is a prototype right now. Things may look unfinished or change without warning.</div>
+<div class="hero page-hero row-hero" style="text-align:center">
   <h1>🛠️ Maker's Row</h1>
-  <p class="hint">A street of little workshops — every MuseFM product a shop with its lights on.<br>
+  <p>A street of little workshops, every MuseFM product a shop with its lights on.<br>
   Click a shop to walk in. Meet me on the Row.</p>
 </div>
 
@@ -86,21 +93,22 @@
 
 <div class="row-links">
   <button type="button" id="row-roster-toggle" class="row-chip">👥 Who's here <span id="row-roster-count"></span></button>
-  {# /row/avatar 302-redirects to the viewer's own profile customizer — keep this link as-is. #}
-  <a href="/row/avatar">🎨 Customize your avatar</a>
-  <a href="/row/journal">📜 Row journal</a>
+  {# /row/avatar 302-redirects to the viewer's own profile customizer, keep this link as-is. #}
+  <a class="btn btn-ghost btn-sm" href="/row/avatar">🎨 Customize your avatar</a>
+  <a class="btn btn-ghost btn-sm" href="/row/journal">📜 Row journal</a>
 </div>
 
 <div class="row-legend">
   <details>
     <summary>How the Row works</summary>
-    <p class="hint">
-      Your avatar strolls past whichever shop you're checked into — pick one above to change where
+    <p>
+      Your avatar strolls past whichever shop you're checked into, pick one above to change where
       you hang out. Avatars fade out after a few minutes away. Hover or tap an avatar to see their
       passport; click a shop or a workroom cottage to walk in. The three ✦ stones in the sidewalk
       tell the Row's story. "Who's here" lists everyone checked in, grouped by shop and cottage.
     </p>
   </details>
+</div>
 </div>
 
 <script>

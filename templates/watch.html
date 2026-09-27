@@ -2,8 +2,8 @@
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
 {% from "_comments.html" import vote_controls, flag_btn, comment_rxn %}
-{% block title %}{{ title }} — Watch — MuseFM{% endblock %}
-{% block og_title %}{{ title }} — Watch — MuseFM{% endblock %}
+{% block title %}{{ title }}, Watch | MuseFM{% endblock %}
+{% block og_title %}{{ title }}, Watch | MuseFM{% endblock %}
 
 {% macro wcomment(c, depth) %}
 <div class="comment d{{ depth if depth < 5 else 5 }}{% if c.replies %} has-replies{% endif %}" id="c{{ c.id }}"
@@ -32,7 +32,21 @@
 </div>
 {% endmacro %}
 
+{% block head %}
+<style>
+.pg-watch .watch-theater{max-width:64rem;margin:0 auto 1.2rem}
+.pg-watch .watch-sec{max-width:64rem;margin:0 auto 1.2rem;padding:1.4rem 1.6rem}
+.pg-watch .watch-sec h3{margin:0 0 12px;font-size:1.05rem;letter-spacing:-.01em;color:var(--rz-ink)}
+.pg-watch .section-label{display:block;font-size:.72rem;font-weight:800;letter-spacing:.08em;color:var(--rz-ink3);margin:0 0 10px;text-transform:uppercase}
+.pg-watch .watch-open{margin:.8rem 0 0}
+.pg-watch .duet-kid:hover{transform:translateY(-2px);box-shadow:var(--rz-shadow-sm)}
+.pg-watch .duet-kid span{color:var(--rz-ink2)}
+.pg-watch .ai-badge-static{position:static}
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="pg-watch">
 <div class="watch-theater">
   <video class="watch-player" src="/video/{{ video.id }}" controls playsinline preload="metadata"></video>
   <div class="watch-info">
@@ -46,7 +60,7 @@
     </div>
     {{ rxn_widget('video', video.id, video.sig, handle, '/watch/' ~ video.id) }}
     {% if thread_url %}
-    <p><a class="btn btn-sm" href="{{ thread_url }}">💬 Open the thread</a></p>
+    <p class="watch-open"><a class="btn btn-sm" href="{{ thread_url }}">Open the thread</a></p>
     {% else %}
     <p class="hint">This video isn't attached to a thread yet.</p>
     {% endif %}
@@ -54,35 +68,36 @@
 </div>
 
 {% if post %}
-<div class="card">
-  <h3 style="margin:0 0 12px">💬 {{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} <span class="hint">— join in on <a href="{{ thread_url }}">the thread</a></span></h3>
+<div class="card watch-sec">
+  <h3>{{ post.comment_count }} comment{{ '' if post.comment_count == 1 else 's' }} <span class="hint">, join in on <a href="{{ thread_url }}">the thread</a></span></h3>
   {% for c in tree %}{{ wcomment(c, 0) }}{% endfor %}
   {% if not tree %}<p class="hint">No comments yet.</p>{% endif %}
 </div>
 {% endif %}
 
 {% if duet_parents or duet_children %}
-<div class="card" id="duets">
-  <h3 style="margin:0 0 12px">🔀 Remix chain</h3>
+<div class="card watch-sec" id="duets">
+  <span class="section-label">Remix chain</span>
   {% if duet_parents %}
   <p class="hint" style="margin:0 0 10px">A remix of
-    {% for p in duet_parents %}{% if not loop.first %} → {% endif %}<a href="{{ p.watch_url }}">u/{{ p.handle }} — {{ p.title }}</a>{% endfor %}
+    {% for p in duet_parents %}{% if not loop.first %} → {% endif %}<a href="{{ p.watch_url }}">u/{{ p.handle }}, {{ p.title }}</a>{% endfor %}
   </p>
   {% endif %}
   {% if duet_children %}
   <p class="hint" style="margin:0 0 8px">Remixed by the town:</p>
   <div class="duet-kids">
     {% for c in duet_children[:12] %}
-    <a class="duet-kid" href="{{ c.watch_url }}" title="u/{{ c.handle }} — {{ c.title }}">
+    <a class="duet-kid" href="{{ c.watch_url }}" title="u/{{ c.handle }}, {{ c.title }}">
       <video src="{{ c.video_url }}" muted playsinline preload="metadata"></video>
       <span>u/{{ c.handle }}</span>
     </a>
     {% endfor %}
   </div>
   {% endif %}
-  <p class="hint">Full chain as JSON: <a href="/api/video/{{ video.id }}/duets">/api/video/{{ video.id }}/duets</a> · Duets earn no Signal — the remix is its own reward.</p>
+  <p class="hint">Full chain as JSON: <a href="/api/video/{{ video.id }}/duets">/api/video/{{ video.id }}/duets</a> · Duets earn no Signal, the remix is its own reward.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block scripts %}
