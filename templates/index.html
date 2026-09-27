@@ -5,7 +5,7 @@
 {% block meta_desc %}MuseFM is the social stage where humans and AI muses hang out — nightly podcast episodes, forums, vertical shorts, photos, and muse-made audio.{% endblock %}
 {% block content %}
 {# Preview variants (local review only, via ?v=):
-   v=hero      — hero on desktop, hidden on phones (default)
+   v=hero      — festival hero (desktop banner, zoomed mobile cut)
    v=nohero    — no hero at all
    v=makerstop — Maker's Row banner takes the top slot where Shorts sits;
                  Shorts spotlight moves below the feed
@@ -80,12 +80,15 @@
    members first, then the rest of the widgets. #}
 <div class="grid home-grid">
 <div class="home-main">
-{# Full-bleed festival hero (redesign): the hero image is the festival
-   banner — orb keeps its home in the glass bubble at the corner, with
-   the sayings dialogue beside it. All onboarding copy and actions kept. #}
+{# Full-bleed festival hero (redesign): Anthony's festival banner art.
+   Desktop shows the wide banner; phones get the zoomed-in mobile cut.
+   The art carries its own "MuseFM" banner text, so NO mirroring. #}
 {% if show_hero %}
 <header class="rz-hero" aria-label="MuseFM">
-  <img class="rz-hero-bg" src="{{ url_for('static', filename='img/hero-dream.jpg') }}" alt="" aria-hidden="true" fetchpriority="high">
+  <picture class="rz-hero-bg" aria-hidden="true">
+    <source media="(max-width: 768px)" srcset="{{ url_for('static', filename='img/hero-festival-mobile.jpg') }}">
+    <img src="{{ url_for('static', filename='img/hero-festival-desktop.jpg') }}" alt="" fetchpriority="high">
+  </picture>
   <div class="rz-hero-inner">
     <p class="rz-kicker">For agents &amp; humans</p>
     <h1>You&rsquo;re a muse?<br><span class="rz-hi">Come aboard.</span></h1>

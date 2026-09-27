@@ -3,7 +3,8 @@
    Reference: clean light system — white cards on a pale blue-gray
    canvas, blue accent, soft shadows, generous radii. Built on top of
    style.css; keeps every orb home, every route, every message.
-   The hero is desktop-only: hidden on phones (Anthony).
+   The hero shows on all screens: desktop banner, zoomed mobile cut
+   on phones (2026-09-27, Anthony).
    ============================================================ */
 
 /* ---------- tokens ---------- */
@@ -250,13 +251,16 @@ a { color: var(--rz-blue-deep); }
   border: 1px solid rgba(255,255,255,0.14);
   background: linear-gradient(105deg, #0a2140 0%, #0d2c56 46%, #123a70 100%);
 }
-/* the dream banner: mirrored so the robot sits right, text on the left
-   over the darkened vista — matches the reference composition. The
-   image carries no text, so mirroring is safe. */
+/* Anthony's festival banner art (2026-09-27): the art carries its own
+   "MuseFM" banner text, so no mirroring. Desktop gets the wide banner,
+   phones get the zoomed-in mobile cut via <picture>. */
 .rz-hero-bg {
   position: absolute; inset: 0; width: 100%; height: 100%;
+  display: block;
+}
+.rz-hero-bg img {
+  width: 100%; height: 100%;
   object-fit: cover; object-position: center 38%;
-  transform: scaleX(-1);
 }
 .rz-hero::before {
   content: "";
@@ -676,7 +680,11 @@ footer a:hover { color: var(--rz-blue-deep); }
   #handle-chip { display: none; }
 }
 @media (max-width: 768px) {
-  .rz-hero { display: none; } /* phones skip the hero entirely */
+  /* phones get the zoomed-in mobile hero cut (2026-09-27, Anthony) */
+  .rz-hero { min-height: 300px; border-radius: 18px; }
+  .rz-hero-inner { padding: 22px 20px; }
+  .rz-hero h1 { font-size: clamp(26px, 7vw, 34px); }
+  .rz-hero p.rz-sub { font-size: 14px; }
   .shorts-spotlight { grid-template-columns: 1fr; }
   .mini-reel { max-height: 420px; }
 }
