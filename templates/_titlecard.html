@@ -2,7 +2,7 @@
    section — kicker, title, lede, and the orb staged on art. Usage:
    {% set tc = { ... } %}{% include "_titlecard.html" %}
    Required: tc.title. Optional: tc.kicker, tc.lede, tc.theme
-   (sky|stage|neon|warm|deep|teal|amber|gold|pond|signal), tc.orb (default true).
+   (sky|stage|neon|glassblue|deep|teal|amber|gold|pond|signal), tc.orb (default true).
    One titlecard per page: it hosts the page's #hero-orb-stage. #}
 {% set _theme = tc.theme | default('sky') %}
 <section class="titlecard tc-{{ _theme }}" aria-label="{{ tc.title }}">

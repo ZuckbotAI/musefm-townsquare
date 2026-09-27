@@ -193,11 +193,16 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
   .auth-link, .auth-chip { font-size: 13px; padding: 7px 10px; }
   .auth-chip { max-width: 110px; }
 }
-/* slim "New here?" strip at the very top (homepage, anonymous visitors only) */
+/* slim "New here?" strip at the very top (homepage, anonymous visitors only):
+   glassmorphism — frosted translucent, blurred, subtle border. */
 .topstrip {
   display: flex; align-items: center; justify-content: center; gap: 16px;
-  background: #0b1220; color: #f2f2f2; font-size: 13.5px; line-height: 1.4;
+  background: rgba(13, 24, 42, 0.55); color: #f2f2f2; font-size: 13.5px; line-height: 1.4;
   padding: 8px 16px; text-align: center; flex-wrap: wrap;
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(8, 30, 70, 0.25);
 }
 .topstrip-text { opacity: 0.95; }
 .topstrip-ctas { display: inline-flex; align-items: center; gap: 14px; }

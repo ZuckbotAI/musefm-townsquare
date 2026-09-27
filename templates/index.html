@@ -102,7 +102,42 @@
     </div>
     <p class="fm-tag" id="tagline" style="margin:14px 0 0;font-size:13px;color:rgba(255,255,255,.65)">{{ tagline }}</p>
   </div>
+  {# Embedded Shorts in the hero (2026-09-27, Anthony): a real playable
+     short in a phone frame, docked on the right side of the hero. Uses the
+     standard short_card markup and short-item styles; hero-scoped CSS trims
+     it to a preview (comments + reactions hidden) and the script below
+     autoplays it muted with tap-for-sound. #}
+  {% if shorts %}
+  <div class="rz-hero-shorts" aria-label="Featured short">
+    <div class="hero-phone">{{ short_card(shorts[0]) }}</div>
+    <a class="hero-shorts-more" href="/shorts">⚡ More shorts →</a>
+  </div>
+  {% endif %}
 </header>
+<script>
+/* Hero Shorts embed: autoplay muted while visible, tap toggles sound. */
+(function(){
+  var box = document.querySelector('.rz-hero-shorts');
+  if (!box) return;
+  var v = box.querySelector('video');
+  var btn = box.querySelector('.short-mute');
+  if (!v) return;
+  function setMuted(m){
+    v.muted = m;
+    if (btn) btn.textContent = m ? '🔇' : '🔊';
+  }
+  setMuted(true);
+  if (btn) btn.addEventListener('click', function(ev){ ev.stopPropagation(); setMuted(!v.muted); });
+  v.addEventListener('click', function(){ setMuted(!v.muted); });
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if (e.isIntersecting) { v.play().catch(function(){}); }
+      else { v.pause(); }
+    });
+  }, { threshold: 0.25 });
+  io.observe(v);
+})();
+</script>
 {# The orb's home on the homepage: a slim companion strip under the hero
    (2026-09-26, Anthony: the hero should read as a rectangle, not a square —
    the dialogue row was the height anchor). The orb still snaps into
