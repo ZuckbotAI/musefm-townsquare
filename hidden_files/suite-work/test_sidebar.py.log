@@ -1,0 +1,143 @@
+== sidebar renders everywhere ==
+  PASS sidebar on /
+  FAIL all section links on / -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /musefm
+  FAIL all section links on /musefm -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /episodes
+  FAIL all section links on /episodes -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /shorts
+  FAIL all section links on /shorts -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /shorts?series=musefm
+  FAIL all section links on /shorts?series=musefm -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /signal
+  FAIL all section links on /signal -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /links
+  FAIL all section links on /links -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /api/docs
+  FAIL all section links on /api/docs -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /pet
+  FAIL all section links on /pet -- ['/upload', '/arena', '/pro']
+  PASS sidebar on /shop
+  FAIL all section links on /shop -- ['/upload', '/arena', '/pro']
+== content-first DOM order ==
+  PASS sidebar after main content in DOM
+== active states ==
+  FAIL home highlights Forum
+  PASS musefm hub highlights MuseFM
+  PASS episodes highlights Episodes
+  PASS filtered shorts highlights Shorts
+== fullscreen shorts chrome hidden via CSS ==
+  PASS /shorts is shorts-mode
+  PASS /shorts?series=musefm is shorts-mode
+== mobile drawer wiring ==
+  PASS hamburger button
+  PASS scrim
+  PASS sidebar close button
+  PASS toggleSidebar defined
+  PASS Escape closes drawer
+== branding cleanup ==
+  PASS share-to-X says MuseFM (not MuseFM Town Square)
+  PASS no 'MuseFM Town Square' in base.html
+  PASS no 'Town Square' in base.html
+  FAIL forum section labeled 'Forum'
+  PASS footer show-page link labeled 'Show page'
+  PASS no 'brother' in 404.html
+  PASS no 'brother' in _brand.html
+  PASS no 'brother' in _post_media.html
+  PASS no 'brother' in _reactions.html
+  PASS no 'brother' in _short_card.html
+  PASS no 'brother' in _waveform.html
+  PASS no 'brother' in _wr_head.html
+  PASS no 'brother' in agent_profile.html
+  PASS no 'brother' in agents.html
+  PASS no 'brother' in asks.html
+  PASS no 'brother' in auth_consent.html
+  PASS no 'brother' in auth_error.html
+  PASS no 'brother' in bounties.html
+  PASS no 'brother' in bounty.html
+  PASS no 'brother' in closed_door.html
+  PASS no 'brother' in collab.html
+  PASS no 'brother' in community_episodes.html
+  PASS no 'brother' in data_deletion.html
+  PASS no 'brother' in dm.html
+  PASS no 'brother' in email_verified.html
+  PASS no 'brother' in facts.html
+  PASS no 'brother' in faq.html
+  PASS no 'brother' in guide.html
+  PASS no 'brother' in links.html
+  PASS no 'brother' in listed_on.html
+  PASS no 'brother' in listening_room.html
+  PASS no 'brother' in login.html
+  PASS no 'brother' in memory.html
+  PASS no 'brother' in mod_flags.html
+  PASS no 'brother' in mod_profiles.html
+  PASS no 'brother' in mod_uploads.html
+  PASS no 'brother' in notifications.html
+  PASS no 'brother' in passport.html
+  PASS no 'brother' in pet.html
+  PASS no 'brother' in pet_visit.html
+  PASS no 'brother' in photo.html
+  PASS no 'brother' in photo_upload.html
+  PASS no 'brother' in pond.html
+  PASS no 'brother' in privacy.html
+  PASS no 'brother' in profile.html
+  PASS no 'brother' in reefdex.html
+  PASS no 'brother' in resend_verification.html
+  PASS no 'brother' in row.html
+  PASS no 'brother' in row_journal.html
+  PASS no 'brother' in service.html
+  PASS no 'brother' in settings.html
+  PASS no 'brother' in shop.html
+  PASS no 'brother' in signal.html
+  PASS no 'brother' in signup.html
+  PASS no 'brother' in signup_success.html
+  PASS no 'brother' in support.html
+  PASS no 'brother' in swarm.html
+  PASS no 'brother' in swarm_journal.html
+  PASS no 'brother' in swarm_project.html
+  PASS no 'brother' in terms.html
+  PASS no 'brother' in tidepals.html
+  PASS no 'brother' in upload.html
+  PASS no 'brother' in verify_email.html
+  PASS no 'brother' in watch.html
+  PASS no 'brother' in welcome.html
+  PASS no 'brother' in workroom.html
+  PASS no 'brother' in workroom_invites.html
+  PASS no 'brother' in workroom_overview.html
+  PASS no 'brother' in workroom_pilot.html
+  PASS no 'brother' in workroom_pilot_task.html
+  PASS no 'brother' in workrooms.html
+  PASS no 'brother' in episodes.html
+  PASS no 'brother' in photos.html
+  PASS no 'brother' in submit.html
+  PASS no 'brother' in audio_upload.html
+  PASS no 'brother' in wall.html
+  PASS no 'brother' in musefm_shorts.html
+  PASS no 'brother' in post.html
+  PASS no 'brother' in episode_watch.html
+  PASS no 'brother' in games.html
+  PASS no 'brother' in profile_icons.html
+  PASS no 'brother' in _comments.html
+  PASS no 'brother' in base.html
+  PASS no 'brother' in community.html
+  PASS no 'brother' in docs.html
+  PASS no 'brother' in index.html
+  PASS no 'brother' in musefm.html
+  PASS no 'brother' in shorts.html
+  PASS no 'brother' in app.js
+  PASS old top nav gone
+== sidebar account block ==
+  FAIL signup for account-block test -- 400
+  FAIL login for account-block test -- 401
+  FAIL account block renders when logged in
+  FAIL account block sits above the nav groups
+  FAIL account block shows @handle
+  FAIL account block links the profile
+  FAIL account block links Settings
+  PASS topbar no longer carries the account chip
+  PASS topbar settings gear removed
+  FAIL Settings link highlights on /settings
+  PASS no account block when logged out
+  PASS logged-out topbar keeps Log in / Sign up
+
+114 passed, 20 failed

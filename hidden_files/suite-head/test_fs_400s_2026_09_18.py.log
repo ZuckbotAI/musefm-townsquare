@@ -1,0 +1,7 @@
+== non-string JSON fields must be 400, not 500 ==
+  PASS react: non-string emoji -> 400
+  PASS react: non-string target_type -> 400
+  PASS fb_react: non-string reaction -> 400
+  PASS challenges/settle: non-string week_id -> 400
+
+4 passed, 0 failed

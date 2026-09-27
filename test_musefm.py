@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Tests for the MuseFM media section: episode watch pages, the section hub,
-shorts feed (video/photo/audio cards), photos, FB reactions on
+shorts feed (video/photo/audio cards), photos, signal reactions on
 episode/video/photo targets, series filtering, and idempotent seeds.
 
 Run:  .venv/bin/python test_musefm.py
@@ -16,11 +16,18 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Legacy fb_reactions module lives outside this tree
+# (~/workspace/tidepal-wow-work). It is no longer wired into the app.
+# Media targets use the signals system now, so nothing imports it here.
+# Path kept for reference only; do not copy the module into the site tree.
+_FB_REACTIONS_DIR = os.path.expanduser("~/workspace/tidepal-wow-work")
+if _FB_REACTIONS_DIR not in sys.path:
+    sys.path.append(_FB_REACTIONS_DIR)
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import app as appmod
-import fb_reactions
+import signals
 import videos
 from db import ensure_musefm_media_schema
 from identity import signed_body
@@ -59,12 +66,15 @@ def setup():
     appmod.db = Database(TEST_DB)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup
     appmod.DATA_DIR = TEST_DATA
-    import gifs, ai_images
+    import gifs, ai_images, dm
     gifs.ensure_gif_schema(appmod.db)
     ai_images.ensure_ai_schema(appmod.db)
+    dm.ensure_dm_schema(appmod.db)  # mirrors app startup (dms table)
     videos.ensure_video_schema(appmod.db)
-    fb_reactions.ensure_fb_reactions_schema(appmod.db)
+    signals.ensure_signals_schema(appmod.db)  # mirrors app startup
     ensure_musefm_media_schema(appmod.db)
+    from db import ensure_bulletin_schema
+    ensure_bulletin_schema(appmod.db)  # mirrors app startup (In the Air page)
     appmod.db.ensure_musefm_seeds()
     appmod.app.config["TESTING"] = True
     return appmod.app.test_client()
@@ -92,7 +102,8 @@ def login_human(handle="MuseFmHuman", password="supersecret1"):
     """Sign up + log in a human on a fresh test client. Returns the client."""
     me = appmod.app.test_client()
     r = me.post("/signup", data={"handle": handle, "password": password,
-                                 "password_confirm": password},
+                                 "password_confirm": password,
+                                 "email": handle.lower() + "@test.local"},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = me.post("/login", data={"handle": handle, "password": password},
@@ -101,8 +112,8 @@ def login_human(handle="MuseFmHuman", password="supersecret1"):
     return me
 
 
-def fb_react(client, priv, fm_id, ttype, tid, reaction):
-    return client.post("/api/forum/fb_react", json=signed_body(
+def sig_react(client, priv, fm_id, ttype, tid, reaction):
+    return client.post("/api/signals/react", json=signed_body(
         priv, "fb_react", fm_id, target_type=ttype,
         target_id=tid, reaction=reaction), environ_base=fresh_ip())
 
@@ -137,7 +148,7 @@ def main():
     appmod.db.ensure_musefm_seeds()  # run again: must not duplicate
     n_posts2 = appmod.db._one(
         "SELECT COUNT(*) c FROM posts WHERE title LIKE '🎙️%'")["c"]
-    check("episode posts idempotent", n_posts == n_posts2 == 4, f"{n_posts}/{n_posts2}")
+    check("episode posts idempotent", n_posts == n_posts2 == 6, f"{n_posts}/{n_posts2}")
     check("photos idempotent", len(appmod.db.list_photos()) == 2)
 
     print("== section hub ==")
@@ -185,16 +196,23 @@ def main():
     r = client.get("/audio/ep04.mp3")
     check("/audio/ep04.mp3 200", r.status_code == 200, str(r.status_code))
 
-    print("== shorts feed ==")
+    print("== shorts feed (unified: /musefm/shorts redirects) ==")
     r = client.get("/musefm/shorts")
-    body = r.get_data(as_text=True)
-    check("/musefm/shorts 200", r.status_code == 200, str(r.status_code))
-    check("feed has photo cards", "short-photo" in body)
-    check("feed has audio cards", "short-play-audio" in body)
-    check("feed has reaction overlays", body.count('class="rxn') >= 3,
-          str(body.count('class="rxn')))
-    check("feed empty-state absent (photos+episodes seed it)",
-          "No MuseFM clips yet" not in body)
+    check("/musefm/shorts redirects to unified feed",
+          r.status_code in (301, 302)
+          and r.headers.get("Location", "").endswith("/shorts?series=musefm"),
+          "%s -> %s" % (r.status_code, r.headers.get("Location")))
+    r = client.get("/musefm/shorts?video=12")
+    check("deep-link preserved through redirect",
+          r.headers.get("Location", "").endswith(
+              "/shorts?series=musefm&video=12"),
+          r.headers.get("Location"))
+    body = client.get("/shorts?series=musefm").get_data(as_text=True)
+    check("unified feed 200 + filter pill active",
+          'class="shorts-filter is-active"' in body
+          and "MuseFM clips" in body)
+    check("empty feed shows empty state, not photos",
+          "No shorts yet" in body and "short-photo" not in body)
 
     print("== photos ==")
     r = client.get("/musefm/photos")
@@ -248,57 +266,58 @@ def main():
     print("== reactions on episode / video / photo ==")
     priv_a, fm_a = register(client, "ReactA")
     rid = appmod.db.episode_rowid("ep04")
-    r = fb_react(client, priv_a, fm_a, "episode", rid, "love")
+    r = sig_react(client, priv_a, fm_a, "episode", rid, "fire")
     d = r.get_json()
     check("react to episode -> added",
-          r.status_code == 200 and d["action"] == "added" and d["counts"] == {"love": 1},
+          r.status_code == 200 and d["action"] == "added" and d["counts"] == {"fire": 1},
           str(d))
-    r = fb_react(client, priv_a, fm_a, "episode", rid, "love")
+    r = sig_react(client, priv_a, fm_a, "episode", rid, "fire")
     check("same reaction removes", r.get_json()["action"] == "removed")
-    r = fb_react(client, priv_a, fm_a, "episode", 424242, "like")
+    r = sig_react(client, priv_a, fm_a, "episode", 424242, "lit")
     check("unknown episode rowid -> 400", r.status_code == 400, str(r.status_code))
     # video target
     uid, _stored = videos.create_video_upload(
         appmod.db, fm_a, "ReactA", "clip.mp4", MP4, TEST_DATA, duration_secs=30,
         status="approved")
     videos.set_series(appmod.db, uid, "musefm")
-    r = fb_react(client, priv_a, fm_a, "video", uid, "wow")
+    r = sig_react(client, priv_a, fm_a, "video", uid, "lit")
     check("react to video -> added", r.get_json()["action"] == "added",
           str(r.get_json()))
-    r = fb_react(client, priv_a, fm_a, "video", 424242, "like")
+    r = sig_react(client, priv_a, fm_a, "video", 424242, "lit")
     check("unknown video -> 400", r.status_code == 400, str(r.status_code))
     # photo target
-    r = fb_react(client, priv_a, fm_a, "photo", 1, "haha")
+    r = sig_react(client, priv_a, fm_a, "photo", 1, "kind")
     check("react to photo -> added", r.get_json()["action"] == "added",
           str(r.get_json()))
-    r = fb_react(client, priv_a, fm_a, "photo", 424242, "like")
+    r = sig_react(client, priv_a, fm_a, "photo", 424242, "lit")
     check("unknown photo -> 400", r.status_code == 400, str(r.status_code))
     # web route on an episode: anonymous -> 401 with sign-in URL ...
-    r = client.post("/fb_react", json={
-        "target_type": "episode", "target_id": rid, "reaction": "like",
+    r = client.post("/signals/react", json={
+        "target_type": "episode", "target_id": rid, "reaction": "lit",
         "handle": "WebFan", "next": "/episodes/ep04"}, environ_base=fresh_ip())
     d = r.get_json() or {}
-    check("anon web fb_react on episode -> 401",
+    check("anon web react on episode -> 401",
           r.status_code == 401 and "signin_url" in d, (r.status_code, d))
     # ... signed-in human -> 200 and stored under their identity
     fan = appmod.app.test_client()
     r = fan.post("/signup", data={"handle": "EpFan",
                                   "password": "supersecret1",
-                                  "password_confirm": "supersecret1"},
+                                  "password_confirm": "supersecret1",
+                                  "email": "epfan@test.local"},
                  environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = fan.post("/login", data={"handle": "EpFan", "password": "supersecret1"},
                  environ_base=fresh_ip())
     assert r.status_code == 302, r.get_data(as_text=True)
-    r = fan.post("/fb_react", json={
-        "target_type": "episode", "target_id": rid, "reaction": "like",
+    r = fan.post("/signals/react", json={
+        "target_type": "episode", "target_id": rid, "reaction": "lit",
         "handle": "RegImp", "next": "/episodes/ep04",
         "csrf_token": csrf_of(fan)}, environ_base=fresh_ip())
     d = r.get_json()
-    check("web fb_react on episode", r.status_code == 200 and d["ok"]
+    check("web react on episode", r.status_code == 200 and d["ok"]
           and d["total"] >= 1, str(d))
     # summaries span mixed types
-    sums = fb_reactions.fb_reaction_summaries(
+    sums = signals.reaction_summaries(
         appmod.db, [("episode", rid), ("video", uid), ("photo", 1)], "agent:x")
     check("mixed-type summaries",
           all(sums[k]["total"] >= 1 for k in sums), str({k: v["total"] for k, v in sums.items()}))
@@ -309,16 +328,21 @@ def main():
     check("/api/shorts?series=musefm lists the tagged clip",
           r.status_code == 200 and d["ok"] and any(
               it["id"] == uid for it in d["items"]), str(d))
-    check("api short items carry fb summaries",
-          all("fb" in it and "target_type" in it for it in d["items"]),
+    check("api short items carry signal summaries",
+          all("sig" in it and "target_type" in it for it in d["items"]),
           str(d["items"][:1]))
     r = client.get("/watch/%d" % uid)
     check("video watch page 200 + reactions",
           r.status_code == 200 and 'data-target-type="video"' in r.get_data(as_text=True),
           str(r.status_code))
     r = client.get("/musefm/shorts")
-    check("musefm shorts now includes the video card",
-          "/video/%d" % uid in r.get_data(as_text=True))
+    check("/musefm/shorts redirects to unified feed",
+          r.status_code in (301, 302)
+          and r.headers.get("Location", "").endswith("/shorts?series=musefm"),
+          "%s -> %s" % (r.status_code, r.headers.get("Location")))
+    body = client.get("/shorts?series=musefm").get_data(as_text=True)
+    check("unified musefm feed includes the video card",
+          "/video/%d" % uid in body)
 
     print("== api episode urls ==")
     r = client.get("/api/episodes")
@@ -381,8 +405,8 @@ def main():
                     environ_base=fresh_ip())
     check("signed photo publish 200", r.status_code == 200,
           r.get_data(as_text=True)[:200])
-    html = client.get("/musefm/shorts").get_data(as_text=True)
-    check("shorts shows agent video + handle",
+    html = client.get("/shorts?series=musefm").get_data(as_text=True)
+    check("unified shorts shows agent video + handle",
           "AgentE2E" in html and "AI-generated" in html)
     phtml = client.get("/musefm/photos").get_data(as_text=True)
     grid = phtml.find('<div class="photo-grid">')

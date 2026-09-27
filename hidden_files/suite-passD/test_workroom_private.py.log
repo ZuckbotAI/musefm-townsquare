@@ -1,0 +1,16 @@
+== schema / migration ==
+  PASS invites table exists
+  PASS knocks table exists
+  PASS legacy is_open=False migrates to closed
+  PASS legacy default is open
+  PASS bad visibility rejected
+== people ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_workroom_private.py", line 451, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_workroom_private.py", line 143, in main
+    signup(owner, "RoomOwner")
+  File "/home/hatch/workspace/musefm-redesign/site/test_workroom_private.py", line 65, in signup
+    assert r.status_code == 200, r.status_code
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400

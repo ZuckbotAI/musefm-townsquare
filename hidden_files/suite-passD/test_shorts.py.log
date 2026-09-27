@@ -1,0 +1,93 @@
+== validate_duration_secs ==
+  PASS None -> None
+  PASS blank -> None
+  PASS '45' -> 45
+  PASS int 45 -> 45
+  PASS boundary 1 ok
+  PASS boundary 86400 ok
+  PASS reject '0'
+  PASS reject '-5'
+  PASS reject '86401'
+  PASS reject 'abc'
+  PASS reject '4.5'
+  PASS reject '1e3'
+== legacy migration: duration_secs column ==
+  PASS legacy video_uploads gained duration_secs
+  PASS legacy row readable, duration NULL
+== signed upload with duration_secs ==
+  PASS upload with duration -> 200
+  PASS duration echoed
+  PASS duration persisted
+  PASS omitted duration -> 200 + NULL
+  PASS duration '0' -> 400
+  PASS duration '86401' -> 400
+  PASS duration 'abc' -> 400
+  PASS tampered duration_secs -> 401
+  PASS 300s upload -> 200
+== /api/shorts feed ==
+  PASS feed -> 200 ok
+  PASS shuffled feed contains every short
+  PASS 300s video excluded from shorts
+  PASS unknown duration counts as short
+  PASS item has urls + flags
+  PASS limit=1 returns one
+  PASS next_page cursor
+  PASS page=1 returns the next card, no repeat
+  PASS no next_page past the end
+  PASS legacy before pages newest-first
+  PASS legacy next_before cursor
+  PASS before=1 -> empty
+  PASS 180s exactly excluded (< 180 is short)
+== source linking: post + comment ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_shorts.py", line 449, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_shorts.py", line 255, in main
+    r = client.post("/api/forum/post", json=signed_body(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1167, in post
+    return self.open(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/testing.py", line 235, in open
+    response = super().open(
+               ^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1116, in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 988, in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1264, in run_wsgi_app
+    app_rv = app(environ, start_response)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1514, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/app.py", line 666, in wrapper
+    return fn(*a, **kw)
+           ^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/app.py", line 3321, in api_create_post
+    if db.is_banned_handle(g.author_handle):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/db.py", line 2650, in is_banned_handle
+    r = self._one("SELECT banned FROM identities"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/db.py", line 1037, in _one
+    return self.db.execute(sql, args).fetchone()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column: banned

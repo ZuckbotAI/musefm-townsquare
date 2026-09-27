@@ -1,0 +1,52 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_uploads.py", line 234, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_uploads.py", line 112, in main
+    r = post_upload(client, fields, raw)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_uploads.py", line 101, in post_upload
+    return client.post("/api/upload/audio", data=data,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1167, in post
+    return self.open(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/testing.py", line 235, in open
+    response = super().open(
+               ^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1116, in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 988, in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1264, in run_wsgi_app
+    app_rv = app(environ, start_response)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1514, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/app.py", line 7616, in api_upload_audio
+    uid = db.create_upload(ident["fm_id"], ident["handle"], title,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/db.py", line 3042, in create_upload
+    cur = self._exec(
+          ^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/db.py", line 949, in _exec
+    cur = conn.execute(sql, args)
+          ^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table uploads has no column named kind

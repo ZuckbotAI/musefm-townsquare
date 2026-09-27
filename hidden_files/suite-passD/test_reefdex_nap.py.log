@@ -1,0 +1,17 @@
+  PASS every species has a rarity
+  PASS every species has a job
+  PASS rarity tiers valid
+  PASS zorb is secret
+  PASS driplet common / gilt rare
+  PASS reefdex 200
+  PASS zorb hidden publicly
+  PASS catalog carries rarity+job
+  PASS adopt 200
+  FAIL discovery recorded
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_reefdex_nap.py", line 181, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_reefdex_nap.py", line 114, in main
+    by_key["driplet"]["discovered"])
+    ~~~~~~^^^^^^^^^^^
+KeyError: 'driplet'

@@ -777,6 +777,9 @@ DISPLAY_NAME_RE = re.compile(r"[A-Za-z0-9_.'\- ]{1,40}\Z")
 MENTION_RE = re.compile(r"@([A-Za-z0-9_]{3,20})")
 MAX_BIO = 500
 MAX_AVATAR_URL = 500
+# Site-served profile pictures (2026-09-26, Anthony): /avatars/<fm_id>.<ext>.
+# Strict shape so update_identity can allow them alongside http(s) URLs.
+AVATAR_PATH_RE = re.compile(r"/avatars/[A-Za-z0-9_\-]{1,64}\.(png|jpg|jpeg|webp)\Z")
 PIONEER_COUNT = 25  # first N registrants get the pioneer (founding member) badge
 
 # Handles positively identified as test/pipeline bot accounts (2026-09-23,
@@ -1171,7 +1174,8 @@ class Database:
     # -- posts ------------------------------------------------------------
     def create_post(self, community, handle, title, body, flair="discussion", seed=False,
                     gif_url="", image_url="", image_ai=False,
-                    video_url="", video_ai=False, is_entry_selfie=False):
+                    video_url="", video_ai=False, is_entry_selfie=False,
+                    bypass_filter=False):
         if not self.community(community):
             raise ValueError("unknown community")
         if not valid_handle(handle):
@@ -1188,7 +1192,7 @@ class Database:
         image_url = valid_image_url(image_url)
         from videos import valid_video_url  # deferred: same pattern
         video_url = valid_video_url(video_url)
-        if has_banned(title + " " + body):
+        if has_banned(title + " " + body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO posts (community, handle, title, body, flair, gif_url,"
@@ -1213,7 +1217,8 @@ class Database:
         r = self._one("SELECT * FROM comments WHERE id=?", (cid,))
         return dict(r) if r else None
 
-    def list_posts(self, community=None, sort="hot", limit=50, search=None):
+    def list_posts(self, community=None, sort="hot", limit=50, search=None,
+                 offset=0):
         sql = "SELECT * FROM posts"
         args = []
         clauses = []
@@ -1233,7 +1238,23 @@ class Database:
             rows.sort(key=lambda p: (p["score"], p["created_at"]), reverse=True)
         else:  # hot
             rows.sort(key=lambda p: hot_rank(p["score"], p["created_at"]), reverse=True)
-        return self._add_tiers(rows[:limit])
+        offset = max(0, int(offset or 0))
+        return self._add_tiers(rows[offset:offset + limit])
+
+    def count_posts(self, community=None, search=None):
+        sql = "SELECT COUNT(*) c FROM posts"
+        args = []
+        clauses = []
+        if community:
+            clauses.append("community=?")
+            args.append(community)
+        if search:
+            clauses.append("(title LIKE ? OR body LIKE ?)")
+            like = f"%{search}%"
+            args += [like, like]
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        return self._one(sql, args)["c"]
 
     def entry_selfies(self, limit=8):
         """Latest entry-selfie posts (is_entry_selfie=1), newest first.
@@ -1248,7 +1269,7 @@ class Database:
     # -- comments ---------------------------------------------------------
     def create_comment(self, post_id, parent_id, handle, body, seed=False,
                        image_url="", image_ai=False,
-                       video_url="", video_ai=False):
+                       video_url="", video_ai=False, bypass_filter=False):
         if not self.get_post(post_id):
             raise ValueError("unknown post")
         if parent_id:
@@ -1265,7 +1286,7 @@ class Database:
         image_url = valid_image_url(image_url)
         from videos import valid_video_url  # deferred: same pattern
         video_url = valid_video_url(video_url)
-        if has_banned(body):
+        if has_banned(body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO comments (post_id, parent_id, handle, body, image_url,"
@@ -1306,7 +1327,8 @@ class Database:
     # -- video comments --------------------------------------------------
     # Comments on Shorts videos (video_uploads rows). Same validation
     # shape as forum comments: handle, body length, town filter.
-    def create_video_comment(self, video_id, parent_id, handle, body):
+    def create_video_comment(self, video_id, parent_id, handle, body,
+                             bypass_filter=False):
         v = self._one("SELECT id FROM video_uploads WHERE id=?", (video_id,))
         if not v:
             raise ValueError("unknown video")
@@ -1326,7 +1348,7 @@ class Database:
         body = clean(body, 2000)
         if not body:
             raise ValueError("comment body required")
-        if has_banned(body):
+        if has_banned(body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO video_comments (video_id, parent_id, handle, body,"
@@ -1893,7 +1915,8 @@ class Database:
             "SELECT * FROM episode_comments WHERE episode_slug=? ORDER BY created_at",
             (slug,))]
 
-    def add_episode_comment(self, slug, handle, body, parent_id=None):
+    def add_episode_comment(self, slug, handle, body, parent_id=None,
+                            bypass_filter=False):
         self._ensure_episode_comment_cols()
         if not self.episode(slug):
             raise ValueError("unknown episode")
@@ -1913,7 +1936,7 @@ class Database:
         body = clean(body, 2000)
         if not body:
             raise ValueError("comment body required")
-        if has_banned(body):
+        if has_banned(body) and not bypass_filter:
             raise ValueError("content blocked by the town filter")
         cur = self._exec(
             "INSERT INTO episode_comments (episode_slug, parent_id, handle, body, created_at)"
@@ -2112,6 +2135,19 @@ class Database:
             "premiere_live": bool(started_at) and not ended_at,
         }
 
+    def live_rooms_for(self, fm_id):
+        """Rooms where this member has live presence right now (within the
+        presence TTL). Powers the profile "In the Air" card (2026-09-26)."""
+        t = now()
+        return [{
+            "id": r["room_id"], "title": r["title"],
+            "episode_slug": r["episode_slug"],
+        } for r in self._q(
+            "SELECT p.room_id, r.title, r.episode_slug FROM room_presence p "
+            "JOIN rooms r ON r.id=p.room_id "
+            "WHERE p.fm_id=? AND p.last_seen > ? ORDER BY p.last_seen DESC",
+            (fm_id, t - ROOM_PRESENCE_TTL))]
+
     def add_room_chat(self, room_id, fm_id, handle, body):
         raw = body or ""
         if len(raw) > ROOM_CHAT_MAXLEN:
@@ -2302,8 +2338,13 @@ class Database:
             args.append(kt)
         if avatar_url is not None:
             avatar_url = clean(avatar_url, MAX_AVATAR_URL, single_line=True)
-            if avatar_url and not avatar_url.startswith(("http://", "https://")):
-                raise ValueError("avatar_url must be http(s)")
+            # Profile picture uploads (2026-09-26, Anthony: members set
+            # their own picture): site-served avatars live under /avatars/
+            # with a strict filename shape. Remote avatars stay http(s).
+            if avatar_url and not (
+                    avatar_url.startswith(("http://", "https://")) or
+                    AVATAR_PATH_RE.fullmatch(avatar_url)):
+                raise ValueError("avatar_url must be http(s) or /avatars/<id>.<ext>")
             updates.append("avatar_url=?")
             args.append(avatar_url)
         if bio is not None:
@@ -2594,6 +2635,7 @@ class Database:
         return {
             "fm_id": ident["fm_id"],
             "handle": ident["handle"],
+            "display_name": ident.get("display_name") or "",
             "avatar_url": ident["avatar_url"],
             "bio": ident["bio"],
             "badges": [b for b in ident["badges"].split(",") if b],
@@ -2609,12 +2651,107 @@ class Database:
             "created_at": ident["created_at"],
             "post_count": posts,
             "comment_count": comments,
-            "signal": lifetime,
-            "tier": tier_for_points(lifetime),
+            # Overseer display override (2026-09-26, Anthony): when
+            # signal_override is set, the PROFILE shows it instead of the
+            # real lifetime points. The ledger itself is untouched, so
+            # spendable balances and tiers-of-record stay honest.
+            "signal": (ident.get("signal_override") or lifetime),
+            "tier": tier_for_points(ident.get("signal_override") or lifetime),
             "streak_days": self.activity_streak(fm_id),
             "spent": spent,
             "spendable": max(0, lifetime - spent),
         }
+
+    # -- overseer suite (2026-09-26, Anthony) ------------------------------
+    def is_overseer(self, handle):
+        """Case-insensitive overseer check for the suite's own logic."""
+        return ((handle or "").strip().lower()
+                == OVERSEER_HANDLE.lower())
+
+    def set_banned(self, fm_id, banned):
+        """Suspend (1) or reinstate (0) a member. Banned members cannot
+        post or comment via web or API."""
+        self._exec("UPDATE identities SET banned=? WHERE fm_id=?",
+                   (1 if banned else 0, fm_id))
+
+    def is_banned_handle(self, handle):
+        """Case-insensitive banned check."""
+        r = self._one("SELECT banned FROM identities"
+                      " WHERE handle=? COLLATE NOCASE", (handle,))
+        return bool(r and r["banned"])
+
+    def filter_words_list(self):
+        return [r["word"] for r in self.db.execute(
+            "SELECT word FROM filter_words ORDER BY word").fetchall()]
+
+    def add_filter_word(self, word):
+        word = (word or "").strip().lower()
+        if not word or len(word) > 40 or not re.fullmatch(r"[a-z0-9'_-]+", word):
+            raise ValueError("bad word")
+        self._exec("INSERT OR IGNORE INTO filter_words (word, added_at)"
+                   " VALUES (?, ?)", (word, int(time.time())))
+
+    def remove_filter_word(self, word):
+        self._exec("DELETE FROM filter_words WHERE word=?",
+                   ((word or "").strip().lower(),))
+
+    def filter_hit(self, s):
+        """True when s contains a mod-managed filter word (whole word,
+        case-insensitive). Complements the hardcoded has_banned()."""
+        words = self.filter_words_list()
+        if not words:
+            return False
+        return bool(re.search(
+            r"\b(?:" + "|".join(re.escape(w) for w in words) + r")\b",
+            s or "", re.IGNORECASE))
+
+    def delete_post(self, pid):
+        """Delete a post and its comments. Returns True when a post was
+        actually removed."""
+        self._exec("DELETE FROM comments WHERE post_id=?", (pid,))
+        cur = self._exec("DELETE FROM posts WHERE id=?", (pid,))
+        return cur.rowcount > 0
+
+    def delete_comment(self, cid):
+        cur = self._exec("DELETE FROM comments WHERE id=?", (cid,))
+        return cur.rowcount > 0
+
+    def banned_count(self):
+        """Number of suspended members."""
+        r = self._one("SELECT COUNT(*) c FROM identities WHERE banned=1")
+        return r["c"] if r else 0
+
+    def member_list(self, search="", limit=50, offset=0):
+        """Paginated member directory for the overseer dashboard, newest
+        first. Includes post/comment counts and ban state."""
+        q = ("SELECT i.fm_id, i.handle, i.created_at, i.banned,"
+             " i.signal_override,"
+             " (i.password_hash IS NOT NULL AND i.password_hash != '') AS is_human,"
+             " (SELECT COUNT(*) FROM posts p WHERE p.handle = i.handle"
+             "  COLLATE NOCASE) AS posts,"
+             " (SELECT COUNT(*) FROM comments c WHERE c.handle = i.handle"
+             "  COLLATE NOCASE) AS comments"
+             " FROM identities i")
+        args = []
+        if search:
+            q += " WHERE i.handle LIKE ? COLLATE NOCASE"
+            args.append("%" + search.strip() + "%")
+        q += " ORDER BY i.created_at DESC LIMIT ? OFFSET ?"
+        args += [limit, offset]
+        return [dict(r) for r in self.db.execute(q, args).fetchall()]
+
+    def recent_posts_for_mod(self, limit=20):
+        return [dict(r) for r in self.db.execute(
+            "SELECT id, community, handle, title,"
+            " substr(body, 1, 160) AS excerpt, created_at"
+            " FROM posts ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+
+    def recent_comments_for_mod(self, limit=20):
+        return [dict(r) for r in self.db.execute(
+            "SELECT c.id, c.post_id, c.handle, substr(c.body, 1, 160) AS excerpt,"
+            " c.created_at, p.community"
+            " FROM comments c LEFT JOIN posts p ON p.id = c.post_id"
+            " ORDER BY c.id DESC LIMIT ?", (limit,)).fetchall()]
 
     # -- nonce replay protection ------------------------------------------
     def note_nonce(self, nonce, ttl_sec=86400):
@@ -3327,7 +3464,8 @@ class Database:
 
     # -- muse audio uploads -----------------------------------------------
     def create_upload(self, fm_id, handle, title, description, filename,
-                      stored_path, nbytes, mime, duration_sec, attestation):
+                      stored_path, nbytes, mime, duration_sec, attestation,
+                      kind="music"):
         check_upload_allowed(handle)
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
@@ -3339,26 +3477,65 @@ class Database:
             raise ValueError("mime must be audio/* (mp3, wav, ogg, m4a)")
         if nbytes > MAX_UPLOAD_BYTES:
             raise ValueError("file too big (max 25 MB)")
+        kind = (kind or "music").strip().lower()
+        if kind not in ("music", "podcast"):
+            raise ValueError("kind must be music or podcast")
         cur = self._exec(
             "INSERT INTO uploads (fm_id, handle, title, description, filename,"
-            " stored_path, bytes, mime, duration_sec, attestation, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " stored_path, bytes, mime, duration_sec, attestation, kind,"
+            " created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (fm_id, handle, title, description, clean(filename, 200, single_line=True),
-             stored_path, nbytes, mime, duration_sec, attestation, now()))
+             stored_path, nbytes, mime, duration_sec, attestation, kind, now()))
         return cur.lastrowid
 
     def get_upload(self, uid):
         r = self._one("SELECT * FROM uploads WHERE id=?", (uid,))
         return dict(r) if r else None
 
-    def list_uploads(self, fm_id=None, limit=25):
+    def list_uploads(self, fm_id=None, limit=25, kind=None):
+        # D4 (2026-09-26): avatar_url via identities, same as list_posts.
+        q = ("SELECT uploads.*, i.avatar_url AS avatar_url FROM uploads"
+             " LEFT JOIN identities i ON i.handle = uploads.handle")
+        args = []
+        clauses = []
         if fm_id:
-            rows = self._q("SELECT * FROM uploads WHERE fm_id=?"
-                           " ORDER BY created_at DESC LIMIT ?", (fm_id, limit))
-        else:
-            rows = self._q("SELECT * FROM uploads ORDER BY created_at DESC LIMIT ?",
-                           (limit,))
+            clauses.append("fm_id=?")
+            args.append(fm_id)
+        if kind in ("music", "podcast"):
+            clauses.append("kind=?")
+            args.append(kind)
+        if clauses:
+            q += " WHERE " + " AND ".join(clauses)
+        q += " ORDER BY created_at DESC LIMIT ?"
+        args.append(limit)
+        rows = self._q(q, tuple(args))
         return [dict(r) for r in rows]
+
+    # -- bulletin board (Maker's Row village + the Wall page) ---------------
+    def bulletin_post(self, fm_id, handle, text):
+        """Pin a message on the bulletin board. Returns the message dict.
+        Validation (1..280 chars) happens before any caller burns a nonce."""
+        text = (text or "").strip()
+        if not (1 <= len(text) <= 280):
+            raise ValueError("bulletin text must be 1..280 chars")
+        ts = now()
+        cur = self._exec(
+            "INSERT INTO bulletin (fm_id, handle, text, created_at)"
+            " VALUES (?,?,?,?)",
+            (fm_id, handle, text, ts))
+        return {"id": cur.lastrowid, "agent": handle, "text": text, "ts": ts}
+
+    def bulletin_latest(self, limit=12):
+        """Newest bulletin messages as [{id, agent, text, ts}]. The village
+        bundle polls /api/bulletin for these; the Wall page renders them."""
+        rows = self._q(
+            "SELECT b.id, b.handle, b.text, b.created_at, i.avatar_url"
+            " FROM bulletin b LEFT JOIN identities i ON i.handle = b.handle"
+            " ORDER BY b.created_at DESC, b.id DESC LIMIT ?", (limit,))
+        return [{"id": r["id"], "agent": r["handle"], "text": r["text"],
+                 "ts": r["created_at"],
+                 "avatar_url": r["avatar_url"] or ""} for r in rows]
 
     def upload_count(self):
         return self._one("SELECT COUNT(*) c FROM uploads")["c"]
@@ -3397,7 +3574,11 @@ class Database:
                        " WHERE created_at >= ? GROUP BY community", (day_start,))
         return {r["community"]: r["c"] for r in rows}
 
-    def member_count(self):
+    def member_count(self, search=""):
+        if search:
+            return self._one("SELECT COUNT(*) c FROM identities"
+                             " WHERE handle LIKE ? COLLATE NOCASE",
+                             ("%" + search.strip() + "%",))["c"]
         return self._one("SELECT COUNT(*) c FROM identities")["c"]
 
     def fresh_faces(self, limit=10):
@@ -3409,6 +3590,25 @@ class Database:
             d["badges"] = [b for b in d["badges"].split(",") if b]
             out.append(d)
         return out
+
+    def newest_posting_members(self, limit=6):
+        """Newest identities with at least one forum post, for the homepage
+        'New members' rail widget (2026-09-26, Anthony). Ordered by signup
+        time, newest first. Bot/test/pipeline accounts excluded from the
+        render; the identities themselves are untouched."""
+        blocked = sorted(FOUNDING_PANEL_BOT_BLOCKLIST)
+        placeholders = ",".join("?" for _ in blocked)
+        rows = self._q("SELECT i.fm_id, i.handle, i.avatar_url,"
+                       " i.display_name, i.created_at,"
+                       " (SELECT COUNT(*) FROM posts p"
+                       "  WHERE p.handle = i.handle) AS post_count"
+                       " FROM identities i"
+                       " WHERE lower(i.handle) NOT IN (" + placeholders + ")"
+                       " AND EXISTS (SELECT 1 FROM posts p"
+                       "             WHERE p.handle = i.handle)"
+                       " ORDER BY i.created_at DESC LIMIT ?",
+                       tuple(blocked) + (limit,))
+        return [dict(r) for r in rows]
 
     def founding_members(self, limit=25):
         """Earliest identities holding the pioneer (founding member) badge,
@@ -3427,6 +3627,26 @@ class Database:
             d["badges"] = [b for b in d["badges"].split(",") if b]
             out.append(d)
         return out
+
+    def online_now(self, minutes=15, limit=8):
+        """Handles with rewarded activity in the last `minutes` minutes —
+        for the forum 'Online now' sidebar card. Empty list when quiet."""
+        rows = self._q(
+            "SELECT i.handle FROM identity_activity a"
+            " JOIN identities i ON i.fm_id = a.fm_id"
+            " WHERE a.last_active > strftime('%s','now') - ?"
+            " ORDER BY a.last_active DESC LIMIT ?",
+            (minutes * 60, limit))
+        return [r["handle"] for r in rows]
+
+    def episodes_commented_by(self, handle, limit=12):
+        """Episodes a handle has commented on — real engagement data for profile tabs."""
+        return [dict(r) for r in self._q(
+            "SELECT e.slug, e.title, e.series, e.published,"
+            " COUNT(ec.id) AS n, MAX(ec.created_at) AS last_at"
+            " FROM episode_comments ec JOIN episodes e ON e.slug = ec.episode_slug"
+            " WHERE ec.handle = ? GROUP BY e.slug"
+            " ORDER BY last_at DESC LIMIT ?", (handle, limit))]
 
     # -- tier enrichment --------------------------------------------------
     def _add_tiers(self, posts):
@@ -3668,6 +3888,29 @@ def ensure_musefm_media_schema(db):
         # existed stays visible; new uploads set their own status explicitly.
         db.db.execute(
             "ALTER TABLE photos ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'")
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(uploads)")]
+    if "kind" not in cols:
+        # 'music' = track/song, 'podcast' = episode/talk. Pre-migration
+        # uploads read as music; the audio page tags new uploads explicitly.
+        db.db.execute(
+            "ALTER TABLE uploads ADD COLUMN kind TEXT NOT NULL DEFAULT 'music'")
+    db.db.commit()
+
+
+def ensure_bulletin_schema(db):
+    """Additive only: the bulletin board table (2026-09-25). The Maker's Row
+    village polls /api/bulletin and the Wall page reads/writes the same
+    table, so the 3D cork board and the 2D wall never drift apart.
+    Safe on fresh and existing DBs; never touches data."""
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS bulletin ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  fm_id TEXT,"
+        "  handle TEXT NOT NULL,"
+        "  text TEXT NOT NULL,"
+        "  created_at INTEGER NOT NULL"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_bulletin_time ON bulletin(created_at DESC);")
     db.db.commit()
 
 
@@ -3835,6 +4078,42 @@ def ensure_entry_selfie_schema(db):
     db.db.commit()
 
 
+def ensure_profile_icon_schema(db):
+    """Additive only: per-user profile icon picks (2026-09-25, Anthony).
+    Icons are collectible profile-top tiles, selected by the user from the
+    icon catalog. Never called "badges"; the existing badges/people-tag
+    system is untouched. Safe on fresh and existing DBs; never touches
+    data."""
+    db.db.execute(
+        "CREATE TABLE IF NOT EXISTS profile_icon_picks ("
+        " fm_id TEXT PRIMARY KEY,"
+        " icons TEXT NOT NULL DEFAULT '',"
+        " updated_at TEXT NOT NULL DEFAULT '')")
+    db.db.commit()
+
+
+def get_icon_picks(db, fm_id):
+    """Ordered list of icon ids the user shows on their profile top."""
+    row = db.db.execute(
+        "SELECT icons FROM profile_icon_picks WHERE fm_id=?",
+        (fm_id,)).fetchone()
+    if not row or not row["icons"]:
+        return []
+    return [i for i in row["icons"].split(",") if i]
+
+
+def set_icon_picks(db, fm_id, icon_ids):
+    """Replace the user's profile icon picks (validated ids, max 8 shown)."""
+    clean = [i for i in icon_ids if i][:8]
+    db.db.execute(
+        "INSERT INTO profile_icon_picks (fm_id, icons, updated_at)"
+        " VALUES (?, ?, datetime('now'))"
+        " ON CONFLICT(fm_id) DO UPDATE SET icons=excluded.icons,"
+        " updated_at=excluded.updated_at",
+        (fm_id, ",".join(clean)))
+    db.db.commit()
+
+
 def ensure_mailing_list_schema(db):
     """Additive only: mailing_list table for the optional email alerts list
     (2026-09-26, Anthony). Newsletter-form signups arrive as
@@ -3869,6 +4148,44 @@ def ensure_mailing_list_schema(db):
         " WHERE email != '' AND email_verified = 1"
         " AND lower(email) NOT IN (SELECT email FROM mailing_list)",
         (now, now))
+    db.db.commit()
+
+
+# --- overseer suite (2026-09-26, Anthony) --------------------------------
+# Full moderation controls on Anthony's profile: member list, ban/unban,
+# post/comment deletion, mod-managed filter words, his auto-approved
+# comments, and his display Signal score. The overseer handle check is
+# case-insensitive; the gate itself reuses app._is_mod_handle (whose
+# default is this same handle).
+OVERSEER_HANDLE = os.environ.get("OVERSEER_HANDLE", "AMRADIOverse")
+OVERSEER_SIGNAL = 3836384635  # Anthony's display Signal score (his call)
+
+
+def ensure_overseer_schema(db):
+    """Additive only: overseer suite storage (2026-09-26, Anthony).
+    - identities.signal_override: display override for the Signal score.
+      Anthony's row is set to OVERSEER_SIGNAL; the real points ledger is
+      untouched, so spendable balances and the shop economy are unaffected.
+    - identities.banned: 1 = suspended, cannot post or comment.
+    - filter_words: mod-managed extra banned words (beyond BANNED_WORDS).
+    Safe on fresh and existing DBs; the signal backfill is idempotent."""
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(identities)")]
+    if "signal_override" not in cols:
+        db.db.execute(
+            "ALTER TABLE identities"
+            " ADD COLUMN signal_override INTEGER NOT NULL DEFAULT 0")
+    if "banned" not in cols:
+        db.db.execute(
+            "ALTER TABLE identities ADD COLUMN banned INTEGER NOT NULL DEFAULT 0")
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS filter_words ("
+        "  word TEXT PRIMARY KEY,"
+        "  added_at INTEGER NOT NULL"
+        ");")
+    db.db.execute(
+        "UPDATE identities SET signal_override=?"
+        " WHERE handle=? COLLATE NOCASE AND signal_override != ?",
+        (OVERSEER_SIGNAL, OVERSEER_HANDLE, OVERSEER_SIGNAL))
     db.db.commit()
 
 

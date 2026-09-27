@@ -1,0 +1,118 @@
+test_audio_delete_2026_09_18.py	1	0	0	1	
+test_auth.py	1	0	0	1	
+test_asks.py	1	0	0	1	
+test_bond_loop.py	1	0	0	1	
+test_bugfix_clean_title_2026_09_19.py	0	8	0	0	
+test_bond_v2.py	0	0	0	0	
+test_bounties.py	0	73	0	0	
+test_bugfix_csrf_2026_09_19.py	1	0	0	1	
+test_bugfix_open_redirects_2026_09_19.py	1	20	0	1	
+test_ai_images.py	1	45	1	1	sha256 mismatch -> 401|
+test_brand.py	1	26	1	0	svg favicon linked in head|
+test_bugfix_nonce_ratelimit_2026_09_19.py	0	0	0	0	
+test_bugfix_form_ratelimit_burn_2026_09_20.py	1	1	1	1	valid signup after 5 invalid ones is NOT rate-limited|
+test_bugfix_sqlite_contention_2026_09_19.py	0	8	0	0	
+test_bugfix_validate_before_limit_2026_09_19.py	0	0	0	0	
+test_community_episodes.py	0	15	0	0	
+test_agent_memory.py	0	37	0	0	
+test_collab.py	0	59	0	0	
+test_comments_pro.py	1	0	0	1	
+test_bugfix_redirects_2026_09_19.py	0	0	0	0	
+test_episode_comments_2026_09_18.py	0	22	0	0	
+test_episode_ordering.py	0	0	0	0	
+test_duets.py	0	53	0	0	
+test_expansion.py	0	53	0	0	
+test_dm_2026_09_24.py	0	0	0	0	
+test_clip_delete_2026_09_23.py	0	18	0	0	
+test_dm_human_access_2026_09_25.py	0	0	0	0	
+test_fs_400s_2026_09_18.py	0	4	0	0	
+test_events.py	0	48	0	0	
+test_identity.py	1	30	0	1	
+test_linking.py	1	1	0	1	
+test_gifs.py	1	39	1	1	sha256 mismatch -> 401|
+test_identity_key_rotation.py	0	12	0	0	
+test_kind_tags.py	1	14	0	1	
+test_human_usability.py	1	16	7	1	valid signup -> 200|duplicate handle rejected|login -> 302|session cookie carries a 30-day expiry|session cookie is HttpOnly + SameSite=Lax|session survives a later request (GET /submit 200)|header shows signed-in handle chip|
+test_memory.py	1	76	1	1	signed write -> 201|
+test_listening_rooms_2026_09_21.py	2	0	0	0	
+test_mod_approval.py	1	7	0	1	
+test_drift_adopt.py	0	31	0	0	
+test_mod_notifications.py	1	0	0	1	
+test_links.py	1	15	12	0	/links cards link to /arena|/links cards link to /pro|/links mentions bookmark line|/arena is 200|/arena has a Launch button|/pro is 200|/pro has a Launch button|/pro links back to /links|
+test_musefm.py	1	0	0	1	
+test_onboard_starter_skills.py	1	0	2	1	response has skills key|5 curated skills granted|
+test_orb_snap.py	1	39	1	0	hero sits at ~96px|
+test_notifications.py	1	1	0	1	
+test_openmic.py	1	0	0	1	
+test_onboard.py	1	2	0	1	
+test_p1_2026_09_18.py	1	20	2	1	different proxy-supplied IP keeps its own bucket|init_db creates table fb_reactions|
+test_onboard_life.py	1	5	0	1	
+test_p1_csrf_human_handle_2026_09_18.py	1	0	0	1	
+test_pet_onboarding.py	1	13	0	1	
+test_pet_fusion.py	0	21	0	0	
+test_photo_nav_2026_09_23.py	0	14	0	0	
+test_pet_presence.py	0	24	0	0	
+test_reefdex_nap.py	1	9	1	1	discovery recorded|
+test_pet_ownership.py	0	21	0	0	
+test_self_heal.py	0	0	0	0	
+test_row.py	0	0	0	0	
+test_rewards.py	1	49	0	1	
+test_pets.py	1	101	1	0	API lookup unknown handle 404|
+test_shop_idem_retry.py	0	4	0	0	
+test_row_player.py	0	40	0	0	
+test_shop.py	0	89	0	0	
+test_shorts.py	1	57	0	1	
+test_shorts_shuffle.py	1	0	0	1	
+test_shorts_seen_rotation.py	1	12	6	0	load3 leads with the last unseen clips|load3 tail fills only from already-seen|loads 1-3 cover the pool exactly once|home mints a seed|strip + mini-scroll page1: no dupes|unseen lead, seen fill the tail|
+test_signals.py	1	34	0	1	
+test_shop_proxy.py	0	24	0	0	
+test_testerloop_1835_fixes_2026_09_19.py	1	4	0	1	
+test_testerloop_1535_p2s_2026_09_23.py	1	2	6	0	unauth bare POST /signals/react -> 401 (not 302 redirect)|302 preserves original path in next param|/api/forum/posts?limit=-1 -> 400 or clamped (not silent 200)|/api/forum/posts?limit=0 -> 400 or clamped (not silent 200)|/api/forum/posts?limit=abc -> 400 or clamped (not silent 200)|/api/forum/posts?limit=999999999 -> 400 or clamped (not silent 200)|
+test_sso_provider_2026_09_21.py	1	12	8	1	signup creates account|login works|consent page 200|consent names the site + handle|consent carries CSRF token|deny -> 302 with error=access_denied|approve -> 302 with code + state|redirect stays on the registered URI|
+test_sidebar.py	1	113	21	0	all section links on /|all section links on /musefm|all section links on /episodes|all section links on /shorts|all section links on /musefm/shorts|all section links on /signal|all section links on /links|all section links on /api/docs|
+test_testerloop_0046_p2s_2026_09_20.py	1	0	0	1	
+test_swarm.py	0	71	0	0	
+test_testerloop_1835_flood_wall_2026_09_20.py	1	12	4	0	flood wall -> <details class=flood-wall>|flood wall -> char count in summary|40-run collapses|mixed -> details present|
+test_testerloop_bio_truncate_2026_09_22.py	1	0	0	1	
+test_testerloop_empty_sig_2026_09_24.py	0	0	0	0	
+test_testerloop_episode_comment_redirect_2026_09_22.py	1	0	0	1	
+test_testerloop_1835_p2s_2026_09_23.py	1	3	2	0	recorded filename matches detected bytes (not .svg)|vote without value -> 400|
+test_testerloop_comment_edit_truncate_2026_09_21.py	1	0	0	1	
+test_testerloop_error_messages_2026_09_22.py	1	4	2	0	missing-signature error says 'missing signature'|react missing-target_id error names 'target_id'|
+test_testerloop_logincsrf_2026_09_21.py	1	0	2	1	P2-1: /signup page renders a CSRF token|P2-2: POST /signup without token is rejected (403)|
+test_testerloop_newline_preserve_2026_09_19.py	0	0	0	0	
+test_testerloop_multipart_bool_2026_09_19.py	0	0	0	0	
+test_testerloop_flag_messages_2026_09_19.py	1	0	0	1	
+test_testerloop_p2_2026_09_21.py	0	12	0	0	
+test_testerloop_2135_p2s_2026_09_23.py	1	0	0	1	
+test_testerloop_json_notype_400_2026_09_23.py	0	5	0	0	
+test_testerloop_p2_2026_09_21_b.py	0	6	0	0	
+test_testerloop_passport_envelope_2026_09_23.py	1	6	1	0	passport body carries the documented ok envelope|
+test_testerloop_rawint_exn_2026_09_22.py	1	3	3	0	/api/workroom/tasks error is not a raw Python exception string|/api/swarm/snapshot error is not a raw Python exception string|/api/swarm/journal error is not a raw Python exception string|
+test_testerloop_logout_csrf_2026_09_24.py	1	0	0	1	
+test_testerloop_platformkey_envelope_2026_09_22.py	1	3	1	0	platform-key body carries the documented ok envelope|
+test_testerloop_ratelimit_before_validate_2026_09_20.py	1	3	2	0	valid signed workroom_create not rate-limited by junk|valid signed workroom_create succeeds|
+test_testerloop_post_body_limit_2026_09_20.py	1	2	0	1	
+test_testerloop_search_q_500_2026_09_24.py	0	0	0	0	
+test_testerloop_sig_missing_2026_09_24.py	0	0	0	0	
+test_testerloop_xff_direct_2026_09_22.py	0	4	0	0	
+test_testerloop_react_login_budget_burn_2026_09_24.py	0	4	0	0	
+test_tidepal_depth.py	0	99	0	0	
+test_tidepal_social.py	0	68	0	0	
+test_tidepal_homepage.py	1	2	1	0	pet-promo section present|
+test_tidepal_social_routes.py	1	26	2	0	showcase 200 301|showcase lists pets <!doctype html>|
+test_tidepal_world.py	1	101	0	1	
+test_upload_atomic_2026_09_23.py	0	10	0	0	
+test_upload_audio_mimetype_2026_09_18.py	1	0	0	1	
+test_trustline_bridge.py	0	23	0	0	
+test_triage_route.py	0	19	0	0	
+test_ui_fixes_2026_09_18.py	1	0	0	1	
+test_uploads.py	1	0	0	1	
+test_video_comments.py	1	2	0	1	
+test_vote_stress.py	0	9	0	0	
+test_workroom_bridge.py	1	0	0	1	
+test_workroom_private.py	1	5	0	1	
+test_video.py	1	57	1	1	sha256 mismatch -> 401|
+test_workroom_pilot.py	1	50	5	0	human signup ok — 400|human login redirects — 401|session cookie auth works (no bearer) — {"error":"pilot auth required: Bearer key or login session","ok":false}|human web create -> 302 to detail — 302 /login?next=/workroom/pilot/tasks|bad csrf -> back to queue with flash — 302|
+test_workroom.py	1	17	2	1	human signup 200 — 400|human login redirects — 401|
+test_workroom_agent_loop.py	0	5	0	0	

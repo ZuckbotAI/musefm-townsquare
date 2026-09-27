@@ -1,0 +1,5 @@
+PASS multipart bool verifies
+PASS json bool control
+
+0 all passed
+FAILURES: []

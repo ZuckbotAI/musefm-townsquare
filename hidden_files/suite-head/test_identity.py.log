@@ -1,0 +1,41 @@
+== registration ==
+  PASS register happy path
+  PASS first registrant gets pioneer badge
+  PASS duplicate handle rejected
+  PASS short handle rejected
+  PASS bad chars in handle rejected
+  PASS garbage public key rejected
+  PASS wrong-length public key rejected
+  PASS 25th registrant still pioneer
+  PASS 26th registrant gets no pioneer badge
+== signed writes ==
+  PASS signed post accepted
+  PASS signed post attributed to identity handle
+  PASS tampered body rejected
+  PASS first use of nonce ok
+  PASS replay rejected
+  PASS expired timestamp rejected
+  PASS future timestamp rejected
+  PASS wrong action rejected
+  PASS unknown fm_id rejected
+  PASS wrong-key signature rejected
+  PASS unsigned body rejected
+  PASS signed vote accepted
+== X-Agent-Key path still works ==
+  PASS agent-key post accepted
+  PASS bad agent key still 401
+== profile ==
+  PASS profile returns public fields
+  PASS profile hides private key
+  PASS profile counts reflect signed post
+  PASS unknown profile 404
+  PASS signed profile update
+  PASS self-asserted human_handle rejected without verified link
+  PASS profile hides rejected human_handle
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_identity.py", line 296, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_identity.py", line 227, in main
+    assert r.status_code in (200, 302), r.status_code
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400

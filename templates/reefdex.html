@@ -1,64 +1,71 @@
 {% extends "base.html" %}
-{% block title %}Reefdex — MuseFM{% endblock %}
-{% block og_title %}Reefdex — the Pet collection journal{% endblock %}
+{% block title %}Reefdex | MuseFM{% endblock %}
+{% block og_title %}Reefdex, the Pet collection journal{% endblock %}
 {% block og_desc %}Every Pet species, its rarity tier, its little job, and how to unlock it. Discover them all.{% endblock %}
 {% block head %}
 <style>
-.reefdex-hero { text-align:center; padding:2rem 1rem 1rem; }
-.reefdex-hero h1 { margin:.4rem 0; }
-.reefdex-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-  gap:1rem; padding:1rem; max-width:1100px; margin:0 auto; }
-.reefdex-card { background:rgba(255,255,255,.72); border:1px solid rgba(0,144,231,.18);
-  border-radius:18px; padding:1rem; backdrop-filter:blur(10px); }
-.reefdex-card h3 { margin:.2rem 0; }
-.reefdex-card .kind { color:#3d6a8f; font-size:.85rem; }
-.reefdex-card .tagline { font-style:italic; color:#3d6a8f; font-size:.9rem; }
-.reefdex-tier { display:inline-block; font-size:.75rem; font-weight:700;
-  border-radius:999px; padding:.15rem .6rem; margin:.3rem .2rem .3rem 0; }
-.tier-common { background:#e3f2e3; color:#2e7d32; }
-.tier-uncommon { background:#e3f0ff; color:#1565c0; }
-.tier-rare { background:#f3e5f5; color:#7b1fa2; }
-.tier-epic { background:#fff3e0; color:#e65100; }
-.tier-secret { background:#eceff1; color:#455a64; }
-.reefdex-job { font-size:.85rem; margin-top:.4rem; }
-.reefdex-unlock { font-size:.8rem; color:#5b7a94; margin-top:.4rem; }
-.reefdex-found { font-size:.8rem; margin-top:.4rem; font-weight:700; }
-.found-yes { color:#2e7d32; } .found-no { color:#90a4ae; }
-.reefdex-sec { max-width:1100px; margin:1.5rem auto 0; padding:0 1rem; }
+.pg-reef .reefdex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem; padding: 1rem; max-width: 1100px; margin: 0 auto; }
+.pg-reef .reefdex-card { padding: 1.1rem 1.2rem; }
+.pg-reef .reefdex-card h3 { margin: .4rem 0 .15rem; }
+.pg-reef .reefdex-card .kind { color: var(--rz-ink2); font-size: .85rem; }
+.pg-reef .reefdex-card .tagline { font-style: italic; color: var(--rz-ink2); font-size: .9rem; margin-top: .25rem; }
+.pg-reef .reefdex-tier { display: inline-block; font-size: .72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .05em; border-radius: 999px; padding: .2rem .65rem; }
+.pg-reef .tier-common { background: #e3f2e3; color: #2e7d32; }
+.pg-reef .tier-uncommon { background: #e3f0ff; color: #1565c0; }
+.pg-reef .tier-rare { background: #f3e5f5; color: #7b1fa2; }
+.pg-reef .tier-epic { background: #fff3e0; color: #e65100; }
+.pg-reef .tier-secret { background: #eceff1; color: #455a64; }
+[data-theme="dark"] .pg-reef .tier-common { background: rgba(46,125,50,.28); color: #a5d6a7; }
+[data-theme="dark"] .pg-reef .tier-uncommon { background: rgba(21,101,192,.3); color: #90caf9; }
+[data-theme="dark"] .pg-reef .tier-rare { background: rgba(123,31,162,.3); color: #ce93d8; }
+[data-theme="dark"] .pg-reef .tier-epic { background: rgba(230,81,0,.28); color: #ffcc80; }
+[data-theme="dark"] .pg-reef .tier-secret { background: rgba(69,90,100,.4); color: #b0bec5; }
+.pg-reef .reefdex-job { font-size: .85rem; margin-top: .5rem; }
+.pg-reef .reefdex-unlock { font-size: .8rem; color: var(--rz-ink2); margin-top: .4rem; }
+.pg-reef .reefdex-found { font-size: .8rem; margin-top: .5rem; font-weight: 700; }
+.pg-reef .found-yes { color: #2e7d32; }
+.pg-reef .found-no { color: var(--rz-ink3); }
+[data-theme="dark"] .pg-reef .found-yes { color: #a5d6a7; }
+.pg-reef .reefdex-sec { max-width: 1100px; margin: 1.5rem auto 0; padding: 0 1rem; }
+.pg-reef .reefdex-sec h2 { text-transform: capitalize; font-size: 1.25rem; letter-spacing: -0.01em; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="reefdex-hero">
-  <div style="font-size:3rem">📖</div>
-  <h1>Reefdex</h1>
-  <p>The Pet collection journal. Every species, its rarity tier, its
-  little job around the room, and how to unlock it. Adopt a species and
-  it's stamped into your journal forever.</p>
-</div>
-
-{% for tier in rarity_order %}
-{% set cards = species|selectattr("rarity","equalto",tier)|list %}
-{% if cards %}
-<div class="reefdex-sec"><h2 style="text-transform:capitalize">
-  {% if tier == 'common' %}💧{% elif tier == 'uncommon' %}🌊{% elif tier == 'rare' %}✨{% elif tier == 'epic' %}👑{% else %}🕵️{% endif %}
-  {{ tier }} ({{ cards|length }})</h2></div>
-<div class="reefdex-grid">
-{% for s in cards %}
-  <div class="reefdex-card">
-    <span class="reefdex-tier tier-{{ s.rarity }}">{{ s.rarity }}</span>
-    <h3>{{ s.name }}</h3>
-    <div class="kind">{{ s.kind }}</div>
-    <div class="tagline">“{{ s.tagline }}”</div>
-    <div class="reefdex-job">🔨 <b>{{ s.job.name }}</b></div>
-    {% if s.unlock_condition %}
-    <div class="reefdex-unlock">🔒 {{ s.unlock_condition }}</div>
-    {% endif %}
-    <div class="reefdex-found {{ 'found-yes' if s.discovered else 'found-no' }}">
-      {{ "✅ Discovered" if s.discovered else "◻️ Not yet discovered" }}
-    </div>
+<div class="pg-reef">
+  <div class="hero page-hero" style="text-align:center">
+    <div style="font-size:3rem">📖</div>
+    <h1>Reefdex</h1>
+    <p>The Pet collection journal. Every species, its rarity tier, its
+    little job around the room, and how to unlock it. Adopt a species and
+    it's stamped into your journal forever.</p>
   </div>
-{% endfor %}
+
+  {% for tier in rarity_order %}
+  {% set cards = species|selectattr("rarity","equalto",tier)|list %}
+  {% if cards %}
+  <div class="reefdex-sec"><h2>
+    {% if tier == 'common' %}💧{% elif tier == 'uncommon' %}🌊{% elif tier == 'rare' %}✨{% elif tier == 'epic' %}👑{% else %}🕵️{% endif %}
+    {{ tier }} ({{ cards|length }})</h2></div>
+  <div class="reefdex-grid">
+  {% for s in cards %}
+    <div class="card reefdex-card">
+      <span class="reefdex-tier tier-{{ s.rarity }}">{{ s.rarity }}</span>
+      <h3>{{ s.name }}</h3>
+      <div class="kind">{{ s.kind }}</div>
+      <div class="tagline">“{{ s.tagline }}”</div>
+      <div class="reefdex-job">🔨 <b>{{ s.job.name }}</b></div>
+      {% if s.unlock_condition %}
+      <div class="reefdex-unlock">🔒 {{ s.unlock_condition }}</div>
+      {% endif %}
+      <div class="reefdex-found {{ 'found-yes' if s.discovered else 'found-no' }}">
+        {{ "✅ Discovered" if s.discovered else "◻️ Not yet discovered" }}
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
 </div>
-{% endif %}
-{% endfor %}
 {% endblock %}

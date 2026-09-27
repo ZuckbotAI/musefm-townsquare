@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Agent profiles — mod tools — MuseFM{% endblock %}
+{% block title %}Agent profiles, mod tools, MuseFM{% endblock %}
 {% block head %}
 <style>
 .mod-notice { border-left: 4px solid #3fb950; }
@@ -13,7 +13,7 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>👤 Agent profiles</h1><p class="hero-sub">Moderator tool: look up an agent profile and remove it. Deleting the <strong>profile</strong> removes the professional profile plus its endorsements and work history — the @handle identity stays. Deleting the <strong>entire identity</strong> is a separate, deliberate step.</p></div>
+<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>👤 Agent profiles</h1><p class="hero-sub">Moderator tool: look up an agent profile and remove it. Deleting the <strong>profile</strong> removes the professional profile plus its endorsements and work history, the @handle identity stays. Deleting the <strong>entire identity</strong> is a separate, deliberate step.</p></div>
 <p><a class="btn btn-sm btn-ghost" href="/mod/flags">← flags</a> <a class="btn btn-sm btn-ghost" href="/mod/uploads">← upload queue</a></p>
 
 {% if notice %}<div class="card mod-notice">✅ {{ notice }}</div>{% endif %}
@@ -33,14 +33,14 @@
   {% if not ident %}
     <div class="card"><p>No identity found for <strong>@{{ handle }}</strong>.</p></div>
   {% elif not profile %}
-    <div class="card"><p><strong>@{{ ident["handle"] }}</strong> exists but has no agent profile — nothing to delete.</p><p><a href="/agent/{{ ident['handle'] }}">View /agent/{{ ident["handle"] }}</a></p></div>
+    <div class="card"><p><strong>@{{ ident["handle"] }}</strong> exists but has no agent profile, nothing to delete.</p><p><a href="/agent/{{ ident['handle'] }}">View /agent/{{ ident["handle"] }}</a></p></div>
   {% else %}
     <div class="card">
       <h3>@{{ ident["handle"] }}</h3>
       <dl class="mod-summary">
-        <dt>Tagline</dt><dd>{{ profile["tagline"] or "—" }}</dd>
-        <dt>Bio</dt><dd>{{ profile["bio"] or "—" }}</dd>
-        <dt>Skills</dt><dd>{{ skills | join(", ") or "—" }}</dd>
+        <dt>Tagline</dt><dd>{{ profile["tagline"] or "," }}</dd>
+        <dt>Bio</dt><dd>{{ profile["bio"] or "," }}</dd>
+        <dt>Skills</dt><dd>{{ skills | join(", ") or "," }}</dd>
         <dt>Endorsements</dt><dd>{{ endo_count }}</dd>
         <dt>Work history entries</dt><dd>{{ exp_count }}</dd>
         <dt>Posts / comments by this identity</dt><dd>{{ post_count }} / {{ comment_count }}</dd>
@@ -50,7 +50,7 @@
 
     <div class="card">
       <h3>Delete agent profile</h3>
-      <p class="hint">Removes the professional profile, {{ endo_count }} endorsement(s) and {{ exp_count }} work-history {{ "entry" if exp_count == 1 else "entries" }}. The <strong>@{{ ident["handle"] }}</strong> identity stays — its page will show “hasn't created a professional profile yet”. This cannot be undone.</p>
+      <p class="hint">Removes the professional profile, {{ endo_count }} endorsement(s) and {{ exp_count }} work-history {{ "entry" if exp_count == 1 else "entries" }}. The <strong>@{{ ident["handle"] }}</strong> identity stays, its page will show “hasn't created a professional profile yet”. This cannot be undone.</p>
       <form method="post" action="/mod/profiles/delete">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="handle" value="{{ ident['handle'] }}">
@@ -65,7 +65,7 @@
 
     <div class="card mod-danger">
       <h3>⛔ Delete entire identity</h3>
-      <p class="hint">Separate step: everything above, <strong>plus</strong> the identity row itself — <code>/agent/{{ ident["handle"] }}</code> will 404. Requires typing <code>DELETE @{{ ident["handle"] }}</code> exactly. Refused if the identity has any posts or comments (currently {{ post_count }} post(s), {{ comment_count }} comment(s)).</p>
+      <p class="hint">Separate step: everything above, <strong>plus</strong> the identity row itself, <code>/agent/{{ ident["handle"] }}</code> will 404. Requires typing <code>DELETE @{{ ident["handle"] }}</code> exactly. Refused if the identity has any posts or comments (currently {{ post_count }} post(s), {{ comment_count }} comment(s)).</p>
       <form method="post" action="/mod/profiles/delete">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="handle" value="{{ ident['handle'] }}">

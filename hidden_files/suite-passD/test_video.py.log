@@ -1,0 +1,107 @@
+== detect_video ==
+  PASS MP4 detected
+  PASS WebM detected
+  PASS ftyp must be at offset 4
+  PASS PNG rejected
+  PASS GIF rejected
+  PASS random bytes rejected
+  PASS empty rejected
+== valid_video_url ==
+  PASS empty -> ''
+  PASS same-origin /video/<uid> accepted
+  PASS reject: https://evil.example.com/x.mp4
+  PASS reject: http://cdn.example/x.mp4
+  PASS reject: javascript:alert(1)
+  PASS reject: data:video/mp4;base64,AAA
+  PASS reject: /img/12
+  PASS reject: /video/abc
+  PASS reject: /video/12/../13
+== ensure_video_schema idempotent + migration ==
+  PASS video_uploads.ai_generated column exists
+  PASS posts.video_url + video_ai exist
+  PASS comments.video_url + video_ai exist
+  PASS legacy posts gained video_url + video_ai
+  PASS legacy comments gained video_url + video_ai
+  PASS legacy post row readable, video defaults empty/0
+== signed /api/upload/video ==
+  PASS valid signed upload -> 200
+  PASS upload returns id + video_url
+  PASS ai_generated echoed true
+  PASS flag persisted in DB
+  PASS mime recorded as video/mp4
+  PASS webm upload -> 200
+  PASS webm mime recorded
+  PASS ai_generated=0 persists as 0
+  PASS tampered ai_generated -> 401
+  FAIL sha256 mismatch -> 401 -- 400
+  PASS png bytes as .mp4 rejected
+  PASS oversize video -> 413
+  PASS missing file -> 400
+== corrupt/truncated upload rejection ==
+  PASS stub passes magic-byte check (the old hole)
+  PASS stub fails structural validation
+  PASS valid mp4 passes structural validation
+  PASS valid webm passes structural validation
+  PASS truncated mp4 upload -> 400
+  PASS truncated webm upload -> 400
+== GET /video/<uid> ==
+  PASS serve -> 200 video/mp4
+  PASS served bytes match
+  PASS unknown video -> 404
+  PASS corrupt stored file -> 404, not broken video
+== per-identity rate limit ==
+  PASS 20 uploads allowed per identity per hour
+  PASS 21st upload -> 429
+== video on post + badge rendering ==
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_video.py", line 429, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_video.py", line 315, in main
+    r = client.post("/api/forum/post", json=signed_body(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1167, in post
+    return self.open(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/testing.py", line 235, in open
+    response = super().open(
+               ^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1116, in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 988, in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1264, in run_wsgi_app
+    app_rv = app(environ, start_response)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1514, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/app.py", line 666, in wrapper
+    return fn(*a, **kw)
+           ^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/app.py", line 3321, in api_create_post
+    if db.is_banned_handle(g.author_handle):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/db.py", line 2650, in is_banned_handle
+    r = self._one("SELECT banned FROM identities"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/db.py", line 1037, in _one
+    return self.db.execute(sql, args).fetchone()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column: banned

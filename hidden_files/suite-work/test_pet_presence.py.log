@@ -1,0 +1,37 @@
+[2026-09-26 05:31:38,013] WARNING in app: verification email to webnapper@example.test failed: email sending is not configured on this server
+== auth ==
+  PASS unsigned 401
+  PASS wrong action 401
+  PASS signed ok, empty feed
+== shop checkin ==
+  PASS one pet in feed
+  PASS pet fields
+  PASS updated_at fresh
+  PASS endpoint mirrors feed
+== pond pet excluded ==
+  PASS pond pet not in feed
+== room checkin ==
+  PASS pet follows owner into room
+== stale owner drops pet ==
+  PASS stale owner -> empty feed
+== mood derivation ==
+  PASS peckish mood derived
+== no side effects on repeated reads ==
+  PASS feed reads fire no notifications
+  PASS feed reads don't hatch eggs
+== missing tables degrade gracefully ==
+  PASS fresh db without row_presence -> []
+== web nap route ==
+  PASS web test human signup
+  PASS web test human login
+  PASS web adopt for nap test
+  PASS web nap succeeds
+  PASS pet is napping after web nap
+  PASS second web nap hits cooldown
+  PASS bad csrf rejected
+  PASS anon web nap redirects to /pet
+== locked gallery copy ==
+  PASS zorb card has no shop hint
+  PASS shop unlock buttons only for bypassable species
+
+24 passed, 0 failed

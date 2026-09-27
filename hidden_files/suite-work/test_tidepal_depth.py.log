@@ -1,0 +1,113 @@
+== hatch economy (free + grants Signal, timer-gated) ==
+  PASS adopt creates unhatched egg
+  PASS unhatched pet is stage Egg
+  PASS hatch grants 25 Signal (standard species)
+  PASS first-ever hatch runs the quick 5-min timer
+  PASS 500 Signal still Egg until hatched
+  PASS hatch before timer rejected
+  PASS hatch ok
+  PASS hatch granted 25 spendable
+  PASS lifetime untouched by hatch grant
+  PASS no longer first hatch after hatching
+  PASS hatched stage follows lifetime
+  PASS double hatch rejected
+  PASS later hatch runs the normal 15-min timer
+  PASS hatch-now validation sees warming egg
+  PASS hatch-now finishes the timer
+  PASS hatch after hatch-now grants Signal
+  PASS hatch-now rejected when egg ready
+  PASS grandfathered pet counts as hatched
+== personality ==
+  PASS trait in set
+  PASS quirk present
+  PASS speech is kind
+  PASS reroll without funds rejected
+  PASS reroll changes trait
+  PASS reroll charged 25
+  PASS reroll keeps quirk kind
+  PASS API reroll signed
+== mild moods, no-death language ==
+  PASS no death language in rulebook
+  PASS never-die policy stated
+  PASS no grumpy in rulebook
+  PASS peckish/restless in moods
+  PASS low hunger -> peckish
+  PASS low happiness -> restless
+== signal multiplier (gentle consequence) ==
+  PASS restless -> 0.75x
+  PASS cared-for -> 1.0x
+  PASS trigger reward reduced while peckish
+  PASS payout reward NOT reduced
+== sea sniffles ==
+  PASS has_sniffles
+  PASS sniffly -> 0.75x
+  PASS sniffles in status
+  PASS tide cure ok
+  PASS tide starts cooldown
+  PASS tide cooldown enforced
+  PASS clinic cure charges 30
+  PASS cure with no sniffles rejected
+  PASS API cure signed
+== current lessons ==
+  PASS no active lesson
+  PASS bad lesson rejected
+  PASS lesson started
+  PASS lesson charged
+  PASS second lesson blocked
+  PASS early claim rejected
+  PASS claim grants spirit
+  PASS spirit slows decay
+  PASS spirit boosts xp
+  PASS xp award gets spirit bonus
+== animated svg ==
+  PASS animated svg has motion
+  PASS animated svg xml-valid
+  PASS peckish daydream bubble
+  PASS static svg has no motion
+  PASS sniffle + wisp overlays
+== town pond ==
+  PASS release -> pond
+  PASS owner slot freed
+  PASS pond lists pet
+  PASS streak stays with keeper
+  PASS re-adopt after release
+  PASS pond pet still safe
+  PASS reclaim with full slot rejected
+  PASS reclaim ok
+  PASS reclaimed pet home
+  PASS two pond pets tracked
+  PASS ambiguous reclaim asks
+  PASS foreign pond id rejected
+  PASS chosen reclaim ok
+  PASS other stays in pond
+  PASS pond adopt without funds... (had funds)
+  PASS pond adoption moves pet
+  PASS pond adoption charged 25
+  PASS pond adoption hatches
+  PASS adopted pet leaves pond
+  PASS in-window pond adopt blocked
+  PASS API pond list
+  PASS pond web page 200
+== echo fusion ==
+  PASS fusion needs both radiant
+  PASS invite ok
+  PASS double invite blocked
+  PASS self-accept blocked
+  PASS accept grants wisps
+  PASS wisp on A
+  PASS wisp on B
+  PASS parents untouched
+  PASS wisp in status + svg
+  PASS second fusion blocked
+  PASS decline ok
+  PASS API fusion invite signed
+== wardrobe preview api ==
+  PASS preview ok
+  PASS preview bad item 400
+== streak breaks under neglect ==
+  PASS neglect breaks streak (restarts at 1)
+== shorts seed ==
+  PASS shorts page carries seed
+  PASS shorts feed echoes seed
+
+99 passed, 0 failed

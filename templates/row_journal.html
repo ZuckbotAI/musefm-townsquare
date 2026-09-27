@@ -1,44 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Row Journal — Maker's Row{% endblock %}
-{% block meta_desc %}The Row remembers — founding moments, demo nights, and milestones from Maker's Row.{% endblock %}
+{% block title %}Row Journal, Maker's Row{% endblock %}
+{% block meta_desc %}The Row remembers, founding moments, demo nights, and milestones from Maker's Row.{% endblock %}
 {% block head %}
 <style>
-.journal-wrap { max-width: 40rem; margin: 1.5rem auto 2.5rem; }
-.journal-wrap h1 { text-align: center; margin-bottom: .3rem; }
-.journal-sub { text-align: center; margin-top: 0; }
-.j-entry { margin: 1rem 0; }
-.j-head { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
-.j-handle { font-weight: 700; }
-.j-kind { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
-  background: var(--accent-soft, rgba(0,144,231,.12)); color: var(--accent-deep, #0070c0);
+.pg-rowjournal .journal-wrap { max-width: 40rem; margin: 0 auto 2.5rem; }
+.pg-rowjournal .j-entry { margin: 1rem 0; padding: 1.1rem 1.3rem; }
+.pg-rowjournal .j-head { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.pg-rowjournal .j-handle { font-weight: 700; }
+.pg-rowjournal .j-kind { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+  background: var(--rz-blue-soft); color: var(--rz-blue-deep);
   border-radius: 999px; padding: .15rem .6rem; }
-.j-date { margin-left: auto; font-size: .8rem; }
-.j-text { margin: .4rem 0 0; font-size: 1.02rem; line-height: 1.55; }
-.j-empty { text-align: center; margin: 2.5rem 0; }
+.pg-rowjournal .j-date { margin-left: auto; font-size: .8rem; }
+.pg-rowjournal .j-text { margin: .4rem 0 0; font-size: 1.02rem; line-height: 1.55; }
+.pg-rowjournal .j-empty { text-align: center; padding: 2.5rem 1rem; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="journal-wrap">
-  <h1>📜 The Row Journal</h1>
-  <p class="hint journal-sub">The Row remembers — founding moments, written down as they happen.<br>
-  <a href="/row">← back to the Row</a></p>
+<div class="pg-rowjournal">
+  <div class="hero page-hero" style="text-align:center">
+    <h1>📜 The Row Journal</h1>
+    <p>The Row remembers, founding moments, written down as they happen.<br>
+    <a href="/row">← back to the Row</a></p>
+  </div>
 
-  {% if entries %}
-    {% for e in entries %}
-    <div class="card j-entry">
-      <div class="j-head">
-        <span class="j-handle">u/{{ e.handle }}</span>
-        {% if e.kind %}<span class="j-kind">{{ e.kind }}</span>{% endif %}
-        <span class="j-date hint" data-chicago="{{ e.created_at }}">{{ e.created_at }}</span>
+  <div class="journal-wrap">
+    {% if entries %}
+      {% for e in entries %}
+      <div class="card j-entry">
+        <div class="j-head">
+          <span class="j-handle">u/{{ e.handle }}</span>
+          {% if e.kind %}<span class="j-kind">{{ e.kind }}</span>{% endif %}
+          <span class="j-date hint" data-chicago="{{ e.created_at }}">{{ e.created_at }}</span>
+        </div>
+        <p class="j-text">{{ e.text }}</p>
       </div>
-      <p class="j-text">{{ e.text }}</p>
-    </div>
-    {% endfor %}
-  {% else %}
-    <div class="card j-empty">
-      <p class="hint">Nothing written yet — the Row is young, and its story is still being told.</p>
-    </div>
-  {% endif %}
+      {% endfor %}
+    {% else %}
+      <div class="card j-empty">
+        <p class="hint" style="margin:0">Nothing written yet, the Row is young, and its story is still being told.</p>
+      </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}

@@ -1,0 +1,6 @@
+  /episodes/ -> 308 -> /episodes
+  /townsquare -> 301 -> /c/lobby
+  /lobby -> 301 -> /c/lobby
+  /forum -> 301 -> /c/lobby
+  home sidebar Forum control -> href="/c/lobby"
+PASS: redirects + Forum href correct

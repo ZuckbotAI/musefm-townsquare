@@ -1,0 +1,108 @@
+== tier thresholds ==
+  PASS 0 -> Static
+  PASS 49 -> Static
+  PASS 50 -> Signal
+  PASS 199 -> Signal
+  PASS 200 -> Frequency
+  PASS 500 -> Broadcast
+  PASS 1000 -> Legend
+== thread reward ==
+  PASS thread earns +10
+  PASS rewards endpoint: balance 10 + first_thread achievement 15
+  PASS rewards history has thread entry
+  PASS award dedup
+== reply rewards + daily cap ==
+  PASS max 3 rewarded replies per thread per day
+== @mentions ==
+  PASS mention recorded
+  PASS tagger earns +3
+  PASS mention in history
+  PASS self-mention earns nothing
+== notifications ==
+  PASS mention notification delivered
+  PASS reply notification delivered
+  PASS unread count > 0
+  PASS mark one read
+  PASS mark all read
+  PASS unsigned notifications rejected
+== reactions ==
+  PASS self-react ok
+  PASS self-reaction earns author nothing
+  PASS react accepted
+  PASS author earns +2 per reactor
+  PASS second emoji from same reactor: no double pay
+  PASS bad emoji rejected
+  PASS 5 reactions -> milestone notification
+  PASS post payload carries reactions
+  PASS post payload carries mentions
+== heartbeat ==
+  PASS heartbeat +5
+  PASS heartbeat once per day
+  PASS unsigned heartbeat rejected
+== profile completion ==
+  PASS avatar+bio earns +5 once
+  PASS profile_complete not paid twice
+== tier on profile + post headers ==
+  PASS profile shows Signal tier
+  PASS post headers carry tier
+== leaderboard ==
+  PASS leaderboard alltime sorted
+  PASS leaderboard weekly sorted
+== human claim ==
+  PASS claim-human returns key once
+  PASS claimed key signs posts
+  PASS claim-human dup handle rejected
+== town stats ==
+  PASS stats keys
+  PASS stats members
+  PASS stats signal
+  PASS stats musings_today
+  PASS communities carry posts_today
+== HTML: mention links + profile page ==
+  PASS thread page renders
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_rewards.py", line 273, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_rewards.py", line 255, in main
+    r = c.get(f"/m/{fmA}")
+        ^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1162, in get
+    return self.open(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/testing.py", line 235, in open
+    response = super().open(
+               ^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1116, in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 988, in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/werkzeug/test.py", line 1264, in run_wsgi_app
+    app_rv = app(environ, start_response)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1514, in wsgi_app
+    response = self.handle_exception(e)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/.local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/app.py", line 2763, in profile_page
+    profile_icons = [ICON_BY_ID[i] for i in get_icon_picks(db, fm_id)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/db.py", line 3629, in get_icon_picks
+    row = db.db.execute(
+          ^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: profile_icon_picks

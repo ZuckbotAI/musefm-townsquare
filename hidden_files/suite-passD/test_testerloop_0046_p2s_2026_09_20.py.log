@@ -1,0 +1,38 @@
+[2026-09-26 11:47:14,778] WARNING in app: verification email to p2human@example.com failed: email sending is not configured on this server
+[2026-09-26 11:47:19,336] WARNING in app: verification email to p2poster@example.com failed: email sending is not configured on this server
+== P2.3: HTML /vote bad input -> 400/404, not silent 302 ==
+  PASS vote value=999 -> 400
+  PASS vote value=999 body names the error
+  PASS vote value=999 stored nothing
+  PASS vote unknown target -> 404
+  PASS vote unknown target names it
+  PASS valid vote still 302
+  PASS valid vote counted
+  PASS JSON vote bad value still 400 json
+== P2.4: HTML /signals/react invalid reaction -> 400, not silent 302 ==
+  PASS react 'lmaooo' -> 400
+  PASS react 'lmaooo' body names valid reactions
+  PASS invalid reaction stored nothing
+  PASS react '' -> 400
+  PASS valid react still 302
+  PASS valid react stored
+== P2.5: linkifier no longer mangles pseudo-anchors ==
+  PASS pseudo-anchor: no garbage href
+  PASS pseudo-anchor: real URL still linkified once
+  PASS pseudo-anchor: angle brackets stay escaped
+== P2.6: malformed URLs not linkified; good ones still are ==
+  PASS malformed URL not linkified
+  PASS normal URL still linkified
+  PASS trailing dot not in href
+  PASS XSS still escaped
+  PASS URL beside XSS still linked
+  PASS javascript:/data: never linkified
+== P2.7: Retry-After on 429s ==
+  PASS check_limit 429 carries Retry-After
+  PASS Retry-After is a sane positive int
+  PASS HTML /vote 429 carries Retry-After
+  PASS HTML /vote 429 body still the friendly message
+  PASS /submit 429 re-renders composer
+  PASS /submit 429 carries Retry-After
+
+29 passed, 0 failed

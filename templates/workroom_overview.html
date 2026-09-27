@@ -1,30 +1,37 @@
 {% extends "base.html" %}
-{% block title %}Workroom overview — owner — Muse FM{% endblock %}
+{% block title %}Workroom overview, owner, Muse FM{% endblock %}
 {% block head %}{% include "_wr_head.html" %}
 <style>
-.wr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.8rem;margin:1.2rem 0}
-.wr-stat{background:var(--glass);border:1px solid var(--glass-border);border-radius:16px;padding:1rem;text-align:center}
-.wr-stat .num{font-size:1.7rem;font-weight:800;background:linear-gradient(135deg,var(--wr-accent),#0ea5e9);-webkit-background-clip:text;background-clip:text;color:transparent}
-.wr-stat .lbl{font-size:.75rem;opacity:.7;margin-top:.2rem}
-.wr-roomrow{display:flex;gap:.8rem;align-items:center;background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:.8rem 1rem;margin-bottom:.6rem;text-decoration:none;color:var(--text)}
-.wr-roomrow:hover{box-shadow:0 10px 24px rgba(99,102,241,.14);text-decoration:none}
-.wr-roomrow .grow{flex:1;min-width:0}
-.wr-roomrow h4{margin:0;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wr-roomrow .sub{font-size:.78rem;opacity:.65}
-.wr-act{border-top:1px solid var(--glass-border);padding:.55rem 0;font-size:.88rem}
-.wr-act:first-of-type{border-top:none}
-.wr-act .t{font-size:.74rem;opacity:.55}
-.wr-knock{display:flex;gap:.6rem;align-items:center;border-top:1px solid var(--glass-border);padding:.6rem 0;font-size:.9rem}
-.wr-knock:first-of-type{border-top:none}
-.wr-cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
-@media(max-width:800px){.wr-cols{grid-template-columns:1fr}}
+/* page-scoped overrides so the shared workroom head stays dark-safe */
+.pg-wr-overview .wr-form input[type=text],.pg-wr-overview .wr-form input[type=url],
+.pg-wr-overview .wr-form textarea,.pg-wr-overview .wr-form select{background:var(--rz-card)}
+.pg-wr-overview .wr-card{background:var(--rz-card);border:1px solid var(--rz-line)}
+.pg-wr-overview .wr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.8rem;margin:1.2rem 0}
+.pg-wr-overview .wr-stat{background:var(--rz-card);border:1px solid var(--rz-line);border-radius:16px;padding:1rem;text-align:center;box-shadow:var(--rz-shadow-sm)}
+.pg-wr-overview .wr-stat .num{font-size:1.7rem;font-weight:800;color:var(--rz-blue-deep)}
+.pg-wr-overview .wr-stat .lbl{font-size:.75rem;color:var(--rz-ink3);margin-top:.2rem}
+.pg-wr-overview .wr-roomrow{display:flex;gap:.8rem;align-items:center;background:var(--rz-card);border:1px solid var(--rz-line);border-radius:14px;padding:.8rem 1rem;margin-bottom:.6rem;text-decoration:none;color:var(--rz-ink)}
+.pg-wr-overview .wr-roomrow:hover{box-shadow:var(--shadow-card-hover);text-decoration:none;transform:translateY(-1px)}
+.pg-wr-overview .wr-roomrow .grow{flex:1;min-width:0}
+.pg-wr-overview .wr-roomrow h4{margin:0;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--rz-ink)}
+.pg-wr-overview .wr-roomrow .sub{font-size:.78rem;color:var(--rz-ink3)}
+.pg-wr-overview .wr-act{border-top:1px solid var(--rz-line);padding:.55rem 0;font-size:.88rem;color:var(--rz-ink)}
+.pg-wr-overview .wr-act:first-of-type{border-top:none}
+.pg-wr-overview .wr-act .t{font-size:.74rem;color:var(--rz-ink3)}
+.pg-wr-overview .wr-knock{display:flex;gap:.6rem;align-items:center;border-top:1px solid var(--rz-line);padding:.6rem 0;font-size:.9rem;color:var(--rz-ink)}
+.pg-wr-overview .wr-knock:first-of-type{border-top:none}
+.pg-wr-overview .wr-cols{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+@media(max-width:800px){.pg-wr-overview .wr-cols{grid-template-columns:1fr}}
+.pg-wr-overview .wr-pill.green{color:#059669;border-color:rgba(5,150,105,.4);background:rgba(5,150,105,.08)}
+.pg-wr-overview .wr-pill.grey{color:var(--rz-ink3)}
 </style>
 {% endblock %}
 {% block content %}
+<div class="pg-wr-overview">
 <div class="wr-wrap">
   <div class="wr-hero">
     <h1>👁️ <span class="wr-hero-accent">Workroom overview</span></h1>
-    <p>Every room — open and shut — plus the bounty board and the knock
+    <p>Every room, open and shut, plus the bounty board and the knock
        queue. This page is owner-only.</p>
   </div>
 
@@ -95,12 +102,13 @@
         {% endif %}
         {% if a.room_name %}<a href="/workroom/{{ a.workroom_id }}">{{ a.room_name }}</a>{% endif %}
         {% if a.action in ('note', 'task_added') and a.detail %}<div class="wr-muted">“{{ a.detail }}”</div>{% endif %}
-        <div class="t">{{ a.created_at | wr_time }}</div>
+        <div class="t">{{ a.created_at | fdate }}</div>
       </div>
       {% else %}
       <p class="wr-muted">Nothing yet.</p>
       {% endfor %}
     </div>
   </div>
+</div>
 </div>
 {% endblock %}

@@ -1,0 +1,37 @@
+  PASS GET /newsletter -> 200 with form
+  PASS POST /newsletter rejects bad emails with 400
+  PASS no mailing row created for bad email
+  PASS POST /newsletter -> 200
+  PASS row created as pending_optin
+  PASS confirmation email attempted
+  PASS confirm email has a link
+  PASS GET /newsletter/confirm -> 200
+  PASS confirm flips to subscribed with confirmed_at
+  PASS tampered confirm token -> 400
+  PASS re-POST subscribed -> 200 already-on-list page
+  PASS no second confirm email sent
+  PASS no duplicate row
+  PASS GET /newsletter/unsubscribe -> 200
+  PASS row flipped to unsubscribed with timestamp
+  PASS bad unsubscribe token -> 400
+  PASS import counts
+  PASS imported addresses auto-subscribed
+  PASS unsubscribed address NEVER resubscribed
+  PASS pending address keeps its own flow
+  PASS send_alert hits only subscribed
+  PASS send_alert result counts
+  PASS every alert carries one-click unsubscribe link
+  PASS footer token verifies to the recipient
+  PASS admin send without agent key -> 401
+  PASS admin send missing fields -> 400
+  PASS admin send with key -> 200
+  PASS admin send reports sent count
+  PASS admin send delivered only to subscribed
+  PASS backfill subscribes verified account email
+  PASS backfill skips unverified account email
+  PASS backfill is idempotent (no duplicate row)
+  PASS backfill never resubscribes an unsubscribed address
+  PASS unverified email not in list yet
+  PASS mark_email_verified auto-subscribes the email
+
+35 passed, 0 failed

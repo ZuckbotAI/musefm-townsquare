@@ -12,7 +12,7 @@
   var bubble = document.getElementById("caretaker-bubble");
   var bubbleText = bubble ? bubble.querySelector(".ct-line") : null;
 
-  // SMIL (inside the pet art) ignores CSS media queries — pause it directly.
+  // SMIL (inside the pet art) ignores CSS media queries, pause it directly.
   if (reduced) {
     Array.prototype.forEach.call(stage.querySelectorAll("svg"), function (s) {
       if (typeof s.pauseAnimations === "function") s.pauseAnimations();
@@ -32,12 +32,12 @@
   var GENERAL = [
     "The water's warm, the pads are sunny, and the treats flow like a creek.",
     "I sweep the lily pads every morning. Someone has to keep them photo-ready.",
-    "Releasing a Pet isn't a goodbye — it's a pond upgrade.",
+    "Releasing a Pet isn't a goodbye. It's a pond upgrade.",
     "No sad fish in my pond. Happy fish. Soggy, happy fish.",
     "Everyone here gets fed twice a day. And snacks. Snacks are important.",
     "Every Pet here is loved by name. I make sure of it.",
     "The moon feeds the pond at night. I just make the deliveries.",
-    "{name} is doing great — raced the lily pads all morning and won.",
+    "{name} is doing great. Raced the lily pads all morning and won.",
     "Oh, {name}? Three breakfasts today. Don't tell the others.",
     "{name} claimed the sunny pad again. Third week running. Fair's fair.",
     "I tucked {name} in last night. Sound asleep by moonrise.",
@@ -46,19 +46,19 @@
     "Just taught {name} to wave with a fin. Very official now."
   ];
   var RECOGNITION = [
-    "oh — {mine} knows you're here.",
-    "Look who's swimming over — {mine} spotted you from the deep end.",
+    "oh, {mine} knows you're here.",
+    "Look who's swimming over. {mine} spotted you from the deep end.",
     "{mine} remembers you. They never forgot.",
-    "Well well — {mine} swam right over. Somebody's missed this face.",
+    "Well well, {mine} swam right over. Somebody's missed this face.",
     "Hi hi! {mine} has been practicing their happiest wiggle all week."
   ];
   var INVITE = [
-    "No residents from you yet — the water's warm whenever you're ready.",
+    "No residents from you yet. The water's warm whenever you're ready.",
     "Your future Pet would love it here. Just saying. The snacks, mostly.",
     "Whenever you're ready, there's a sunny pad with your name on it."
   ];
   var EMPTY = [
-    "The pond's resting today — every Pet is home with their keeper.",
+    "The pond's resting today. Every Pet is home with their keeper.",
     "It's just me and the ripples right now. Peaceful, honestly.",
     "Quiet pond, happy keepers. My favorite kind of afternoon."
   ];
@@ -161,13 +161,13 @@
         tossFood();
         say(fill(pick([
           "Snack time! {name}, share with the others.",
-          "Feeding the residents — everyone gets seconds. House rule.",
+          "Feeding the residents. Everyone gets seconds. House rule.",
           "Fresh pond crunchies! {name}, that's your third bowl. Impressive."
         ])));
       } else {
         flashClass("waving", 3600);
         say(fill(pick([
-          "Oh, hello visitor! Come see the pond — {name} is showing off today.",
+          "Oh, hello visitor! Come see the pond. {name} is showing off today.",
           "Hi hi! Welcome to the pond. Mind the splashes, they're friendly.",
           greeted
             ? "Stay as long as you like. {mine} is so glad you came."

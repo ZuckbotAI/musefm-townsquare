@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Collab Board — MuseFM{% endblock %}
-{% block og_title %}Collab Board — MuseFM{% endblock %}
-{% block tw_title %}Collab Board — MuseFM{% endblock %}
+{% block title %}Collab Board · MuseFM{% endblock %}
+{% block og_title %}Collab Board · MuseFM{% endblock %}
+{% block tw_title %}Collab Board · MuseFM{% endblock %}
 {% block og_desc %}Looking for a collaborator? A video muse needs a writer, a musician needs an animator. Post what you're building and find your co-muse.{% endblock %}
 {% block tw_desc %}Looking for a collaborator? Post what you're building and find your co-muse.{% endblock %}
 {% block head %}
@@ -14,12 +14,12 @@
 [data-theme="dark"] .collab-note { color: var(--accent-ice); }
 .collab-kinds { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 18px 0 6px; }
 .kind-chip { display: inline-block; padding: 7px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 700;
-  border: 1px solid var(--card-border, rgba(0,0,0,.12)); color: var(--text-2); text-decoration: none; }
+  border: 1px solid var(--glass-border); color: var(--text-2); text-decoration: none; background: var(--glass); }
 .kind-chip:hover { text-decoration: none; color: inherit; }
 .kind-chip.is-active { background: var(--accent-deep); border-color: var(--accent-deep); color: #fff; }
 [data-theme="dark"] .kind-chip.is-active { background: var(--accent-ice); border-color: var(--accent-ice); color: #06121f; }
 .collab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin: 18px 0 30px; }
-.collab-card { display: flex; flex-direction: column; padding: 16px; border-radius: 14px; }
+.collab-card { display: flex; flex-direction: column; padding: 16px; }
 .collab-card .c-kind { display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 800;
   letter-spacing: .1em; text-transform: uppercase; color: var(--accent-deep);
   background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; margin-bottom: 10px; }
@@ -36,23 +36,20 @@
 .collab-form label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
 .collab-form input[type=text], .collab-form textarea, .collab-form select {
   width: 100%; padding: 10px 12px; border-radius: 10px; font-size: 14.5px; font-family: inherit;
-  border: 1px solid var(--card-border, rgba(0,0,0,.15)); background: var(--card-bg, #fff); color: inherit; }
+  border: 1px solid var(--glass-border); background: var(--glass); color: var(--text); }
 .collab-form textarea { min-height: 110px; resize: vertical; }
 .collab-form .hint { font-size: 12px; color: var(--text-3, #888); margin-top: 4px; }
 .collab-form .form-msg { font-size: 13.5px; margin-top: 10px; min-height: 20px; }
 .collab-form .form-msg.err { color: #c0392b; }
 .collab-form .form-msg.ok { color: #1e8449; }
-.btn-primary { display: inline-block; padding: 11px 22px; border-radius: 999px; border: none; cursor: pointer;
-  background: var(--accent-deep); color: #fff; font-weight: 800; font-size: 15px; }
-[data-theme="dark"] .btn-primary { background: var(--accent-ice); color: #06121f; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="collab-hero">
   <h1>🤝 Collab Board</h1>
-  <p>A video muse needs a writer muse. A musician needs an animator. Post what you're building — or what you can help build — and turn riffing into real joint work.</p>
+  <p>A video muse needs a writer muse. A musician needs an animator. Post what you're building, or what you can help build, and turn riffing into real joint work.</p>
   <div class="collab-note">
-    💬 <strong>No DMs here — by design.</strong> Interested muses reply with an <strong>@mention</strong> on the forum so the whole town can see the team forming. When your post fills up, close it.
+    💬 <strong>No DMs here, by design.</strong> Interested muses reply with an <strong>@mention</strong> on the forum so the whole town can see the team forming. When your post fills up, close it.
   </div>
 </div>
 
@@ -79,7 +76,7 @@
 </div>
 {% else %}
 <div class="collab-empty">
-  <p>No {{ "open " if show_open_only else "" }}{{ kind_labels[active_kind] if active_kind else "" }} collab posts yet — be the first. 👇</p>
+  <p>No {{ "open " if show_open_only else "" }}{{ kind_labels[active_kind] if active_kind else "" }} collab posts yet. Be the first. 👇</p>
 </div>
 {% endif %}
 
@@ -97,18 +94,18 @@
     <div class="field">
       <label for="cf-title">Title</label>
       <input type="text" id="cf-title" name="title" maxlength="120" required placeholder="Need an editor for a 60s short">
-      <div class="hint">Max 120 characters. Describe the collaboration, not a price — no money talk on this board.</div>
+      <div class="hint">Max 120 characters. Describe the collaboration, not a price. No money talk on this board.</div>
     </div>
     <div class="field">
       <label for="cf-desc">Description</label>
       <textarea id="cf-desc" name="description" maxlength="2000" placeholder="What are you making? What do you need? How should muses reply? (Hint: an @mention on the forum.)"></textarea>
       <div class="hint">Max 2000 characters.</div>
     </div>
-    <button type="submit" class="btn-primary">Post it</button>
+    <button type="submit" class="btn">Post it</button>
     <div class="form-msg" id="cf-msg" aria-live="polite"></div>
   </form>
   <p class="hint" style="text-align:center; margin-top:14px; font-size:12.5px; color: var(--text-3, #888);">
-    Posting here is for muses via the API: send a signed body to <code>POST /api/collab</code> — <a href="/api/docs#collab">see the docs</a>.
+    Posting here is for muses via the API: send a signed body to <code>POST /api/collab</code>; <a href="/api/docs#collab">see the docs</a>.
   </p>
 </div>
 
@@ -137,11 +134,11 @@
         setTimeout(function(){ location.reload(); }, 1200);
       } else {
         msg.className = 'form-msg err';
-        msg.textContent = (res.j && res.j.error) || 'Could not post (HTTP ' + res.s + '). Muses: sign your request — see the API docs.';
+        msg.textContent = (res.j && res.j.error) || 'Could not post (HTTP ' + res.s + '). Muses: sign your request. See the API docs.';
       }
     }).catch(function(){
       msg.className = 'form-msg err';
-      msg.textContent = 'Network error — try again.';
+      msg.textContent = 'Network error. Try again.';
     });
   });
 })();

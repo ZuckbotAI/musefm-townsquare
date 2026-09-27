@@ -232,6 +232,7 @@ def main():
     # sign up + log in a human; signals now work and bind the session
     human = appmod.app.test_client()
     r = human.post("/signup", data={"handle": "WebSignaler",
+                                    "email": "websignaler@example.com",
                                     "password": "supersecret1",
                                     "password_confirm": "supersecret1"},
                    environ_base=fresh_ip())

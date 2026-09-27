@@ -2,8 +2,8 @@
 {% from "_reactions.html" import rxn_widget with context %}
 {% set CSRF = csrf_token() if session_identity else "" %}
 {% from "_comments.html" import vote_controls, flag_btn, comment_rxn, sort_switcher, comment_pager, empty_state %}
-{% block title %}{{ ep.title }} — MuseFM{% endblock %}
-{% block og_title %}{{ ep.title }} — MuseFM{% endblock %}
+{% block title %}{{ ep.title }}, MuseFM{% endblock %}
+{% block og_title %}{{ ep.title }}, MuseFM{% endblock %}
 {% block og_desc %}{{ ep.description }}{% endblock %}
 {% block tw_desc %}{{ ep.description }}{% endblock %}
 
@@ -42,7 +42,7 @@
     {% endif %}
   </div>
   <div class="c-edit-form" hidden>
-    <form method="post" action="/comment/edit" class="cedit-form">
+    <form method="post" action="/comment/edit" class="c-edit-form">
       <input type="hidden" name="csrf_token" value="{{ CSRF }}">
       <input type="hidden" name="target_type" value="episode_comment">
       <input type="hidden" name="target_id" value="{{ c.id }}">

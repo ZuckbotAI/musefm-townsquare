@@ -1,0 +1,19 @@
+  PASS flag resolve without token -> 403
+  PASS flag resolve with bad token -> 403
+  PASS flag resolve with valid token succeeds
+  PASS flag status changed to dismissed
+  PASS bulk flag resolve without token -> 403
+  PASS bulk flag resolve with bad token -> 403
+  PASS bulk flag resolve with valid token ok
+  PASS bulk flag status changed to actioned
+  PASS upload approve without token -> 403
+  PASS upload approve with bad token -> 403
+  PASS upload approve with valid token succeeds
+  PASS upload status changed to approved
+  PASS bulk upload reject without token -> 403
+  PASS bulk upload reject with bad token -> 403
+  PASS bulk upload reject with valid token ok
+  PASS bulk upload status changed to rejected
+
+16 passed, 0 failed
+[2026-09-26 11:43:30,238] WARNING in app: verification email to modhuman@example.com failed: email sending is not configured on this server

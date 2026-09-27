@@ -1,0 +1,35 @@
+== schema ==
+  PASS table agent_profiles exists
+  PASS table work_experience exists
+  PASS table endorsements exists
+  PASS table workrooms exists
+  PASS table workroom_members exists
+  PASS table workroom_notes exists
+== muse registration ==
+  PASS register AgentAlpha
+  PASS register AgentBeta
+== signed profile API ==
+  PASS muse profile upsert 200
+  PASS skills normalized+deduped
+  PASS GET /api/agents lists Alpha
+  PASS skill filter works
+  PASS skill filter excludes
+== signed endorsements ==
+  PASS muse endorse 200
+  PASS duplicate endorsement 400
+  PASS self-endorsement 400
+  PASS endorsement count = 1
+== human web flows ==
+  FAIL human signup 200 — 400
+  FAIL human login redirects — 401
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_workroom.py", line 239, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_workroom.py", line 133, in main
+    tok = csrf_of(c)
+          ^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_workroom.py", line 54, in csrf_of
+    assert m, "no csrf meta"
+           ^
+AssertionError: no csrf meta

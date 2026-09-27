@@ -1,0 +1,39 @@
+== dimensional buttons ==
+  PASS hover lifts the row
+  PASS hover has layered shadow
+  PASS hover keeps glass sheen
+  PASS press state scales down
+  PASS icon chip is dimensional
+  PASS icon micro-motion on hover
+== active indicator ==
+  PASS active glow bar exists
+  PASS glow bar pulses
+  PASS glow keyframes defined
+  PASS active icon lights up
+== entrance stagger ==
+  PASS rise keyframes defined
+  PASS stagger uses --sb-i
+  PASS JS assigns --sb-i
+  PASS JS adds sb-motion class
+== collapsible groups ==
+  PASS collapse CSS hides links
+  PASS heading gets toggle affordance
+  PASS JS wires heading clicks
+  PASS JS keeps + link navigable
+  PASS collapse persists
+  PASS headings keyboard accessible
+== reduced motion ==
+  PASS reduced-motion block covers sidebar
+== pass-1 account block intact ==
+  PASS avatar block CSS untouched
+  PASS no rule hides the account block
+  PASS motion section never hides .sb-account
+== live page wires it up ==
+  PASS homepage 200
+  PASS sidebar present
+  PASS sb-link rows present
+  PASS sb-group headings present
+  PASS redesign.css linked
+  PASS app.js loaded
+
+30 passed, 0 failed

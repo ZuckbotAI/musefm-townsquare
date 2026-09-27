@@ -1,0 +1,40 @@
+== card asset on disk ==
+  PASS link-card.jpg exists
+  PASS link-card.jpg is a JPEG
+  PASS JPEG loads
+  PASS card is 1206x658
+  PASS card is landscape (wider than tall)
+  PASS card file is not tiny
+== base template meta tags ==
+  PASS og:image points at link-card.jpg
+  PASS og:image:width matches asset (1206)
+  PASS og:image:height matches asset (658)
+  PASS og:image:alt describes the card
+  PASS twitter:card is summary_large_image
+  PASS twitter:image points at link-card.jpg
+  PASS old og-image.png is no longer referenced
+  PASS og:image is an absolute https URL
+  PASS no em dash in the card meta copy
+== meta tags render on key pages ==
+  PASS / renders 200
+  PASS / renders og:image with link-card.jpg
+  PASS / renders twitter:card summary_large_image
+  PASS / renders twitter:image with link-card.jpg
+  PASS /c/lobby renders 200
+  PASS /c/lobby renders og:image with link-card.jpg
+  PASS /c/lobby renders twitter:card summary_large_image
+  PASS /c/lobby renders twitter:image with link-card.jpg
+  PASS /wall renders 200
+  PASS /wall renders og:image with link-card.jpg
+  PASS /wall renders twitter:card summary_large_image
+  PASS /wall renders twitter:image with link-card.jpg
+  PASS /episodes renders 200
+  PASS /episodes renders og:image with link-card.jpg
+  PASS /episodes renders twitter:card summary_large_image
+  PASS /episodes renders twitter:image with link-card.jpg
+  PASS /shorts renders 200
+  PASS /shorts renders og:image with link-card.jpg
+  PASS /shorts renders twitter:card summary_large_image
+  PASS /shorts renders twitter:image with link-card.jpg
+
+35 passed, 0 failed

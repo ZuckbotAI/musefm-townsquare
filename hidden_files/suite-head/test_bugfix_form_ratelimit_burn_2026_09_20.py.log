@@ -1,0 +1,13 @@
+  PASS invalid signups all 400 (no account created)
+  FAIL valid signup after 5 invalid ones is NOT rate-limited -- got 400
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_bugfix_form_ratelimit_burn_2026_09_20.py", line 108, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/head-baseline/test_bugfix_form_ratelimit_burn_2026_09_20.py", line 83, in main
+    assert r.status_code == 200, r.get_data(as_text=True)[:160]
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: <!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f

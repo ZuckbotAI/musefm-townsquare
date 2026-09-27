@@ -1,50 +1,46 @@
 {% extends "base.html" %}
-{% block title %}{{ service.name }} — MuseFM{% endblock %}
+{% block title %}{{ service.name }} | MuseFM{% endblock %}
 {% block meta_desc %}{{ service.tagline }} Launch it from the MuseFM family hub.{% endblock %}
-{% block og_title %}{{ service.name }} — MuseFM{% endblock %}
-{% block tw_title %}{{ service.name }} — MuseFM{% endblock %}
+{% block og_title %}{{ service.name }} | MuseFM{% endblock %}
+{% block tw_title %}{{ service.name }} | MuseFM{% endblock %}
 {% block og_desc %}{{ service.tagline }}{% endblock %}
 {% block tw_desc %}{{ service.tagline }}{% endblock %}
 {% block head %}
 <style>
-.svc-hero { text-align: center; padding: 44px 20px 10px; }
 /* The orb's home on service pages (2026-09-23, Anthony: the floating orb
    blocked the text): it sits in this bubble in the hero instead of floating
    over the content from first paint. Same glass language as the homepage. */
-.svc-orb-home { display: flex; justify-content: center; margin-bottom: 10px; }
-.svc-orb-home .hero-orb-bubble { width: 104px; height: 104px; }
-.svc-orb-home .hero-orb-stage { width: 88px; height: 88px; }
-.svc-emoji { font-size: 56px; line-height: 1; }
-.svc-hero h1 { font-size: 34px; margin: 14px 0 6px; letter-spacing: -0.02em; }
-.svc-tag { font-size: 18px; color: var(--text-2); margin: 0 0 8px; }
-.svc-body { max-width: 640px; margin: 26px auto; font-size: 16px; line-height: 1.65; color: var(--text-1); }
-.svc-body p { margin: 0 0 14px; }
-.svc-cta { text-align: center; margin: 30px 0 10px; }
-.svc-cta a { display: inline-block; background: var(--accent); color: #fff; font-weight: 800; font-size: 17px;
-  padding: 14px 34px; border-radius: 999px; text-decoration: none; }
-.svc-cta a:hover { text-decoration: none; filter: brightness(1.08); }
-.svc-back { text-align: center; margin: 26px 0 40px; }
-.svc-back a { color: var(--text-2); font-size: 14px; }
+.pg-service .svc-orb-home { display: flex; justify-content: center; margin-bottom: 10px; }
+.pg-service .svc-orb-home .hero-orb-bubble { width: 104px; height: 104px; }
+.pg-service .svc-orb-home .hero-orb-stage { width: 88px; height: 88px; }
+.pg-service .svc-emoji { font-size: 56px; line-height: 1; }
+.pg-service .svc-hero { text-align: center; }
+.pg-service .svc-body { max-width: 640px; margin: 22px auto; font-size: 16px; line-height: 1.65; }
+.pg-service .svc-body p { margin: 0 0 14px; color: var(--rz-ink); }
+.pg-service .svc-cta { text-align: center; margin: 30px 0 10px; }
+.pg-service .svc-back { text-align: center; margin: 26px 0 40px; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="svc-hero">
-  <div class="svc-orb-home">
-    <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
+<div class="pg-service">
+  <div class="hero page-hero svc-hero">
+    <div class="svc-orb-home">
+      <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
+    </div>
+    <div class="svc-emoji">{{ service.emoji }}</div>
+    <h1>{{ service.name }}</h1>
+    <p>{{ service.tagline }}</p>
   </div>
-  <div class="svc-emoji">{{ service.emoji }}</div>
-  <h1>{{ service.name }}</h1>
-  <p class="svc-tag">{{ service.tagline }}</p>
-</div>
-<div class="svc-body">
-  {% for para in service.body %}
-  <p>{{ para }}</p>
-  {% endfor %}
-</div>
-<div class="svc-cta">
-  <a href="{{ service.launch_url }}" target="_blank" rel="noopener">{{ service.launch_label }} ↗</a>
-</div>
-<div class="svc-back">
-  <a href="/links">← all links</a>
+  <div class="svc-body">
+    {% for para in service.body %}
+    <p>{{ para }}</p>
+    {% endfor %}
+  </div>
+  <div class="svc-cta">
+    <a class="btn" href="{{ service.launch_url }}" target="_blank" rel="noopener">{{ service.launch_label }} ↗</a>
+  </div>
+  <div class="svc-back">
+    <a href="/links">← all links</a>
+  </div>
 </div>
 {% endblock %}

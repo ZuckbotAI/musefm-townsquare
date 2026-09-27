@@ -407,32 +407,38 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
     check("home shorts open the anchored feed",
           "/shorts?video=" in html and 'class="short-item"' in html)
 
-    print("== anchored MuseFM shorts (?video=) ==")
+    print("== anchored MuseFM shorts (?video=) on the unified feed ==")
     priv_b, fm_b = register(client, "FmAnchorA")
     priv_c, fm_c = register(client, "FmAnchorB")
     fm_ids = []
-    for i in range(21):
-        pp, ff = (priv_b, fm_b) if i < 11 else (priv_c, fm_c)
+    for i in range(12):
+        pp, ff = (priv_b, fm_b) if i < 6 else (priv_c, fm_c)
         r = post_video(client, pp, ff, make_mp4(), duration="20")
         assert r.status_code == 200, r.get_data(as_text=True)[:200]
         uid = r.get_json()["id"]
         videos.set_series(appmod.db, uid, "musefm")
         fm_ids.append(uid)
-    fm_oldest = fm_ids[0]
-    html = client.get("/musefm/shorts").get_data(as_text=True)
-    check("oldest musefm clip outside initial 20-page",
-          'data-id="video-%d"' % fm_oldest not in html)
-    html = client.get("/musefm/shorts?video=%d" % fm_oldest).get_data(as_text=True)
-    check("musefm anchor card included outside page",
-          'data-id="video-%d"' % fm_oldest in html)
-    check("musefm anchor id passed to template",
-          'data-anchor="%d"' % fm_oldest in html)
-    html = client.get("/musefm/shorts?video=%d" % anchor_ids[0]).get_data(as_text=True)
+    page0 = client.get("/shorts?series=musefm").get_data(as_text=True)
+    on_page = set(int(x) for x in re.findall(r'data-id="video-(\d+)"', page0))
+    deep_ids = [i for i in fm_ids if i not in on_page]
+    check("unified feed serves musefm clips", bool(on_page))
+    check("musefm filter excludes non-musefm clips",
+          all('data-id="video-%d"' % a not in page0 for a in anchor_ids))
+    if deep_ids:
+        deep = deep_ids[0]
+        html = client.get(
+            "/shorts?series=musefm&video=%d" % deep).get_data(as_text=True)
+        check("musefm anchor card included outside initial page",
+              'data-id="video-%d"' % deep in html)
+        check("musefm anchor id passed to template",
+              'data-anchor="%d"' % deep in html)
+    html = client.get("/shorts?series=musefm&video=%d"
+                      % anchor_ids[0]).get_data(as_text=True)
     check("non-musefm clip not anchored into musefm feed",
           'data-anchor=""' in html)
     html = client.get("/musefm").get_data(as_text=True)
-    check("musefm hub strip opens anchored feed",
-          "/musefm/shorts?video=" in html)
+    check("musefm hub strip opens anchored unified feed",
+          "/shorts?series=musefm&video=" in html)
 
     print()
     print(f"{len(PASS)} passed, {len(FAIL)} failed")

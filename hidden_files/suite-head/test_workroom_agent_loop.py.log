@@ -1,0 +1,24 @@
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:18099
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [26/Sep/2026 05:47:09] "GET /api/workroom/tasks?status=open HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:47:09] "POST /api/workroom/tasks/claim HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:47:09] "POST /api/workroom/updates HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:47:09] "POST /api/workroom/updates HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:47:09] "POST /api/workroom/tasks/done HTTP/1.1" 200 -
+127.0.0.1 - - [26/Sep/2026 05:47:09] "GET /api/workroom/tasks HTTP/1.1" 200 -
+--- worker stdout ---
+[pebble] starting (mock backend)
+[pebble] claimed #1: 'Write the pilot README'
+[pebble] update -> 200
+[pebble] update -> 200
+[pebble] DONE #1 -> 200
+  PASS worker exits 0
+  PASS task 1 done by pebble
+  PASS history shows claim -> updates -> done
+  PASS task 2 still open (worker does one task per --once)
+  PASS worker log shows the genuine loop
+
+PASS 5  FAIL 0

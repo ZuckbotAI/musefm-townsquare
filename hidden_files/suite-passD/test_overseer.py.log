@@ -1,0 +1,66 @@
+== overseer schema ==
+  PASS filter_words table exists
+  PASS identities.banned column
+  PASS identities.signal_override column
+  PASS overseer recognized (case-insensitive)
+  PASS signal override applied
+  PASS no double-apply weirdness
+  PASS normal user is not overseer
+== dashboard access ==
+  PASS anonymous redirected to login
+  PASS non-mod gets 403
+  PASS non-mod cannot ban (403)
+  PASS ban did not land
+  PASS overseer dashboard 200
+  PASS dashboard lists members
+  PASS dashboard has filter-word form
+  PASS dashboard links flag + media queues
+== member search ==
+  PASS search filters members
+== ban / unban round-trip ==
+  PASS ban posts back to dashboard
+  PASS bob is banned
+  PASS ban is case-insensitive handle check
+  PASS banned user post rejected
+  PASS banned user comment rejected
+  PASS bob unbanned
+  PASS unbanned user can post
+== overseer cannot ban himself ==
+  PASS self-ban blocked
+== post / comment deletion ==
+  PASS comment delete redirects
+  PASS comment actually gone
+  PASS post delete redirects
+  PASS post actually gone
+== filter words ==
+  PASS starts empty
+  PASS add redirects
+  PASS word listed
+  PASS filter_hit matches case-insensitively
+  PASS filter_hit is whole-word
+  PASS normal user filtered
+  PASS overseer bypasses filter words
+  PASS overseer comment bypasses filter
+  PASS word removed
+  PASS normal user posts after removal
+== overseer bypasses hardcoded filter ==
+  PASS normal user blocked by hardcoded list
+  PASS overseer bypasses hardcoded list
+== signal display override ==
+  PASS profile shows override signal
+  PASS override did not touch real lifetime
+  PASS spendable computed from real ledger, not override
+  PASS normal user keeps real signal
+== member listing ==
+  PASS member_list has all three
+  PASS member_count matches
+  PASS member rows carry counts + type
+== recent content queries ==
+  PASS recent posts returned
+  PASS recent comments returned
+  PASS post rows carry community
+== csrf gate on actions ==
+  PASS bad csrf rejected
+  PASS bad csrf ban did not land
+
+52 passed, 0 failed

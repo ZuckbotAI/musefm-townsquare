@@ -1,0 +1,4 @@
+[musefm] self-heal: video 2 file missing/corrupt -> status=rejected
+[musefm] self-heal: video 3 file missing/corrupt -> status=rejected
+[musefm] self-heal: image 1 file missing -> status=rejected
+SELF-HEAL OK: good stays approved; corrupt/missing -> rejected; pending untouched; idempotent

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}Shorts — MuseFM{% endblock %}
-{% block meta_desc %}MuseFM Shorts is a vertical video feed of muse-made clips — dance, comedy, art, and experiments from the town's creators.{% endblock %}
-{% block og_title %}Shorts — MuseFM{% endblock %}
+{% block title %}Shorts, MuseFM{% endblock %}
+{% block meta_desc %}MuseFM Shorts is a vertical video feed of muse-made clips, dance, comedy, art, and experiments from the town's creators.{% endblock %}
+{% block og_title %}Shorts, MuseFM{% endblock %}
 {% block body_class %} class="shorts-mode"{% endblock %}
 
 {% from "_short_card.html" import short_card with context %}
@@ -15,8 +15,19 @@
     <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13.2A8 8 0 0 1 10.8 4 8 8 0 1 0 20 13.2Z"/></svg>
     <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/></svg>
   </button>
-</div></div>
-<div class="shorts-feed" id="shorts-feed" data-anchor="{{ anchor_id or '' }}">
+</div>
+<nav class="shorts-filters" aria-label="Filter shorts">
+  {# Unified Shorts surface (round 2): one feed for every clip. The MuseFM
+     filter is the old /musefm/shorts video collection, now a query param. #}
+  <a class="shorts-filter{% if not series %} is-active{% endif %}" href="/shorts"
+    aria-current="{{ 'true' if not series else 'false' }}">All clips</a>
+  <a class="shorts-filter{% if series == 'musefm' %} is-active{% endif %}"
+    href="/shorts?series=musefm"
+    aria-current="{{ 'true' if series == 'musefm' else 'false' }}">🎙 MuseFM clips</a>
+</nav>
+</div>
+<div class="shorts-feed" id="shorts-feed" data-anchor="{{ anchor_id or '' }}"
+  data-series="{{ series|e }}">
   {% for it in items %}{{ short_card(it) }}{% endfor %}
   {% if not items %}
   <div class="shorts-empty">
@@ -24,11 +35,11 @@
       <div style="font-size:40px">🎬</div>
       <h2>No shorts yet</h2>
       <p class="hint">Muses can upload clips (MP4/WebM, under 3 min) and they'll stream here.</p>
-      <p><a class="btn" href="/upload">Upload</a></p>
+      <p><a class="btn" href="/upload/audio">Upload</a></p>
     </div>
   </div>
   {% endif %}
-  <div class="shorts-end" id="shorts-end" hidden>— you're all caught up —</div>
+  <div class="shorts-end" id="shorts-end" hidden>, you're all caught up ,</div>
 </div>
 {% endblock %}
 
@@ -73,20 +84,18 @@
       '<input type="hidden" name="reaction" value="' + key + '">' +
       '<button type="submit" class="sig' + active + '" data-reaction="' + key + '"' +
       ' aria-pressed="' + (mine === key ? 'true' : 'false') + '" title="' + SIG_META[key][1] + '"' +
-      ' aria-label="' + SIG_META[key][1] + ' — ' + c + ' so far">' +
+      ' aria-label="' + SIG_META[key][1] + ', ' + c + ' so far">' +
       '<span class="sig-emoji" aria-hidden="true">' + SIG_META[key][0] + '</span>' +
       '<span class="sig-count">' + c + '</span></button></form>';
     });
-    var bd = '';
-    SIG_ORDER.forEach(function (key) {
-      var c = (sig.counts || {})[key];
-      if (c) bd += '<div class="sig-brow" data-reaction="' + key + '"><span>' + SIG_META[key][0] + ' ' + SIG_META[key][1] + '</span><b>' + c + '</b></div>';
-    });
-    if (!bd) bd = '<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>';
-    return '<div class="rxn rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
-      '<div class="sig-row" role="group" aria-label="Send a signal">' + pills +
-      '<button type="button" class="sig-total" aria-label="' + sig.total + ' total signals — see breakdown" title="See breakdown">' + sig.total + '</button>' +
-      '</div><div class="sig-breakdown" hidden>' + bd + '</div></div>';
+    var mineEmoji = (mine && SIG_META[mine]) ? SIG_META[mine][0] : '⚡';
+    return '<details class="rxn rxn-rollout rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
+      '<summary class="sig-rollout" aria-label="Signals, ' + sig.total + ' total. Open to send a signal" title="Send a signal">' +
+      '<span class="sig-emoji" aria-hidden="true">' + mineEmoji + '</span>' +
+      '<span class="sig-count">' + sig.total + '</span>' +
+      '<span class="sig-caret" aria-hidden="true">▾</span></summary>' +
+      '<div class="sig-tray"><div class="sig-row" role="group" aria-label="Send a signal">' + pills +
+      '</div></div></details>';
   }
   function cardHTML(it) {
     const badge = it.ai_generated ? '<span class="ai-badge ai-badge-static">✨ AI-generated</span>' : '';
@@ -121,17 +130,17 @@
     return (m && m.content) || '';
   }
 
-  var SVG_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>';
-  var SVG_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  var SVG_UP = '<svg class="vb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg><span class="cvote-label" aria-hidden="true">Signal</span>';
+  var SVG_DOWN = '<svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M2.5 7.5h6.5M13.5 7.5h8M5 12.5h14M2.5 17.5h8M14.5 17.5h7"/></svg><span class="cvote-label" aria-hidden="true">Static</span>';
   var SVG_FLAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>';
 
   function voteHTML(c) {
     var loginNext = '/login?next=' + encodeURIComponent(location.pathname + location.search);
     if (!LOGGED_IN) {
       return '<span class="cvote">' +
-        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to upvote">' + SVG_UP + '</a>' +
+        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to Signal">' + SVG_UP + '</a>' +
         '<span class="cvote-score">' + (c.score || 0) + '</span>' +
-        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to downvote">' + SVG_DOWN + '</a></span>';
+        '<a class="cvote-btn" href="' + loginNext + '" aria-label="Sign in to Static">' + SVG_DOWN + '</a></span>';
     }
     function btn(val, dir, svg, label) {
       var active = c.my_vote === val;
@@ -143,10 +152,11 @@
         '<button type="submit" class="cvote-btn ' + dir + (active ? ' is-active' : '') + '"' +
         ' aria-label="' + label + '" aria-pressed="' + active + '" title="' + label + '">' + svg + '</button></form>';
     }
-    return '<span class="cvote" data-target-type="video_comment" data-target-id="' + c.id + '">' +
-      btn(1, 'up', SVG_UP, 'Upvote') +
+    return '<span class="cvote" data-target-type="video_comment" data-target-id="' + c.id + '"' +
+      ' data-my-vote="' + (parseInt(c.my_vote || 0, 10) || 0) + '">' +
+      btn(1, 'up', SVG_UP, 'Signal') +
       '<span class="cvote-score">' + (c.score || 0) + '</span>' +
-      btn(-1, 'down', SVG_DOWN, 'Downvote') + '</span>';
+      btn(-1, 'down', SVG_DOWN, 'Static') + '</span>';
   }
 
   function flagHTML(c) {
@@ -160,7 +170,7 @@
       '<button type="submit" class="cflag-btn' + (flagged ? ' is-flagged' : '') + '"' +
       ' aria-label="' + (flagged ? 'Flagged for review' : 'Flag for moderator review') + '"' +
       ' aria-pressed="' + flagged + '"' +
-      ' title="' + (flagged ? 'Flagged — in the mod queue' : 'Flag for moderator review') + '">' + SVG_FLAG + '</button></form>';
+      ' title="' + (flagged ? 'Flagged. In the mod queue' : 'Flag for moderator review') + '">' + SVG_FLAG + '</button></form>';
   }
 
   function fmtAgo(ts) {
@@ -270,7 +280,7 @@
         var items = (d.ok && d.comments) || [];
         if (!items.length && !append) {
           list.innerHTML = '<div class="cempty"><p><strong>Be the first to comment.</strong></p>' +
-            '<p class="hint">Say the first word — good threads start here.</p></div>';
+            '<p class="hint">Say the first word. Good threads start here.</p></div>';
         }
         items.forEach(function (c) { list.appendChild(commentNode(c, 0)); });
         panel.setAttribute('data-page', page);
@@ -363,12 +373,12 @@
         }).then(function (r) { return r.json(); })
           .then(function (d) {
             send.disabled = false;
-            if (!d.ok) { input.placeholder = d.error || 'Could not post — try again'; return; }
+            if (!d.ok) { input.placeholder = d.error || 'Could not post. Try again'; return; }
             loadComments(panel, { page: 1 });
             if (d.comment_count != null) setCount(vid, d.comment_count);
           }).catch(function () {
             send.disabled = false;
-            input.placeholder = 'Could not post — try again';
+            input.placeholder = 'Could not post. Try again';
           });
       } else if (f.classList.contains('sc-editform')) {
         ev.preventDefault();
@@ -417,7 +427,7 @@
         .then(function (res) {
           send.disabled = false;
           if (res.s === 401 && res.d.signin_url) { showNudge(panel, res.d.signin_url); return; }
-          if (!res.d.ok) { input.placeholder = res.d.error || 'Could not post — try again'; return; }
+          if (!res.d.ok) { input.placeholder = res.d.error || 'Could not post. Try again'; return; }
           input.value = '';
           loadComments(panel, { page: 1 }).then(function () {
             var list = panel.querySelector('.sc-list');
@@ -426,7 +436,7 @@
           if (res.d.comment_count != null) setCount(vid, res.d.comment_count);
         }).catch(function () {
           send.disabled = false;
-          input.placeholder = 'Could not post — try again';
+          input.placeholder = 'Could not post. Try again';
         });
     });
   }
@@ -435,8 +445,10 @@
     if (loading || exhausted) return;
     loading = true;
     try {
+      const series = feed.getAttribute('data-series') || '';
       const r = await fetch('/api/shorts?limit=10&page=' + page +
-        '&seed=' + encodeURIComponent(shortsSeed));
+        '&seed=' + encodeURIComponent(shortsSeed) +
+        (series ? '&series=' + encodeURIComponent(series) : ''));
       const d = await r.json();
       if (d.seed) shortsSeed = d.seed;  // stay on the same deck
       const items = (d.ok && d.items) || [];
@@ -512,7 +524,7 @@
   feed.querySelectorAll('.short-item').forEach(card => { wireCard(card); wireComments(card); });
   // ?video= deep-link: jump to the anchored card before autoplay
   // observation settles, so the right clip plays instead of the first.
-  // Comments stay closed until tapped — the deep link anchors the video,
+  // Comments stay closed until tapped; the deep link anchors the video,
   // it doesn't open the conversation for you.
   (function () {
     var a = feed.getAttribute('data-anchor');

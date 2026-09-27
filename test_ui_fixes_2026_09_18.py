@@ -6,7 +6,7 @@ Covers:
   1. Shorts deep links: /shorts?video=<id> preserves the scroll anchor
      (data-anchor) WITHOUT auto-opening the comments panel.
   2. Shorts comment button: real SVG icon + count badge; the bottom
-     "⌂ Home" button is gone from /musefm/shorts.
+     "⌂ Home" button is gone from the unified shorts feed.
   3. "View thread" clean link on shorts (no thread-emoji button).
   4. Comment controls on post pages: SVG up/down/flag icons, visible
      active-vote state, 44px touch targets.
@@ -142,14 +142,17 @@ def main():
     check("bad video id ignored silently",
           r.status_code == 200 and 'data-anchor=""' in bad, r.status_code)
     r = client.get("/musefm/shorts")
-    check("musefm/shorts 200", r.status_code == 200, r.status_code)
+    check("musefm/shorts redirects to unified feed",
+          r.status_code in (301, 302)
+          and "/shorts?series=musefm" in r.headers.get("Location", ""),
+          "%s -> %s" % (r.status_code, r.headers.get("Location")))
 
     print("== 2. comment button icon + count; no bottom Home ==")
     check("comment button has SVG icon", 'class="short-ic"' in html)
     check("comment button has count badge", 'class="short-ccount"' in html)
-    mhtml = client.get("/musefm/shorts").get_data(as_text=True)
-    check("no bottom ⌂ Home on musefm/shorts", "⌂ Home" not in mhtml)
-    check("back-to-musefm link kept", "← Back to MuseFM" in mhtml)
+    mhtml = client.get("/shorts?series=musefm").get_data(as_text=True)
+    check("no bottom ⌂ Home on filtered shorts", "⌂ Home" not in mhtml)
+    check("filter pills present", 'class="shorts-filter' in mhtml)
 
     print("== 3. View thread link (no thread emoji button) ==")
     check("'View thread' link present", "View thread" in html)

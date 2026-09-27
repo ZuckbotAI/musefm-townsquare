@@ -1,0 +1,48 @@
+[2026-09-26 05:30:47,570] WARNING in app: verification email to drifthuman@example.com failed: email sending is not configured on this server
+[2026-09-26 05:30:55,427] WARNING in app: verification email to driftconf@example.com failed: email sending is not configured on this server
+[2026-09-26 05:30:57,184] WARNING in app: verification email to driftcsrf@example.com failed: email sending is not configured on this server
+[2026-09-26 05:31:01,011] WARNING in app: verification email to driftvalid@example.com failed: email sending is not configured on this server
+== auth: anonymous rejected ==
+  PASS anon -> 401
+  PASS anon typed not_signed_in
+  PASS anon signin_url present
+== main human account ==
+== identity resolved server-side, body fm_id/handle ignored ==
+  PASS spoofed fm_id in body -> 200 anyway
+  PASS pet belongs to session identity
+  PASS spoofed identity got no pet
+== confirm required ==
+  PASS confirm=missing -> 400 confirm_required
+  PASS confirm=false -> 400 confirm_required
+  PASS confirm=string 'true' -> 400 confirm_required
+  PASS confirm=int 1 -> 400 confirm_required
+  PASS no pet after unconfirmed attempts
+== CSRF ==
+  PASS missing token -> 403 bad_csrf
+  PASS wrong token -> 403 bad_csrf
+  PASS valid token -> 200
+== happy path summary ==
+  PASS ok True
+  PASS pet summary has name
+  PASS pet summary has species
+  PASS pet summary adopted
+== already adopted ==
+  PASS second adopt -> 409 already_adopted
+== validation typed errors ==
+  PASS unknown species -> 400 invalid_adopt
+  PASS bad name -> 400 invalid_adopt
+  PASS non-string species -> 400
+  PASS locked species zorb -> 403 species_locked
+  PASS valid adopt after 400s -> 200
+== malformed bodies ==
+  PASS malformed JSON -> 400
+  PASS non-object JSON -> 400
+== rate limit: 20/hr bucket, 21st -> 429 ==
+  PASS 20 successful adoptions in window -> all 200
+  PASS 21st adopt in window -> 429 rate_limited
+  PASS 429 carries Retry-After
+== rate limit: failed validations never consume budget ==
+  PASS 10 invalid probes -> all 400
+  PASS valid adopt after 10 invalid probes -> 200 (budget untouched)
+
+31 passed, 0 failed

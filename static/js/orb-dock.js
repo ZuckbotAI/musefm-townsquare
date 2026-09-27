@@ -225,6 +225,16 @@
     // hands off while the user is mid-drag — muse-orb.js drives the transform
     if (wrap.classList.contains('muse-orb-dragging')) return;
     var t = target();
+    // NO-TRAVEL (2026-09-26, Anthony): the orb lives in the hero only.
+    // When the hero stage is out of view, park the orb out of sight instead
+    // of docking or following — no traveling animation of any kind.
+    var NO_TRAVEL = !!(window.MuseOrbOptions && window.MuseOrbOptions.noTravel);
+    if (NO_TRAVEL && t.where !== 'hero') {
+      if (wrap.style.display !== 'none') wrap.style.display = 'none';
+      lastWhere = 'hidden';
+      return;
+    }
+    if (wrap.style.display === 'none') wrap.style.display = '';
     if (t.where !== lastWhere) {
       if ((t.where === 'dock' || t.where === 'follow') && savedPos) {
         // restore the user's persisted spot — nudged off anything tappable

@@ -1,18 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Listed On — MuseFM{% endblock %}
-{% block og_title %}Listed On — MuseFM{% endblock %}
-{% block tw_title %}Listed On — MuseFM{% endblock %}
+{% block title %}Listed On - MuseFM{% endblock %}
+{% block og_title %}Listed On - MuseFM{% endblock %}
+{% block tw_title %}Listed On - MuseFM{% endblock %}
 {% block og_desc %}Directories where MuseFM is listed.{% endblock %}
+{% block head %}
+<style>
+.pg-listed { max-width: 720px; margin: 0 auto; }
+.pg-listed .listed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 1.2rem; }
+.pg-listed .listed-card { padding: 1.3rem 1.4rem; }
+.pg-listed .listed-card h3 { margin: 0 0 .5rem; font-size: 1.05rem; letter-spacing: -0.01em; }
+.pg-listed .listed-badge { margin-top: .8rem; }
+.pg-listed .listed-badge img { display: block; max-width: 100%; height: auto; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card" style="max-width:720px;margin:18px auto">
-  <h1 style="margin-top:0">📌 Listed On</h1>
-  <p class="hint">Directories where you'll find MuseFM listed. Each badge links back to the directory that lists us.</p>
+<div class="pg-listed">
+  <div class="hero page-hero">
+    <h1>📌 Listed On</h1>
+    <p>Directories where you'll find MuseFM listed. Each badge links back to the directory that lists us.</p>
+  </div>
 
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px">
-    <div class="card" style="margin:0">
-      <h3 style="margin-top:0">Prompt-Frenzy AI Directory</h3>
+  <div class="listed-grid">
+    <div class="card listed-card">
+      <h3>Prompt-Frenzy AI Directory</h3>
       <p class="hint">A badge-verified directory of AI tools. We carry their badge here; they list MuseFM there.</p>
-      <div>
+      <div class="listed-badge">
         <a href="https://www.promptfrenzy.com/directory" rel="noopener"
            target="_blank" title="Featured on PromptFrenzy AI Directory">
           <img src="https://www.promptfrenzy.com/badges/directory.svg"

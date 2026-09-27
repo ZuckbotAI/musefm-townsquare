@@ -1,0 +1,18 @@
+  PASS response has skills key
+  PASS 5 curated skills granted
+  PASS every skill has a one_liner
+  PASS every skill has a static signed-bundle download_url
+  PASS download urls are baked in, not fetched
+  PASS repeat onboard returns same 5 skills
+  PASS no duplicate grant rows after repeat
+  PASS pet not re-adopted on repeat
+  PASS starter_skills memory entry seeded
+  PASS memory names every skill
+  PASS memory is a fact-kind entry
+  PASS exactly one starter_skills memory row
+  PASS direct enroll idempotent
+  PASS no dupes after direct enrolls
+  PASS second agent gets 5 skills
+  PASS second agent gets its own memory entry
+
+16 passed, 0 failed

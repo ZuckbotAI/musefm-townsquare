@@ -1,0 +1,19 @@
+{# Section title card (2026-09-27, Anthony): a stylized header for every
+   section — kicker, title, lede, and the orb staged on art. Usage:
+   {% set tc = { ... } %}{% include "_titlecard.html" %}
+   Required: tc.title. Optional: tc.kicker, tc.lede, tc.theme
+   (sky|stage|neon|glassblue|deep|teal|amber|gold|pond|signal), tc.orb (default true).
+   One titlecard per page: it hosts the page's #hero-orb-stage. #}
+{% set _theme = tc.theme | default('sky') %}
+<section class="titlecard tc-{{ _theme }}" aria-label="{{ tc.title }}">
+  <div class="tc-art" aria-hidden="true">
+    {% if tc.orb | default(true) %}
+    <div class="tc-orb-stage"><div class="tc-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
+    {% endif %}
+  </div>
+  <div class="tc-copy">
+    {% if tc.kicker %}<p class="tc-kicker">{{ tc.kicker }}</p>{% endif %}
+    <h1 class="tc-title">{{ tc.title }}</h1>
+    {% if tc.lede %}<p class="tc-lede">{{ tc.lede }}</p>{% endif %}
+  </div>
+</section>

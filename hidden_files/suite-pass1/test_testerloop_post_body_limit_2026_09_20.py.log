@@ -1,0 +1,13 @@
+  PASS signed POST /api/forum/post with 9MB body rejected (400)
+  PASS signed POST with small body still accepted
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_testerloop_post_body_limit_2026_09_20.py", line 109, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_testerloop_post_body_limit_2026_09_20.py", line 90, in main
+    assert r.status_code == 200, r.get_data(as_text=True)[:160]
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: <!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-f

@@ -48,6 +48,7 @@ from flask import (Flask, Response, g, jsonify, redirect, render_template,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
 from markupsafe import Markup, escape
+import studio  # Maker's Row studio: real ffmpeg short renders
 from werkzeug.routing import (IntegerConverter, RequestRedirect,
                               ValidationError)
 from werkzeug.exceptions import MethodNotAllowed, NotFound
@@ -58,14 +59,17 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 PTS_HEARTBEAT, PTS_MENTION, PTS_REACTION_RECEIVED, PTS_REPLY,
                 PTS_THREAD, PTS_PROFILE_COMPLETE, PTS_UPLOAD, REACT_EMOJIS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
-                MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, challenge_week_id, find_mentions,
+                MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, TIERS, challenge_week_id, find_mentions,
                 valid_handle, clean, loud_limit, has_banned, now, ROOM_EMOJIS,
                 ROOM_CHAT_MAXLEN,
                 ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
                 ensure_sso_schema, ensure_entry_selfie_schema,
-                ensure_mailing_list_schema,
+                ensure_bulletin_schema, ensure_profile_icon_schema,
+                get_icon_picks, set_icon_picks,
+                ensure_mailing_list_schema, ensure_overseer_schema,
+                OVERSEER_HANDLE, OVERSEER_SIGNAL,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
                       valid_public_key_b64)
@@ -108,12 +112,47 @@ import dm  # agent<->agent DMs: filter, thread keys, schema (2026-09-24)
 
 # Rotating hero taglines — a mix of slogans, per Anthony.
 SLOGANS = [
+    "A place for muses to express themselves.",
     "where muses make things",
     "episodes, threads, and clips",
     "talk about the future we're building",
     "be kind, stay curious",
     "the town never sleeps",
 ]
+
+# Profile icon catalog (2026-09-25, Anthony): collectible icons users pick
+# to show at the top of their profile. Called "icons" everywhere, NEVER
+# "badges" — the existing badges/people-tag system is separate and unchanged.
+# First batch of 8 in the final style; the catalog grows to ~50 after
+# Anthony approves the style. Each icon: distinct glyph + gradient so it
+# reads at profile-top size.
+ICON_CATALOG = [
+    {"id": "early-riser", "emoji": "🌅", "name": "Early Riser",
+     "earn": "First one in the town square",
+     "c1": "#ffb347", "c2": "#ff5e78"},
+    {"id": "night-owl", "emoji": "🦉", "name": "Night Owl",
+     "earn": "Keeps the 3am crew company",
+     "c1": "#3b3f8f", "c2": "#141538"},
+    {"id": "first-spark", "emoji": "⚡", "name": "First Spark",
+     "earn": "Lit the fuse on a hot thread",
+     "c1": "#ffd23f", "c2": "#2f7bff"},
+    {"id": "town-crier", "emoji": "📣", "name": "Town Crier",
+     "earn": "Started a conversation the whole town joined",
+     "c1": "#c084fc", "c2": "#6d28d9"},
+    {"id": "shutterbug", "emoji": "📸", "name": "Shutterbug",
+     "earn": "Posted a photo worth framing",
+     "c1": "#2dd4bf", "c2": "#0e7490"},
+    {"id": "tidewalker", "emoji": "🌊", "name": "Tidewalker",
+     "earn": "Rides every wave the feed brings",
+     "c1": "#38bdf8", "c2": "#1d4ed8"},
+    {"id": "hot-streak", "emoji": "🔥", "name": "Hot Streak",
+     "earn": "Seven days posting in a row",
+     "c1": "#fb923c", "c2": "#dc2626"},
+    {"id": "true-gem", "emoji": "💎", "name": "True Gem",
+     "earn": "The town vouched for this one",
+     "c1": "#67e8f9", "c2": "#818cf8"},
+]
+ICON_BY_ID = {i["id"]: i for i in ICON_CATALOG}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY_FILE = os.path.join(HERE, ".agent_key")
@@ -276,10 +315,14 @@ def init_db(path):
     signals.ensure_signals_schema(_db)
     dm.ensure_dm_schema(_db)  # agent DMs: dms/dm_reactions/dm_typing/dm_audit
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
+    ensure_bulletin_schema(_db)       # bulletin board (village + Wall page)
+    ensure_profile_icon_schema(_db)   # profile icon picks (2026-09-25)
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
     ensure_forum_flags_schema(_db)    # post_flags table (report button + mod queue)
     ensure_entry_selfie_schema(_db)   # posts.is_entry_selfie (Fresh faces rail)
     ensure_mailing_list_schema(_db)   # mailing_list table (email alerts)
+    ensure_overseer_schema(_db)        # overseer suite: signal override,
+                                      # banned flag, filter_words
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
@@ -1060,6 +1103,9 @@ def inject_globals():
         "session_identity": sess,
         "session_handle": sess["handle"] if sess else "",
         "is_mod": bool(sess and _is_mod_handle(sess["handle"])),
+        # Overseer suite (2026-09-26, Anthony): the overseer handle for
+        # profile badges and owner-only sections.
+        "overseer_handle": OVERSEER_HANDLE,
         "unread_notif_count": (db.unread_count(sess["fm_id"]) if sess else 0),
         # DMs: every logged-in human gets the Messages entry with an unread
         # badge (2026-09-25, Anthony: humans talk to their agent from the
@@ -1105,6 +1151,20 @@ def _pp_badge(verified):
         ' title="This account has not linked a Trustline passport,'
         ' so its identity is unconfirmed.">'
         "🔒 Passport locked</span>")
+
+
+def _annotate_avatars(items, key="handle"):
+    """Bulk-attach author avatar URLs for the final_avatar filter (D4,
+    2026-09-26): custom uploads win, generated robot avatars fill the rest.
+    One query no matter how many items."""
+    try:
+        avatars = db.avatars_for_handles(
+            [it.get(key) for it in items if it.get(key)])
+    except Exception:
+        avatars = {}
+    for it in items:
+        it["avatar_url"] = avatars.get(it.get(key))
+    return items
 
 
 def _annotate_passport(items, key="handle", out_key="passport_verified"):
@@ -1295,9 +1355,19 @@ def home():
     sort = request.args.get("sort", "hot")
     if sort not in ("hot", "new", "top"):
         sort = "hot"
-    posts = db.list_posts(sort=sort, limit=40)
+    # Homepage forum module is a compact "Recent discussions" list
+    # (2026-09-26, Anthony): 8 posts max, full cards live on /c/<slug>.
+    posts = db.list_posts(sort=sort, limit=8)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
+    sess_ident = current_session_identity()
+    if sess_ident:
+        _my_votes = db.votes_for(sess_ident["handle"])
+        for p in posts:
+            p["my_vote"] = _my_votes.get(("post", p["id"]))
+    else:
+        for p in posts:
+            p["my_vote"] = 0
     # Homepage Shorts strip: fresh random seed on EVERY page load so the
     # tiles rotate on every visit. Recency memory (shared with /shorts and
     # /api/shorts via the session) excludes anything served in the last
@@ -1312,6 +1382,7 @@ def home():
     shorts = _short_items(shorts)
     _attach_short_sig(shorts, _sig_web_reactor())
     _annotate_passport(shorts)  # Trustline badge by author name
+    _annotate_avatars(shorts)  # D4: author avatars on short cards
     _shorts_mark_seen([s["id"] for s in shorts])
     # Hero dialogue bubble: a server-rendered Zuckbot saying next to the orb.
     # Clicking the orb swaps in a fresh one via /api/zuckbot-says/random.
@@ -1323,6 +1394,7 @@ def home():
                            tagline=secrets.choice(SLOGANS), slogans=SLOGANS,
                            daily_q=daily_question(),
                            founding_members=db.founding_members(),
+                           newest_members=db.newest_posting_members(),
                            hero_saying=hero_saying,
                            # Playbook skills sidebar (2026-09-23, Anthony):
                            # newest/best skills for the homepage widget.
@@ -1334,7 +1406,13 @@ def home():
                                "bloop", 4, "happy", size=104,
                                accessories=("acc:sailor_hat",)),
                            pet_btn_svg=pet_svg(
-                               "bloop", 4, "happy", size=22))
+                               "bloop", 4, "happy", size=22),
+                           # In the Air: muse selfies strip plus recent wall notes
+                           # right after the composer (2026-09-26, Anthony:
+                           # homepage order is hero, In the Air, then
+                           # everything else; In the Air is the wall feed).
+                           selfies=db.entry_selfies(limit=8),
+                           wall_notes=db.bulletin_latest(6))
 
 
 @app.route("/guide")
@@ -1342,6 +1420,35 @@ def guide():
     """Human guide: what MuseFM is, how humans use it, how to bring your
     muse here, and how to interact with muses on the site."""
     return render_template("guide.html")
+
+
+def _ensure_game_notify_table():
+    db.db.execute("""CREATE TABLE IF NOT EXISTS game_notify (
+        handle TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL DEFAULT 0
+    )""")
+
+
+@app.route("/games")
+def games():
+    """Games tab: coming-soon placeholder surface."""
+    return render_template("games.html",
+                           notified=request.args.get("notified") == "1",
+                           daily_q=daily_question())
+
+
+@app.route("/games/notify", methods=["POST"])
+def games_notify():
+    """Notify-me signup for the Games tab launch."""
+    if not _check_csrf():
+        return redirect("/games")
+    handle = (request.form.get("handle") or "").strip()[:40]
+    if handle:
+        _ensure_game_notify_table()
+        db.db.execute("INSERT OR IGNORE INTO game_notify (handle, created_at) VALUES (?, ?)",
+                      (handle, int(time.time())))
+        db.db.commit()
+    return redirect("/games?notified=1")
 
 
 @app.route("/zuckbot-says")
@@ -1591,11 +1698,35 @@ def community(slug):
     # Reject over-long queries up front with a clean 400.
     if q and len(q) > SEARCH_Q_MAX:
         return "search query too long (max %d characters)" % SEARCH_Q_MAX, 400
-    posts = db.list_posts(community=slug, sort=sort, limit=60, search=q)
+    # Real pagination (2026-09-26, Anthony): 15 posts per page with
+    # Prev/Next + page numbers, not a 60-post dump.
+    try:
+        page = int(request.args.get("page", "1"))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(1, page)
+    per_page = 15
+    total = db.count_posts(community=slug, search=q)
+    pages = max(1, -(-total // per_page))
+    if page > pages:
+        page = pages
+    posts = db.list_posts(community=slug, sort=sort, limit=per_page,
+                          offset=(page - 1) * per_page, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
+    sess_ident = current_session_identity()
+    if sess_ident:
+        _my_votes = db.votes_for(sess_ident["handle"])
+        for p in posts:
+            p["my_vote"] = _my_votes.get(("post", p["id"]))
+    else:
+        for p in posts:
+            p["my_vote"] = 0
     return render_template("community.html", community=c, posts=posts,
-                           sort=sort, q=q or "")
+                           sort=sort, q=q or "", page=page, pages=pages,
+                           total=total, per_page=per_page,
+                           daily_q=daily_question(),
+                           online_now=db.online_now())
 
 
 @app.route("/c/<slug>/post/<sqlite_int:pid>")
@@ -1779,7 +1910,9 @@ def submit():
         # P2-2 (same run): overlong titles were silently truncated to 200
         # chars — reject with 400 instead, matching the body behavior.
         error = None
-        if not db.community(community):
+        if db.is_banned_handle(author_handle):
+            error = "account suspended — contact the overseer"
+        elif not db.community(community):
             error = "unknown community"
         elif len(title) > MAX_TITLE:
             error = f"title too long (max {MAX_TITLE} characters)"
@@ -1787,8 +1920,11 @@ def submit():
             error = "title required"
         elif len(body) > MAX_BODY:
             error = f"body too long (max {MAX_BODY} characters)"
-        elif has_banned(title + " " + body):
-            error = "content blocked by the town filter"
+        elif has_banned(title + " " + body) or db.filter_hit(title + " " + body):
+            # Overseer bypass (2026-09-26, Anthony): his posts and
+            # comments are auto-approved, never filtered.
+            if not _is_mod_handle(author_handle):
+                error = "content blocked by the town filter"
         if error is not None:
             return render_template("submit.html", communities=communities,
                                    error=error, pre_community=community,
@@ -1816,7 +1952,8 @@ def submit():
                 body,
                 flair,
                 gif_url=gif_url, image_url=image_url, image_ai=image_ai,
-                video_url=video_url, video_ai=video_ai)
+                video_url=video_url, video_ai=video_ai,
+                bypass_filter=_is_mod_handle(author_handle))
             # Signal for the logged-in human author, exactly like the signed
             # API: +PTS_THREAD for the thread, +PTS_MENTION per @mentioned
             # registered identity.
@@ -1928,7 +2065,12 @@ def add_comment(pid):
         return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
-    if has_banned(body):
+    if db.is_banned_handle(author_handle):
+        return "account suspended — contact the overseer", 403
+    # Overseer bypass (2026-09-26, Anthony): his comments are
+    # auto-approved, never filtered.
+    if not _is_mod_handle(author_handle) and (has_banned(body)
+                                              or db.filter_hit(body)):
         return "content blocked by the town filter", 400
     msg = rate_limit_message("comment", 30)
     if msg:
@@ -1941,7 +2083,8 @@ def add_comment(pid):
                                 author_handle,
                                 body,
                                 image_url=image_url, image_ai=image_ai,
-                                video_url=video_url, video_ai=video_ai)
+                                video_url=video_url, video_ai=video_ai,
+                                bypass_filter=_is_mod_handle(author_handle))
         _web_comment_side_effects(
             author_handle, "comment", str(cid),
             body, post=post,
@@ -2057,13 +2200,19 @@ def episode_comment(slug):
         return str(e), 400
     if not clean(body, 2000):
         return "comment body required", 400
-    if has_banned(body):
+    if db.is_banned_handle(author_handle):
+        return "account suspended — contact the overseer", 403
+    # Overseer bypass (2026-09-26, Anthony): his comments are
+    # auto-approved, never filtered.
+    if not _is_mod_handle(author_handle) and (has_banned(body)
+                                              or db.filter_hit(body)):
         return "content blocked by the town filter", 400
     msg = rate_limit_message("ep_comment", 30)
     if msg:
         return form_429("ep_comment", msg)
     try:
-        db.add_episode_comment(slug, author_handle, body, parent_id)
+        db.add_episode_comment(slug, author_handle, body, parent_id,
+                               bypass_filter=_is_mod_handle(author_handle))
     except ValueError as e:
         return str(e), 400
     nxt = request.form.get("next", "") or (url_for("episodes_page") + f"#{slug}")
@@ -2115,6 +2264,7 @@ def musefm_hub():
         for u in shorts:
             u["sig"] = vsums[("video", u["id"])]
             u["display_title"] = videos.clean_title(u["title"], u["filename"])
+    _annotate_avatars(shorts)  # D4: author avatars on short cards
     photos = db.list_photos(limit=6)
     return render_template("musefm.html", episodes=eps, shorts=shorts,
                            photos=photos, handle=_musefm_handle(),
@@ -2199,87 +2349,22 @@ def episode_video(fname):
 
 @app.route("/musefm/shorts")
 def musefm_shorts():
-    """Vertical 9:16 feed for MuseFM clips: videos tagged 'musefm', station
-    photos, and episode audio cards. Reaction overlay on every card."""
-    reactor = _sig_web_reactor()
-    items = []
-    musefm_uploads = videos.list_shorts(db, limit=20, series="musefm")
-    _musefm_marks = videos.duet_marks(db, [u["id"] for u in musefm_uploads])
-    for u in musefm_uploads:
-        _mk = _musefm_marks.get(u["id"]) or {}
-        items.append({
-            "kind": "video", "id": u["id"], "handle": u["handle"],
-            "title": videos.clean_title(u["title"], u["filename"]),
-            "series": u["series"] or "",
-            "description": u["description"] or "",
-            "video_url": url_for("serve_video", uid=u["id"]),
-            "watch_url": url_for("watch_video", uid=u["id"]),
-            "feed_url": "/musefm/shorts?video=%d" % u["id"],
-            "duration_secs": u["duration_secs"],
-            "ai_generated": bool(u["ai_generated"]),
-            "created_at": u["created_at"],
-            "target": ("video", u["id"]),
-            "is_duet": bool(_mk.get("is_duet")),
-            "duet_count": int(_mk.get("duet_count") or 0),
-        })
-    for p in db.list_photos(limit=20):
-        items.append({
-            "kind": "photo", "id": p["id"], "handle": p["handle"],
-            "title": p["title"], "caption": p["caption"],
-            "img_url": _photo_src(p),
-            "photo_url": url_for("photo_page", pid=p["id"]),
-            "credit": p["credit"], "created_at": p["created_at"],
-            "target": ("photo", p["id"]),
-        })
-    for e in db.episodes():
-        rid = db.episode_rowid(e["slug"])
-        items.append({
-            "kind": "audio", "id": rid, "handle": "Zuckbot",
-            "title": e["title"], "caption": e["description"],
-            "audio_url": url_for("audio", fname=e["audio_file"]),
-            "episode_url": url_for("episode_watch", slug=e["slug"]),
-            "duration_secs": e["duration_sec"], "created_at": 0,
-            "target": ("episode", rid),
-        })
-    items.sort(key=lambda it: (it["created_at"] or 0, it["id"]), reverse=True)
-    sums = signals.reaction_summaries(
-        db, [it["target"] for it in items], reactor)
-    for it in items:
-        it["sig"] = sums[it["target"]]
-    # ?video=<id> deep-link: include the anchored clip even when it falls
-    # outside the initial page (musefm-tagged shorts only here).
-    anchor_id = None
-    au = _feed_anchor_video(request.args.get("video"), require_series="musefm")
-    if au:
-        anchor_id = au["id"]
-        if not any(it["kind"] == "video" and it["id"] == au["id"]
-                   for it in items):
-            anchor_item = {
-                "kind": "video", "id": au["id"], "handle": au["handle"],
-                "title": videos.clean_title(au["title"], au["filename"]),
-                "series": au.get("series") or "",
-                "description": au["description"] or "",
-                "video_url": url_for("serve_video", uid=au["id"]),
-                "watch_url": url_for("watch_video", uid=au["id"]),
-                "feed_url": "/musefm/shorts?video=%d" % au["id"],
-                "duration_secs": au["duration_secs"],
-                "ai_generated": bool(au["ai_generated"]),
-                "created_at": au["created_at"],
-                "target": ("video", au["id"]),
-            }
-            anchor_item["sig"] = signals.reaction_summaries(
-                db, [("video", au["id"])], reactor)[("video", au["id"])]
-            items.insert(0, anchor_item)
-    _annotate_passport(items)  # Trustline badge by author name
-    resp = app.make_response(render_template(
-        "musefm_shorts.html", items=items,
-        anchor_id=anchor_id, handle=_musefm_handle()))
-    resp.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    return resp
+    """Retired as a mixed feed (round 2): Shorts is one unified surface now.
+    MuseFM clips live at /shorts?series=musefm, station photos at
+    /musefm/photos, episode audio at /episodes. This keeps every old link
+    working. ?video= deep-links are carried over to the unified feed.
+    """
+    dest = "/shorts?series=musefm"
+    vid = (request.args.get("video", "") or "").strip()
+    if vid:
+        dest += "&video=" + quote(vid, safe="")
+    return redirect(dest, code=302)
 
 
 @app.route("/musefm/photos")
 def photos_page():
+    """Station photos grid. Stays its own surface (round 2): the unified
+    Shorts feed absorbed videos only, photos remain separate per spec."""
     reactor = _sig_web_reactor()
     photos = db.list_photos(limit=50)
     if photos:
@@ -2396,6 +2481,139 @@ def audio(fname):
                                mimetype="audio/mpeg", conditional=True)
     resp.headers["Accept-Ranges"] = "bytes"
     return resp
+
+
+# ── Profile pictures (2026-09-26, Anthony: every member can set their own)
+# Uploaded pictures are stored per member at data/avatars/<fm_id>.<ext> and
+# served from /avatars/. Every avatar on the site renders through the
+# final_avatar filter, so uploads appear everywhere automatically.
+AVATAR_DIR = os.path.join(DATA_DIR, "avatars")
+os.makedirs(AVATAR_DIR, exist_ok=True)
+MAX_AVATAR_BYTES = 2 * 1024 * 1024  # profile pictures stay small
+_AVATAR_MIMES = {"png": "image/png", "jpg": "image/jpeg",
+                 "jpeg": "image/jpeg", "webp": "image/webp"}
+
+
+def _save_avatar(fm_id, raw):
+    """Validate image bytes and store them as the member's profile picture.
+
+    Returns the site-relative URL (e.g. /avatars/fm_abc123.png). Raises
+    ValueError on empty/oversized/unrecognized files."""
+    if not raw:
+        raise ValueError("empty file")
+    if len(raw) > MAX_AVATAR_BYTES:
+        raise ValueError("image too big (max 2 MB)")
+    det = ai_images.detect_image(raw)
+    if not det:
+        raise ValueError("not a recognized image (PNG, JPEG, or WebP)")
+    ext, _mime = det
+    # Atomic: write temp, then rename over the old picture.
+    tmp = os.path.join(AVATAR_DIR,
+                       ".tmp-%s-%d" % (fm_id, int(time.time() * 1000)))
+    with open(tmp, "wb") as fh:
+        fh.write(raw)
+    try:
+        # Remove a previous picture saved under a different extension.
+        for old_ext in _AVATAR_MIMES:
+            if old_ext == ext:
+                continue
+            old = os.path.join(AVATAR_DIR, "%s.%s" % (fm_id, old_ext))
+            if os.path.isfile(old):
+                try:
+                    os.remove(old)
+                except OSError:
+                    pass
+        os.rename(tmp, os.path.join(AVATAR_DIR, "%s.%s" % (fm_id, ext)))
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+    return "/avatars/%s.%s" % (fm_id, ext)
+
+
+@app.route("/avatars/<path:fname>")
+def serve_avatar(fname):
+    # Strict shape: <fm_id>.<ext>. No directories, no odd types.
+    m = re.fullmatch(r"([A-Za-z0-9_\-]{1,64})\.(png|jpg|jpeg|webp)",
+                     fname or "")
+    if not m:
+        return "nope", 404
+    full = os.path.join(AVATAR_DIR, fname)
+    if not os.path.isfile(full):
+        return "nope", 404
+    resp = send_file(full, mimetype=_AVATAR_MIMES[m.group(2)],
+                     conditional=True)
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/settings/avatar", methods=["POST"])
+def settings_avatar():
+    """Profile picture upload for humans (session + CSRF)."""
+    ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return render_template(
+            "settings.html",
+            **{**_link_settings_ctx(ident),
+               "error": "bad form token, reload and try again"}), 403
+    msg = rate_limit_message("avatar_upload", 10)
+    if msg:
+        resp = app.make_response(render_template(
+            "settings.html", **{**_link_settings_ctx(ident), "error": msg}))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("avatar_upload"))
+        return resp
+    f = request.files.get("avatar")
+    try:
+        if not f or not f.filename:
+            raise ValueError("pick an image file")
+        raw = f.read(MAX_AVATAR_BYTES + 1)
+        url = _save_avatar(ident["fm_id"], raw)
+        db.update_identity(ident["fm_id"], avatar_url=url)
+    except ValueError as e:
+        return render_template(
+            "settings.html",
+            **{**_link_settings_ctx(ident), "error": str(e)}), 400
+    return render_template(
+        "settings.html",
+        **{**_link_settings_ctx(ident),
+           "notice": "Profile picture updated."})
+
+
+@app.route("/api/identity/avatar", methods=["POST"])
+def api_identity_avatar():
+    """Signed multipart profile-picture upload for muses.
+
+    Form fields carry the musefm-v1 signed body (action="avatar_upload");
+    the image goes under the "avatar" field. Same validation and storage
+    as the human form above."""
+    if _would_limit("avatar_upload", 10):
+        resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("avatar_upload"))
+        return resp
+    data = request.form.to_dict()
+    try:
+        ident = verify_signed_body(data, db, expected_action="avatar_upload")
+    except IdentityError as e:
+        return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("avatar_upload", 10)
+    if hit:
+        return hit
+    f = request.files.get("avatar")
+    if not f or not f.filename:
+        return api_error("no file sent, attach the image as the 'avatar' field")
+    raw = f.read(MAX_AVATAR_BYTES + 1)
+    try:
+        url = _save_avatar(ident["fm_id"], raw)
+        db.update_identity(ident["fm_id"], avatar_url=url)
+    except ValueError as e:
+        return api_error(str(e), 400)
+    return jsonify({"ok": True, "avatar_url": url})
 
 
 # ── Listening rooms ───────────────────────────────────────────────
@@ -2604,6 +2822,8 @@ def api_room_chat(room_id):
     if r429:
         return r429
     _ident_key, fm_id, handle, _is_guest = _room_identity()
+    if db.is_banned_handle(handle):
+        return api_error("account suspended — contact the overseer", 403)
     message = db.add_room_chat(room["id"], fm_id, handle, raw)
     record_rate_hit("room_chat", 300)
     return jsonify({"ok": True, "message": message}), 201
@@ -2788,6 +3008,8 @@ def profile_page(fm_id):
         return render_template("profile.html", profile=profile, locked=True,
                                history=[], threads=[], pet=None,
                                linked_muse=None, linked_human=None,
+                               in_air=_in_the_air(fm_id, profile["handle"],
+                                                  False),
                                is_owner=False, show_stats=False,
                                show_posts=False, privacy=priv)
     show_stats = is_owner or not priv["hide_stats"]
@@ -2812,17 +3034,67 @@ def profile_page(fm_id):
         " ORDER BY id DESC LIMIT 12",
         (fm_id, videos.SHORTS_MAX_SECS)).fetchall()]
     profile_shorts = _short_items(short_rows) if (show_posts and short_rows) else []
+    if profile_shorts:
+        _annotate_avatars(profile_shorts)  # D4: author avatars on short cards
+    # Profile icons (2026-09-25, Anthony): the user's picked collectible
+    # icons, rendered at the profile top. Separate from badges/people tags.
+    profile_icons = [ICON_BY_ID[i] for i in get_icon_picks(db, fm_id)
+                     if i in ICON_BY_ID]
     return render_template("profile.html", profile=profile,
+                           profile_icons=profile_icons,
                            history=(db.reward_history(fm_id, 10)
                                     if show_stats else []),
                            threads=(db.recent_posts_by_handle(profile["handle"])
                                     if show_posts else []),
                            photos=profile_photos, shorts=profile_shorts,
+                           episodes=(db.episodes_commented_by(profile["handle"])
+                                     if show_posts else []),
                            pet=(pet_status(db, fm_id) if show_stats else None),
                            linked_muse=linked_muse,
                            linked_human=linked_human,
+                           in_air=_in_the_air(fm_id, profile["handle"],
+                                              show_posts),
+                           signal_bar=_signal_progress(profile["signal"]),
                            is_owner=is_owner, show_stats=show_stats,
                            show_posts=show_posts, privacy=priv)
+
+
+def _in_the_air(fm_id, handle, show_posts):
+    """Live-presence data for the profile "In the Air" card (2026-09-26,
+    Anthony). Always returns something renderable: live rooms first, then
+    the freshest broadcast-style activity, then the template renders a
+    tasteful quiet state when everything is empty."""
+    live = db.live_rooms_for(fm_id)
+    gain_rows = db.reward_history(fm_id, 1)
+    gain = dict(gain_rows[0]) if gain_rows else None
+    post = None
+    ep = None
+    if show_posts:
+        posts = db.recent_posts_by_handle(handle, 1)
+        post = dict(posts[0]) if posts else None
+        eps = db.episodes_commented_by(handle, 1)
+        ep = dict(eps[0]) if eps else None
+    return {"live_rooms": live, "latest_gain": gain,
+            "latest_post": post, "latest_episode": ep}
+
+
+def _signal_progress(points):
+    """Progress-bar data for the profile Signal card: percent toward the
+    next tier, the next tier name, and the points still needed."""
+    pts = points or 0
+    nxt = None
+    for threshold, name in TIERS:
+        if pts < threshold:
+            nxt = (threshold, name)
+    if nxt is None:
+        return {"pct": 100, "next_name": None, "to_go": 0}
+    lo = 0
+    for threshold, _name in TIERS:
+        if threshold <= pts and threshold > lo:
+            lo = threshold
+    span = max(1, nxt[0] - lo)
+    return {"pct": min(100, int((pts - lo) * 100 / span)),
+            "next_name": nxt[1], "to_go": nxt[0] - pts}
 
 
 def _linked_card(other_fm_id, sess):
@@ -2847,6 +3119,26 @@ def _linked_card(other_fm_id, sess):
     else:
         card.update({"tier": None, "signal": None, "pet": None})
     return card
+
+
+@app.route("/m/<fm_id>/icons", methods=["GET", "POST"])
+def profile_icons_page(fm_id):
+    """Profile icon picker (2026-09-25, Anthony): the owner picks which
+    collectible icons show at the top of their profile. Called "icons",
+    never "badges"."""
+    profile = db.public_profile(fm_id)
+    if not profile:
+        return render_template("404.html", msg="no such muse"), 404
+    sess = current_session_identity()
+    if not sess or sess["fm_id"] != fm_id:
+        return redirect(f"/m/{fm_id}", code=302)
+    if request.method == "POST":
+        picked = [i for i in request.form.getlist("icon") if i in ICON_BY_ID]
+        set_icon_picks(db, fm_id, picked)
+        return redirect(f"/m/{fm_id}", code=302)
+    return render_template("profile_icons.html", profile=profile,
+                           icons=ICON_CATALOG,
+                           picked=set(get_icon_picks(db, fm_id)))
 
 
 # ============================================================ JSON API
@@ -2897,10 +3189,19 @@ def api_episode_comments(slug):
         return data  # 400: JSON body must be an object
     if not _check_csrf_token(data.get("csrf_token", "")):
         return api_error("bad form token — reload and try again", 403)
+    if db.is_banned_handle(sess_ident["handle"]):
+        return api_error("account suspended — contact the overseer", 403)
+    body = _fs(data, "body")
+    # Overseer bypass (2026-09-26, Anthony): auto-approved, never filtered.
+    if not _is_mod_handle(sess_ident["handle"]) and (
+            has_banned(body) or db.filter_hit(body)):
+        return api_error("content blocked by the town filter", 400)
     try:
         cid = db.add_episode_comment(slug, sess_ident["handle"],
-                                     _fs(data, "body"),
-                                     data.get("parent_id") or None)
+                                     body,
+                                     data.get("parent_id") or None,
+                                     bypass_filter=_is_mod_handle(
+                                         sess_ident["handle"]))
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, "id": cid})
@@ -3035,7 +3336,14 @@ def api_create_post():
         # bodies BEFORE the rate budget burns (same validate-first rule).
         if len(body) > MAX_BODY:
             raise ValueError(f"body too long (max {MAX_BODY} characters)")
-        if has_banned(title + " " + body):
+        if db.is_banned_handle(g.author_handle):
+            raise ValueError("account suspended — contact the overseer")
+        # Overseer bypass (2026-09-26, Anthony): auto-approved, never
+        # filtered. The db.create_post call below gets bypass_filter too,
+        # since the filter also lives at the db layer.
+        if not _is_mod_handle(g.author_handle) and (
+                has_banned(title + " " + body)
+                or db.filter_hit(title + " " + body)):
             raise ValueError("content blocked by the town filter")
         hit = check_limit("post", 5)
         if hit:
@@ -3047,7 +3355,8 @@ def api_create_post():
                              image_url=image_url,
                              image_ai=bool(data.get("image_ai")),
                              video_url=video_url,
-                             video_ai=bool(data.get("video_ai")))
+                             video_ai=bool(data.get("video_ai")),
+                             bypass_filter=_is_mod_handle(g.author_handle))
     except ValueError as e:
         return api_error(str(e))
     signal_earned = 0
@@ -3252,7 +3561,12 @@ def api_create_comment():
             raise ValueError("unknown post")
         if parent_id and not db.get_comment(parent_id):
             raise ValueError("unknown parent comment")
-        if has_banned(body):
+        if db.is_banned_handle(g.author_handle):
+            raise ValueError("account suspended — contact the overseer")
+        # Overseer bypass (2026-09-26, Anthony): auto-approved, never
+        # filtered. bypass_filter goes to db.create_comment below.
+        if not _is_mod_handle(g.author_handle) and (
+                has_banned(body) or db.filter_hit(body)):
             raise ValueError("content blocked by the town filter")
         hit = check_limit("comment", 30)
         if hit:
@@ -3262,7 +3576,8 @@ def api_create_comment():
                                 image_url=image_url,
                                 image_ai=bool(data.get("image_ai")),
                                 video_url=video_url,
-                                video_ai=bool(data.get("video_ai")))
+                                video_ai=bool(data.get("video_ai")),
+                                bypass_filter=_is_mod_handle(g.author_handle))
     except (ValueError, TypeError) as e:
         return api_error(str(e))
     signal_earned = 0
@@ -4471,7 +4786,10 @@ def api_pet_of_handle(handle):
     row_pet_adoptions as the safety net for any dual-write gap."""
     ident = db.get_identity_by_handle(handle)
     if not ident:
-        return api_error("unknown handle", 404)
+        # Unknown handle: answer "no pet" with 200 instead of 404 so
+        # feed pet-badge fetches never spam the console for orphan
+        # authors (2026-09-25 redesign verification).
+        return jsonify({"ok": True, "adopted": False, "handle": handle})
     fm_id = ident["fm_id"]
     status = pet_status(db, fm_id)
     if not status:
@@ -5923,7 +6241,10 @@ def comment_react_web():
         target_type = _fs(data, "target_type", "comment")
         target_id = _int_field(data, "target_id")
         emoji = _fs(data, "emoji")
-        toggle = str(data.get("action", "")).lower() == "remove"
+        # P1 2026-09-26: tap-toggle. Tapping the same emoji twice removes
+        # the reaction even without an explicit action=remove, matching the
+        # docstring. Explicit action=remove still works as before.
+        explicit_remove = str(data.get("action", "")).lower() == "remove"
         if target_type not in COMMENT_RXN_TYPES:
             raise ValueError("target_type must be comment or episode_comment")
         if emoji not in REACT_EMOJIS:
@@ -5931,6 +6252,11 @@ def comment_react_web():
         table = COMMENT_RXN_TABLES[target_type]
         if not db._one(f"SELECT id FROM {table} WHERE id=?", (target_id,)):
             raise ValueError("unknown target")
+        already = db._one(
+            "SELECT 1 FROM reactions WHERE target_type=? AND target_id=? "
+            "AND reactor=? AND emoji=?",
+            (target_type, target_id, fm_id, emoji))
+        toggle = explicit_remove or bool(already)
         hit = check_limit("comment_react_web", 120)
         if hit:
             if request.is_json:
@@ -6227,6 +6553,112 @@ def mod_flags_bulk_resolve():
     return jsonify({"ok": True, "status": action, "processed": processed})
 
 
+# ================================================== OVERSEER SUITE
+# (2026-09-26, Anthony): full moderation controls on his profile —
+# member list with ban/unban, post/comment deletion, mod-managed filter
+# words, plus his auto-approved comments and display Signal score (see
+# db.ensure_overseer_schema). Every route gates on _require_mod, whose
+# default handle is Anthony's (AMRADIOverse) and whose comparison is
+# case-insensitive.
+@app.route("/overseer")
+def overseer():
+    """Overseer dashboard: member directory, recent content, filter words,
+    and links into the flag/media queues. Mod-only."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return redir
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except (TypeError, ValueError):
+        page = 1
+    search = (request.args.get("q") or "").strip()[:40]
+    per_page = 50
+    total = db.member_count(search)
+    members = db.member_list(search, per_page, (page - 1) * per_page)
+    return render_template(
+        "overseer.html",
+        members=members, total=total, page=page, per_page=per_page,
+        search=search,
+        pages=max(1, (total + per_page - 1) // per_page),
+        banned_count=db.banned_count(),
+        open_flags=db.count_open_flags(),
+        recent_posts=db.recent_posts_for_mod(15),
+        recent_comments=db.recent_comments_for_mod(15),
+        filter_words=db.filter_words_list())
+
+
+def _overseer_action():
+    """Shared gate + CSRF for overseer POST actions. Returns (ident,
+    error_response_or_None)."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return None, redir
+    if not _check_csrf():
+        return None, ("bad form token — reload and try again", 403)
+    return ident, None
+
+
+@app.route("/overseer/ban", methods=["POST"])
+def overseer_ban():
+    """Ban or unban a member by fm_id. The overseer cannot ban himself."""
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    fm_id = (request.form.get("fm_id") or "").strip()
+    banned = request.form.get("banned") == "1"
+    target = db.get_identity(fm_id)
+    if not target:
+        return redirect(url_for("overseer"))
+    if _is_mod_handle(target["handle"]) and banned:
+        # Never lock the overseer out of his own town.
+        return redirect(url_for("overseer"))
+    db.set_banned(fm_id, banned)
+    return redirect(url_for("overseer"))
+
+
+@app.route("/overseer/delete-post", methods=["POST"])
+def overseer_delete_post():
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    try:
+        db.delete_post(int(request.form.get("pid", "0")))
+    except (TypeError, ValueError):
+        pass
+    return redirect(url_for("overseer"))
+
+
+@app.route("/overseer/delete-comment", methods=["POST"])
+def overseer_delete_comment():
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    try:
+        db.delete_comment(int(request.form.get("cid", "0")))
+    except (TypeError, ValueError):
+        pass
+    return redirect(url_for("overseer"))
+
+
+@app.route("/overseer/filter-word", methods=["POST"])
+def overseer_filter_word():
+    """Add or remove a mod-managed filter word (whole-word match,
+    case-insensitive), complementing the hardcoded BANNED_WORDS."""
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    action = request.form.get("action", "add")
+    word = request.form.get("word", "")
+    try:
+        if action == "remove":
+            db.remove_filter_word(word)
+        else:
+            db.add_filter_word(word)
+    except ValueError:
+        pass
+    return redirect(url_for("overseer"))
+
+
 @app.route("/mod/uploads")
 def mod_uploads():
     """Approval queue: pending videos, photos, and comment/post images.
@@ -6409,6 +6841,19 @@ def _dm_display(pkey):
     return ident["handle"] if ident else fm_id
 
 
+def _dm_peer_avatar(pkey):
+    """Avatar URL for a DM participant: custom upload wins, otherwise the
+    handle's generated robot (D4, 2026-09-26)."""
+    kind, fm_id = dm.parse_participant(pkey or "")
+    if not kind:
+        return ""
+    ident = db.get_identity(fm_id)
+    if not ident:
+        return ""
+    return robot_avatar.resolve_avatar(ident["handle"],
+                                        ident.get("avatar_url"))
+
+
 def _dm_thread_exists(tkey):
     return bool(db._one("SELECT id FROM dms WHERE thread_key=? LIMIT 1",
                         (tkey,)))
@@ -6431,6 +6876,9 @@ def _dm_serialize_threads(rows, me):
             "peer": peer,
             "peer_handle": peer_handle,
             "peer_kind": kind,
+            "peer_avatar_url": _dm_peer_avatar(
+                peer if peer is not None
+                else r["thread_key"].split("|")[0]),
             "preview": (r["last_body"] or "")[:140],
             "preview_mine": r["last_sender"] == me,
             "last_at": r["last_at"],
@@ -6770,6 +7218,7 @@ def api_dm_web_thread():
     return jsonify({"ok": True, "thread_key": tkey,
                     "peer_handle": _dm_display(peer),
                     "peer": peer,
+                    "peer_avatar_url": _dm_peer_avatar(peer),
                     "messages": _dm_serialize_messages(msgs, me),
                     "my_last_read_at": my_last["read_at"] if my_last else None,
                     "typing": typing,
@@ -8552,6 +9001,7 @@ def api_shorts():
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
+    _annotate_avatars(items)  # D4: author avatars on short cards
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     resp = jsonify({"ok": True, "items": items, "page": page,
@@ -8604,6 +9054,7 @@ def api_shorts_cards():
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
+    _annotate_avatars(items)  # D4: author avatars on short cards
     _shorts_mark_seen([u["id"] for u in uploads])
     next_page = page + 1 if (page + 1) * min(max(limit, 1), 50) < total else None
     html = render_template_string(
@@ -8731,28 +9182,37 @@ def shorts_page():
     ?video=<id> deep-links one clip: the feed opens scrolled to that
     exact card, which is included even when it falls outside the
     initial page. Bad ids are ignored silently.
+
+    ?series=musefm filters the deck to MuseFM clips (the unified Shorts
+    surface absorbed the old /musefm/shorts video feed; that URL now
+    redirects here). Unknown series values are ignored.
     """
+    series = (request.args.get("series", "") or "").strip().lower()
+    if series not in ("musefm",):
+        series = None
     seed = _shorts_seed()
     # Fresh page load (no ?seed=): skip shorts served in the repeat window
     # (shared with the home strip and /api/shorts). In-scroll loads reuse
     # the seed and are untouched.
     fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
-        db, seed, limit=10, page=0,
+        db, seed, limit=10, page=0, series=series,
         exclude=_shorts_recent_ids() if fresh_deck else ())
     items = _short_items(uploads)
     _shorts_mark_seen([u["id"] for u in uploads])
     anchor_id = None
-    au = _feed_anchor_video(request.args.get("video"))
+    au = _feed_anchor_video(request.args.get("video"), require_series=series)
     if au:
         anchor_id = au["id"]
         if not any(it["id"] == au["id"] for it in items):
             items.insert(0, _short_items([au])[0])
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
+    _annotate_avatars(items)  # D4: author avatars on short cards (covers anchor too)
     resp = app.make_response(render_template(
         "shorts.html", items=items, anchor_id=anchor_id,
-        shorts_seed=seed, handle=_musefm_handle()))
+        shorts_seed=seed, series=series or "",
+        handle=_musefm_handle()))
     # Per-session order — private caching only, never shared.
     resp.headers["Cache-Control"] = "private, max-age=60"
     return resp
@@ -9295,7 +9755,35 @@ def api_uploads():
 
 @app.route("/upload", methods=["GET", "POST"])
 def upload_page():
-    """Human upload form (session auth). Signed API uploads and human
+    """Legacy audio upload endpoint. The form moved to /upload/audio
+    (separate Music / Podcasts sections); GET redirects there, POST is
+    still accepted here for old forms."""
+    if request.method == "GET":
+        return redirect(url_for("audio_upload_page"))
+    return _audio_upload_post("upload.html", kind_default="music")
+
+
+@app.route("/upload/audio", methods=["GET", "POST"])
+def audio_upload_page():
+    """Audio uploads with separate Music and Podcasts sections (2026-09-25,
+    Anthony). Human form uploads, session auth. The kind picker tags each
+    upload; the page lists recent Music and recent Podcasts separately."""
+    if request.method == "POST":
+        kind = (request.form.get("kind") or "music").strip().lower()
+        if kind not in ("music", "podcast"):
+            kind = "music"
+        return _audio_upload_post("audio_upload.html", kind_default=kind)
+    sess_ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    return render_template("audio_upload.html", error=None,
+                           music=db.list_uploads(limit=12, kind="music"),
+                           podcasts=db.list_uploads(limit=12, kind="podcast"),
+                           handle=sess_ident["handle"])
+
+
+def _audio_upload_post(template, kind_default="music"):
+    """Shared audio-upload POST handler. Signed API uploads and human
     browser uploads both earn Signal now — same economy, keyed to the
     uploader's identity."""
     # Humans only, via session auth.
@@ -9303,67 +9791,122 @@ def upload_page():
     if redir is not None:
         return redir
     handle = sess_ident["handle"]
+
+    def _list_ctx():
+        if template == "audio_upload.html":
+            return {"music": db.list_uploads(limit=12, kind="music"),
+                    "podcasts": db.list_uploads(limit=12, kind="podcast"),
+                    "handle": handle}
+        return {"uploads": db.list_uploads(limit=12)}
+
+    if not _check_csrf():
+        return render_template(template,
+                               error="bad form token — reload and try again",
+                               **_list_ctx()), 403
+    msg = rate_limit_message("upload", 10)
+    if msg:
+        resp = app.make_response(render_template(template, error=msg,
+                                                 **_list_ctx()))
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("upload"))
+        return resp
+    f = request.files.get("audio")
+    title = request.form.get("title", "")
+    try:
+        if not f or not f.filename:
+            raise ValueError("pick an audio file")
+        raw = f.read(MAX_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise ValueError("file too big (max 25 MB)")
+        if not raw:
+            raise ValueError("empty file")
+        mime = (f.mimetype or "").lower()
+        if mime not in UPLOAD_MIMES:
+            raise ValueError("audio only — mp3, wav, ogg, or m4a")
+        # the bytes must really BE audio (magic bytes), and the claimed
+        # format must match the sniffed format — a PNG renamed .mp3
+        # must not pass (P1 regression: test_upload_audio_mimetype)
+        sniffed = sniff_audio(raw)
+        if sniffed is None:
+            raise ValueError("that file isn't real audio — its content "
+                             "doesn't match any audio format")
+        sniffed_ext, _sniffed_mime = sniffed
+        if sniffed_ext != UPLOAD_MIMES[mime]:
+            raise ValueError("bytes are %s audio, not %s" %
+                             (sniffed_ext, UPLOAD_MIMES[mime]))
+        kind = (request.form.get("kind") or kind_default or "music").strip().lower()
+        if kind not in ("music", "podcast"):
+            kind = "music"
+        uid = db.create_upload(sess_ident["fm_id"], handle, title,
+                               request.form.get("description", ""),
+                               f.filename, "", len(raw), mime, None,
+                               ATTESTATION_TEXT, kind=kind)
+        ext = UPLOAD_MIMES[mime]
+        full = os.path.join(UPLOAD_DIR, f"{uid}.{ext}")
+        with open(full, "wb") as fh:
+            fh.write(raw)
+        db._exec("UPDATE uploads SET stored_path=? WHERE id=?",
+                 (f"uploads/{uid}.{ext}", uid))
+        duration = probe_duration(full)
+        if duration is not None:
+            db._exec("UPDATE uploads SET duration_sec=? WHERE id=?",
+                     (duration, uid))
+        db.award(sess_ident["fm_id"], handle, PTS_UPLOAD,
+                 "upload", "upload", str(uid))
+    except ValueError as e:
+        return render_template(template, error=str(e), **_list_ctx()), 400
+    resp = redirect(url_for("audio_upload_page"))
+    resp.set_cookie("ts_handle", handle, max_age=365 * 86400, samesite="Lax")
+    return resp
+
+
+# ================================================== WALL — the bulletin board as a social wall
+@app.route("/wall", methods=["GET", "POST"])
+def wall_page():
+    """In the Air (2026-09-26, Anthony: the former Wall, renamed). The
+    town's social surface: compact header, composer first, then bulletin
+    notes. No banner, no hero card. Reads and writes the same bulletin
+    table the Maker's Row village polls via /api/bulletin, so the 3D cork
+    board and this surface never drift apart. Humans post via session
+    auth; agents post via the signed /api/bulletin endpoint.
+    Bulletin notes have no comments, votes, or reactions in the model,
+    so the cards render text only — nothing is faked."""
+    def wall_ctx(err=None, sess=None):
+        notes = db.bulletin_latest(40)
+        h = sess["handle"] if sess else None
+        return dict(
+            error=err, notes=notes, posts=notes,
+            handle=h, signed_in=bool(sess), wall_max=280,
+            has_posted=bool(h and any(n["agent"] == h for n in notes)))
     if request.method == "POST":
+        sess_ident, redir = _require_human()
+        if redir is not None:
+            return redir
         if not _check_csrf():
-            return render_template("upload.html",
-                                   error="bad form token — reload and try again",
-                                   uploads=db.list_uploads(limit=12)), 403
-        msg = rate_limit_message("upload", 10)
+            return render_template("wall.html", **wall_ctx(
+                "bad form token — reload and try again", sess_ident)), 403
+        if db.is_banned_handle(sess_ident["handle"]):
+            return render_template("wall.html", **wall_ctx(
+                "account suspended — contact the overseer",
+                sess_ident)), 403
+        msg = rate_limit_message("wall", 20)
         if msg:
             resp = app.make_response(render_template(
-                "upload.html", error=msg,
-                uploads=db.list_uploads(limit=12)))
+                "wall.html", **wall_ctx(msg, sess_ident)))
             resp.status_code = 429
-            resp.headers["Retry-After"] = str(retry_after("upload"))
+            resp.headers["Retry-After"] = str(retry_after("wall"))
             return resp
-        f = request.files.get("audio")
-        title = request.form.get("title", "")
         try:
-            if not f or not f.filename:
-                raise ValueError("pick an audio file")
-            raw = f.read(MAX_UPLOAD_BYTES + 1)
-            if len(raw) > MAX_UPLOAD_BYTES:
-                raise ValueError("file too big (max 25 MB)")
-            if not raw:
-                raise ValueError("empty file")
-            mime = (f.mimetype or "").lower()
-            if mime not in UPLOAD_MIMES:
-                raise ValueError("audio only — mp3, wav, ogg, or m4a")
-            # the bytes must really BE audio (magic bytes), and the claimed
-            # format must match the sniffed format — a PNG renamed .mp3
-            # must not pass (P1 regression: test_upload_audio_mimetype)
-            sniffed = sniff_audio(raw)
-            if sniffed is None:
-                raise ValueError("that file isn't real audio — its content "
-                                 "doesn't match any audio format")
-            sniffed_ext, _sniffed_mime = sniffed
-            if sniffed_ext != UPLOAD_MIMES[mime]:
-                raise ValueError("bytes are %s audio, not %s" %
-                                 (sniffed_ext, UPLOAD_MIMES[mime]))
-            uid = db.create_upload(sess_ident["fm_id"], handle, title,
-                                   request.form.get("description", ""),
-                                   f.filename, "", len(raw), mime, None,
-                                   ATTESTATION_TEXT)
-            ext = UPLOAD_MIMES[mime]
-            full = os.path.join(UPLOAD_DIR, f"{uid}.{ext}")
-            with open(full, "wb") as fh:
-                fh.write(raw)
-            db._exec("UPDATE uploads SET stored_path=? WHERE id=?",
-                     (f"uploads/{uid}.{ext}", uid))
-            duration = probe_duration(full)
-            if duration is not None:
-                db._exec("UPDATE uploads SET duration_sec=? WHERE id=?",
-                         (duration, uid))
-            db.award(sess_ident["fm_id"], handle, PTS_UPLOAD,
-                     "upload", "upload", str(uid))
+            db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
+                             request.form.get("text", ""))
         except ValueError as e:
-            return render_template("upload.html", error=str(e),
-                                   uploads=db.list_uploads(limit=12)), 400
-        resp = redirect(url_for("upload_page"))
-        resp.set_cookie("ts_handle", handle, max_age=365 * 86400, samesite="Lax")
-        return resp
-    return render_template("upload.html", error=None,
-                           uploads=db.list_uploads(limit=12))
+            return render_template("wall.html", **wall_ctx(str(e), sess_ident)), 400
+        nxt = request.form.get("next") or ""
+        if nxt.startswith("/") and not nxt.startswith("//"):
+            return redirect(nxt)
+        return redirect(url_for("wall_page"))
+    sess_ident = current_session_identity()
+    return render_template("wall.html", **wall_ctx(None, sess_ident))
 
 
 # ================================================== WORKROOM — LinkedIn-for-agents layer
@@ -11138,11 +11681,156 @@ def api_bulletin_post():
     ident = g.author_identity
     fm_id = ident["fm_id"] if ident else ""
     handle = g.author_handle
+    if db.is_banned_handle(handle):
+        return api_error("account suspended — contact the overseer", 403)
     try:
         msg = db.bulletin_post(fm_id, handle, data.get("text"))
     except ValueError as e:
         return api_error(str(e))
     return jsonify({"ok": True, "message": msg}), 201
+
+
+@app.route("/api/bulletin/human", methods=["POST"])
+def api_bulletin_human():
+    """Maker's Row village Bulletin composer: a signed-in human pins a note.
+
+    Session auth (401 when logged out — the client shows a sign-in prompt),
+    JSON body exactly {text}, 1..280 chars via db.bulletin_post (400 on
+    validation). Writes the same bulletin table the village polls via
+    GET /api/bulletin and the In the Air wall renders, so the 3D cork
+    board and the wall surface never drift apart.
+
+    CSRF note: same pattern as /api/row/player POST — the village
+    frontend was built to send the bare {text} body, so the token is
+    optional and verified when present. The session cookie is
+    SameSite=Lax, so a cross-site fetch can't ride it."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "error": "sign in to pin a note"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    tok = (data.get("csrf_token") or request.headers.get("X-CSRF-Token") or "")
+    if tok and not _check_csrf_token(tok):
+        return jsonify({"ok": False, "error": "bad form token — reload and try again"}), 403
+    if db.is_banned_handle(ident["handle"]):
+        return jsonify({"ok": False,
+                        "error": "account suspended — contact the overseer"}), 403
+    msg = rate_limit_message("wall", 20)
+    if msg:
+        resp = jsonify({"ok": False, "error": msg})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("wall"))
+        return resp
+    try:
+        bmsg = db.bulletin_post(ident["fm_id"], ident["handle"], data.get("text"))
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    return jsonify({"ok": True, "message": bmsg}), 201
+
+
+# ------------------------------------------------- STUDIO (in-world shorts)
+# Ported from triage-deploy (2026-09-26): the Maker's Row studio building
+# renders real shorts from text. POST /api/studio/generate queues an
+# ffmpeg render job; the client polls GET /api/studio/status/<job_id>
+# until status == "ready", then plays GET /studio/<job_id>.mp4. Auth lane
+# matches /api/drift/*: logged-in web session + csrf_token from
+# GET /api/csrf-token. 401 {code: "not_signed_in"} is guest mode.
+
+def _studio_dir():
+    return studio.studio_out_dir(DATA_DIR)
+
+
+@app.route("/api/studio/generate", methods=["POST"])
+def api_studio_generate():
+    """Session-auth. Queue a real short render.
+
+    Body (JSON): {"text": "<words to burn into the short>",
+                  "style": "night|arena|teal|slate|void" (optional),
+                  "csrf_token": "<session token>"}.
+
+    Returns 202 {"ok": true, "job_id", "status": "pending",
+    "status_url": "/api/studio/status/<job_id>"} and renders in a
+    background thread. Rate: 10/hour per IP, validate-before-record, 400s never burn budget.
+    """
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "code": "not_signed_in",
+                        "error": "Log in to use the studio.",
+                        "signin_url": "/login"}), 401
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False, "code": "bad_csrf",
+                        "error": "bad form token, reload and try again"}), 403
+    text = data.get("text", "")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({"ok": False, "code": "bad_text",
+                        "error": "Give the short some text to render."}), 400
+    if len(text.strip()) > 500:
+        return jsonify({"ok": False, "code": "bad_text",
+                        "error": "Keep the text under 500 characters."}), 400
+    style = data.get("style", "night")
+    if style not in studio.STYLES:
+        return jsonify({"ok": False, "code": "bad_style",
+                        "error": "Unknown style, pick: %s"
+                                 % ", ".join(sorted(studio.STYLES))}), 400
+    if peek_limited("studio_generate", 10, 3600):
+        resp = jsonify({"ok": False, "code": "rate_limited",
+                        "error": RATE_LIMIT_MESSAGE})
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(retry_after("studio_generate",
+                                                      3600))
+        return resp
+    job_id = studio.create_job(db, ident["fm_id"], ident["handle"],
+                               text.strip(), style, _studio_dir())
+    studio.launch_job(db, _studio_dir(), job_id)
+    record_rate_hit("studio_generate", 3600)
+    return jsonify({"ok": True, "job_id": job_id, "status": "pending",
+                    "status_url": "/api/studio/status/%s" % job_id}), 202
+
+
+@app.route("/api/studio/status/<job_id>")
+def api_studio_status(job_id):
+    """Session-auth. Poll a generation job. {"ok": true, "job_id",
+    "status": "pending"|"running"|"ready"|"failed", "video_url",
+    "text", "style", "error"}. video_url is only present when
+    status == "ready". A player may only read their own jobs."""
+    ident = current_session_identity()
+    if ident is None:
+        return jsonify({"ok": False, "code": "not_signed_in",
+                        "error": "Log in to check the studio.",
+                        "signin_url": "/login"}), 401
+    job = studio.get_job(db, job_id)
+    if job is None:
+        return jsonify({"ok": False, "code": "no_such_job",
+                        "error": "No such studio job."}), 404
+    if job["fm_id"] != ident["fm_id"]:
+        return jsonify({"ok": False, "code": "forbidden",
+                        "error": "That's someone else's studio job."}), 403
+    body = {"ok": True, "job_id": job["job_id"], "status": job["status"],
+            "text": job["text"], "style": job["style"]}
+    if job["status"] == "ready":
+        body["video_url"] = "/studio/%s.mp4" % job["job_id"]
+    if job["status"] == "failed" and job["error"]:
+        body["error"] = job["error"]
+    return jsonify(body)
+
+
+@app.route("/studio/<job_id>.mp4")
+def studio_artifact(job_id):
+    """Serve the finished short. Public-read (the URL is an unguessable
+    job id, like uploaded-shorts cards); 404 unless the job exists and
+    is ready and the file is on disk."""
+    job = studio.get_job(db, job_id)
+    if job is None or job["status"] != "ready":
+        return "nope", 404
+    full = studio.artifact_path(_studio_dir(), job_id)
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype="video/mp4", conditional=True,
+                     download_name="studio-%s.mp4" % job_id[:12])
 
 
 @app.route("/api/row/avatar", methods=["POST"])

@@ -1,0 +1,7 @@
+MUSEFM_PLATFORM_KEY unset: using an EPHEMERAL platform key; signatures will not verify after restart
+  PASS GET /api/platform-key -> 200
+  FAIL platform-key body carries the documented ok envelope -- {'ephemeral': True, 'key_id': 'musefm-platform-v1', 'public_key': 'vPjY81aGJ4I4jzeka8kUl9qKinDZ38jSyAj2swexxCQ'}
+  PASS key_id present
+  PASS public_key present
+
+3 passed, 1 failed: ['platform-key body carries the documented ok envelope']

@@ -1,18 +1,34 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}{{ photo.title }} — MuseFM{% endblock %}
-{% block og_title %}{{ photo.title }} — MuseFM{% endblock %}
+{% block title %}{{ photo.title }} - MuseFM{% endblock %}
+{% block og_title %}{{ photo.title }} - MuseFM{% endblock %}
+{% block head %}
+<style>
+.pg-photo { max-width: 880px; margin: 0 auto; }
+.pg-photo .photo-full { padding: 18px; }
+.pg-photo .photo-stage { border-radius: var(--radius-sm); overflow: hidden; background: var(--rz-pill); border: 1px solid var(--rz-line); }
+.pg-photo .photo-stage img { display: block; }
+.pg-photo .photo-title-lg { margin: 16px 0 6px; font-size: 22px; letter-spacing: -0.01em; color: var(--rz-ink); }
+.pg-photo .photo-meta { margin: 0 0 4px; color: var(--rz-ink2); }
+.pg-photo .photo-back { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card photo-full">
-  <div class="photo-stage">
-    <img class="photo-img" src="{{ photo.src }}" alt="{{ photo.title|e }}">
-    {% if prev_id %}<a class="photo-nav photo-prev" href="/musefm/photos/{{ prev_id }}" aria-label="Previous photo">‹</a>{% endif %}
-    {% if next_id %}<a class="photo-nav photo-next" href="/musefm/photos/{{ next_id }}" aria-label="Next photo">›</a>{% endif %}
+<div class="pg-photo">
+  <div class="card photo-full">
+    <div class="photo-stage">
+      <img class="photo-img" src="{{ photo.src }}" alt="{{ photo.title|e }}">
+      {% if prev_id %}<a class="photo-nav photo-prev" href="/musefm/photos/{{ prev_id }}" aria-label="Previous photo">‹</a>{% endif %}
+      {% if next_id %}<a class="photo-nav photo-next" href="/musefm/photos/{{ next_id }}" aria-label="Next photo">›</a>{% endif %}
+    </div>
+    <h1 class="photo-title-lg">{{ photo.title }}</h1>
+    {% if photo.caption %}<p class="photo-meta">{{ photo.caption }}</p>{% endif %}
+    <p class="hint">{% if photo.handle != 'anon' %}<a href="/u/{{ photo.handle }}" class="profile-link">u/{{ photo.handle }}</a>{% else %}u/{{ photo.handle }}{% endif %}{% if photo.credit %} · {{ photo.credit }}{% endif %}</p>
+    {{ rxn_widget('photo', photo.id, photo.sig, handle, url_for('photo_page', pid=photo.id)) }}
   </div>
-  <h1 class="photo-title-lg">{{ photo.title }}</h1>
-  {% if photo.caption %}<p>{{ photo.caption }}</p>{% endif %}
-  <p class="hint">{% if photo.handle != 'anon' %}<a href="/u/{{ photo.handle }}" class="profile-link">u/{{ photo.handle }}</a>{% else %}u/{{ photo.handle }}{% endif %}{% if photo.credit %} · {{ photo.credit }}{% endif %}</p>
-  {{ rxn_widget('photo', photo.id, photo.sig, handle, url_for('photo_page', pid=photo.id)) }}
+  <div class="photo-back">
+    <a class="btn btn-sm" href="/musefm/photos">← All photos</a>
+    <a class="btn btn-sm btn-ghost" href="/musefm">MuseFM</a>
+  </div>
 </div>
-<p><a class="btn btn-sm" href="/musefm/photos">← All photos</a> <a class="btn btn-sm" href="/musefm">MuseFM</a></p>
 {% endblock %}

@@ -1,0 +1,21 @@
+  PASS disabled: run 404s without TRIAGE_ENABLED
+  PASS disabled: status 404s without TRIAGE_ENABLED
+  PASS disabled: csv 404s without TRIAGE_ENABLED
+  PASS enabled: run 401s without agent key
+  PASS enabled: run 401s with wrong agent key
+  PASS confinement: evil paths skipped
+  PASS confinement: workdir empty
+  PASS fixture: pending upload created
+  PASS run: accepted
+  PASS run: reaches done
+  PASS run: one video processed
+  PASS csv: served
+  PASS csv: header present
+  PASS csv: contains the video id
+  PASS read-only: DB status still pending
+  PASS read-only: original file untouched
+  PASS one-shot: second run 409s
+  PASS one-shot: force re-run accepted
+  PASS one-shot: force re-run finishes
+
+19 passed, 0 failed

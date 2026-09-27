@@ -1,0 +1,123 @@
+[2026-09-26 10:17:29,210] WARNING in app: verification email to carehuman@example.test failed: email sending is not configured on this server
+== wardrobe catalog ==
+  PASS 17 wardrobe items
+  PASS slots valid
+  PASS every item has art + text
+  PASS shop items priced, others not
+  PASS all 17 overlays XML-valid
+  PASS unlock kinds known
+== buy wardrobe with Signal ==
+  PASS buy with 0 Signal -> 400
+  PASS buy unknown item -> 400
+  PASS buy non-shop item -> 400
+  PASS buy cozy_beanie -> 200, charged 30
+  PASS spendable dropped by 30
+  PASS lifetime Signal untouched by purchase (invariant)
+  PASS bought item auto-equipped
+  PASS purchase ledgered
+  PASS re-buy idempotent (no double charge)
+  PASS buy unsigned -> 401
+  PASS status svg layers the beanie
+  PASS layered svg_large XML-valid
+== GET /api/pet/wardrobe ==
+  PASS catalog 200 + 17 items
+  PASS owned/equipped flags
+  PASS unearned flagged
+  PASS wardrobe unsigned -> 401
+== equip: slot exclusivity + unlock gating ==
+  PASS can't equip unearned
+  PASS API equip unearned -> 400
+  PASS equip party_hat takes the hat slot
+  PASS cozy_beanie bumped (one per slot)
+  PASS unequip slot
+  PASS equip unknown item rejected
+  PASS unequip unknown slot rejected
+  PASS API equip signed ok
+  PASS equip unsigned -> 401
+== earn gating (reason must match unlock) ==
+  PASS purchase reason on care item rejected
+  PASS care_streak reason without streak rejected
+  PASS stage reason below stage rejected
+  PASS seasonal reason off-season rejected
+  PASS earn needs a pet
+  PASS earn idempotent
+== deeper care: feed/play/rest ==
+  PASS care needs a pet
+  PASS feed: +25 hunger (cap), +5 happiness
+  PASS feed sets cooldown
+  PASS feed twice in 4h refused
+  PASS API feed during cooldown -> 400
+  PASS play: +20 joy (cap), -5 hunger
+  PASS play cooldown enforced
+  PASS rest: +10 joy (cap), +5 hunger (cap)
+  PASS rest cooldown enforced
+  PASS API play during cooldown -> 400
+  PASS API care unsigned -> 401
+  PASS care_status shape
+  PASS care_status None without pet
+== neglect decay + mood shifts ==
+  PASS neglect decays hunger
+  PASS low hunger -> peckish mood
+  PASS peckish face renders
+  PASS feeding cures peckish
+  PASS low happiness -> restless
+  PASS restless face renders
+  PASS peckish outranks restless
+== feed streak auto-earns wardrobe ==
+  PASS 7th consecutive day -> streak 7
+  PASS streak auto-earns seaweed_crown
+  PASS streak notification stored
+  PASS crown now equippable
+  PASS missed days reset streak
+== new species unlocks ==
+  PASS crownjelly locked at 0 Signal
+  PASS crownjelly opens at Juvenile (200)
+  PASS abyssal locked at Juvenile
+  PASS abyssal opens at Adult (500)
+  PASS frostfin locked off-season (now fall26)
+  PASS frostfin opens in winter26
+  PASS kelpwarden locked without streak
+  PASS kelpwarden opens at 10-day streak
+  PASS adopt squiddy
+== release -> Town Pond (no delete), slot frees, streak survives ==
+  PASS release ok
+  PASS pet row re-keyed to pond (not deleted)
+  PASS pond lists the pet
+  PASS streak survives release (keeper's record)
+  PASS reclaim works
+  PASS reclaimed pet is home
+  PASS adopt care-gated species after release
+  PASS new pet gets fresh stats
+  PASS streak still the keeper's
+  PASS old pet still safe in pond
+  PASS release without pet rejected
+  PASS API release signed ok
+  PASS API release twice -> 400
+== visual evolution ==
+  PASS no glow at adoption
+  PASS stage-up detected
+  PASS celebration glow for 24h
+  PASS gold aura in svg
+  PASS evolution notification
+  PASS celebration svg XML-valid
+  PASS glow expires after 24h
+  PASS legacy row: no false celebration
+  PASS legacy row recorded silently
+== pet_svg backward compatibility ==
+  PASS new kwargs default to old output
+  PASS shop accessories still layer
+  PASS unknown mood falls back to content
+  PASS overjoyed still glows
+== rulebook ==
+  PASS 19 species in rulebook
+  PASS care + wardrobe sections
+  PASS no money anywhere in wardrobe rules
+  PASS moods documented
+== web care routes (logged-in human) ==
+  PASS web feed works
+  PASS pet page shows hunger bar
+  PASS pet page shows happiness bar
+  PASS web feed cooldown flashes
+  PASS web feed bad csrf -> 403
+
+106 passed, 0 failed

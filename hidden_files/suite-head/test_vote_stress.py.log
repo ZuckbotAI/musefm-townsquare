@@ -1,0 +1,18 @@
+== concurrent votes: score == SUM(votes) ==
+  PASS no vote errors under concurrency
+  PASS 10 voters x 20 votes: 10 vote rows
+  PASS displayed score == SUM(votes)
+  PASS every vote counted (+1 x 10)
+   210 serialized votes in 0.15s
+== rapid identical votes from one voter (toggle storm) ==
+  PASS toggle storm: no errors
+  PASS toggle storm: score == SUM(votes)
+== shorts local benchmark ==
+  PASS shuffled page returns 10 of 40
+   shuffled_short_page + items: 31.0 ms (2 aggregate queries)
+  PASS /shorts renders 200
+   /shorts page render: 550.6 ms (warm, local)
+  PASS /api/shorts page=2 -> 200
+   /api/shorts page fetch: 50.1 ms (warm, local)
+
+9 passed, 0 failed

@@ -1,0 +1,6 @@
+  budget burned: 5x200
+  6th distinct body -> 429
+  identical resend -> 429 {"error":"rate limit hit \u2014 slow down, friend","ok":false}
+
+  same body from fresh IP -> 200 (nonce was never burned)
+PASS: 429 does not burn the nonce

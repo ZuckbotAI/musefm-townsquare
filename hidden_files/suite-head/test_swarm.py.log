@@ -1,0 +1,87 @@
+== schema ==
+  PASS table swarm_projects exists
+  PASS table swarm_members exists
+  PASS table swarm_submissions exists
+  PASS table swarm_reviews exists
+  PASS table swarm_journal exists
+  PASS pilot_tasks.project_id additive column
+== keys ==
+  PASS keys minted
+== auth gating ==
+  PASS unsigned project create -> 401
+  PASS bearer key cannot create project (human-only) -> 403
+  PASS unsigned submit -> 401
+  PASS unsigned review -> 401
+  PASS unsigned freeze -> 401
+== project create ==
+  PASS project created
+  PASS bare repo provisioned outside app tree
+  PASS project active
+  PASS owner auto-member
+  PASS snapshot zip 200 + zip magic
+== join knock flow ==
+  PASS join request pending
+  PASS not member before approval
+  PASS non-owner cannot resolve joins -> 400
+  PASS owner approves join
+  PASS member after approval
+  PASS agent-b joined
+== project task board ==
+  PASS non-member cannot create project task -> 400
+  PASS member creates project task
+  PASS non-member cannot claim project task -> 400
+  PASS member claims
+== patch validation ==
+  PASS test patch built
+  PASS non-claimant submit rejected -> 400
+  PASS non-member submit rejected -> 400
+  PASS bad base_commit rejected -> 400
+  PASS oversized patch rejected -> 400
+  PASS non-applying patch rejected -> 400
+  PASS valid submit -> in_review
+  PASS task in_review
+== quorum review/merge ==
+  PASS submitter cannot self-approve -> 400
+  PASS first approval, no merge yet
+  PASS duplicate review rejected -> 400
+  PASS second approval (owner anchor) merges
+  PASS task merged
+  PASS patch content on main
+  PASS no hooks configured on repo
+== request_changes loop ==
+  PASS request_changes rejects submission
+  PASS submission rejected
+  PASS task back to claimed
+== freeze kill-switch ==
+  PASS non-owner cannot freeze -> 403
+  PASS owner freezes
+  PASS task create blocked while frozen -> 400
+  PASS claim blocked while frozen -> 400
+  PASS overseer can unfreeze
+  PASS project active again
+== journal completeness ==
+  PASS journal has project_created
+  PASS journal has join_requested
+  PASS journal has join_approved
+  PASS journal has task_created
+  PASS journal has claimed
+  PASS journal has patch_submitted
+  PASS journal has review_approve
+  PASS journal has review_request_changes
+  PASS journal has merged
+  PASS journal has frozen
+  PASS journal has unfrozen
+  PASS journal has task-history entries
+  PASS journal API 200
+== lease expiry on project task ==
+  PASS expired lease returns task to open
+== web UI ==
+  PASS GET /swarm -> 200
+  PASS GET /swarm/<id> -> 200
+  PASS GET /swarm/<id>/journal -> 200
+  PASS GET /swarm/9999 -> 404
+== legacy pilot untouched ==
+  PASS unscoped task has project_id 0
+  PASS unscoped list still works
+
+SWARM: 71 passed, 0 failed

@@ -115,6 +115,14 @@ document.addEventListener('click', function (e) {
   if (b) openShare(b.getAttribute('data-share'), b.getAttribute('data-title'));
 });
 
+// ---- forum card share pill: copy the post link (2026-09-26, Anthony) ----
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-copylink]');
+  if (!b) return;
+  copyText(location.origin + b.getAttribute('data-copylink'));
+  toast('Link copied');
+});
+
 // ---- notification bell popout (opens a panel, not a page) ----
 (function () {
   var btn = document.getElementById('notif-bell-btn');
@@ -182,5 +190,56 @@ document.addEventListener('click', function (e) {
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !pop.hidden) close();
+  });
+})();
+
+// ---- sidebar motion: staggered entrance + collapsible groups (pass A, 2026-09-26)
+(function () {
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+  ready(function () {
+    var sb = document.getElementById('sidebar');
+    if (!sb) return;
+    // staggered entrance: number sidebar items in DOM order, then enable motion
+    var items = sb.querySelectorAll('.sb-create, .sb-account, .sb-group > .sb-heading, .sb-group .sb-link');
+    for (var i = 0; i < items.length; i++) {
+      items[i].style.setProperty('--sb-i', i);
+    }
+    // add the class on the next frame so the animation actually plays
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { document.body.classList.add('sb-motion'); });
+    });
+    // collapsible groups: click a heading to fold its links (persisted)
+    var store = null;
+    try { store = JSON.parse(localStorage.getItem('sb-collapsed') || '{}'); }
+    catch (e) { store = {}; }
+    var groups = sb.querySelectorAll('.sb-group');
+    groups.forEach(function (g) {
+      var h = g.querySelector(':scope > .sb-heading');
+      if (!h) return;
+      var key = (h.textContent || '').trim().toLowerCase().replace(/\s+/g, '-').slice(0, 40);
+      if (store[key]) g.classList.add('sb-collapsed');
+      h.setAttribute('role', 'button');
+      h.setAttribute('tabindex', '0');
+      h.setAttribute('aria-expanded', store[key] ? 'false' : 'true');
+      function flip() {
+        var c = g.classList.toggle('sb-collapsed');
+        h.setAttribute('aria-expanded', c ? 'false' : 'true');
+        try {
+          var s = JSON.parse(localStorage.getItem('sb-collapsed') || '{}');
+          if (c) s[key] = 1; else delete s[key];
+          localStorage.setItem('sb-collapsed', JSON.stringify(s));
+        } catch (e) {}
+      }
+      h.addEventListener('click', function (e) {
+        if (e.target.closest('a')) return; // the + link still navigates
+        flip();
+      });
+      h.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
+      });
+    });
   });
 })();

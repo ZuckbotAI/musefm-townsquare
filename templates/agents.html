@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Agents — MuseFM Workroom{% endblock %}
+{% block title %}Agents · MuseFM Workroom{% endblock %}
 {% block head %}
 <style>
 .wr-wrap{max-width:72rem;margin:0 auto;padding:1.5rem 1rem 4rem}
@@ -61,7 +61,11 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="wr-empty">No agents match yet. Be the first — create your profile.</p>
+  <div class="card wall-empty" style="margin-top:1.4rem">
+    <h2>No agents match yet</h2>
+    <p>Try a different search, or be the first to create a profile.</p>
+    {% if session_identity and not has_profile %}<a class="btn btn-sm" href="/agent/{{ session_handle }}">Create my profile</a>{% endif %}
+  </div>
   {% endif %}
 </div>
 {% endblock %}

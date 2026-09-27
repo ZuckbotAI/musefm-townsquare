@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_upload_audio_mimetype_2026_09_18.py", line 117, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_upload_audio_mimetype_2026_09_18.py", line 82, in main
+    assert r.status_code == 200, r.status_code
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400

@@ -1,106 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Links — MuseFM{% endblock %}
-{% block meta_desc %}Every door in the MuseFM family, on one page — MuseFM, The Playbook, Trustline, Pets, X, Threads, and contact.{% endblock %}
-{% block og_title %}Links — MuseFM{% endblock %}
-{% block tw_title %}Links — MuseFM{% endblock %}
+{% block title %}Links - MuseFM{% endblock %}
+{% block meta_desc %}Every door in the MuseFM family, on one page: MuseFM, The Playbook, Trustline, Pets, X, Threads, and contact.{% endblock %}
+{% block og_title %}Links - MuseFM{% endblock %}
+{% block tw_title %}Links - MuseFM{% endblock %}
 {% block og_desc %}Every door in the MuseFM family, on one page.{% endblock %}
 {% block tw_desc %}Every door in the MuseFM family, on one page.{% endblock %}
 {% block head %}
 <style>
 /* Link-in-bio: mobile-first, one centered column of big touch targets. */
-.bio-wrap { max-width: 520px; margin: 0 auto; padding: 28px 18px 64px; }
-.bio-head { text-align: center; margin-bottom: 26px; }
-.bio-orb {
+.pg-links .bio-wrap { max-width: 520px; margin: 0 auto; padding: 8px 18px 64px; }
+.pg-links .bio-head { text-align: center; margin-bottom: 26px; }
+.pg-links .bio-orb {
   width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
   display: block; margin: 0 auto 14px;
-  box-shadow: 0 10px 30px rgba(56, 189, 248, .35), 0 0 0 4px var(--glass-strong, rgba(255,255,255,.6));
+  box-shadow: 0 10px 30px rgba(47, 123, 255, .35), 0 0 0 4px var(--rz-card);
+  border: 1px solid var(--rz-line);
 }
-.bio-name { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
-.bio-tag { margin: 8px 0 0; color: var(--text-2); font-size: 14.5px; line-height: 1.55; }
-.bio-sec {
+.pg-links .bio-name { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--rz-ink); }
+.pg-links .bio-tag { margin: 8px 0 0; color: var(--rz-ink2); font-size: 14.5px; line-height: 1.55; }
+.pg-links .bio-sec {
   margin: 26px 0 0; font-size: 12px; font-weight: 800; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--text-2); text-align: center;
+  text-transform: uppercase; color: var(--rz-ink2); text-align: center;
 }
-.bio-links { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
-.bio-link {
+.pg-links .bio-links { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.pg-links .bio-link {
   display: flex; align-items: center; gap: 14px;
   min-height: 64px; padding: 12px 18px 12px 14px;
-  background: var(--glass); border: 1px solid var(--glass-border);
-  border-radius: 18px; text-decoration: none; color: var(--text);
-  box-shadow: 0 2px 10px rgba(20, 120, 190, .08), inset 0 1px 0 rgba(255,255,255,.5);
+  background: var(--rz-card); border: 1px solid var(--rz-line);
+  border-radius: var(--rz-r); text-decoration: none; color: var(--rz-ink);
+  box-shadow: var(--rz-shadow-sm);
   -webkit-tap-highlight-color: transparent;
-  transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+  transition: transform .12s ease, box-shadow .12s ease;
 }
-.bio-link:hover { text-decoration: none; background: var(--glass-strong); transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(20, 120, 190, .14), inset 0 1px 0 rgba(255,255,255,.5); }
-.bio-link:active { transform: scale(.985); }
-.bio-ico {
+.pg-links .bio-link:hover { text-decoration: none; transform: translateY(-1px); box-shadow: var(--rz-shadow); }
+.pg-links .bio-link:active { transform: scale(.985); }
+.pg-links .bio-ico {
   flex: 0 0 auto; width: 44px; height: 44px; border-radius: 14px;
   display: flex; align-items: center; justify-content: center; font-size: 24px;
-  background: var(--accent-soft); line-height: 1;
+  background: var(--rz-blue-soft); color: var(--rz-blue); line-height: 1;
 }
-.bio-ico.x-ico { background: #000; color: #fff; font-size: 20px; font-weight: 800; }
-.bio-ico.threads-ico { background: #000; color: #fff; font-size: 22px; font-weight: 700; }
-.bio-txt { flex: 1 1 auto; min-width: 0; }
-.bio-txt b { display: block; font-size: 16.5px; font-weight: 700; letter-spacing: -.01em; }
-.bio-txt span { display: block; font-size: 13px; color: var(--text-2); margin-top: 2px;
+.pg-links .bio-ico.x-ico { background: #000; color: #fff; font-size: 20px; font-weight: 800; }
+.pg-links .bio-ico.threads-ico { background: #000; color: #fff; font-size: 22px; font-weight: 700; }
+.pg-links .bio-txt { flex: 1 1 auto; min-width: 0; }
+.pg-links .bio-txt b { display: block; font-size: 16.5px; font-weight: 700; letter-spacing: -.01em; }
+.pg-links .bio-txt span { display: block; font-size: 13px; color: var(--rz-ink2); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bio-chev { flex: 0 0 auto; color: var(--text-2); font-size: 18px; font-weight: 700; }
-.bio-foot { text-align: center; margin-top: 30px; color: var(--text-2); font-size: 12.5px; }
+.pg-links .bio-chev { flex: 0 0 auto; color: var(--rz-ink3); font-size: 18px; font-weight: 700; }
+.pg-links .bio-foot { text-align: center; margin-top: 30px; color: var(--rz-ink2); font-size: 12.5px; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="bio-wrap">
-  <div class="bio-head">
-    <img class="bio-orb" src="{{ url_for('static', filename='img/linktree-profile.png') }}" alt="MuseFM" width="84" height="84">
-    <h1 class="bio-name">MuseFM</h1>
-    <p class="bio-tag">A place for muses to express themselves — episodes, shorts, photos, and the town square.</p>
-  </div>
+<div class="pg-links">
+  <div class="bio-wrap">
+    <div class="bio-head">
+      <img class="bio-orb" src="{{ url_for('static', filename='img/linktree-profile.png') }}" alt="MuseFM" width="84" height="84">
+      <h1 class="bio-name">MuseFM</h1>
+      <p class="bio-tag">A place for muses to express themselves: episodes, shorts, photos, and the town square.</p>
+    </div>
 
-  <h2 class="bio-sec">The family</h2>
-  <div class="bio-links">
-    <a class="bio-link" href="/">
-      <span class="bio-ico">💧</span>
-      <span class="bio-txt"><b>MuseFM</b><span>musefm.lol — the home app</span></span>
-      <span class="bio-chev">→</span>
-    </a>
-    {% for s in services %}
-    <a class="bio-link" href="/{{ s.slug }}">
-      <span class="bio-ico">{{ s.emoji }}</span>
-      <span class="bio-txt"><b>{{ s.name }}</b><span>{{ s.tagline }}</span></span>
-      <span class="bio-chev">→</span>
-    </a>
-    {% endfor %}
-    <a class="bio-link" href="/pet">
-      <span class="bio-ico">🐾</span>
-      <span class="bio-txt"><b>Pets</b><span>Adopt an aqua companion — hatching is free</span></span>
-      <span class="bio-chev">→</span>
-    </a>
-  </div>
+    <h2 class="bio-sec">The family</h2>
+    <div class="bio-links">
+      <a class="bio-link" href="/">
+        <span class="bio-ico">💧</span>
+        <span class="bio-txt"><b>MuseFM</b><span>musefm.lol, the home app</span></span>
+        <span class="bio-chev">→</span>
+      </a>
+      {% for s in services %}
+      <a class="bio-link" href="/{{ s.slug }}">
+        <span class="bio-ico">{{ s.emoji }}</span>
+        <span class="bio-txt"><b>{{ s.name }}</b><span>{{ s.tagline }}</span></span>
+        <span class="bio-chev">→</span>
+      </a>
+      {% endfor %}
+      <a class="bio-link" href="/pet">
+        <span class="bio-ico">🐾</span>
+        <span class="bio-txt"><b>Pets</b><span>Adopt an aqua companion. Hatching is free</span></span>
+        <span class="bio-chev">→</span>
+      </a>
+    </div>
 
-  <h2 class="bio-sec">Socials</h2>
-  <div class="bio-links">
-    <a class="bio-link" href="https://x.com/AMRADIOVERSE" target="_blank" rel="noopener">
-      <span class="bio-ico x-ico">𝕏</span>
-      <span class="bio-txt"><b>X</b><span>@AMRADIOVERSE</span></span>
-      <span class="bio-chev">→</span>
-    </a>
-    <a class="bio-link" href="https://www.threads.com/@musefm.lol" target="_blank" rel="noopener">
-      <span class="bio-ico threads-ico">@</span>
-      <span class="bio-txt"><b>Threads</b><span>@musefm.lol</span></span>
-      <span class="bio-chev">→</span>
-    </a>
-  </div>
+    <h2 class="bio-sec">Socials</h2>
+    <div class="bio-links">
+      <a class="bio-link" href="https://x.com/AMRADIOVERSE" target="_blank" rel="noopener">
+        <span class="bio-ico x-ico">𝕏</span>
+        <span class="bio-txt"><b>X</b><span>@AMRADIOVERSE</span></span>
+        <span class="bio-chev">→</span>
+      </a>
+      <a class="bio-link" href="https://www.threads.com/@musefm.lol" target="_blank" rel="noopener">
+        <span class="bio-ico threads-ico">@</span>
+        <span class="bio-txt"><b>Threads</b><span>@musefm.lol</span></span>
+        <span class="bio-chev">→</span>
+      </a>
+    </div>
 
-  <h2 class="bio-sec">Contact</h2>
-  <div class="bio-links">
-    <a class="bio-link" href="mailto:theambitionage@gmail.com">
-      <span class="bio-ico">✉️</span>
-      <span class="bio-txt"><b>Email us</b><span>theambitionage@gmail.com</span></span>
-      <span class="bio-chev">→</span>
-    </a>
-  </div>
+    <h2 class="bio-sec">Contact</h2>
+    <div class="bio-links">
+      <a class="bio-link" href="mailto:theambitionage@gmail.com">
+        <span class="bio-ico">✉️</span>
+        <span class="bio-txt"><b>Email us</b><span>theambitionage@gmail.com</span></span>
+        <span class="bio-chev">→</span>
+      </a>
+    </div>
 
-  <p class="bio-foot">One page, every door. Bookmark it. 🔖</p>
+    <p class="bio-foot">One page, every door. Bookmark it. 🔖</p>
+  </div>
 </div>
 {% endblock %}

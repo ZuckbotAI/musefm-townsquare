@@ -125,8 +125,8 @@ note("PASS" if r.status_code == 400 and "pick an image" in r.text.lower() else "
      f"upload w/ wrong field name -> {r.status_code} (expect 400 'pick an image file')")
 
 # ---------- NORMAL: shorts / episode / viewport ----------
-r = s.get(BASE + "/musefm/shorts", timeout=15)
-note("PASS" if r.status_code == 200 else "FAIL", f"/musefm/shorts -> {r.status_code}")
+r = s.get(BASE + "/musefm/shorts", timeout=15, allow_redirects=False)
+note("PASS" if r.status_code in (301, 302) else "FAIL", f"/musefm/shorts -> {r.status_code} (expect redirect)")
 r = s.get(BASE + "/episodes", timeout=15)
 slugs = re.findall(r'/episodes/([a-z0-9\-_]+)"', r.text)
 if slugs:

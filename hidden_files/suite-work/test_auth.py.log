@@ -1,0 +1,24 @@
+== pages ==
+  PASS GET /signup 200
+  PASS signup mentions MuseFM
+  PASS signup has slogan
+  PASS signup has no 'Town Square'
+  PASS signup has handle+password fields
+  PASS GET /login 200
+  PASS login has no 'Town Square'
+== signup ==
+  FAIL signup happy path 200 -- 400
+  FAIL key shown once on the success page
+  PASS success page warns the key is shown once
+  FAIL identity registered
+  FAIL password_hash stored (scrypt)
+  FAIL display_name stored
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_auth.py", line 407, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_auth.py", line 395, in main
+    t_signup(client)
+  File "/home/hatch/workspace/musefm-redesign/site/test_auth.py", line 152, in t_signup
+    r2 = client.get(f"/api/identity/{ident['fm_id']}")
+                                     ~~~~~^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable

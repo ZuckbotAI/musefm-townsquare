@@ -1,0 +1,106 @@
+== locked species registry ==
+  PASS 9 locked species
+  PASS 19 species total
+  PASS art registry matches
+  PASS locked species art XML-valid (7x5x3=105)
+  PASS locked eggs keep faces
+  PASS silhouette is valid svg, hides art
+== unlock gating: tier (gilt needs Broadcast/500) ==
+  PASS gilt locked without tier
+  PASS broadcast tier reached
+  PASS gilt adoptable at Broadcast
+  PASS API adopt locked species rejected
+== unlock gating: streak (tidehound needs 30d) ==
+  PASS tidehound locked at 0d streak
+  PASS tidehound locked at 29d streak
+  PASS tidehound unlocked at 30d streak
+  PASS tidehound adoptable at 30d streak
+== unlock gating: achievement (reefkeeper needs Town Builder) ==
+  PASS reefkeeper locked without achievement
+  PASS town builder achievement recorded
+  PASS reefkeeper unlocked with achievement
+  PASS reefkeeper adoptable with achievement
+  PASS open species need no unlock
+== silhouettes in gallery + API ==
+  PASS species API has 19
+  PASS 9 locked in API
+  PASS locked entry hides name, shows condition
+  PASS locked svg is silhouette
+  PASS open species unaffected
+  PASS /pet shows silhouettes
+  PASS /pet links the shop
+== spendable math: lifetime never decreases ==
+  PASS fresh balance
+  PASS buy hat charges 25
+  PASS lifetime untouched by purchase
+  PASS pet stage still from gross lifetime
+  PASS hatched stage from gross lifetime despite purchases
+== insufficient funds ==
+  PASS broke buy rejected
+  PASS no purchase row on failure
+  PASS API insufficient funds -> 402
+== idempotent double-buy ==
+  PASS second buy is no-op
+  PASS exactly one purchase row
+  PASS spendable unchanged by no-op
+== accessories render + equip slots ==
+  PASS pet_status lists equipped accessory
+  PASS hat overlay in svg
+  PASS hat overlay in svg_large
+  PASS latest head-slot purchase wins
+  PASS crown overlay renders
+  PASS face slot stacks with head
+  PASS equip switches head slot
+  PASS equip unowned rejected
+== rename tokens ==
+  PASS first rename free
+  PASS second rename needs token
+  PASS rename with token ok
+  PASS token consumed (one-shot)
+  PASS rename tokens stack
+  PASS idempotency key dedups
+  PASS two token rows (k1 + one)
+== species bypass ==
+  PASS gilt locked for whale (no tier)
+  PASS bypass costs 150
+  PASS bypass recorded
+  PASS adopt gilt via bypass
+  PASS bypass is per-species
+  PASS one-pet-per-identity survives bypass
+  PASS unknown bypass rejected
+  PASS no bypass:zorb in catalog
+  PASS bypass:zorb not purchasable
+  PASS forged bypass cannot adopt zorb
+== shop API ==
+  PASS items catalog public
+  PASS prices sane
+  PASS signed balance
+  PASS balance unsigned rejected
+  PASS public balance by handle
+  PASS balance unknown handle 404
+  PASS API buy signed
+  PASS API buy unsigned rejected
+  PASS API buy unknown item rejected
+  PASS API equip signed
+  PASS API equip unknown rejected
+== hatch now (shop skip-the-wait) ==
+  PASS API hatch-now signed
+  PASS hatch-now charged 40
+  PASS egg ready after hatch-now
+  PASS hatch-now rejected when nothing warming
+  PASS rejected hatch-now charged nothing
+  PASS hatch-now without funds 402
+  PASS catalog lists hatch-now at 40
+== shop page ==
+  PASS shop page 200
+  PASS shop page lists items
+  PASS shop page has balance lookup
+  PASS shop page loads shop.css
+  PASS shop page shows accessory previews
+== rulebook docs ==
+  PASS pet_rules has unlocks
+  PASS pet_rules species carry locked flags
+  PASS pet_rules has shop section
+  PASS reward rulebook carries unlocks+shop
+
+89 passed, 0 failed

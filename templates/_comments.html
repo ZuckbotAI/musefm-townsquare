@@ -5,12 +5,12 @@
    aria-label and a 44px minimum touch target (see style.css). #}
 
 {% macro vote_controls(target_type, target_id, score, my_vote, csrf_tok, next_url) %}
-{# Reworked 2026-09-24: segmented pill control — the plain chevron pair never
-   read as "buttons". Chevron + explicit Up/Down labels (mainstream-simple),
-   score given real visual weight, active side tinted. Forms, routes, fields,
-   and class hooks (.cvote, .cvote-form, .cvote-btn.up/.down, .cvote-score)
-   are unchanged so comments.js AJAX keeps working. #}
-<span class="cvote" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}">
+{# Reworked 2026-09-26 (Anthony): branded Signal / Static pair replaces the
+   chevrons. Bolt glyph for Signal, static-interference glyph for Static.
+   Forms, routes, fields, and class hooks (.cvote, .cvote-form,
+   .cvote-btn.up/.down, .cvote-score) are unchanged so votes.js keeps working. #}
+<span class="cvote" data-target-type="{{ target_type }}" data-target-id="{{ target_id }}"
+  data-my-vote="{{ my_vote or 0 }}">
   <form method="post" action="/vote" class="cvote-form" data-value="1">
     <input type="hidden" name="csrf_token" value="{{ csrf_tok }}">
     <input type="hidden" name="target_type" value="{{ target_type }}">
@@ -18,10 +18,9 @@
     <input type="hidden" name="value" value="1">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="cvote-btn up{% if my_vote == 1 %} is-active{% endif %}"
-      aria-label="Upvote" aria-pressed="{{ 'true' if my_vote == 1 else 'false' }}" title="Upvote">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
-      <span class="cvote-label" aria-hidden="true">Up</span>
+      aria-label="Signal: boost this" aria-pressed="{{ 'true' if my_vote == 1 else 'false' }}" title="Signal">
+      <svg class="vb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2z"/></svg>
+      <span class="cvote-label" aria-hidden="true">Signal</span>
     </button>
   </form>
   <span class="cvote-score{% if score > 0 %} pos{% elif score < 0 %} neg{% endif %}"
@@ -33,10 +32,10 @@
     <input type="hidden" name="value" value="-1">
     <input type="hidden" name="next" value="{{ next_url }}">
     <button type="submit" class="cvote-btn down{% if my_vote == -1 %} is-active{% endif %}"
-      aria-label="Downvote" aria-pressed="{{ 'true' if my_vote == -1 else 'false' }}" title="Downvote">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      <span class="cvote-label" aria-hidden="true">Down</span>
+      aria-label="Static: dampen this" aria-pressed="{{ 'true' if my_vote == -1 else 'false' }}" title="Static">
+      <svg class="vb-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" aria-hidden="true"><path d="M2.5 7.5h6.5M13.5 7.5h8M5 12.5h14M2.5 17.5h8M14.5 17.5h7"/></svg>
+      <span class="cvote-label" aria-hidden="true">Static</span>
     </button>
   </form>
 </span>
@@ -53,7 +52,7 @@
   <button type="submit" class="cflag-btn{% if flagged %} is-flagged{% endif %}"
     aria-label="{{ 'Flagged for review' if flagged else 'Flag for moderator review' }}"
     aria-pressed="{{ 'true' if flagged else 'false' }}"
-    title="{{ 'Flagged — in the mod queue' if flagged else 'Flag for moderator review' }}">
+    title="{{ 'Flagged, in the mod queue' if flagged else 'Flag for moderator review' }}">
     <svg viewBox="0 0 24 24" fill="{{ 'currentColor' if flagged else 'none' }}"
       stroke="currentColor" stroke-width="2" stroke-linecap="round"
       stroke-linejoin="round" aria-hidden="true">
@@ -107,7 +106,7 @@
       <input type="hidden" name="next" value="{{ next_url }}">
       <button type="submit" class="crxn-chip{% if e in my_reactions %} is-mine{% endif %}"
         data-emoji="{{ e }}"
-        aria-label="{{ e }}: {{ count }} reaction{{ '' if count == 1 else 's' }}{{ ' (yours — tap to remove)' if e in my_reactions else '' }}"
+        aria-label="{{ e }}: {{ count }} reaction{{ '' if count == 1 else 's' }}{{ ' (yours, tap to remove)' if e in my_reactions else '' }}"
         title="{{ 'Remove your reaction' if e in my_reactions else e }}">{{ e }}<b>{{ count }}</b></button>
     </form>
     {% endfor %}
@@ -149,7 +148,7 @@
     </svg>
   </div>
   <p><strong>Be the first to comment.</strong></p>
-  <p class="hint">Say the first word — good threads start here.</p>
+  <p class="hint">Say the first word, good threads start here.</p>
 </div>
 {% endmacro %}
 

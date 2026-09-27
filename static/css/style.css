@@ -193,11 +193,16 @@ body { padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); }
   .auth-link, .auth-chip { font-size: 13px; padding: 7px 10px; }
   .auth-chip { max-width: 110px; }
 }
-/* slim "New here?" strip at the very top (homepage, anonymous visitors only) */
+/* slim "New here?" strip at the very top (homepage, anonymous visitors only):
+   glassmorphism — frosted translucent, blurred, subtle border. */
 .topstrip {
   display: flex; align-items: center; justify-content: center; gap: 16px;
-  background: #0b1220; color: #f2f2f2; font-size: 13.5px; line-height: 1.4;
+  background: rgba(13, 24, 42, 0.55); color: #f2f2f2; font-size: 13.5px; line-height: 1.4;
   padding: 8px 16px; text-align: center; flex-wrap: wrap;
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(8, 30, 70, 0.25);
 }
 .topstrip-text { opacity: 0.95; }
 .topstrip-ctas { display: inline-flex; align-items: center; gap: 14px; }
@@ -1089,6 +1094,9 @@ footer {
 @media (max-width: 400px) {
   .ep-tools { gap: 6px; }
   .comment { padding: 10px 10px 10px 12px; }
+  /* miniplayer: info row drops to its own full-width line on small phones */
+  .mp-row { flex-wrap: wrap; }
+  .mp-info { flex: 1 1 100%; order: -1; }
 }
 
 /* ================= reduced motion ================= */
@@ -1348,6 +1356,23 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   letter-spacing: -0.01em; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* unified Shorts surface: series filter pills under the chrome */
+.shorts-filters {
+  display: flex; gap: 8px; justify-content: center;
+  width: min(460px, 100%); margin: 0 auto; padding: 8px 14px 0;
+  pointer-events: none;
+}
+.shorts-filter {
+  padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  color: #fff; text-decoration: none; white-space: nowrap; pointer-events: auto;
+  background: rgba(10, 30, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background .18s, transform .18s var(--spring);
+}
+.shorts-filter:hover { color: #fff; text-decoration: none; background: rgba(0, 144, 231, 0.65); }
+.shorts-filter:active { transform: scale(.94); }
+.shorts-filter.is-active { background: rgba(0, 144, 231, 0.85); border-color: #fff; }
+.shorts-filter:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .short-mute {
   position: absolute; top: calc(78px + env(safe-area-inset-top, 0px)); right: 14px; z-index: 3;
   width: 44px; height: 44px; border-radius: 50%;

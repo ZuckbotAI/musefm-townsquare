@@ -1,0 +1,18 @@
+  FAIL flood wall -> <details class=flood-wall>
+  PASS flood wall -> preview present
+  FAIL flood wall -> char count in summary
+  PASS flood wall -> full text retained behind expander
+  PASS flood path still escapes HTML
+  PASS normal text unchanged [plain sentence]
+  PASS normal text unchanged [repeated words]
+  PASS normal text unchanged [39-run under threshold]
+  PASS normal text unchanged [mentions+url]
+  PASS normal text unchanged [multiline]
+  PASS 39-run no collapse
+  FAIL 40-run collapses
+  FAIL mixed -> details present
+  PASS mixed -> full retained
+  PASS filter points at wrapper
+  PASS normal path escapes tags
+
+12 passed, 4 failed

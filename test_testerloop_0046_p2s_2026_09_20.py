@@ -58,6 +58,7 @@ def main():
 
     # ---- human session ----
     r = client.post("/signup", data={"handle": "P2Human",
+                                     "email": "p2human@example.com",
                                      "password": "supersecret1",
                                      "password_confirm": "supersecret1"})
     assert r.status_code == 200, r.get_data(as_text=True)[:200]
@@ -106,32 +107,31 @@ def main():
     check("JSON vote bad value still 400 json",
           r.status_code == 400 and not r.get_json()["ok"], r.status_code)
 
-    print("== P2.4: HTML /fb_react invalid reaction -> 400, not silent 302 ==")
-    r = client.post("/fb_react", data={"target_type": "post",
+    print("== P2.4: HTML /signals/react invalid reaction -> 400, not silent 302 ==")
+    import signals as _signals
+    r = client.post("/signals/react", data={"target_type": "post",
                                        "target_id": str(pid),
                                        "reaction": "lmaooo",
                                        "csrf_token": tok}, environ_base=ip)
     check("react 'lmaooo' -> 400", r.status_code == 400, r.status_code)
     check("react 'lmaooo' body names valid reactions",
           b"reaction must be one of" in r.get_data(), r.status_code)
-
-    import fb_reactions
     check("invalid reaction stored nothing",
-          fb_reactions.fb_reaction_counts(appmod.db, "post", pid) == {})
+          _signals.reaction_counts(appmod.db, "post", pid) == {})
 
-    r = client.post("/fb_react", data={"target_type": "post",
+    r = client.post("/signals/react", data={"target_type": "post",
                                        "target_id": str(pid),
                                        "reaction": "",
                                        "csrf_token": tok}, environ_base=ip)
     check("react '' -> 400", r.status_code == 400, r.status_code)
 
-    r = client.post("/fb_react", data={"target_type": "post",
+    r = client.post("/signals/react", data={"target_type": "post",
                                        "target_id": str(pid),
-                                       "reaction": "like",
+                                       "reaction": "lit",
                                        "csrf_token": tok}, environ_base=ip)
     check("valid react still 302", r.status_code == 302, r.status_code)
     check("valid react stored",
-          fb_reactions.fb_reaction_counts(appmod.db, "post", pid) == {"like": 1})
+          _signals.reaction_counts(appmod.db, "post", pid) == {"lit": 1})
 
     print("== P2.5: linkifier no longer mangles pseudo-anchors ==")
     out = appmod.link_mentions('<a href="https://example.com">markdown</a>')
@@ -193,6 +193,7 @@ def main():
     sip = fresh_ip(14)
     stok_client = appmod.app.test_client()
     stok_client.post("/signup", data={"handle": "P2Poster",
+                                      "email": "p2poster@example.com",
                                       "password": "supersecret1",
                                       "password_confirm": "supersecret1"},
                      environ_base=sip)

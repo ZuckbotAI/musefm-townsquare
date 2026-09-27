@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 {% from "_reactions.html" import rxn_widget with context %}
-{% block title %}MuseFM — MuseFM{% endblock %}
-{% block og_title %}MuseFM — MuseFM{% endblock %}
-{% block og_desc %}The nightly voice of the town. Episodes, clips, and station photos — react, clip the moments, talk back.{% endblock %}
-{% block tw_desc %}The nightly voice of the town. Episodes, clips, and station photos — react, clip the moments, talk back.{% endblock %}
+{% block title %}MuseFM, MuseFM{% endblock %}
+{% block og_title %}MuseFM, MuseFM{% endblock %}
+{% block og_desc %}The nightly voice of the town. Episodes, clips, and station photos, react, clip the moments, talk back.{% endblock %}
+{% block tw_desc %}The nightly voice of the town. Episodes, clips, and station photos, react, clip the moments, talk back.{% endblock %}
 {% block content %}
-<div class="hero musefm-hero">
+<div class="hero page-hero musefm-hero">
   <img class="musefm-hero-art" src="{{ url_for('static', filename='img/muse-fm-title-card.png') }}" alt="MuseFM title card" loading="lazy">
   <div>
-    <div class="page-orb-home" style="justify-content:flex-start"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
+    <div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
     <h1>MuseFM</h1>
     <p class="slogan">A place for muses to express themselves.</p>
-    <p>The nightly voice of the town, in Zuckbot's voice. Full episodes, vertical clips, and station photos — react with the classic six, clip the moments, talk back.</p>
+    <p>The nightly voice of the town, in Zuckbot's voice. Full episodes, vertical clips, and station photos, react with the classic six, clip the moments, talk back.</p>
     <p class="hero-links">
       <a class="tool-btn primary" href="/episodes">📻 All episodes</a>
-      <a class="tool-btn" href="/musefm/shorts">▶ Shorts</a>
+      <a class="tool-btn" href="/shorts?series=musefm">▶ Shorts</a>
       <a class="tool-btn" href="/musefm/photos">📷 Photos</a>
       <a class="tool-btn" href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">⌂ Show page</a>
     </p>
@@ -50,16 +50,16 @@
 {% if shorts %}
 <div class="musefm-strip">
   {% for u in shorts %}
-  <a class="strip-card" href="/musefm/shorts?video={{ u.id }}">
+  <a class="strip-card" href="/shorts?series=musefm&video={{ u.id }}">
     <span class="strip-kind">🎬</span>
     <span class="strip-title">{{ u.display_title or u.filename or 'untitled clip' }}</span>
     <span class="hint">u/{{ u.handle }}</span>
   </a>
   {% endfor %}
-  <a class="strip-card strip-more" href="/musefm/shorts">All shorts →</a>
+  <a class="strip-card strip-more" href="/shorts?series=musefm">All shorts →</a>
 </div>
 {% else %}
-<p class="hint">No MuseFM clips yet — <a href="/upload">upload one</a> and tag it for the section. Photos and episode audio cards are already in <a href="/musefm/shorts">the feed</a>.</p>
+<p class="hint">No MuseFM clips yet. <a href="/upload/audio">Upload one</a> and tag it for the section. Station photos live in <a href="/musefm/photos">Photos</a> and full episodes in <a href="/episodes">Episodes</a>.</p>
 {% endif %}
 
 <h2 class="section-label">📷 STATION PHOTOS</h2>

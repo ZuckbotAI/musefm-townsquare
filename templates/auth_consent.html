@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Sign in to {{ site_name }} — MuseFM{% endblock %}
+{% block title %}Sign in to {{ site_name }} · MuseFM{% endblock %}
 {% block content %}
-<div class="hero"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>Sign in with MuseFM</h1><p>One account for the whole family of sites.</p></div>
-<div class="card" style="max-width:640px">
-  <p style="font-size:1.1em"><b>{{ site_name }}</b> wants to sign you in as
+<div class="hero page-hero hero-center"><div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div><h1>Sign in with MuseFM</h1><p>One account for the whole family of sites.</p></div>
+<div class="card" style="max-width:560px;margin:0 auto">
+  <p style="font-size:1.05em;margin-top:0"><b>{{ site_name }}</b> wants to sign you in as
     <b>@{{ handle }}</b>.</p>
-  <p class="hint">This shares only your handle — nothing else. You can sign out
+  <p class="hint">This shares only your handle, nothing else. You can sign out
     of {{ site_name }} at any time on that site.</p>
   <form method="post" action="{{ url_for('sso_authorize_post') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -14,8 +14,10 @@
     <input type="hidden" name="code_challenge" value="{{ code_challenge }}">
     <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}">
     <input type="hidden" name="state" value="{{ state }}">
-    <button class="btn" type="submit" name="action" value="approve">Continue as @{{ handle }}</button>
-    <button class="btn btn-ghost" type="submit" name="action" value="deny" style="margin-left:8px">Cancel</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn" type="submit" name="action" value="approve">Continue as @{{ handle }}</button>
+      <button class="btn btn-ghost" type="submit" name="action" value="deny">Cancel</button>
+    </div>
   </form>
 </div>
 {% endblock %}

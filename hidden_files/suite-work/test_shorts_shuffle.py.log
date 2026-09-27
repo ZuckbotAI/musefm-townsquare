@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/hatch/workspace/musefm-redesign/site/test_shorts_shuffle.py", line 230, in <module>
+    main()
+  File "/home/hatch/workspace/musefm-redesign/site/test_shorts_shuffle.py", line 123, in main
+    client = setup()
+             ^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/test_shorts_shuffle.py", line 72, in setup
+    appmod.db = Database(TEST_DB)
+                ^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/musefm-redesign/site/db.py", line 845, in __init__
+    self.db.executescript(SCHEMA)
+sqlite3.OperationalError: disk I/O error

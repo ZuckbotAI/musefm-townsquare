@@ -1,9 +1,9 @@
-/* MuseFM — signals. Five one-tap signal pills, always visible, no picker
-   (on phones, shorts collapse them into one hub button that unfurls a
-   wheel). Every pill is a plain form POST to /signals/react (no-JS
-   fallback); this script upgrades taps to JSON fetch and re-renders in
-   place. Tapping the total toggles the breakdown (or the wheel on mobile
-   shorts). */
+/* MuseFM — signals. Every reaction widget is one compact rollout button
+   (2026-09-25, Anthony): collapsed it shows the viewer's own signal (or the
+   bolt) plus the total; opening it rolls the five signals out. Native
+   <details> disclosure, so it works with zero JS — every pill is a plain
+   form POST to /signals/react, and this script upgrades taps to JSON fetch
+   and re-renders in place. Tapping a pill never closes the tray. */
 (function () {
   'use strict';
   var META = {
@@ -15,75 +15,11 @@
   };
   var ORDER = ['lit', 'idea', 'kind', 'fire', 'build'];
 
-  // shorts wheel hub shows the LATEST reaction's emoji (Anthony 2026-09-23).
-  // The backend summary has no "latest" field and we can't touch it, so the
-  // latest is tracked client-side: the reaction just submitted through this
-  // widget IS the latest at that moment. Persisted per target in
-  // localStorage so it survives reloads; cleared when the viewer removes
-  // their reaction (we no longer know the true latest).
-  var LATEST_KEY_PREFIX = 'musefm-latest-signal:v1:';
-
-  function latestKey(w) {
-    return LATEST_KEY_PREFIX + w.getAttribute('data-target-type') + ':' +
-      w.getAttribute('data-target-id');
-  }
-
-  function getLatest(w) {
-    try {
-      var v = window.localStorage.getItem(latestKey(w));
-      return (v && META[v]) ? v : null;
-    } catch (e) { return null; }
-  }
-
-  function setLatest(w, reaction) {
-    try {
-      if (reaction && META[reaction]) {
-        window.localStorage.setItem(latestKey(w), reaction);
-      } else {
-        window.localStorage.removeItem(latestKey(w));
-      }
-    } catch (e) { /* private mode etc. — hub just falls back to the count */ }
-  }
-
-  // Wheel hub only: paint the latest reaction's emoji big, with the numeric
-  // total demoted to a small badge. No latest known (or zero reactions) ->
-  // keep the current look: the plain count.
-  function paintWheelHub(w, total) {
-    var totalBtn = w.querySelector('.sig-total');
-    if (!totalBtn) return;
-    var latest = getLatest(w);
-    if (latest && total > 0) {
-      totalBtn.innerHTML =
-        '<span class="hub-latest" aria-hidden="true">' + META[latest].emoji + '</span>' +
-        '<span class="hub-total">' + total + '</span>';
-      totalBtn.setAttribute('aria-label', META[latest].label +
-        ' \u2014 latest signal, ' + total + ' total \u2014 open reactions');
-    } else {
-      totalBtn.textContent = total;
-      totalBtn.setAttribute('aria-label',
-        total + ' total signals \u2014 open reactions');
-    }
-  }
-
-  function closeAll(except) {
-    document.querySelectorAll('.rxn .sig-breakdown:not([hidden])')
+  function closeOthers(except) {
+    document.querySelectorAll('details.rxn-rollout[open]')
       .forEach(function (el) {
-        if (el !== except) el.hidden = true;
+        if (el !== except) el.open = false;
       });
-  }
-
-  function closeWheels(except) {
-    document.querySelectorAll('.rxn.open')
-      .forEach(function (el) {
-        if (el !== except) el.classList.remove('open');
-      });
-  }
-
-  // shorts: the signals collapse into one hub button that unfurls a
-  // wheel; everywhere else they stay as visible pills. the wheel look
-  // applies at every viewport width (Anthony 2026-09-23).
-  function isShortsWheel(w) {
-    return !!w.closest('.short-rxn');
   }
 
   function esc(s) {
@@ -103,31 +39,15 @@
       btn.setAttribute('aria-pressed', d.mine === key ? 'true' : 'false');
       btn.setAttribute('aria-label', META[key].label + ' — ' + c + ' so far');
     });
-    var totalBtn = w.querySelector('.sig-total');
-    if (totalBtn) {
-      if (isShortsWheel(w)) {
-        paintWheelHub(w, d.total);
-      } else {
-        totalBtn.textContent = d.total;
-        totalBtn.setAttribute('aria-label', d.total +
-          ' total signals \u2014 see breakdown');
-      }
-    }
-    // toggle-mode widgets (comments, 2026-09-24) show the total on the
-    // disclosure button instead of a .sig-total pill.
-    var toggleCount = w.querySelector('.sig-toggle .sig-count');
-    if (toggleCount) toggleCount.textContent = d.total;
-    var bd = w.querySelector('.sig-breakdown');
-    if (bd) {
-    var bdHtml = '';
-    ORDER.forEach(function (key) {
-      if (d.counts && d.counts[key]) {
-        bdHtml += '<div class="sig-brow" data-reaction="' + key + '"><span>' +
-          META[key].emoji + ' ' + META[key].label + '</span><b>' + d.counts[key] + '</b></div>';
-      }
-    });
-    if (!bdHtml) bdHtml = '<div class="sig-brow sig-brow-empty"><span>No signals yet — be the first.</span></div>';
-    bd.innerHTML = bdHtml;
+    // rollout button: viewer's own signal (or the bolt) + the new total
+    var summary = w.querySelector('summary.sig-rollout');
+    if (summary) {
+      var emojiEl = summary.querySelector('.sig-emoji');
+      var countEl = summary.querySelector('.sig-count');
+      if (emojiEl) emojiEl.textContent = (d.mine && META[d.mine]) ? META[d.mine].emoji : '\u26A1';
+      if (countEl) countEl.textContent = d.total;
+      summary.setAttribute('aria-label', 'Signals, ' + d.total +
+        ' total — open to send a signal');
     }
   }
 
@@ -156,14 +76,6 @@
         toast(d.error || 'signal failed');
         return;
       }
-      closeAll();
-      closeWheels();
-      // the reaction just submitted is the latest — track it for the hub
-      if (d.action === 'added' || d.action === 'switched') {
-        setLatest(w, reaction);
-      } else if (d.action === 'removed') {
-        setLatest(w, null);
-      }
       renderWidget(w, d);
     }).catch(function () { toast('network hiccup — try again'); });
   }
@@ -178,28 +90,12 @@
         sendSignal(w, btn.getAttribute('data-reaction'));
       });
     });
-    var totalBtn = w.querySelector('.sig-total');
-    if (totalBtn) {
-      if (isShortsWheel(w)) {
-        // page load: upgrade the server-rendered count to latest-emoji hub
-        // when we have a persisted latest for this target
-        var t = parseInt((totalBtn.textContent || '').replace(/\D/g, ''), 10) || 0;
-        paintWheelHub(w, t);
-      }
-      totalBtn.addEventListener('click', function () {
-        if (isShortsWheel(w)) {
-          var willOpen = !w.classList.contains('open');
-          closeAll();
-          closeWheels();
-          if (willOpen) w.classList.add('open');
-          return;
-        }
-        var bd = w.querySelector('.sig-breakdown');
-        var willOpenBd = bd.hidden;
-        closeAll();
-        bd.hidden = !willOpenBd;
-      });
-    }
+    // opening one tray closes the others; keep aria-expanded honest
+    w.addEventListener('toggle', function () {
+      var summary = w.querySelector('summary.sig-rollout');
+      if (summary) summary.setAttribute('aria-expanded', w.open ? 'true' : 'false');
+      if (w.open) closeOthers(w);
+    });
   }
   document.querySelectorAll('.rxn').forEach(wireWidget);
   // Exposed so infinite-scroll feeds can wire signal widgets on
@@ -207,7 +103,6 @@
   window.wireRxnWidget = wireWidget;
 
   document.addEventListener('click', function (e) {
-    if (!e.target.closest('.rxn')) { closeAll(); closeWheels(); }
+    if (!e.target.closest('.rxn')) closeOthers(null);
   });
-  document.addEventListener('scroll', function () { closeAll(); closeWheels(); }, { passive: true });
 })();
