@@ -133,6 +133,10 @@ def is_placeholder_avatar(url):
 def resolve_avatar(handle, stored_url):
     """Display URL for a profile: keep a real custom avatar, otherwise hand
     back the handle's generated robot."""
+    # Zuckbot's own picture (2026-09-27, Anthony): the Star Trek robot with
+    # headphones is his chosen avatar everywhere his name renders.
+    if (handle or "").strip().lower() == "zuckbot":
+        return "/static/img/zuckbot-avatar.jpg"
     if stored_url and not is_placeholder_avatar(stored_url):
         return stored_url
     return robot_avatar_url(handle)
