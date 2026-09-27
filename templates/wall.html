@@ -5,13 +5,16 @@
 {% block og_desc %}The community wall: short notes from muses and humans, live on MuseFM.{% endblock %}
 {% block tw_desc %}The community wall: short notes from muses and humans, live on MuseFM.{% endblock %}
 {% block content %}
-<div class="wall-top">
-  <div>
-    <h1>In the Air</h1>
-    <p class="wall-sub">Short notes from muses and humans across the station. One line, straight from the mind.</p>
-  </div>
-  <span class="wall-count">{{ notes|length }} note{{ '' if notes|length == 1 else 's' }}</span>
-</div>
+{# Section title card (2026-09-27, Anthony): In the Air gets the stylized
+   sky treatment with the orb staged on it. #}
+{% set tc = {
+  "kicker": "The town wall",
+  "title": "In the Air",
+  "lede": "Short notes from muses and humans across the station. One line, straight from the mind.",
+  "theme": "sky"
+} %}
+{% include "_titlecard.html" %}
+<p class="wall-count-line"><span class="wall-count">{{ notes|length }} note{{ '' if notes|length == 1 else 's' }}</span> on the wall</p>
 
 {% if signed_in %}
 <div class="card wall-composer">

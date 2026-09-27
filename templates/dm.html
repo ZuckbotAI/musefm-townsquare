@@ -172,7 +172,7 @@
       main.innerHTML =
         '<span class="dm-convo-top"><span class="dm-convo-name">' + esc(t.peer_handle) + "</span>" +
           '<span class="dm-convo-time">' + esc(fmtTime(t.last_at)) + "</span></span>" +
-          '<span class="dm-convo-bottom"><span class="dm-convo-preview">' + esc(prev || "—") + "</span>" +
+          '<span class="dm-convo-bottom"><span class="dm-convo-preview">' + esc(prev || '...') + "</span>" +
           (t.unread ? '<span class="dm-unread-badge">' + esc(String(t.unread)) + "</span>" : "") +
           "</span>";
       b.appendChild(main);
@@ -393,7 +393,7 @@
         })
         .catch(function () {
           input.disabled = false;
-          showError("Couldn't send — check your connection.");
+          showError("Couldn't send. Check your connection.");
           input.focus();
         });
     });

@@ -84,13 +84,13 @@
       '<input type="hidden" name="reaction" value="' + key + '">' +
       '<button type="submit" class="sig' + active + '" data-reaction="' + key + '"' +
       ' aria-pressed="' + (mine === key ? 'true' : 'false') + '" title="' + SIG_META[key][1] + '"' +
-      ' aria-label="' + SIG_META[key][1] + ' — ' + c + ' so far">' +
+      ' aria-label="' + SIG_META[key][1] + ', ' + c + ' so far">' +
       '<span class="sig-emoji" aria-hidden="true">' + SIG_META[key][0] + '</span>' +
       '<span class="sig-count">' + c + '</span></button></form>';
     });
     var mineEmoji = (mine && SIG_META[mine]) ? SIG_META[mine][0] : '⚡';
     return '<details class="rxn rxn-rollout rxn-compact" data-target-type="' + esc(it.target_type) + '" data-target-id="' + it.target_id + '" data-mine="' + esc(mine) + '" data-next="/shorts">' +
-      '<summary class="sig-rollout" aria-label="Signals, ' + sig.total + ' total — open to send a signal" title="Send a signal">' +
+      '<summary class="sig-rollout" aria-label="Signals, ' + sig.total + ' total. Open to send a signal" title="Send a signal">' +
       '<span class="sig-emoji" aria-hidden="true">' + mineEmoji + '</span>' +
       '<span class="sig-count">' + sig.total + '</span>' +
       '<span class="sig-caret" aria-hidden="true">▾</span></summary>' +
@@ -170,7 +170,7 @@
       '<button type="submit" class="cflag-btn' + (flagged ? ' is-flagged' : '') + '"' +
       ' aria-label="' + (flagged ? 'Flagged for review' : 'Flag for moderator review') + '"' +
       ' aria-pressed="' + flagged + '"' +
-      ' title="' + (flagged ? 'Flagged — in the mod queue' : 'Flag for moderator review') + '">' + SVG_FLAG + '</button></form>';
+      ' title="' + (flagged ? 'Flagged. In the mod queue' : 'Flag for moderator review') + '">' + SVG_FLAG + '</button></form>';
   }
 
   function fmtAgo(ts) {
@@ -280,7 +280,7 @@
         var items = (d.ok && d.comments) || [];
         if (!items.length && !append) {
           list.innerHTML = '<div class="cempty"><p><strong>Be the first to comment.</strong></p>' +
-            '<p class="hint">Say the first word — good threads start here.</p></div>';
+            '<p class="hint">Say the first word. Good threads start here.</p></div>';
         }
         items.forEach(function (c) { list.appendChild(commentNode(c, 0)); });
         panel.setAttribute('data-page', page);
@@ -373,12 +373,12 @@
         }).then(function (r) { return r.json(); })
           .then(function (d) {
             send.disabled = false;
-            if (!d.ok) { input.placeholder = d.error || 'Could not post — try again'; return; }
+            if (!d.ok) { input.placeholder = d.error || 'Could not post. Try again'; return; }
             loadComments(panel, { page: 1 });
             if (d.comment_count != null) setCount(vid, d.comment_count);
           }).catch(function () {
             send.disabled = false;
-            input.placeholder = 'Could not post — try again';
+            input.placeholder = 'Could not post. Try again';
           });
       } else if (f.classList.contains('sc-editform')) {
         ev.preventDefault();
@@ -427,7 +427,7 @@
         .then(function (res) {
           send.disabled = false;
           if (res.s === 401 && res.d.signin_url) { showNudge(panel, res.d.signin_url); return; }
-          if (!res.d.ok) { input.placeholder = res.d.error || 'Could not post — try again'; return; }
+          if (!res.d.ok) { input.placeholder = res.d.error || 'Could not post. Try again'; return; }
           input.value = '';
           loadComments(panel, { page: 1 }).then(function () {
             var list = panel.querySelector('.sc-list');
@@ -436,7 +436,7 @@
           if (res.d.comment_count != null) setCount(vid, res.d.comment_count);
         }).catch(function () {
           send.disabled = false;
-          input.placeholder = 'Could not post — try again';
+          input.placeholder = 'Could not post. Try again';
         });
     });
   }
@@ -524,7 +524,7 @@
   feed.querySelectorAll('.short-item').forEach(card => { wireCard(card); wireComments(card); });
   // ?video= deep-link: jump to the anchored card before autoplay
   // observation settles, so the right clip plays instead of the first.
-  // Comments stay closed until tapped — the deep link anchors the video,
+  // Comments stay closed until tapped; the deep link anchors the video,
   // it doesn't open the conversation for you.
   (function () {
     var a = feed.getAttribute('data-anchor');

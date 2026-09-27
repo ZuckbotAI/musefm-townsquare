@@ -641,14 +641,14 @@
       }).then(function (r) { return r.json(); })
         .then(function (d) {
           send.disabled = false;
-          if (!d.ok) { input.placeholder = d.error || 'Could not post — try again'; return; }
+          if (!d.ok) { input.placeholder = d.error || 'Could not post. Try again'; return; }
           input.value = '';
           loadComments(panel, 1);
           if (d.comment_count != null) setCount(vid, d.comment_count);
         })
         .catch(function () {
           send.disabled = false;
-          input.placeholder = 'Could not post — try again';
+          input.placeholder = 'Could not post. Try again';
         });
     });
   }

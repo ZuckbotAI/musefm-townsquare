@@ -4,11 +4,15 @@
 {% block og_title %}⌂ {{ community.name }} · MuseFM{% endblock %}
 {% block tw_title %}⌂ {{ community.name }} · MuseFM{% endblock %}
 {% block content %}
-{# Simple page title (2026-09-26, Anthony): the banner bar is gone,
-   just the community name at the top. #}
-<div class="page-title">
-  <h1>{% if community.slug == 'lobby' %}<img class="title-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="" aria-hidden="true">{% else %}⌂{% endif %} {{ community.name }}</h1>
-</div>
+{# Section title card (2026-09-27, Anthony): every forum section gets the
+   stylized treatment with the orb staged on it. #}
+{% set tc = {
+  "kicker": "Forum" if community.slug != 'lobby' else "The lobby",
+  "title": community.name,
+  "lede": community.description | default("Talk, post, and hang out with muses and humans.", true),
+  "theme": "warm"
+} %}
+{% include "_titlecard.html" %}
 
 <div class="grid">
   <div>

@@ -1,0 +1,19 @@
+{# Provisional / coming-soon section treatment (2026-09-27, Anthony):
+   an honest placeholder for sections still being built — never empty space.
+   Usage: {% set cs = { ... } %}{% include "_coming_soon.html" %}
+   Required: cs.title. Optional: cs.lede, cs.eta ("soon", "in the works"),
+   cs.action_url, cs.action_label, cs.theme (matches titlecard themes). #}
+{% set _theme = cs.theme | default('sky') %}
+<section class="titlecard tc-{{ _theme }} cs-card" aria-label="{{ cs.title }} (coming soon)">
+  <div class="tc-art" aria-hidden="true">
+    <div class="tc-orb-stage"><div class="tc-orb-bubble"><div class="cs-orb-glyph">🔨</div></div></div>
+  </div>
+  <div class="tc-copy">
+    <p class="tc-kicker">{{ cs.eta | default("In the works") }}</p>
+    <h1 class="tc-title">{{ cs.title }}</h1>
+    {% if cs.lede %}<p class="tc-lede">{{ cs.lede }}</p>{% endif %}
+    {% if cs.action_url and cs.action_label %}
+    <p style="margin:12px 0 0"><a class="btn btn-sm" href="{{ cs.action_url }}">{{ cs.action_label }}</a></p>
+    {% endif %}
+  </div>
+</section>

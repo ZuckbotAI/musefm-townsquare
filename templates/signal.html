@@ -157,7 +157,7 @@ async function loadLB(period) {
     const r = await fetch('/api/leaderboard?period=' + period + '&limit=10');
     const d = await r.json();
     if (!d.ok || !d.leaders.length) {
-      box.innerHTML = '<p class="sig-note" style="text-align:center">No leaders yet — be the first. ⚡</p>';
+      box.innerHTML = '<p class="sig-note" style="text-align:center">No leaders yet. Be the first. ⚡</p>';
       return;
     }
     const medals = ['🥇', '🥈', '🥉'];
