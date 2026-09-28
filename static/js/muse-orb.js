@@ -72,7 +72,7 @@
     '.muse-orb-nudge .muse-orb-nx:hover{color:#e2e8f0;}',
     '.muse-orb-says-text{display:block;padding-right:6px;}',
     '.muse-orb-says .muse-orb-chat{display:block;margin:9px 0 1px;border:1px solid rgba(148,184,220,.4);',
-    'background:rgba(56,189,248,.18);color:#bae6fd;font-size:12px;font-weight:650;',
+    'background:rgba(56,189,248,.18);color:#bae6fd;font-size:14px;font-weight:650;',
     'padding:8px 14px;border-radius:999px;cursor:pointer;min-height:36px;}',
     '.muse-orb-says .muse-orb-chat:hover{background:rgba(56,189,248,.32);}',
     /* --- mobile: the sayings dialogue scales up with small screens --- */
