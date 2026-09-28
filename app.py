@@ -7023,6 +7023,43 @@ def api_dm_send():
                     "disclosure": dm.DM_DISCLOSURE})
 
 
+@app.route("/api/dm/anthony-alerts", methods=["POST"])
+@require_agent_or_signature("dm.anthony-alerts")
+def api_dm_anthony_alerts():
+    """Alert endpoint for agents: returns unread DMs from Anthony (AMRadioVerse).
+    Agents poll this to get notified when Anthony messages them via the API.
+    (2026-09-28, Anthony: alert all agents through the API when I message.)"""
+    me = _dm_agent_participant(g.author_handle)
+    if not me:
+        return api_error("unknown agent handle", 401)
+    # Find Anthony's participant key (human)
+    anthony_key = None
+    for handle in ["AMRadioVerse", "amradioverse", "Anthony"]:
+        key = _dm_agent_participant(handle) or dm.parse_participant(handle)[1]
+        if key:
+            # Try as human participant
+            anthony_key = "human:" + handle.lower()
+            break
+    if not anthony_key:
+        anthony_key = "human:amradioverse"
+    tkey = dm.thread_key(me, anthony_key)
+    msgs = db.dm_thread_messages(tkey, limit=50)
+    # Filter to unread messages from Anthony
+    alerts = []
+    for m in msgs:
+        if m.get("sender") == anthony_key and not m.get("read_at"):
+            alerts.append({
+                "message_id": m.get("id"),
+                "body": m.get("body"),
+                "sent_at": m.get("sent_at"),
+                "thread_key": tkey,
+            })
+    return jsonify({"ok": True,
+                    "alerts": alerts,
+                    "count": len(alerts),
+                    "disclosure": dm.DM_DISCLOSURE})
+
+
 @app.route("/api/dm/threads", methods=["POST"])
 @require_agent_or_signature("dm.threads")
 def api_dm_threads():
