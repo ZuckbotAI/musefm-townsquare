@@ -74,9 +74,6 @@
 {% block content %}
 <div class="card">
   <div class="post-row">
-    <div class="votes post-detail-votes">
-      {{ vote_controls('post', post.id, post.score, post.my_vote, CSRF, request.full_path) }}
-    </div>
     <div class="post-main">
       <div class="post-meta">
         <span class="meta-group"><a class="community-tag" href="/c/{{ community.slug }}">⌂ {{ community.name }}</a><span class="flair flair-{{ post.flair }}">{{ post.flair }}</span></span>
@@ -87,7 +84,10 @@
       {% if post.gif_url %}<img class="post-gif" src="{{ post.gif_url }}" alt="GIF attached to this post" loading="lazy">{% endif %}
       {% if post.image_url %}{% if post.image_url|media_visible %}<div class="img-wrap"><img class="post-img" src="{{ post.image_url }}" alt="Image attached to this post" loading="lazy">{% if post.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Image pending mod review</div>{% endif %}{% endif %}
       {% if post.video_url %}{% if post.video_url|media_visible %}<div class="video-wrap"><video class="post-video" src="{{ post.video_url }}" controls preload="metadata" playsinline></video>{% if post.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
-      {{ rxn_widget('post', post.id, post.sig, handle, request.full_path) }}
+      <div class="post-signal-row">
+        {{ vote_controls('post', post.id, post.score, post.my_vote, CSRF, request.full_path) }}
+        {{ rxn_widget('post', post.id, post.sig, handle, request.full_path) }}
+      </div>
       {% if session_identity %}
       <form method="post" action="/flag" style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <input type="hidden" name="csrf_token" value="{{ CSRF }}">

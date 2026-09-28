@@ -235,6 +235,14 @@
     } catch (x) { return e; }
   }
 
+  function renderTombstone(m) {
+    var row = document.createElement("div");
+    row.className = "dm-row " + (m.mine ? "mine" : "theirs") + " dm-tombstone";
+    row.dataset.mid = m.id;
+    row.innerHTML = '<div class="dm-bubble dm-deleted-bubble"><em>This message was deleted</em></div>';
+    msgsEl.appendChild(row);
+  }
+
   function renderMessages(messages, myLastReadAt, typing) {
     msgsEl.innerHTML = "";
     var lastDay = null;
@@ -244,6 +252,7 @@
       if (m.id > lastMsgId) lastMsgId = m.id;
     });
     messages.forEach(function (m) {
+      if (m.deleted) { renderTombstone(m); return; }
       var dk = dayKey(m.created_at);
       if (dk !== lastDay) {
         lastDay = dk;
@@ -273,6 +282,7 @@
         '<div class="dm-actions">' +
           '<button class="dm-act" data-act="react" aria-label="React" title="React">😊</button>' +
           '<button class="dm-act" data-act="copy" aria-label="Copy" title="Copy">⧉</button>' +
+          (m.mine ? '<button class="dm-act dm-del-btn" data-act="delete" aria-label="Delete" title="Delete">&#x1F5D1;</button>' : "") +
         "</div>";
       msgsEl.appendChild(row);
     });
@@ -293,6 +303,7 @@
 
   function bindRowActions() {
     Array.prototype.forEach.call(msgsEl.querySelectorAll(".dm-row"), function (row) {
+      if (row.classList.contains("dm-tombstone")) return; /* deleted: no actions */
       var mid = row.dataset.mid;
       var bodyText = row.querySelector(".dm-bubble").firstChild.textContent;
       row.querySelector('[data-act="copy"]').addEventListener("click", function (ev) {
@@ -301,6 +312,24 @@
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(bodyText).then(done, done);
         } else { done(); }
+      });
+      var delBtn = row.querySelector('[data-act="delete"]');
+      if (delBtn) delBtn.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        if (!window.confirm("Delete this message? This cannot be undone.")) return;
+        fetch("/api/dm/web/delete", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({message_id: mid, csrf_token: csrf ? csrf.value : ""})
+        }).then(function (r) { return r.json(); }).then(function (d) {
+          if (d && d.ok) {
+            var tomb = document.createElement("div");
+            tomb.className = row.className + " dm-tombstone";
+            tomb.dataset.mid = mid;
+            tomb.innerHTML = '<div class="dm-bubble dm-deleted-bubble"><em>This message was deleted</em></div>';
+            row.parentNode.replaceChild(tomb, row);
+          } else if (d && d.error) { window.alert(d.error); }
+        });
       });
       row.querySelector('[data-act="react"]').addEventListener("click", function (ev) {
         ev.stopPropagation();

@@ -1054,10 +1054,15 @@ details[open].rxn-rollout > .sig-tray {
   border: 1px solid rgba(255,255,255,.14);
 }
 
-/* post detail: branded Signal / Static pills stacked vertically beside the
-   content (2026-09-26: Anthony's order is branded buttons everywhere — the
-   old icon-only treatment read as the legacy arrow widget, so the labels
-   stay visible here and the base pill + zap styles do the work). */
+/* post detail: the Signal / Static vote pair lives in a small pill next to the
+   reactions (2026-09-27, Anthony) — the tall sidebar is gone. The old
+   .post-detail-votes column rules stay for reference but are no longer used. */
+.post-signal-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+.post-signal-row .cvote { align-items: center; }
+.post-signal-row .cvote-btn { flex-direction: row; gap: 5px; min-width: 0; min-height: 0; padding: 5px 9px; }
+.post-signal-row .cvote-btn svg { width: 14px; height: 14px; }
+.post-signal-row .cvote-label { margin-top: 0; font-size: 9px; }
+.post-signal-row .cvote-score { min-width: 26px; padding: 0 4px; font-size: 13px; }
 .post-detail-votes { min-width: 108px; }
 .post-detail-votes .cvote { flex-direction: column !important; gap: 8px; align-items: stretch; }
 .post-detail-votes .cvote-btn { width: 100%; justify-content: center; padding: 8px 10px; }
@@ -2028,17 +2033,6 @@ body::before {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.16),
               inset 0 -1px 0 rgba(0,0,0,.3),
               0 8px 22px rgba(0,0,0,.45);
-}
-/* Ctrl+K chip: precisely centered, glassy, dark-aware */
-.topbar-search kbd {
-  flex: none; align-self: center; white-space: nowrap;
-  font-size: 11px; font-weight: 600; line-height: 1.5; color: var(--rz-ink3);
-  border: 1px solid var(--rz-line); border-radius: 6px;
-  padding: 2px 8px; background: rgba(255, 255, 255, 0.6);
-}
-[data-theme="dark"] .topbar-search kbd {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
 }
 .topbar-search:focus-within {
   background: rgba(255, 255, 255, 0.96);

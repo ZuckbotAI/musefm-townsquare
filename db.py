@@ -3392,6 +3392,27 @@ class Database:
         else:
             self._exec("UPDATE notifications SET read=1 WHERE fm_id=?", (fm_id,))
 
+    def mark_notifications_read_by_ref(self, fm_id, ref_type, ref_id):
+        """Clear notifications tied to one thread/post/etc. Used when the
+        user opens the thing the notification points at (e.g. a DM thread)."""
+        self._exec("UPDATE notifications SET read=1 WHERE fm_id=?"
+                   " AND ref_type=? AND ref_id=?",
+                   (fm_id, ref_type, ref_id))
+
+    def notify_dm(self, fm_id, thread_key, text):
+        """DM arrival notification. One unread row per thread: a new message
+        refreshes the existing unread row instead of stacking rows, so the
+        inbox stays tidy while the badge still lights up."""
+        row = self._one("SELECT id FROM notifications WHERE fm_id=?"
+                        " AND type='dm' AND ref_type='dm' AND ref_id=?"
+                        " AND read=0",
+                        (fm_id, thread_key))
+        if row:
+            self._exec("UPDATE notifications SET text=?, created_at=?"
+                       " WHERE id=?", (text, now(), row["id"]))
+        else:
+            self.notify(fm_id, "dm", "dm", thread_key, text)
+
     # -- reactions --------------------------------------------------------
     def react(self, target_type, target_id, reactor, handle, emoji):
         if target_type not in ("post", "comment", "episode_comment"):
@@ -3719,6 +3740,22 @@ class Database:
             (thread_key, sender, recipient, body, now))
         return cur.lastrowid
 
+    def dm_delete_message(self, message_id, participant, now=None):
+        """Soft-delete a DM: only the sender may delete their own message.
+        Returns True on success, False if the message is missing, already
+        deleted, or owned by someone else."""
+        now = int(now if now is not None else time.time())
+        row = self._one(
+            "SELECT sender, deleted_at FROM dms WHERE id=?", (message_id,))
+        if not row:
+            return False
+        if row["deleted_at"] is not None:
+            return False
+        if row["sender"] != participant:
+            return False
+        self._exec("UPDATE dms SET deleted_at=? WHERE id=?", (now, message_id))
+        return True
+
     def dm_audit_log(self, sender, recipient, action, reason=None,
                      message_id=None, now=None):
         """Audit every send attempt ('sent' | 'blocked')."""
@@ -3735,7 +3772,8 @@ class Database:
             "SELECT thread_key,"
             " MAX(id) AS last_id,"
             " MAX(created_at) AS last_at,"
-            " SUM(CASE WHEN recipient=? AND read_at IS NULL THEN 1 ELSE 0 END)"
+            " SUM(CASE WHEN recipient=? AND read_at IS NULL"
+            "   AND deleted_at IS NULL THEN 1 ELSE 0 END)"
             "  AS unread"
             " FROM dms WHERE sender=? OR recipient=?"
             " GROUP BY thread_key ORDER BY last_at DESC LIMIT ?",
@@ -3743,13 +3781,15 @@ class Database:
         out = []
         for r in rows:
             last = self._one(
-                "SELECT id, sender, body, created_at, read_at FROM dms"
-                " WHERE id=?", (r["last_id"],))
+                "SELECT id, sender, body, created_at, read_at, deleted_at"
+                " FROM dms WHERE id=?", (r["last_id"],))
             out.append({
                 "thread_key": r["thread_key"],
                 "peer": None,  # filled by caller via dm.thread_peer
                 "last_id": r["last_id"],
-                "last_body": last["body"] if last else "",
+                "last_body": ("This message was deleted"
+                    if last and last["deleted_at"]
+                    else (last["body"] if last else "")),
                 "last_sender": last["sender"] if last else "",
                 "last_at": r["last_at"],
                 "last_read_at": last["read_at"] if last else None,
@@ -3759,21 +3799,24 @@ class Database:
 
     def dm_unread_count(self, participant):
         r = self._one(
-            "SELECT COUNT(*) c FROM dms WHERE recipient=? AND read_at IS NULL",
+            "SELECT COUNT(*) c FROM dms WHERE recipient=? AND read_at IS NULL"
+            " AND deleted_at IS NULL",
             (participant,))
         return int(r["c"] or 0) if r else 0
 
     def dm_thread_messages(self, thread_key, limit=50, before_id=None,
                            q=None):
-        """Newest-first page of messages in a thread. q filters by body."""
-        sql = ("SELECT id, sender, recipient, body, created_at, read_at"
-               " FROM dms WHERE thread_key=?")
+        """Newest-first page of messages in a thread. q filters by body.
+        Deleted messages come back as tombstones (caller checks deleted_at);
+        they never match a text search."""
+        sql = ("SELECT id, sender, recipient, body, created_at, read_at,"
+               " deleted_at FROM dms WHERE thread_key=?")
         args = [thread_key]
         if before_id:
             sql += " AND id<?"
             args.append(before_id)
         if q:
-            sql += " AND body LIKE ? ESCAPE '\\'"
+            sql += " AND deleted_at IS NULL AND body LIKE ? ESCAPE '\\'"
             args.append("%" + q.replace("\\", "\\\\").replace("%", "\\%")
                         .replace("_", "\\_") + "%")
         sql += " ORDER BY id DESC LIMIT ?"
@@ -3841,17 +3884,25 @@ class Database:
 
     def dm_mark_seen(self, thread_key, viewer, now=None):
         """Record that viewer (participant key or 'owner:<human_fm_id>')
-        has seen a thread up to now."""
+        has seen a thread up to now. Stores the newest message id seen,
+        so a message arriving in the same second as the look is never
+        missed (integer-second timestamps alone can collide)."""
         now = int(now if now is not None else time.time())
+        row = self._q("SELECT MAX(id) AS m FROM dms WHERE thread_key=?",
+                      (thread_key,))
+        seen_msg_id = int(row[0]["m"] or 0) if row else 0
         self._exec(
-            "INSERT INTO dm_seen (thread_key, viewer, seen_at)"
-            " VALUES (?,?,?)"
+            "INSERT INTO dm_seen (thread_key, viewer, seen_at, seen_msg_id)"
+            " VALUES (?,?,?,?)"
             " ON CONFLICT(thread_key, viewer)"
-            " DO UPDATE SET seen_at=excluded.seen_at",
-            (thread_key, viewer, now))
+            " DO UPDATE SET seen_at=excluded.seen_at,"
+            " seen_msg_id=excluded.seen_msg_id",
+            (thread_key, viewer, now, seen_msg_id))
 
     def dm_unseen_counts(self, viewer, thread_keys):
-        """{thread_key: messages newer than viewer's seen_at}. Single query."""
+        """{thread_key: messages with id newer than viewer's seen_msg_id}.
+        Id-based, so same-second send/look races can't drop a message.
+        Single query."""
         thread_keys = list(thread_keys)
         if not thread_keys:
             return {}
@@ -3861,7 +3912,8 @@ class Database:
             f" LEFT JOIN dm_seen s ON s.thread_key=d.thread_key"
             f"  AND s.viewer=?"
             f" WHERE d.thread_key IN ({q})"
-            f"  AND d.created_at > COALESCE(s.seen_at, 0)"
+            f"  AND d.id > COALESCE(s.seen_msg_id, 0)"
+            f"  AND d.deleted_at IS NULL"
             f" GROUP BY d.thread_key",
             [viewer] + thread_keys)
         return {r["thread_key"]: int(r["c"]) for r in rows}

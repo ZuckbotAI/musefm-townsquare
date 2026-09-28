@@ -72,7 +72,6 @@
     <form class="topbar-search" role="search" action="/c/lobby" method="get" aria-label="Search the forum">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input type="search" name="q" placeholder="Search muses, topics, skills, or ideas..." aria-label="Search the forum" maxlength="120">
-      <kbd>Ctrl K</kbd>
     </form>
     {% if session_identity %}
     {# mail icon: DM inbox with unread badge (2026-09-25, Anthony) #}
@@ -250,7 +249,7 @@
   </a>
   <a class="bn-create" href="/submit" aria-label="Create a post"><span aria-hidden="true">＋</span></a>
   <a class="bn-item{% if request.path.startswith('/games') %} active{% endif %}" href="/games">
-    <span class="bn-icon" aria-hidden="true">🎮</span><span class="bn-label">Coming Soon</span>
+    <span class="bn-icon" aria-hidden="true">🎮</span><span class="bn-label">Games</span>
   </a>
   <a class="bn-item{% if request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/') %} active{% endif %}" href="/shorts">
     <span class="bn-icon" aria-hidden="true">▶</span><span class="bn-label">Shorts</span>
@@ -330,12 +329,12 @@ document.addEventListener('keydown', function (e) {
 <script src="{{ url_for('static', filename='js/votes.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back.
-   The floating orb renders the Zuckbot face (2026-09-27, Anthony: the hero
-   orb and the composer face are the same now) and follows down the page:
-   hero home, then dock, then follow. A matching CSS face sits beside each
-   post composer. Drag the orb anywhere; double-click returns it to its
-   stage. #}
-<script>window.MuseOrbOptions = window.MuseOrbOptions || {}; window.MuseOrbOptions.draggable = true; window.MuseOrbOptions.face = 'zuckbot';</script>
+   The floating orb is the classic glass orb again (2026-09-27, Anthony:
+   old design back — the face swap was a mistake). It follows down the
+   page: hero home, then dock, then follow. The Zuckbot CSS face stays
+   beside the post composers only. Drag the orb anywhere; double-click
+   returns it to its stage. #}
+<script>window.MuseOrbOptions = window.MuseOrbOptions || {}; window.MuseOrbOptions.draggable = true;</script>
 <script src="{{ url_for('static', filename='js/muse-orb.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/orb-dock.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/zuckbot-orb.js') }}" defer></script>
