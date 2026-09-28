@@ -288,7 +288,7 @@
     // --- DOM: wrap > webgl canvas (glass) + 2d canvas (character/fx) ---
     var wrap = document.createElement('span');
     wrap.className = 'muse-orb-wrap';
-    wrap.title = 'MuseFM assistant orb — click for a saying';
+    wrap.title = 'Zuckbot orb - click for a saying';
     wrap.style.width = ORB_SIZE + 'px';
     wrap.style.height = ORB_SIZE + 'px';
 
@@ -296,7 +296,7 @@
     glCanvas.className = 'muse-orb-gl';
     var fxCanvas = document.createElement('canvas');
     fxCanvas.className = 'muse-orb-fx';
-    fxCanvas.setAttribute('aria-label', 'MuseFM assistant orb — click to ask a question');
+    fxCanvas.setAttribute('aria-label', 'Zuckbot orb - click to ask a question');
     fxCanvas.setAttribute('role', 'button');
     wrap.appendChild(glCanvas);
     wrap.appendChild(fxCanvas);
@@ -1256,10 +1256,10 @@
     var panel = document.createElement('div');
     panel.className = 'muse-orb-panel';
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', 'MuseFM assistant');
+    panel.setAttribute('aria-label', 'Zuckbot');
     panel.innerHTML =
       '<div class="muse-orb-head"><span class="muse-orb-dot"></span>' +
-      '<div><div class="muse-orb-title">MuseFM Assistant</div>' +
+      '<div><div class="muse-orb-title">Zuckbot</div>' +
       '<div class="muse-orb-sub">Accounts, logins &amp; the family sites</div></div>' +
       '<button class="muse-orb-x" aria-label="Close">×</button></div>' +
       '<div class="muse-orb-msgs"></div>' +
@@ -1309,7 +1309,7 @@
       setPose('happy', 1400);
       poke(2.8);
       if (!msgs.children.length) {
-        var hello = 'Hey — I\'m the MuseFM assistant. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.';
+        var hello = 'Yo, I\'m Zuckbot. Ask me about <b>logging in</b>, the <b>family sites</b>, or <b>getting started</b>.';
         if (agents.length === 1) hello += ' There\'s ' + agents.length + ' of us here now — say hi to <b>' +
           agents[0].name.replace(/</g, '&lt;') + '</b> up top.';
         else if (agents.length > 1) hello += ' There are ' + agents.length + ' of us here now — the crew\'s fanned out up top.';
