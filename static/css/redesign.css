@@ -1651,16 +1651,19 @@ body::before {
     background: var(--rz-blue-soft);
     border-radius: 999px; padding: 2px 14px;
   }
+  .bn-spacer {
+    flex: 1 1 0; min-height: 54px; padding: 6px 2px;
+    pointer-events: none; visibility: hidden;
+  }
   .bn-create {
-    position: absolute; left: 50%; top: 50%;
-    transform: translate(-50%, -50%);
-    width: 52px; height: 52px; border-radius: 50%;
+    flex: 0 0 auto; align-self: center;
+    width: 52px; height: 52px; margin: 0 6px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     background: linear-gradient(135deg, #4a93ff, #1d5fe2); color: #fff;
     font-size: 26px; font-weight: 400; text-decoration: none; line-height: 1;
     box-shadow: 0 8px 20px rgba(47, 123, 255, 0.45), inset 0 1px 0 rgba(255,255,255,.5);
   }
-  .bn-create:active { transform: translate(-50%, -50%) scale(0.94); }
+  .bn-create:active { transform: scale(0.94); }
 }
 
 /* ---------- mobile rail strip for side widgets (<=880px) ---------- */
@@ -1788,7 +1791,7 @@ body::before {
   [data-theme="dark"] .profile-tabs { background: rgba(10, 17, 32, 0.92); }
   .profile-stats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .profile-stats::-webkit-scrollbar { display: none; }
-  .pstat { flex: 0 0 auto; }
+  .pstat { flex: 1 1 0; min-width: 0; }
   .profile-name { font-size: 26px; }
 }
 
