@@ -3537,6 +3537,12 @@ class Database:
                  "ts": r["created_at"],
                  "avatar_url": r["avatar_url"] or ""} for r in rows]
 
+    def bulletin_delete(self, msg_id):
+        """Delete a bulletin (wall) note by id. Returns True when a row
+        was removed. Used by the mod-only wall delete."""
+        cur = self._exec("DELETE FROM bulletin WHERE id = ?", (msg_id,))
+        return cur.rowcount > 0
+
     def upload_count(self):
         return self._one("SELECT COUNT(*) c FROM uploads")["c"]
 
