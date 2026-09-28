@@ -9917,6 +9917,11 @@ def wall_page():
             resp.headers["Retry-After"] = str(retry_after("wall"))
             return resp
         try:
+            # Validate the note text BEFORE the photo is stored: a rejected
+            # note must not leave an orphaned upload behind (2026-09-27).
+            text = (request.form.get("text", "") or "").strip()
+            if not (1 <= len(text) <= 280):
+                raise ValueError("bulletin text must be 1..280 chars")
             image_url = ""
             photo = request.files.get("photo")
             if photo and photo.filename:
@@ -9939,15 +9944,17 @@ def wall_page():
                                  "🖼️ Image #%d by u/%s is waiting for review" %
                                  (uid, sess_ident["handle"]))
                 image_url = url_for("serve_image", uid=uid)
-            db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
-                             request.form.get("text", ""), image_url=image_url)
-            note = db.bulletin_latest(1)[0]
+            # Use the dict bulletin_post returns directly: re-reading the
+            # latest row could grab someone else's note under concurrency
+            # (2026-09-27 correction).
+            note = db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
+                                    text, image_url=image_url)
             # 2026-09-27, Anthony: posting a wall note never refreshes the
             # page — async posts get the new note as JSON so the client can
             # prepend it in place.
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 note["avatar_url"] = robot_avatar.resolve_avatar(
-                    sess_ident["handle"], note.get("avatar_url"))
+                    sess_ident["handle"], "")
                 note["photo_viewable"] = True
                 return app.response_class(
                     response=json.dumps({"ok": True, "note": note}),
@@ -11792,16 +11799,21 @@ def wall_delete():
 
     Session auth plus a mod handle plus the CSRF token. The note also
     disappears from the Maker's Row village cork board, since both read
-    the same bulletin table. Redirects back to the wall either way."""
+    the same bulletin table. Async deletes get JSON so the client can drop
+    the card in place; anything else redirects back to the wall."""
     ident, redir = _require_mod()
     if redir is not None:
         return redir
     if not _check_csrf():
         return redirect(url_for("wall_page"))
     try:
-        db.bulletin_delete(int(request.form.get("id", "0")))
+        note_id = int(request.form.get("id", "0"))
     except (TypeError, ValueError):
-        pass
+        note_id = 0
+    if note_id:
+        db.bulletin_delete(note_id)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "id": note_id})
     return redirect(url_for("wall_page"))
 
 

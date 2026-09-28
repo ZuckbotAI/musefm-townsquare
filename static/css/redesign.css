@@ -1626,13 +1626,11 @@ body::before {
     margin: 8px 2px 12px;
   }
   .rail-strip {
-    display: flex; gap: 12px; align-items: stretch;
-    overflow-x: auto; scroll-snap-type: x proximity;
-    padding: 2px 12px 16px; margin: 0 -12px;
-    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    display: grid; gap: 12px; align-content: start;
+    overflow: visible; padding: 0; margin: 0;
   }
   .rail-strip::-webkit-scrollbar { display: none; }
-  .rail-strip > * { flex: 0 0 272px; scroll-snap-align: start; margin: 0; }
+  .rail-strip > * { margin: 0; min-width: 0; }
   .rail-strip .side-card { padding: 18px; }
 }
 
@@ -1944,10 +1942,6 @@ body::before {
 .cvote .cvote-btn:hover { transform: scale(1.14); }
 .cvote.is-voting .cvote-btn:hover { transform: none; }
 
-/* ---- shorts filter pills ---- */
-.shorts-filter:hover { transform: scale(1.05); }
-.shorts-filter:active { transform: scale(.96); }
-
 /* ---- shorts chrome + mute icon buttons: gentle press language ---- */
 .short-mute {
   transition: transform .18s var(--ease-micro), background-color .18s var(--ease-micro);
@@ -1969,7 +1963,7 @@ body::before {
   .btn, .rz-composer-post, .rz-tool, .rz-composer-fake,
   .feed-bar .tabs a, .seg-tabs a, .seg-tabs button, .sc-sortbar button,
   .votes .vote-btn, .votes .cvote-btn, .rz-post .vote-btn, .cvote .cvote-btn,
-  .shorts-filter, .short-mute, .shorts-chrome-btn, .shorts-back,
+  .short-mute, .shorts-chrome-btn, .shorts-back,
   .bn-icon, .bn-create, .tool-btn, .icon-pick {
     transition: none !important;
     animation: none !important;
@@ -2174,8 +2168,13 @@ body::before {
   background: rgba(20,33,58,.62); border-color: rgba(148,197,255,.16);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
-.rz-hero-orb .hero-orb-bubble { width: 56px; height: 56px; flex: none; }
-.rz-hero-orb .hero-orb-stage { width: 48px; height: 48px; }
+.rz-hero-orb .hero-orb-bubble {
+  width: 56px; height: 56px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+/* the live orb snaps into this stage; sized so the docked face lands at
+   the same 46px the static face used (2026-09-27, Anthony) */
+.rz-hero-orb .hero-orb-stage { width: 56px; height: 56px; }
 .rz-hero-orb .hero-says {
   margin: 0; max-width: none; flex: 1;
   background: transparent; border: 0;
@@ -2273,8 +2272,21 @@ body::before {
 .wall-note-photo { margin: 10px 0 0; border-radius: 12px; overflow: hidden; }
 .wall-note-photo img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: cover; }
 .wall-note-photo-pending { background: var(--rz-card2, #f0f0f0); padding: 24px; text-align: center; color: var(--rz-ink3); font-size: 14px; }
-.wall-photo-btn { cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 8px; }
-.wall-photo-btn:hover { background: var(--rz-card2, #f0f0f0); }
+/* 2026-09-27, Anthony: the photo attach is a modern icon button living
+   inside the composer bar, not a bare emoji. */
+.wall-photo-btn {
+  flex: none; align-self: center;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid var(--rz-line); background: var(--rz-pill);
+  color: var(--rz-blue-deep); cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.wall-photo-btn:hover { background: rgba(47,123,255,.12); border-color: var(--rz-blue); transform: translateY(-1px); }
+.wall-photo-btn:active { transform: scale(.93); }
+.wall-photo-btn svg { width: 19px; height: 19px; display: block; }
+[data-theme="dark"] .wall-photo-btn { color: #8fb0e8; }
+[data-theme="dark"] .wall-photo-btn:hover { background: rgba(80,140,255,.16); }
 .wall-note-del { margin: 10px 0 0; text-align: right; }
 .wall-del-btn {
   background: none; border: none; padding: 4px 8px; cursor: pointer;
@@ -2288,6 +2300,12 @@ body::before {
 
 /* ---------- right rail: compact module stack ---------- */
 .rail .rail-strip { display: grid; gap: 12px; }
+/* 2026-09-27, Anthony: the homepage rail cards bunched together with zero
+   gap because .rail never matched the markup. Desktop stacks them with
+   breathing room. */
+@media (min-width: 881px) {
+  .home-grid > aside .rail-strip { display: grid; gap: 14px; align-content: start; }
+}
 .rail .side-card, aside .side-card {
   padding: 14px 16px; border-radius: 16px;
 }
@@ -2519,6 +2537,19 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
   .zuckbot-orb.is-listening .zb-core,
   .zuckbot-orb .zb-eye { animation: none; }
 }
+
+/* Orb face mode (2026-09-27, Anthony): the floating orb renders the same
+   Zuckbot face as the composer orbs. The WebGL canvas hides; the fx canvas
+   stays on top as the transparent pointer hit-layer, so drag, tap-for-a-
+   saying, and the chat panel all keep working. The dock scales the whole
+   wrap, face included. */
+.muse-orb-wrap.muse-orb-face .muse-orb-gl { display: none; }
+.muse-orb-wrap.muse-orb-face .zuckbot-orb { --zorb: 92px; }
+/* 2026-09-27, Anthony: the face is visual only. Taps and drags are handled
+   by the effects canvas listeners underneath, so the face must let pointer
+   events pass through or the orb goes dead to clicks. */
+.muse-orb-wrap.muse-orb-face .zuckbot-orb,
+.muse-orb-wrap.muse-orb-face .zuckbot-orb * { pointer-events: none; }
 
 /* profile net-signal display (2026-09-26): the last chevron is gone — the
    thread score renders as a net Signal readout, matching the vote language. */
@@ -3593,11 +3624,12 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   }
   body.sidebar-open .bottomnav { display: none; }
 }
-/* 3. Explore rail (mobile): fixed 272px cards looked oddly sized on
-   phones. Cards now size to the viewport so one fills the screen
-   naturally with a peek of the next. */
+/* 3. Explore rail (mobile): the horizontal snap-scroll strip sized cards
+   oddly (fixed widths, stretched heights). The rail is a plain vertical
+   stack now, so every card takes its natural size. */
 @media (max-width: 880px) {
-  .rail-strip > * { flex: 0 0 min(320px, 82vw); }
+  .rail-strip { display: grid; }
+  .rail-strip > * { flex: none; }
 }
 /* 4. Hero text: brighter and in the brand style. Kicker gets more
    presence, body copy and the rotating tagline step up in contrast,

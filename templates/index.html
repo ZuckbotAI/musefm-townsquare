@@ -139,9 +139,11 @@
 })();
 </script>
 {# The orb's home on the homepage: a slim companion strip under the hero
-   (2026-09-26, Anthony: the hero should read as a rectangle, not a square —
-   the dialogue row was the height anchor). The orb still snaps into
-   #hero-orb-stage; "Ask me anything" opens chat. #}
+   (2026-09-26, Anthony: the hero should read as a rectangle, not a square,
+   so the dialogue row anchors the height). 2026-09-27, Anthony: the hero
+   orb and the wall composer orb are the same Zuckbot face now, and the orb
+   follows down the page again, so the two strips read as one.
+   "Ask me anything" opens chat. #}
 <div class="rz-hero-orb-strip">
   <div class="rz-hero-orb">
     <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
@@ -199,12 +201,15 @@
         <span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span><span class="zb-eye zb-eye-l"></span><span class="zb-eye zb-eye-r"></span></span></span>
         <textarea name="text" rows="2" maxlength="280"
           placeholder="Put a note in the air, {{ session_handle }}…" aria-label="Write a wall note" required></textarea>
+        {# 2026-09-27, Anthony: the photo attach is a styled icon button
+           inside the composer bar now, not a bare emoji. #}
+        <label class="wall-photo-btn" title="Attach a photo" aria-label="Attach a photo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" hidden>
+        </label>
       </div>
       <div class="wall-composer-row">
         <span class="hint">280 characters max.</span>
-        <label class="wall-photo-btn" title="Attach a photo">
-          📷 <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" hidden>
-        </label>
         <button class="btn btn-sm" type="submit">Post note</button>
       </div>
     </form>
@@ -225,7 +230,7 @@
   </div>
   {% endif %}
   {# 2026-09-27, Anthony: the Post/Episode/Short/Photo/Link tool row moved
-     to the forum — the wall posting bar keeps just the photo button. #}
+     to the forum, so the wall posting bar keeps just the photo button. #}
   {% if selfies %}
   <div class="selfies-row" aria-label="Muse selfies">
   {% for s in selfies %}
