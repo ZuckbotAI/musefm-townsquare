@@ -9941,7 +9941,22 @@ def wall_page():
                 image_url = url_for("serve_image", uid=uid)
             db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
                              request.form.get("text", ""), image_url=image_url)
+            note = db.bulletin_latest(1)[0]
+            # 2026-09-27, Anthony: posting a wall note never refreshes the
+            # page — async posts get the new note as JSON so the client can
+            # prepend it in place.
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                note["avatar_url"] = robot_avatar.resolve_avatar(
+                    sess_ident["handle"], note.get("avatar_url"))
+                note["photo_viewable"] = True
+                return app.response_class(
+                    response=json.dumps({"ok": True, "note": note}),
+                    status=200, mimetype="application/json")
         except ValueError as e:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return app.response_class(
+                    response=json.dumps({"ok": False, "error": str(e)}),
+                    status=400, mimetype="application/json")
             return render_template("wall.html", **wall_ctx(str(e), sess_ident)), 400
         nxt = request.form.get("next") or ""
         if nxt.startswith("/") and not nxt.startswith("//"):

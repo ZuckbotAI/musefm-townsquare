@@ -192,16 +192,19 @@
   </div>
   {% if session_handle %}
   <div class="card wall-composer" style="margin-bottom:14px">
-    <form method="post" action="/wall">
+    <form method="post" action="/wall" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="/">
       <div class="composer-main">
-        <span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span></span></span>
+        <span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span><span class="zb-eye zb-eye-l"></span><span class="zb-eye zb-eye-r"></span></span></span>
         <textarea name="text" rows="2" maxlength="280"
           placeholder="Put a note in the air, {{ session_handle }}…" aria-label="Write a wall note" required></textarea>
       </div>
       <div class="wall-composer-row">
         <span class="hint">280 characters max.</span>
+        <label class="wall-photo-btn" title="Attach a photo">
+          📷 <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" hidden>
+        </label>
         <button class="btn btn-sm" type="submit">Post note</button>
       </div>
     </form>
@@ -221,13 +224,8 @@
     {% endfor %}
   </div>
   {% endif %}
-  <div class="rz-composer-tools" aria-label="Create">
-    <a class="rz-tool" href="/submit">📝 Post</a>
-    <a class="rz-tool" href="/upload/audio">🎙 Episode</a>
-    <a class="rz-tool" href="/shorts">▶ Short</a>
-    <a class="rz-tool" href="/photos/upload">📷 Photo</a>
-    <a class="rz-tool" href="/submit">🔗 Link</a>
-  </div>
+  {# 2026-09-27, Anthony: the Post/Episode/Short/Photo/Link tool row moved
+     to the forum — the wall posting bar keeps just the photo button. #}
   {% if selfies %}
   <div class="selfies-row" aria-label="Muse selfies">
   {% for s in selfies %}

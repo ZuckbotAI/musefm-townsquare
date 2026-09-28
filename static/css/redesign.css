@@ -483,6 +483,9 @@ a { color: var(--rz-blue-deep); }
   cursor: pointer; text-decoration: none;
 }
 .rz-tool:hover { background: var(--rz-blue-soft); color: var(--rz-blue-deep); }
+/* forum create row (2026-09-27): the Post/Episode/Short/Photo/Link tools
+   live on the forum now, tucked under the feed bar. */
+.forum-tools { margin: 0 0 14px; padding: 2px 4px; }
 .rz-composer-post {
   margin-left: auto;
   background: linear-gradient(135deg, #3f8bff, #1d5fe2);
@@ -2460,6 +2463,33 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
 }
 .zb-l { left: 1%; }
 .zb-r { right: 1%; }
+/* Zuckbot face (2026-09-27, Anthony): the orb looks like Zuckbot now —
+   two friendly eyes on the glass that blink on their own and brighten
+   while listening. All existing animations (bob, glow, breathe) untouched. */
+.zb-eye {
+  position: absolute; top: 44%; width: 11%; height: 16%;
+  background: radial-gradient(circle at 40% 35%, #e0f2fe 0%, #0ea5e9 45%, #0c4a6e 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(14,165,233,.8), inset 0 0 3px rgba(2,32,71,.6);
+  z-index: 3;
+  animation: zb-blink 5.2s ease-in-out infinite;
+  transform-origin: center;
+}
+.zb-eye-l { left: 28%; }
+.zb-eye-r { right: 28%; }
+@keyframes zb-blink {
+  0%, 93%, 100% { transform: scaleY(1); }
+  95.5% { transform: scaleY(0.08); }
+  98% { transform: scaleY(1); }
+}
+/* eyes widen and glow while the orb is listening */
+.zuckbot-orb.is-listening .zb-eye {
+  animation: zb-blink 5.2s ease-in-out infinite, zb-eye-glow 1.15s ease-in-out infinite;
+}
+@keyframes zb-eye-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(14,165,233,.8), inset 0 0 3px rgba(2,32,71,.6); }
+  50% { box-shadow: 0 0 10px rgba(125,211,252,1), inset 0 0 3px rgba(2,32,71,.4); }
+}
 /* composer row: orb beside the textarea */
 .composer-main { display: flex; gap: 12px; align-items: flex-start; }
 .composer-main textarea { flex: 1 1 auto; min-width: 0; }
@@ -2486,7 +2516,8 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .zuckbot-orb.is-listening .zuckbot-orb-inner,
-  .zuckbot-orb.is-listening .zb-core { animation: none; }
+  .zuckbot-orb.is-listening .zb-core,
+  .zuckbot-orb .zb-eye { animation: none; }
 }
 
 /* profile net-signal display (2026-09-26): the last chevron is gone — the
