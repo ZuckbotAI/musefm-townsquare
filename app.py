@@ -10051,7 +10051,7 @@ def wall_page():
             # prepend it in place.
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 note["avatar_url"] = robot_avatar.resolve_avatar(
-                    sess_ident["handle"], "")
+                    sess_ident["handle"], sess_ident.get("avatar_url") or "")
                 note["photo_viewable"] = True
                 return app.response_class(
                     response=json.dumps({"ok": True, "note": note}),
