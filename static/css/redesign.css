@@ -1651,6 +1651,10 @@ body::before {
     background: var(--rz-blue-soft);
     border-radius: 999px; padding: 2px 14px;
   }
+  .bn-spacer {
+    flex: 1 1 0; min-height: 54px; padding: 6px 2px;
+    pointer-events: none; visibility: hidden;
+  }
   .bn-create {
     flex: 0 0 auto; align-self: center;
     width: 52px; height: 52px; margin: 0 6px; border-radius: 50%;
