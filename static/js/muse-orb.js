@@ -258,6 +258,16 @@
     // orb drags freely via left/top like the original easter egg.
     var draggable = options.draggable !== false;
 
+    // Zuckbot face mode (2026-09-27, Anthony): the floating orb renders the
+    // same CSS Zuckbot face as the composer orbs, so the hero orb and the
+    // composer face read as one. The wrap keeps its size and all behavior
+    // (drag, tap-for-saying, chat panel, dock); only the paint changes. The
+    // fx canvas stays on top as a transparent pointer hit-layer, the WebGL
+    // canvas is hidden, and the frame loop never starts.
+    var faceMode = options.face === 'zuckbot';
+    var faceEl = null;
+    var faceTimer = 0;
+
     // --- anchor: find the logo ---
     function findAnchor() {
       var el = document.querySelector('[data-muse-orb-anchor]');
@@ -290,6 +300,19 @@
     fxCanvas.setAttribute('role', 'button');
     wrap.appendChild(glCanvas);
     wrap.appendChild(fxCanvas);
+
+    if (faceMode) {
+      wrap.classList.add('muse-orb-face');
+      glCanvas.style.display = 'none';
+      faceEl = document.createElement('span');
+      faceEl.className = 'zuckbot-orb';
+      faceEl.setAttribute('aria-hidden', 'true');
+      faceEl.innerHTML = '<span class="zuckbot-orb-inner"><span class="zb-band"></span>' +
+        '<span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span>' +
+        '<span class="zb-core"></span>' +
+        '<span class="zb-eye zb-eye-l"></span><span class="zb-eye zb-eye-r"></span></span>';
+      wrap.appendChild(faceEl);
+    }
 
     // constellation satellite layer
     var satsBox = document.createElement('div');
@@ -546,6 +569,20 @@
       if (s === 'notify') {
         notifyPulseT = 0;
         stateUntil = performance.now() + 2600; // three gentle pulses, then truth again
+      }
+      if (faceMode && faceEl) {
+        // the face brightens and bobs while the agent is active, settles at idle
+        var active = (s === 'listening' || s === 'thinking' || s === 'working' || s === 'speaking');
+        faceEl.classList.toggle('is-listening', active);
+        if (faceTimer) { clearTimeout(faceTimer); faceTimer = 0; }
+        if (ms) {
+          // timed states expire back to idle on their own; the frame loop
+          // is off in face mode, so the timeout does the reset here
+          faceTimer = setTimeout(function () {
+            agentState = 'idle'; stateUntil = 0; notifyPulseT = -1;
+            if (faceEl) faceEl.classList.remove('is-listening');
+          }, ms);
+        }
       }
       if (hasGL && reduced) renderGL(0); // static re-render for reduced motion
     }
@@ -994,6 +1031,7 @@
 
     var firstFrame = true;
     function frame(nowMs) {
+      if (faceMode) return; // the CSS face needs no paint loop
       if (!running || !orbVisible) return;
       var t = nowMs / 1000;
       var now = nowMs;
@@ -1352,7 +1390,7 @@
     window.MuseOrb.hasGL = hasGL;         // true when the living-glass shader is live
 
     // go
-    if (reduced) {
+    if (reduced && !faceMode) {
       renderGL(0, 'idle');
       var rcx = DS / 2, rcy = DS / 2 + 2;
       if (!hasGL) {
@@ -1361,7 +1399,7 @@
         fx.restore();
       }
       renderFX(0, 0, 'idle', 'idle', S, DK, rcx, rcy, 22, { x: 0, y: 0 });
-    } else {
+    } else if (!faceMode) {
       requestAnimationFrame(frame);
     }
   }

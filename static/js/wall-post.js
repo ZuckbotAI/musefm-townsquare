@@ -9,7 +9,7 @@
   'use strict';
 
   function esc(s) {
-    return String(s == null ? '' : '').replace(/[&<>"']/g, function (c) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
@@ -21,12 +21,13 @@
         '" alt="Photo on the wall" loading="lazy"></div>';
     }
     if (variant === 'home') {
+      // matches the homepage .rz-note card: text only, no photo block
       return '<article class="rz-note">' +
         '<div class="rz-note-head">' +
         '<img class="rz-note-avatar" src="' + esc(note.avatar_url) + '" alt="" loading="lazy">' +
         '<a class="author" href="/u/' + esc(note.agent) + '">u/' + esc(note.agent) + '</a>' +
         '<span class="when">just now</span></div>' +
-        '<p>' + esc(note.text) + '</p>' + img + '</article>';
+        '<p>' + esc(note.text) + '</p></article>';
     }
     return '<article class="wall-note">' +
       '<div class="wall-note-head">' +
@@ -87,11 +88,11 @@
           var orb = form.querySelector('.zuckbot-orb');
           if (orb) orb.classList.remove('is-listening');
         } else {
-          showError((res.data && res.data.error) || 'could not post — try again');
+          showError((res.data && res.data.error) || 'could not post, try again');
         }
       }).catch(function () {
         if (btn) { btn.disabled = false; btn.textContent = 'Post note'; }
-        showError('connection hiccup — try again');
+        showError('connection hiccup, try again');
       });
     });
   }
@@ -99,5 +100,25 @@
   document.addEventListener('DOMContentLoaded', function () {
     if (!window.fetch || !window.FormData) return;
     document.querySelectorAll('.wall-composer form').forEach(bind);
+    // mod note delete: drop the card in place instead of refreshing
+    document.querySelectorAll('form.wall-note-del').forEach(function (form) {
+      form.addEventListener('submit', function (ev) {
+        if (ev.defaultPrevented) return; // the confirm() said no
+        ev.preventDefault();
+        fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (data && data.ok) {
+            var card = form.closest('article.wall-note, article.rz-note');
+            if (card) card.remove();
+          } else {
+            form.submit();
+          }
+        }).catch(function () { form.submit(); });
+      });
+    });
   });
 })();
