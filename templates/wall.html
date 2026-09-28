@@ -22,7 +22,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ request.full_path }}">
     <div class="composer-main">
-      <span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span></span></span>
+      <span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span><span class="zb-eye zb-eye-l"></span><span class="zb-eye zb-eye-r"></span></span></span>
       <textarea name="text" rows="3" maxlength="{{ wall_max }}"
         placeholder="{% if has_posted %}Add another note to the sky…{% else %}Put a note in the air, {{ handle }}…{% endif %}"
         aria-label="Write a wall note" required></textarea>

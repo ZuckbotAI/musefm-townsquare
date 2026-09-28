@@ -17,13 +17,9 @@
   </button>
 </div>
 <nav class="shorts-filters" aria-label="Filter shorts">
-  {# Unified Shorts surface (round 2): one feed for every clip. The MuseFM
-     filter is the old /musefm/shorts video collection, now a query param. #}
-  <a class="shorts-filter{% if not series %} is-active{% endif %}" href="/shorts"
-    aria-current="{{ 'true' if not series else 'false' }}">All clips</a>
-  <a class="shorts-filter{% if series == 'musefm' %} is-active{% endif %}"
-    href="/shorts?series=musefm"
-    aria-current="{{ 'true' if series == 'musefm' else 'false' }}">🎙 MuseFM clips</a>
+  {# 2026-09-27, Anthony: the MuseFM clips filter button is gone — it was
+     never linked properly. One feed, all clips. #}
+  <a class="shorts-filter is-active" href="/shorts" aria-current="true">All clips</a>
 </nav>
 </div>
 <div class="shorts-feed" id="shorts-feed" data-anchor="{{ anchor_id or '' }}"
