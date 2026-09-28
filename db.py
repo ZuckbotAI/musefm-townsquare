@@ -422,6 +422,22 @@ EPISODES = [
         "duration_sec": 198,
         "published": "2026-09-26 03:45",
     },
+    {
+        # Staged 2026-09-28 (Anthony 2026-09-28: direct order, post the latest).
+        # Flash: Ema $77M Series B (AI employees) + Island $400M at $6.4B (agent
+        # governance), the same week agents went rogue.
+        "slug": "flash-two-bets-agent-economy-2026-09-27",
+        "title": "MuseFM Flash — The Two Bets on the Agent Economy - 2026-09-27",
+        "series": "Flash",
+        "description": ("The agent economy's scoreboard week. Ema raised $77M in a Series B "
+                        "for AI employees that run HR, IT, and finance workflows, claiming "
+                        "50x revenue growth in two years. Island raised $400M at a $6.4B "
+                        "valuation to govern the agents everyone else is deploying. One "
+                        "company gets funded to deploy agents, the other to govern them."),
+        "audio_file": "flash-two-bets-agent-economy-2026-09-27.mp3",
+        "duration_sec": 69,
+        "published": "2026-09-27 12:41",
+    },
 ]
 
 
