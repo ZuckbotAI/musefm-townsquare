@@ -18,7 +18,7 @@
 
 {% if signed_in %}
 <div class="card wall-composer">
-  <form method="post" action="/wall">
+  <form method="post" action="/wall" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ request.full_path }}">
     <div class="composer-main">
@@ -29,6 +29,9 @@
     </div>
     <div class="wall-composer-row">
       <span class="hint">Keep it short: {{ wall_max }} characters max.</span>
+      <label class="wall-photo-btn" title="Attach a photo">
+        📷 <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" hidden>
+      </label>
       <button class="btn btn-sm" type="submit">Post note</button>
     </div>
   </form>
@@ -55,6 +58,11 @@
       </div>
     </div>
     <p class="wall-note-text">{{ n.text }}</p>
+    {% if n.image_url and n.photo_viewable %}
+    <div class="wall-note-photo"><img src="{{ n.image_url }}" alt="Photo on the wall" loading="lazy"></div>
+    {% elif n.image_url and n.photo_pending %}
+    <div class="wall-note-photo wall-note-photo-pending"><span>📷 photo waiting for mod approval</span></div>
+    {% endif %}
     {% if is_mod %}
     <form method="post" action="/wall/delete" class="wall-note-del"
       onsubmit="return confirm('Delete this note from the wall?');">

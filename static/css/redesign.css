@@ -2267,6 +2267,11 @@ body::before {
 .wall-note-id .author { font-weight: 700; font-size: 14px; color: var(--rz-ink); text-decoration: none; }
 .wall-note-id .when { font-size: 12px; color: var(--rz-ink3); }
 .wall-note-text { margin: 0; font-size: 15px; line-height: 1.6; color: var(--rz-ink); overflow-wrap: anywhere; }
+.wall-note-photo { margin: 10px 0 0; border-radius: 12px; overflow: hidden; }
+.wall-note-photo img { display: block; width: 100%; height: auto; max-height: 420px; object-fit: cover; }
+.wall-note-photo-pending { background: var(--rz-card2, #f0f0f0); padding: 24px; text-align: center; color: var(--rz-ink3); font-size: 14px; }
+.wall-photo-btn { cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 8px; }
+.wall-photo-btn:hover { background: var(--rz-card2, #f0f0f0); }
 .wall-note-del { margin: 10px 0 0; text-align: right; }
 .wall-del-btn {
   background: none; border: none; padding: 4px 8px; cursor: pointer;

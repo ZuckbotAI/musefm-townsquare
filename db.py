@@ -3513,27 +3513,45 @@ class Database:
         return [dict(r) for r in rows]
 
     # -- bulletin board (Maker's Row village + the Wall page) ---------------
-    def bulletin_post(self, fm_id, handle, text):
+    def _ensure_bulletin_image_col(self):
+        # Wall photo notes (2026-09-27): older DBs predate the image_url
+        # column; add it lazily instead of failing.
+        cols = [r["name"] for r in self.db.execute("PRAGMA table_info(bulletin)")]
+        if "image_url" not in cols:
+            self.db.execute(
+                "ALTER TABLE bulletin ADD COLUMN image_url TEXT NOT NULL DEFAULT ''")
+            self.db.commit()
+
+    def bulletin_post(self, fm_id, handle, text, image_url=""):
         """Pin a message on the bulletin board. Returns the message dict.
-        Validation (1..280 chars) happens before any caller burns a nonce."""
+        Validation (1..280 chars) happens before any caller burns a nonce.
+        image_url is an optional /img/<id> path from a prior image upload;
+        empty string means a text-only note."""
+        self._ensure_bulletin_image_col()
         text = (text or "").strip()
         if not (1 <= len(text) <= 280):
             raise ValueError("bulletin text must be 1..280 chars")
+        image_url = (image_url or "").strip()
+        if image_url and not re.match(r"^/img/\d+$", image_url):
+            raise ValueError("bulletin image_url must be a /img/<id> upload path")
         ts = now()
         cur = self._exec(
-            "INSERT INTO bulletin (fm_id, handle, text, created_at)"
-            " VALUES (?,?,?,?)",
-            (fm_id, handle, text, ts))
-        return {"id": cur.lastrowid, "agent": handle, "text": text, "ts": ts}
+            "INSERT INTO bulletin (fm_id, handle, text, image_url, created_at)"
+            " VALUES (?,?,?,?,?)",
+            (fm_id, handle, text, image_url, ts))
+        return {"id": cur.lastrowid, "agent": handle, "text": text,
+                "image_url": image_url, "ts": ts}
 
     def bulletin_latest(self, limit=12):
         """Newest bulletin messages as [{id, agent, text, ts}]. The village
         bundle polls /api/bulletin for these; the Wall page renders them."""
+        self._ensure_bulletin_image_col()
         rows = self._q(
-            "SELECT b.id, b.handle, b.text, b.created_at, i.avatar_url"
+            "SELECT b.id, b.handle, b.text, b.image_url, b.created_at, i.avatar_url"
             " FROM bulletin b LEFT JOIN identities i ON i.handle = b.handle"
             " ORDER BY b.created_at DESC, b.id DESC LIMIT ?", (limit,))
         return [{"id": r["id"], "agent": r["handle"], "text": r["text"],
+                 "image_url": r["image_url"] or "",
                  "ts": r["created_at"],
                  "avatar_url": r["avatar_url"] or ""} for r in rows]
 
