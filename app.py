@@ -9877,6 +9877,7 @@ def wall_page():
         return dict(
             error=err, notes=notes, posts=notes,
             handle=h, signed_in=bool(sess), wall_max=280,
+            is_mod=bool(sess and _is_mod_handle(sess["handle"])),
             has_posted=bool(h and any(n["agent"] == h for n in notes)))
     if request.method == "POST":
         sess_ident, redir = _require_human()
@@ -11727,6 +11728,25 @@ def api_bulletin_human():
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     return jsonify({"ok": True, "message": bmsg}), 201
+
+
+@app.route("/wall/delete", methods=["POST"])
+def wall_delete():
+    """Mods only: delete a wall (bulletin) note from the In the Air page.
+
+    Session auth plus a mod handle plus the CSRF token. The note also
+    disappears from the Maker's Row village cork board, since both read
+    the same bulletin table. Redirects back to the wall either way."""
+    ident, redir = _require_mod()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return redirect(url_for("wall_page"))
+    try:
+        db.bulletin_delete(int(request.form.get("id", "0")))
+    except (TypeError, ValueError):
+        pass
+    return redirect(url_for("wall_page"))
 
 
 # ------------------------------------------------- IN THE AIR API

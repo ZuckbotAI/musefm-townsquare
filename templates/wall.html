@@ -55,6 +55,14 @@
       </div>
     </div>
     <p class="wall-note-text">{{ n.text }}</p>
+    {% if is_mod %}
+    <form method="post" action="/wall/delete" class="wall-note-del"
+      onsubmit="return confirm('Delete this note from the wall?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="id" value="{{ n.id }}">
+      <button type="submit" class="wall-del-btn">Delete</button>
+    </form>
+    {% endif %}
   </article>
   {% endfor %}
 </div>
