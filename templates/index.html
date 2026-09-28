@@ -104,89 +104,66 @@
     </div>
     <p class="fm-tag" id="tagline" style="margin:14px 0 0;font-size:13px;color:rgba(255,255,255,.65)">{{ tagline }}</p>
   </div>
-  {# Embedded Shorts in the hero (2026-09-27, Anthony): playable shorts in
-     phone frames, docked on the right side of the hero — a horizontal
-     scroll-snap rail so the preview can be scrolled. Uses the standard
-     short_card markup and short-item styles; hero-scoped CSS trims each to
-     a preview (comments + reactions hidden) and the script below autoplays
-     the most-visible one muted with tap-for-sound. #}
+  {# Embedded Shorts in the hero (2026-09-27, Anthony): a real playable
+     short in a phone frame, docked on the right side of the hero. Uses the
+     standard short_card markup and short-item styles; hero-scoped CSS trims
+     it to a preview (comments + reactions hidden) and the script below
+     autoplays it muted with tap-for-sound. #}
   {% if shorts %}
-  <div class="rz-hero-shorts" aria-label="Featured shorts">
-    <div class="hero-shorts-rail" tabindex="0" role="region" aria-label="Featured shorts, scrollable">
-      {% for s in shorts[:6] %}<div class="hero-phone">{{ short_card(s) }}</div>{% endfor %}
-    </div>
+  <div class="rz-hero-shorts" aria-label="Featured short">
+    <div class="hero-phone">{{ short_card(shorts[0]) }}</div>
     <a class="hero-shorts-more" href="/shorts">⚡ More shorts →</a>
   </div>
   {% endif %}
 </header>
 <script>
-/* Hero Shorts rail: autoplay the most-visible video muted while in view,
-   tap a video toggles its sound. */
+/* Hero Shorts embed: autoplay muted while visible, tap toggles sound. */
 (function(){
   var box = document.querySelector('.rz-hero-shorts');
   if (!box) return;
-  var vids = Array.prototype.slice.call(box.querySelectorAll('.hero-phone video'));
-  if (!vids.length) return;
-  vids.forEach(function(v){
-    v.muted = true;
-    var btn = v.closest('.hero-phone').querySelector('.short-mute');
-    function setMuted(m){
-      v.muted = m;
-      if (btn) btn.textContent = m ? '🔇' : '🔊';
-    }
-    if (btn) btn.addEventListener('click', function(ev){ ev.stopPropagation(); setMuted(!v.muted); });
-    v.addEventListener('click', function(){ setMuted(!v.muted); });
-  });
+  var v = box.querySelector('video');
+  var btn = box.querySelector('.short-mute');
+  if (!v) return;
+  function setMuted(m){
+    v.muted = m;
+    if (btn) btn.textContent = m ? '🔇' : '🔊';
+  }
+  setMuted(true);
+  if (btn) btn.addEventListener('click', function(ev){ ev.stopPropagation(); setMuted(!v.muted); });
+  v.addEventListener('click', function(){ setMuted(!v.muted); });
   var io = new IntersectionObserver(function(es){
-    var best = null, bestRatio = 0;
     es.forEach(function(e){
-      if (e.isIntersecting && e.intersectionRatio > bestRatio) { bestRatio = e.intersectionRatio; best = e.target; }
-    });
-    vids.forEach(function(v){
-      if (v === best) { v.play().catch(function(){}); }
+      if (e.isIntersecting) { v.play().catch(function(){}); }
       else { v.pause(); }
     });
-  }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
-  vids.forEach(function(v){ io.observe(v); });
+  }, { threshold: 0.25 });
+  io.observe(v);
 })();
 </script>
-{# Homepage orb strip (2026-09-27, Anthony): the original Zuckbot face, same
-   graphic as the In the Air composer — no live-orb dock here, no
-   "Ask me anything" button. The whole card opens the Zuckbot chat, and the
-   saying types itself out. Spacing kept tight to close open space. #}
+{# The orb's home on the homepage: a slim companion strip under the hero
+   (2026-09-26, Anthony: the hero should read as a rectangle, not a square,
+   so the dialogue row anchors the height). 2026-09-27, Anthony: the hero
+   orb and the wall composer orb are the same Zuckbot face now, and the orb
+   follows down the page again, so the two strips read as one.
+   "Ask me anything" opens chat. #}
 <div class="rz-hero-orb-strip">
-  <div class="rz-hero-orb" id="hero-orb-card" role="button" tabindex="0" aria-label="Chat with Zuckbot">
-    <div class="hero-orb-bubble"><span class="zuckbot-orb" aria-hidden="true"><span class="zuckbot-orb-inner"><span class="zb-band"></span><span class="zb-cup zb-l"></span><span class="zb-cup zb-r"></span><span class="zb-core"></span><span class="zb-eye zb-eye-l"></span><span class="zb-eye zb-eye-r"></span></span></span></div>
+  <div class="rz-hero-orb">
+    <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
     <div class="hero-says" id="hero-says" role="status">
-      <p class="hero-says-text" id="hero-says-text" data-saying="{{ hero_saying|e }}"></p>
+      <p class="hero-says-text" id="hero-says-text">&ldquo;{{ hero_saying }}&rdquo;</p>
+      <button type="button" class="hero-says-chat" id="hero-says-chat">Ask me anything &rarr;</button>
     </div>
   </div>
 </div>
 {% endif %}
 <script>
-/* Hero orb card: the whole card opens the Zuckbot chat panel, and the
-   saying types out character by character (2026-09-27, Anthony). */
+/* Hero dialogue: "Ask me anything" opens the orb chat panel. */
 (function(){
-  var card = document.getElementById('hero-orb-card');
-  if (!card) return;
-  function openChat(){
+  var btn = document.getElementById('hero-says-chat');
+  if (!btn) return;
+  btn.addEventListener('click', function(){
     if (window.MuseOrb && window.MuseOrb.openChat) window.MuseOrb.openChat();
-  }
-  card.addEventListener('click', openChat);
-  card.addEventListener('keydown', function(e){
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChat(); }
   });
-  var text = document.getElementById('hero-says-text');
-  if (text) {
-    var full = text.getAttribute('data-saying') || '';
-    var i = 0;
-    text.classList.add('typing');
-    var timer = setInterval(function(){
-      i++;
-      text.textContent = '\u201C' + full.slice(0, i) + '\u201D';
-      if (i >= full.length) { clearInterval(timer); text.classList.remove('typing'); }
-    }, 26);
-  }
 })();
 </script>
 <script>
@@ -232,12 +209,6 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" hidden>
         </label>
-      </div>
-      {# 2026-09-27, Anthony: preview the photo right after it's picked,
-         with a remove button, before posting. #}
-      <div class="wall-photo-preview" hidden>
-        <img alt="Attached photo preview">
-        <button type="button" class="wall-photo-remove" aria-label="Remove photo">&times;</button>
       </div>
       <div class="wall-composer-row">
         <span class="hint">280 characters max.</span>

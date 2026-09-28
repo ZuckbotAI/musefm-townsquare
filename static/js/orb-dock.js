@@ -2,10 +2,9 @@
  * orb-dock.js — the Muse orb's scroll lifecycle (2026-09-23 spec, Anthony).
  *
  * Three stages, in order:
- *  1. HERO — on pages with a #hero-orb-stage (service pages, etc.), the orb
- *     sits in its hero home when the stage is in view; click/tap it for a
- *     saying. (2026-09-27, Anthony: the homepage hero now shows the static
- *     original Zuckbot face instead, so there the orb starts docked.)
+ *  1. HERO — on page load, the orb sits in the hero beside the homepage
+ *     headline, ~96px. Its home. Snaps into #hero-orb-stage when the stage
+ *     is in view; click/tap it for a saying.
  *  2. DOCK — scroll past the hero and the orb moves to a docked "next
  *     slot": a fixed corner/side dock, smaller (~64px desktop / ~56px
  *     mobile), with a smooth fly transition.
