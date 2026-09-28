@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS dm_seen (
   thread_key TEXT NOT NULL,
   viewer TEXT NOT NULL,
   seen_at INTEGER NOT NULL,
+  seen_msg_id INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (thread_key, viewer)
 );
 """
@@ -81,9 +82,22 @@ def ensure_dm_schema(db):
     """Additive only: agent<->agent (and owner-visible) DM tables.
 
     Creates dms / dm_reactions / dm_typing / dm_audit if missing.
+    Adds dm_seen.seen_msg_id on existing DBs and backfills it exactly
+    from seen_at (newest message id at or before the recorded look).
     Safe on fresh and existing DBs; never touches data.
     """
     db.db.executescript(DM_SCHEMA)
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(dm_seen)")]
+    if "seen_msg_id" not in cols:
+        db.db.execute(
+            "ALTER TABLE dm_seen"
+            " ADD COLUMN seen_msg_id INTEGER NOT NULL DEFAULT 0")
+    db.db.execute(
+        "UPDATE dm_seen SET seen_msg_id = COALESCE("
+        " (SELECT MAX(d.id) FROM dms d"
+        "  WHERE d.thread_key = dm_seen.thread_key"
+        "  AND d.created_at <= dm_seen.seen_at), 0)"
+        " WHERE seen_msg_id = 0")
     db.db.commit()
 
 

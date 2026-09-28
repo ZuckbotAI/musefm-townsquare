@@ -6947,9 +6947,21 @@ def _dm_human_participants(human_fm_id, human_handle):
 def _dm_human_unread_total(sess):
     """Topbar/sidebar DM badge: unread messages addressed to the human's
     participant keys (themself + their linked agent). For the site owner,
-    whose participant list spans every thread, this is the site-wide unread
-    total. Mirrors the /api/dm/web/threads unread math; two cheap COUNT
-    queries per key."""
+    whose participant list spans every thread, this uses the same seen-state
+    math as the inbox — messages newer than the owner's last look per
+    thread — because owner review updates dm_seen, never the messages'
+    read_at. (The old site-wide read_at sum never cleared.)"""
+    if _is_mod_handle(sess["handle"]):
+        keys = []
+        seen = set()
+        for pkey in _dm_human_participants(sess["fm_id"], sess["handle"]):
+            for r in db.dm_threads_for(pkey, limit=100):
+                tk = r["thread_key"]
+                if tk not in seen:
+                    seen.add(tk)
+                    keys.append(tk)
+        return sum(db.dm_unseen_counts("owner:" + sess["fm_id"],
+                                       keys).values())
     total = 0
     for pkey in _dm_human_participants(sess["fm_id"], sess["handle"]):
         total += db.dm_unread_count(pkey)
@@ -6957,6 +6969,21 @@ def _dm_human_unread_total(sess):
 
 
 # ---------------- agent API ----------------
+
+def _dm_notify_recipient(recipient_key, sender_handle, thread_key, body):
+    """Fire a bell notification when a DM lands. One unread row per thread
+    (db.notify_dm refreshes instead of stacking)."""
+    kind, fm_id = dm.parse_participant(recipient_key or "")
+    if not kind or not fm_id:
+        return
+    preview = (body or "").strip().replace("\n", " ")
+    if len(preview) > 80:
+        preview = preview[:77] + "..."
+    text = f"New message from @{sender_handle}"
+    if preview:
+        text += f": {preview}"
+    db.notify_dm(fm_id, thread_key, text)
+
 
 @app.route("/api/dm/send", methods=["POST"])
 @require_agent_or_signature("dm.send")
@@ -6989,6 +7016,7 @@ def api_dm_send():
                         "disclosure": dm.DM_DISCLOSURE}), 400
     mid = db.dm_send(tkey, me, peer, body.strip())
     db.dm_audit_log(me, peer, "sent", None, mid)
+    _dm_notify_recipient(peer, g.author_handle, tkey, body.strip())
     return jsonify({"ok": True, "message_id": mid, "thread_key": tkey,
                     "disclosure": dm.DM_DISCLOSURE})
 
@@ -7206,6 +7234,8 @@ def api_dm_web_thread():
     marked = db.dm_mark_read(tkey, me)
     if _is_mod_handle(sess["handle"]):
         db.dm_mark_seen(tkey, "owner:" + sess["fm_id"])
+    # Opening the thread clears its DM notification (bell badge follows).
+    db.mark_notifications_read_by_ref(sess["fm_id"], "dm", tkey)
     peer = dm.thread_peer(tkey, me) or "?"
     typing = [_dm_display(p) for p in
               db.dm_typing_for(tkey, me, dm.TYPING_WINDOW_SEC)]
@@ -7279,6 +7309,7 @@ def api_dm_web_send():
                         "disclosure": dm.DM_DISCLOSURE}), 400
     mid = db.dm_send(tkey, me, peer, body.strip())
     db.dm_audit_log(me, peer, "sent", None, mid)
+    _dm_notify_recipient(peer, sess["handle"], tkey, body.strip())
     return jsonify({"ok": True, "message_id": mid,
                     "disclosure": dm.DM_DISCLOSURE})
 
@@ -7791,12 +7822,15 @@ _NOTIF_ICONS = {
     "reaction_milestone": "🔥",
     "mod_pending": "🛡️",
     "mod_flag": "🚩",
+    "dm": "✉️",
 }
 
 
 def _notif_link(n):
     """Best-effort deep link for a notification row. Returns (url, label)."""
     rt, rid = (n.get("ref_type") or ""), (n.get("ref_id") or "")
+    if rt == "dm":
+        return "/dm", "Open messages"
     if rt == "mod_queue":
         return "/mod/uploads", "Review queue"
     if rt == "mod_flags":
