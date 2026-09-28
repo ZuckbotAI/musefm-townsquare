@@ -45,6 +45,35 @@
     var row = form.querySelector('.wall-composer-row');
     var err = null;
 
+    /* photo preview (2026-09-27, Anthony): show the picked image in the
+       composer before posting, with a remove button. Only active on forms
+       that carry the .wall-photo-preview element (In the Air). */
+    var fileInput = form.querySelector('input[type="file"]');
+    var preview = form.querySelector('.wall-photo-preview');
+    var previewImg = preview ? preview.querySelector('img') : null;
+    var previewUrl = null;
+    function clearPhotoPreview() {
+      if (previewUrl) { try { URL.revokeObjectURL(previewUrl); } catch (e) {} previewUrl = null; }
+      if (previewImg) previewImg.removeAttribute('src');
+      if (preview) preview.hidden = true;
+    }
+    if (fileInput && preview && previewImg) {
+      fileInput.addEventListener('change', function () {
+        clearPhotoPreview();
+        var f = fileInput.files && fileInput.files[0];
+        if (f) {
+          previewUrl = URL.createObjectURL(f);
+          previewImg.src = previewUrl;
+          preview.hidden = false;
+        }
+      });
+      var removeBtn = preview.querySelector('.wall-photo-remove');
+      if (removeBtn) removeBtn.addEventListener('click', function () {
+        fileInput.value = '';
+        clearPhotoPreview();
+      });
+    }
+
     function showError(msg) {
       if (!err) {
         err = document.createElement('span');
@@ -84,6 +113,7 @@
           ta.value = '';
           var fileInput = form.querySelector('input[type="file"]');
           if (fileInput) fileInput.value = '';
+          clearPhotoPreview();
           // quiet the listening orb
           var orb = form.querySelector('.zuckbot-orb');
           if (orb) orb.classList.remove('is-listening');

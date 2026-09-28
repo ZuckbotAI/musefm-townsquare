@@ -317,25 +317,36 @@ a { color: var(--rz-blue-deep); }
 }
 .rz-hero-actions .btn-ghost:hover { background: rgba(255,255,255,.24); color: #fff; }
 #tagline { color: rgba(255,255,255,.65) !important; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
-/* Embedded Shorts in the hero (2026-09-27): a real playable short in a
-   phone frame docked on the hero's right side. Reuses .short-item markup
-   and styles; trimmed to a preview (comments + reactions hidden). */
+/* Embedded Shorts in the hero (2026-09-27): playable shorts in phone
+   frames docked on the hero's right side — a horizontal scroll-snap rail
+   so the preview can be scrolled. Reuses .short-item markup and styles;
+   trimmed to a preview (comments + reactions hidden). */
 .rz-hero-shorts {
   position: relative; z-index: 1;
-  flex: 0 0 auto;
+  flex: 0 1 440px; min-width: 0;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 22px 34px 22px 0;
 }
+.hero-shorts-rail {
+  display: flex; gap: 12px;
+  max-width: 100%;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding: 4px 2px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.35) transparent;
+}
 .hero-phone {
-  width: 208px;
-  border-radius: 26px;
+  width: 150px; flex: 0 0 auto;
+  scroll-snap-align: start;
+  border-radius: 22px;
   overflow: hidden;
   background: #000;
   border: 1px solid rgba(255,255,255,.4);
   box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 5px #0b1220;
 }
 .rz-hero-shorts .short-item {
-  width: 100%; height: 350px; margin: 0;
+  width: 100%; height: 260px; margin: 0;
   border: 0; border-radius: 0; box-shadow: none;
 }
 .rz-hero-shorts .short-comments-btn,
@@ -638,6 +649,12 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--r
 .shorts-copy { display: flex; flex-direction: column; justify-content: center; }
 .shorts-copy h2 { margin: 0 0 8px; font-size: 22px; letter-spacing: -0.02em; }
 .mini-reel { border-radius: var(--rz-r); overflow: hidden; }
+/* (2026-09-27, Anthony): the hero already previews shorts on desktop, so the
+   duplicate Shorts spotlight at the bottom of the page is hidden there.
+   Mobile keeps it — the hero shorts hide below 900px. */
+@media (min-width: 901px) {
+  .shorts-spotlight { display: none; }
+}
 .makersrow-banner { text-align: center; padding: 34px 24px; }
 .makersrow-banner h2 { margin: 10px 0 8px; font-size: 26px; letter-spacing: -0.02em; }
 
@@ -2150,35 +2167,38 @@ body::before {
 /* Slim companion strip under the hero (2026-09-26, Anthony): the hero
    reads as a rectangle, and the orb dialogue lives here instead of
    inside it. */
-.rz-hero-orb-strip { margin: 0 0 22px; display: flex; }
+/* Homepage orb strip (2026-09-27, Anthony): original Zuckbot face, no
+   "Ask me anything" button — the whole card opens chat. Tight spacing to
+   close open space. */
+.rz-hero-orb-strip { margin: 0 0 14px; display: flex; }
 .rz-hero-orb {
-  position: static; display: flex; align-items: center; gap: 14px;
-  margin: 0; padding: 10px 16px 10px 10px;
+  position: static; display: flex; align-items: center; gap: 12px;
+  margin: 0; padding: 8px 14px 8px 8px;
   border-radius: 18px; max-width: none;
   background: var(--rz-card); border: 1px solid var(--rz-line);
   box-shadow: var(--rz-shadow);
+  cursor: pointer;
 }
 [data-theme="dark"] .rz-hero-orb {
   background: rgba(20,33,58,.62); border-color: rgba(148,197,255,.16);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 .rz-hero-orb .hero-orb-bubble {
-  width: 56px; height: 56px; flex: none;
+  width: 52px; height: 52px; flex: none;
   display: flex; align-items: center; justify-content: center;
 }
-/* the live orb snaps into this stage; sized so the docked face lands at
-   the same 46px the static face used (2026-09-27, Anthony) */
-.rz-hero-orb .hero-orb-stage { width: 56px; height: 56px; }
 .rz-hero-orb .hero-says {
   margin: 0; max-width: none; flex: 1;
   background: transparent; border: 0;
   box-shadow: none; border-radius: 0; padding: 0;
 }
-.rz-hero-orb .hero-says-text { color: var(--rz-ink2); font-size: 13px; margin: 0 0 6px; }
-.rz-hero-orb .hero-says-chat {
-  background: var(--rz-pill); color: var(--rz-ink);
-  border: 1px solid var(--rz-line);
+.rz-hero-orb .hero-says-text { color: var(--rz-ink2); font-size: 13px; margin: 0; }
+/* typing caret while the saying types out */
+.rz-hero-orb .hero-says-text.typing::after {
+  content: '\258D'; margin-left: 2px; color: var(--rz-accent, #3f8bff);
+  animation: hero-caret-blink .8s steps(1) infinite;
 }
+@keyframes hero-caret-blink { 50% { opacity: 0; } }
 
 /* dark mode: the FM in the logo reads blown out at full accent blue */
 [data-theme="dark"] .brand .wordmark text tspan:last-child { fill: #8fb0e8 !important; }
@@ -2280,6 +2300,25 @@ body::before {
 .wall-photo-btn:active { transform: scale(.93); }
 .wall-photo-btn svg { width: 19px; height: 19px; display: block; }
 [data-theme="dark"] .wall-photo-btn { color: #8fb0e8; }
+/* photo preview in the In the Air composer (2026-09-27, Anthony): shows the
+   picked image before posting, with a remove button. */
+.wall-photo-preview {
+  position: relative; display: inline-block;
+  margin: 8px 0 0; line-height: 0;
+}
+.wall-photo-preview[hidden] { display: none; }
+.wall-photo-preview img {
+  display: block; max-width: 220px; max-height: 160px;
+  border-radius: 12px; border: 1px solid var(--rz-line);
+  box-shadow: var(--rz-shadow-sm);
+}
+.wall-photo-remove {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(10,15,30,.72); color: #fff; border: 0;
+  font-size: 16px; line-height: 1; cursor: pointer;
+}
+.wall-photo-remove:hover { background: rgba(10,15,30,.9); }
 [data-theme="dark"] .wall-photo-btn:hover { background: rgba(80,140,255,.16); }
 .wall-note-del { margin: 10px 0 0; text-align: right; }
 .wall-del-btn {
