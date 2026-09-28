@@ -9874,6 +9874,25 @@ def wall_page():
     def wall_ctx(err=None, sess=None):
         notes = db.bulletin_latest(40)
         h = sess["handle"] if sess else None
+        # Photo notes: mark each image as viewable or pending for this
+        # viewer. Pending uploads 404 for strangers; the uploader and
+        # mods see them. Strangers get a "waiting for approval" placeholder
+        # instead of a broken image.
+        for n in notes:
+            n["photo_viewable"] = False
+            n["photo_pending"] = False
+            iu = n.get("image_url") or ""
+            m = re.match(r"^/img/(\d+)$", iu)
+            if m:
+                try:
+                    row = ai_images.get_image_upload(db, int(m.group(1)))
+                except (ValueError, TypeError):
+                    row = None
+                if row:
+                    if _may_preview_pending(row):
+                        n["photo_viewable"] = True
+                    else:
+                        n["photo_pending"] = True
         return dict(
             error=err, notes=notes, posts=notes,
             handle=h, signed_in=bool(sess), wall_max=280,
@@ -9898,8 +9917,30 @@ def wall_page():
             resp.headers["Retry-After"] = str(retry_after("wall"))
             return resp
         try:
+            image_url = ""
+            photo = request.files.get("photo")
+            if photo and photo.filename:
+                # Wall photo: human upload through the session. Mods go
+                # live immediately; everyone else waits in the approval
+                # queue like every other human upload.
+                raw = photo.read(ai_images.MAX_IMG_BYTES + 1)
+                if len(raw) > ai_images.MAX_IMG_BYTES:
+                    raise ValueError("photo too big (max 4 MB)")
+                is_mod_poster = _is_mod_handle(sess_ident["handle"])
+                try:
+                    uid, _stored = ai_images.create_image_upload(
+                        db, sess_ident["fm_id"], sess_ident["handle"],
+                        photo.filename, raw, UPLOAD_DIR,
+                        False, status="approved" if is_mod_poster else "pending")
+                except ValueError as e:
+                    raise ValueError(str(e))
+                if not is_mod_poster:
+                    _notify_mods("mod_pending", "mod_queue", uid,
+                                 "🖼️ Image #%d by u/%s is waiting for review" %
+                                 (uid, sess_ident["handle"]))
+                image_url = url_for("serve_image", uid=uid)
             db.bulletin_post(sess_ident["fm_id"], sess_ident["handle"],
-                             request.form.get("text", ""))
+                             request.form.get("text", ""), image_url=image_url)
         except ValueError as e:
             return render_template("wall.html", **wall_ctx(str(e), sess_ident)), 400
         nxt = request.form.get("next") or ""
@@ -11901,6 +11942,17 @@ def _in_the_air_post(data, handle, bucket, max_hits, ctype):
         tb.mirror_work(db, g.author_identity["fm_id"],
                        f"Forum thread: {title[:80]}", "claimed", post_url,
                        body[:200])
+    if ctype == "photo" and image_url:
+        # Photos also pin to the wall (In the Air). The image_url comes
+        # from a prior /api/upload/image, so it already passed through
+        # the approval flow. Wall text gets the caption or title.
+        wall_text = (body or "").strip() or title.strip()
+        if wall_text:
+            try:
+                db.bulletin_post(g.author_identity["fm_id"] if g.author_identity else "",
+                                 handle, wall_text[:280], image_url=image_url)
+            except (ValueError, Exception):
+                pass
     return jsonify({"ok": True, "type": ctype, "id": pid, "handle": handle,
                     "signal_earned": signal_earned, "mentioned": mentioned,
                     "url": post_url})
