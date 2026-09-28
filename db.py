@@ -610,7 +610,27 @@ CREATE TABLE IF NOT EXISTS identities (
   avatar_url TEXT NOT NULL DEFAULT '',
   bio TEXT NOT NULL DEFAULT '',
   badges TEXT NOT NULL DEFAULT '',   -- comma-separated, e.g. "pioneer"
-  kind_tag TEXT NOT NULL DEFAULT ''  -- muse kind tag key from KIND_TAGS
+  kind_tag TEXT NOT NULL DEFAULT '',  -- muse kind tag key from KIND_TAGS
+  -- human-auth columns (were boot-only via ensure_human_auth_schema,
+  -- 2026-09-28 P1-NEW-2: folded into the base schema so script-built
+  -- Database() instances have them; the ensure_* pass still no-ops /
+  -- backfills existing DBs at boot)
+  password_hash TEXT NOT NULL DEFAULT '',
+  display_name TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  -- overseer-suite columns (were boot-only via ensure_overseer_schema,
+  -- 2026-09-26 banned-column P1: same fold-in for fresh DBs)
+  signal_override INTEGER NOT NULL DEFAULT 0,
+  banned INTEGER NOT NULL DEFAULT 0
+);
+-- filter_words: mod-managed extra banned words (was created boot-only by
+-- ensure_overseer_schema, 2026-09-26 class: fresh Database() lacked it and
+-- filter_hit() runs on every post/comment hot path; folded in so fresh
+-- DBs are complete; the ensure_* pass still no-ops / backfills at boot)
+CREATE TABLE IF NOT EXISTS filter_words (
+  word TEXT PRIMARY KEY,
+  added_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS seen_nonces (
   nonce TEXT PRIMARY KEY,

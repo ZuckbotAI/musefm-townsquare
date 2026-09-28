@@ -943,7 +943,28 @@ def fmt_dur(sec):
 
 
 def fmt_time(ts):
-    return time.strftime("%b %d, %Y", time.localtime(ts))
+    # P1-NEW-1 (2026-09-28): the DB stores TEXT datetimes by design in some
+    # columns (episodes.published: 'YYYY-MM-DD HH:MM:SS', also 'YYYY-MM-DD'
+    # and 'YYYY-MM-DD HH:MM' in seed data). time.localtime(str) 500'd every
+    # profile page with episode comments. Parse the known TEXT shapes, keep
+    # numeric epochs working, and never raise on unexpected values.
+    if ts is None:
+        return ""
+    if isinstance(ts, str):
+        s = ts.strip()
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return time.strftime("%b %d, %Y", time.strptime(s, fmt))
+            except ValueError:
+                pass
+        try:
+            ts = float(s)
+        except (TypeError, ValueError):
+            return s
+    try:
+        return time.strftime("%b %d, %Y", time.localtime(ts))
+    except (TypeError, ValueError, OverflowError, OSError):
+        return str(ts)
 
 
 app.jinja_env.filters["dur"] = fmt_dur
@@ -993,6 +1014,12 @@ def link_mentions(text):
         trail = raw[len(url):]
         if not _valid_url(url):
             return raw  # not a real URL — stays plain (escaped) text
+        # P2-NEW-1 (2026-09-28): strip userinfo (user:pass@) from the URL
+        # before stashing, so the rendered link carries no credentials in
+        # either the href or the display text. The @ must sit inside the
+        # authority (before the first /, ?, or #) so @ signs in paths or
+        # query strings are never touched.
+        url = re.sub(r"(https?://)[^/\s?#]+@", r"\1", url)
         urls.append(url)
         return "\x00URL%d\x00%s" % (len(urls) - 1, trail)
 
