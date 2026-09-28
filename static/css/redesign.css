@@ -378,6 +378,14 @@ a { color: var(--rz-blue-deep); }
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .rz-hero-orb .hero-orb-stage { width: 104px; height: 104px; }
+/* In the Air orb home (2026-09-28, Anthony): the floating orb rests beside
+   the section heading when idle, paired with the composer orb below. */
+.in-the-air-orb-home .hero-orb-stage { width: 96px; height: 96px; }
+.in-the-air-orb-home {
+  width: 104px; height: 104px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.06); border-radius: 22px;
+}
 .rz-hero-orb .hero-says {
   max-width: 230px; background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.9); color: var(--text);
@@ -386,9 +394,6 @@ a { color: var(--rz-blue-deep); }
 }
 .rz-hero-orb .hero-says::after { display: none; }
 .rz-hero-orb .hero-says-text { font-size: 13px; margin: 0; color: #0f1c30; }
-/* Speech bubble hidden until orb click (2026-09-27, Anthony) */
-.rz-hero-orb .hero-says { display: none; }
-.rz-hero-orb .hero-says.show { display: block; }
 /* Speech bubble opens chat on click (2026-09-27, Anthony: no button) */
 .rz-hero-orb .hero-says-clickable { cursor: pointer; transition: box-shadow .2s ease, transform .2s ease; }
 .rz-hero-orb .hero-says-clickable:hover { box-shadow: 0 12px 30px rgba(0, 90, 180, 0.35); transform: translateY(-1px); }

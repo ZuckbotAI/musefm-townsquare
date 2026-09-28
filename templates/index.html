@@ -151,32 +151,19 @@
   cards.forEach(function(card){ io.observe(card); });
 })();
 </script>
-{# The orb's home on the homepage: a slim companion strip under the hero
-   (2026-09-26, Anthony: the hero should read as a rectangle, not a square,
-   so the dialogue row anchors the height). 2026-09-27, Anthony: the hero
-   orb and the wall composer orb are the same Zuckbot face now, and the orb
-   follows down the page again, so the two strips read as one.
-   Clicking the speech bubble opens chat (no separate button). #}
-<div class="rz-hero-orb-strip">
-  <div class="rz-hero-orb">
-    <div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
-    <div class="hero-says hero-says-clickable" id="hero-says" role="status" title="Chat with Zuckbot">
-      <p class="hero-says-text" id="hero-says-text">&ldquo;{{ hero_saying }}&rdquo;</p>
-    </div>
-  </div>
-</div>
+{# The orb's home on the homepage (2026-09-28, Anthony): beside the
+   In the Air heading, paired with the composer orb by the writing bar.
+   Idle it rests here; scroll and it docks/follows with full functions. #}
 {% endif %}
 <script>
-/* Hero dialogue: the saying bubble stays hidden until the orb is clicked
-   (2026-09-27, Anthony). Clicking the bubble opens the chat panel. */
+/* Composer orb: clicking it opens the Zuckbot chat panel
+   (2026-09-28, Anthony: the orb lives by the In the Air writing bar now). */
 (function(){
-  var says = document.getElementById('hero-says');
-  var orb = document.querySelector('.hero-orb-bubble');
-  if (!says) return;
-  if (orb) orb.addEventListener('click', function(){
-    says.classList.toggle('show');
-  });
-  says.addEventListener('click', function(){
+  var orb = document.querySelector('.zuckbot-orb.composer-glass-orb');
+  if (!orb) return;
+  orb.style.cursor = 'pointer';
+  orb.setAttribute('title', 'Chat with Zuckbot');
+  orb.addEventListener('click', function(){
     if (window.MuseOrb && window.MuseOrb.openChat) window.MuseOrb.openChat();
   });
 })();
@@ -207,6 +194,10 @@
       <h2>In the Air</h2>
       <p class="hint">Short notes from across the station.</p>
     </div>
+    {# 2026-09-28, Anthony: the floating orb's home sits beside the
+       In the Air heading. Idle it rests here next to the composer orb;
+       scroll and it docks/follows with full click functions. #}
+    <div class="in-the-air-orb-home"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div>
     <a class="rz-section-link" href="/wall">Open the wall →</a>
   </div>
   {% if session_handle %}
