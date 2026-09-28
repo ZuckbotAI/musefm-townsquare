@@ -129,7 +129,6 @@ document.addEventListener('click', function (e) {
   var pop = document.getElementById('notif-pop');
   if (!btn || !pop) return;
   var list = document.getElementById('notif-pop-list');
-  var loaded = false;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -162,8 +161,9 @@ document.addEventListener('click', function (e) {
   function open() {
     pop.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
-    if (loaded) return;
-    loaded = true;
+    /* 2026-09-27: re-fetch on every open. The old once-per-page-load cache
+       kept showing notifications that were already cleared (e.g. a DM note
+       cleared by opening its thread), so the bell lied until reload. */
     fetch('/api/notifications/mine', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -174,7 +174,6 @@ document.addEventListener('click', function (e) {
       })
       .catch(function () {
         list.innerHTML = '<div class="empty-state"><p class="hint">Could not load. <a href="/notifications">View all →</a></p></div>';
-        loaded = false;
       });
   }
   function close() {

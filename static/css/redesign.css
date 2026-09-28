@@ -2034,17 +2034,6 @@ body::before {
               inset 0 -1px 0 rgba(0,0,0,.3),
               0 8px 22px rgba(0,0,0,.45);
 }
-/* Ctrl+K chip: precisely centered, glassy, dark-aware */
-.topbar-search kbd {
-  flex: none; align-self: center; white-space: nowrap;
-  font-size: 11px; font-weight: 600; line-height: 1.5; color: var(--rz-ink3);
-  border: 1px solid var(--rz-line); border-radius: 6px;
-  padding: 2px 8px; background: rgba(255, 255, 255, 0.6);
-}
-[data-theme="dark"] .topbar-search kbd {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
-}
 .topbar-search:focus-within {
   background: rgba(255, 255, 255, 0.96);
   border-color: var(--rz-blue);

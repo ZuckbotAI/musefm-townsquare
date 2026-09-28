@@ -2448,6 +2448,12 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .dm-row.theirs .dm-bubble { background: var(--glass-deep);
   border: 1px solid var(--glass-border); border-bottom-left-radius: 6px; color: var(--text); }
 .dm-bubble mark { background: #ffe58a; color: inherit; border-radius: 3px; padding: 0 1px; }
+/* deleted-message tombstone (2026-09-27): dashed empty bubble, italic note */
+.dm-deleted-bubble { background: transparent !important; border: 1px dashed var(--glass-border);
+  box-shadow: none !important; }
+.dm-deleted-bubble em { font-style: italic; color: var(--rz-ink3); font-size: 13px; }
+.dm-row.mine .dm-deleted-bubble em, .dm-row.theirs .dm-deleted-bubble em { color: var(--rz-ink3); }
+.dm-del-btn:hover { color: #c0392b; }
 .dm-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 .dm-row.mine .dm-meta { justify-content: flex-end; }
 .dm-time { font-size: 11px; color: var(--text-3); }

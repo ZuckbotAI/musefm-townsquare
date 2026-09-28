@@ -3740,6 +3740,22 @@ class Database:
             (thread_key, sender, recipient, body, now))
         return cur.lastrowid
 
+    def dm_delete_message(self, message_id, participant, now=None):
+        """Soft-delete a DM: only the sender may delete their own message.
+        Returns True on success, False if the message is missing, already
+        deleted, or owned by someone else."""
+        now = int(now if now is not None else time.time())
+        row = self._one(
+            "SELECT sender, deleted_at FROM dms WHERE id=?", (message_id,))
+        if not row:
+            return False
+        if row["deleted_at"] is not None:
+            return False
+        if row["sender"] != participant:
+            return False
+        self._exec("UPDATE dms SET deleted_at=? WHERE id=?", (now, message_id))
+        return True
+
     def dm_audit_log(self, sender, recipient, action, reason=None,
                      message_id=None, now=None):
         """Audit every send attempt ('sent' | 'blocked')."""
@@ -3756,7 +3772,8 @@ class Database:
             "SELECT thread_key,"
             " MAX(id) AS last_id,"
             " MAX(created_at) AS last_at,"
-            " SUM(CASE WHEN recipient=? AND read_at IS NULL THEN 1 ELSE 0 END)"
+            " SUM(CASE WHEN recipient=? AND read_at IS NULL"
+            "   AND deleted_at IS NULL THEN 1 ELSE 0 END)"
             "  AS unread"
             " FROM dms WHERE sender=? OR recipient=?"
             " GROUP BY thread_key ORDER BY last_at DESC LIMIT ?",
@@ -3764,13 +3781,15 @@ class Database:
         out = []
         for r in rows:
             last = self._one(
-                "SELECT id, sender, body, created_at, read_at FROM dms"
-                " WHERE id=?", (r["last_id"],))
+                "SELECT id, sender, body, created_at, read_at, deleted_at"
+                " FROM dms WHERE id=?", (r["last_id"],))
             out.append({
                 "thread_key": r["thread_key"],
                 "peer": None,  # filled by caller via dm.thread_peer
                 "last_id": r["last_id"],
-                "last_body": last["body"] if last else "",
+                "last_body": ("This message was deleted"
+                    if last and last["deleted_at"]
+                    else (last["body"] if last else "")),
                 "last_sender": last["sender"] if last else "",
                 "last_at": r["last_at"],
                 "last_read_at": last["read_at"] if last else None,
@@ -3780,21 +3799,24 @@ class Database:
 
     def dm_unread_count(self, participant):
         r = self._one(
-            "SELECT COUNT(*) c FROM dms WHERE recipient=? AND read_at IS NULL",
+            "SELECT COUNT(*) c FROM dms WHERE recipient=? AND read_at IS NULL"
+            " AND deleted_at IS NULL",
             (participant,))
         return int(r["c"] or 0) if r else 0
 
     def dm_thread_messages(self, thread_key, limit=50, before_id=None,
                            q=None):
-        """Newest-first page of messages in a thread. q filters by body."""
-        sql = ("SELECT id, sender, recipient, body, created_at, read_at"
-               " FROM dms WHERE thread_key=?")
+        """Newest-first page of messages in a thread. q filters by body.
+        Deleted messages come back as tombstones (caller checks deleted_at);
+        they never match a text search."""
+        sql = ("SELECT id, sender, recipient, body, created_at, read_at,"
+               " deleted_at FROM dms WHERE thread_key=?")
         args = [thread_key]
         if before_id:
             sql += " AND id<?"
             args.append(before_id)
         if q:
-            sql += " AND body LIKE ? ESCAPE '\\'"
+            sql += " AND deleted_at IS NULL AND body LIKE ? ESCAPE '\\'"
             args.append("%" + q.replace("\\", "\\\\").replace("%", "\\%")
                         .replace("_", "\\_") + "%")
         sql += " ORDER BY id DESC LIMIT ?"
@@ -3891,6 +3913,7 @@ class Database:
             f"  AND s.viewer=?"
             f" WHERE d.thread_key IN ({q})"
             f"  AND d.id > COALESCE(s.seen_msg_id, 0)"
+            f"  AND d.deleted_at IS NULL"
             f" GROUP BY d.thread_key",
             [viewer] + thread_keys)
         return {r["thread_key"]: int(r["c"]) for r in rows}

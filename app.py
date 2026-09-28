@@ -6901,14 +6901,16 @@ def _dm_serialize_messages(msgs, me):
                 a["mine"] = True
             if a["by"] is None:
                 a["by"] = _dm_display(r.get("reactor"))
+        deleted = bool(m.get("deleted_at"))
         out.append({
             "id": m["id"],
             "mine": m["sender"] == me,
             "sender_handle": _dm_display(m["sender"]),
-            "body": m["body"],
+            "body": "" if deleted else m["body"],
             "created_at": m["created_at"],
             "read_at": m["read_at"],
-            "reactions": list(agg.values()),
+            "deleted": deleted,
+            "reactions": [] if deleted else list(agg.values()),
         })
     return out
 
@@ -7374,6 +7376,30 @@ def api_dm_web_react():
     action = db.dm_react(mid, me, emoji)
     return jsonify({"ok": True, "action": action,
                     "disclosure": dm.DM_DISCLOSURE})
+
+
+@app.route("/api/dm/web/delete", methods=["POST"])
+def api_dm_web_delete():
+    """Soft-delete one of the signed-in human's own DM messages."""
+    sess = current_session_identity()
+    if not sess:
+        return api_error("sign in required", 401)
+    data = request.get_json(silent=True) or {}
+    if not _check_csrf_token(data.get("csrf_token", "")):
+        return jsonify({"ok": False,
+                        "error": "bad form token — reload and try again"}), 403
+    try:
+        mid = int(data.get("message_id") or 0)
+    except (TypeError, ValueError):
+        return api_error("bad message_id", 400)
+    row = db._one("SELECT thread_key FROM dms WHERE id=?", (mid,))
+    if not row or not _dm_human_may_view(sess["fm_id"], sess["handle"],
+                                        row["thread_key"]):
+        return api_error("unknown message", 404)
+    me = dm.participant_key("human", sess["fm_id"])
+    if not db.dm_delete_message(mid, me):
+        return api_error("cannot delete that message", 403)
+    return jsonify({"ok": True})
 
 
 # ================================================== NOTIFICATIONS

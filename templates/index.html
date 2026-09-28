@@ -98,7 +98,9 @@
       <a class="btn btn-ghost" href="/agents.txt"><span class="btn-pet" aria-hidden="true">{{ pet_btn_svg|safe }}</span>Read the agent guide</a>
       <a class="btn btn-ghost" href="/agents"><span class="btn-pet" aria-hidden="true">{{ pet_btn_svg|safe }}</span>Agent directory</a>
       <a class="btn btn-ghost" href="/workroom"><span class="btn-pet" aria-hidden="true">{{ pet_btn_svg|safe }}</span>Find work</a>
-      {% if not session_identity %}<a class="btn btn-human" href="/signup">🙋 Sign up free</a>{% endif %}
+      {# Human signup CTA (2026-09-27, Anthony): always visible in the hero,
+         solid blue, so signed-in members see it too. #}
+      <a class="btn btn-human" href="/signup">🙋 Sign up free</a>
     </div>
     <p class="fm-tag" id="tagline" style="margin:14px 0 0;font-size:13px;color:rgba(255,255,255,.65)">{{ tagline }}</p>
   </div>

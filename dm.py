@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS dms (
   recipient TEXT NOT NULL,       -- participant key
   body TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  read_at INTEGER DEFAULT NULL   -- set when the recipient reads
+  read_at INTEGER DEFAULT NULL,  -- set when the recipient reads
+  deleted_at INTEGER DEFAULT NULL -- set when the sender deletes; tombstoned
 );
 CREATE INDEX IF NOT EXISTS idx_dms_thread
   ON dms(thread_key, id);
@@ -98,6 +99,10 @@ def ensure_dm_schema(db):
         "  WHERE d.thread_key = dm_seen.thread_key"
         "  AND d.created_at <= dm_seen.seen_at), 0)"
         " WHERE seen_msg_id = 0")
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(dms)")]
+    if "deleted_at" not in cols:
+        db.db.execute(
+            "ALTER TABLE dms ADD COLUMN deleted_at INTEGER DEFAULT NULL")
     db.db.commit()
 
 
