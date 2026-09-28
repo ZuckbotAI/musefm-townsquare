@@ -3435,6 +3435,37 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 /* coming-soon card: glyph replaces the orb bubble */
 .cs-orb-glyph { font-size: 44px; line-height: 1; animation: tc-float 6s ease-in-out infinite; }
 
+/* =====================================================================
+   fix-pass1 (2026-09-27, Anthony): phone issues from his screenshots.
+   ===================================================================== */
+/* 1. Profile stat strip: labels ("endorsements" etc.) collided at phone
+   width. Smaller labels, no letter-spacing, and they may wrap to two
+   lines instead of spilling into the next cell. */
+@media (max-width: 640px) {
+  .p2-statstrip { grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: hidden; }
+  .p2-statstrip > div { min-width: 0; padding: 10px 4px; }
+  .p2-statstrip b { font-size: 16px; }
+  .p2-statstrip span { font-size: 9px; letter-spacing: 0.01em; line-height: 1.4; overflow-wrap: anywhere; }
+}
+/* 2. "In the Air" composer: the live "280 left" counter collided with the
+   static "280 characters max." hint at phone width. The counter carries
+   the same info, so the static hint hides on narrow screens. */
+@media (max-width: 640px) {
+  .wall-composer-row .hint { display: none; }
+}
+/* 3. Mobile nav drawer: was flat. Frosted glass now, matching the
+   "New here?" banner: translucent, blurred, hairline edge. Theme-aware
+   via the --glass vars so text stays readable over page content in
+   light and dark mode. */
+@media (max-width: 1023px) {
+  .sidebar {
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass) 70%, var(--glass-deep));
+    backdrop-filter: saturate(170%) blur(22px);
+    -webkit-backdrop-filter: saturate(170%) blur(22px);
+    border-right: 1px solid var(--glass-border);
+  }
+}
+
 /* ---------- entrance motion (2026-09-27, Anthony): cards rise in gently ---------- */
 @keyframes card-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .card, .pcard { animation: card-rise .45s ease both; }
@@ -3444,4 +3475,149 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 .card:nth-of-type(n+5), .pcard:nth-of-type(n+5) { animation-delay: .2s; }
 @media (prefers-reduced-motion: reduce) {
   .card, .pcard { animation: none; }
+}
+
+/* =====================================================================
+   fix-pass2 (2026-09-27, Anthony): search bars + Hot/New/Top swapper blue.
+   ===================================================================== */
+/* 1a. Topbar search on phones: the old "@media (max-width: 860px)
+   display:none" was dead because the later glass block re-set
+   display:flex with equal specificity, so on phones the search rendered
+   cramped and cut off at the edge. Restore the intended hide with a
+   selector that wins the cascade. */
+@media (max-width: 860px) {
+  .topbar .topbar-search { display: none; }
+}
+/* 1b. Lobby/community search: dock the search button inside the input
+   instead of a detached pill, matching the topbar's icon-inside-field
+   pattern. Template untouched; pure CSS repositioning. */
+.feed-search { position: relative; }
+.feed-search .input { width: 100%; padding-right: 46px; }
+.feed-search .btn.btn-ghost.btn-sm {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; padding: 0; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%;
+  background: transparent; box-shadow: none;
+  color: var(--rz-ink3); font-size: 16px;
+}
+.feed-search .btn.btn-ghost.btn-sm:hover {
+  background: var(--rz-blue-soft); color: var(--rz-blue-deep);
+  border-color: transparent; transform: translateY(-50%);
+}
+/* 2. Hot/New/Top active pill: use the exact brand gradient
+   (var(--rz-blue) to var(--rz-blue-deep)) instead of the lighter
+   hardcoded blues. Covers both .seg-tabs definitions, the shorts
+   comment sort bar, and dark mode (the vars resolve per theme). */
+.seg-tabs a.active, .seg-tabs button.active, .seg-tabs button.is-active {
+  background: linear-gradient(135deg, var(--rz-blue), var(--rz-blue-deep));
+}
+.sc-sortbar button.is-active {
+  background: linear-gradient(135deg, var(--rz-blue), var(--rz-blue-deep));
+}
+[data-theme="dark"] .seg-tabs a.active,
+[data-theme="dark"] .seg-tabs button.active,
+[data-theme="dark"] .seg-tabs button.is-active {
+  background: linear-gradient(135deg, var(--rz-blue), var(--rz-blue-deep));
+}
+
+/* =====================================================================
+   fix-pass3 (2026-09-27, Anthony): Hot pill centering, mobile drawer
+   visibility, Explore rail sizing, hero text readability.
+   ===================================================================== */
+/* 1. Hot/New/Top pill: the emoji was pushing the label left so the blue
+   oval looked lopsided and ended too soon on the right. Center the
+   icon + label as one unit with symmetric padding, so the blue oval
+   wraps them evenly. Same for the shorts sort bar. */
+.seg-tabs a, .seg-tabs button {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; text-align: center;
+}
+.seg-tabs .seg-ico { margin: 0; flex: none; }
+.sc-sortbar button {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; text-align: center;
+}
+.sc-sortbar .seg-ico { margin: 0; flex: none; }
+/* 2. Mobile drawer: the bottom tab bar (same z-index) was covering the
+   drawer's lower rows, making the sidebar look broken and half-hidden.
+   Drawer now sits above the tab bar, and the tab bar hides while the
+   drawer is open so every row is reachable and crisp. */
+@media (max-width: 1023px) {
+  .sidebar { z-index: 210; }
+  body.sidebar-open .sidebar {
+    box-shadow: 24px 0 60px rgba(10, 60, 100, 0.35);
+  }
+  body.sidebar-open .bottomnav { display: none; }
+}
+/* 3. Explore rail (mobile): fixed 272px cards looked oddly sized on
+   phones. Cards now size to the viewport so one fills the screen
+   naturally with a peek of the next. */
+@media (max-width: 880px) {
+  .rail-strip > * { flex: 0 0 min(320px, 82vw); }
+}
+/* 4. Hero text: brighter and in the brand style. Kicker gets more
+   presence, body copy and the rotating tagline step up in contrast,
+   and a blue accent bar ties the panel to the brand. */
+.rz-kicker {
+  font-size: 13px; color: #bfe9ff;
+  text-shadow: 0 1px 10px rgba(0,0,0,.8), 0 1px 2px rgba(0,0,0,.8);
+}
+.rz-hero p.rz-sub { color: rgba(255, 255, 255, 0.92); }
+#tagline { color: rgba(255, 255, 255, 0.88) !important; }
+.rz-hero-inner {
+  border-left: 3px solid var(--rz-blue);
+}
+@media (max-width: 768px) {
+  .rz-hero-inner {
+    background: linear-gradient(160deg, rgba(8,20,42,.96), rgba(8,20,42,.86));
+    border: 1px solid rgba(255,255,255,.18);
+    border-left: 3px solid var(--rz-blue);
+  }
+  .rz-hero h1 {
+    text-shadow: 0 2px 20px rgba(0,0,0,.75), 0 1px 3px rgba(0,0,0,.85);
+  }
+}
+
+/* =====================================================================
+   frosted-glass pass (2026-09-27, Anthony: "More frosted glass look").
+   Cards, top bar, bottom tab bar, and the mobile drawer go translucent
+   with a stronger blur so the frost reads. Desktop sidebar stays flat
+   on the page; only the mobile drawer gets the glass.
+   ===================================================================== */
+.card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(160%) blur(20px);
+  -webkit-backdrop-filter: saturate(160%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+[data-theme="dark"] .card {
+  background: rgba(16, 26, 46, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.topbar {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(170%) blur(22px);
+  -webkit-backdrop-filter: saturate(170%) blur(22px);
+}
+[data-theme="dark"] .topbar { background: rgba(16, 26, 46, 0.72); }
+@media (max-width: 1023px) {
+  .sidebar {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: saturate(170%) blur(24px);
+    -webkit-backdrop-filter: saturate(170%) blur(24px);
+    border-right: 1px solid rgba(255, 255, 255, 0.6);
+  }
+  [data-theme="dark"] .sidebar {
+    background: rgba(13, 20, 36, 0.8);
+    border-right: 1px solid rgba(255, 255, 255, 0.09);
+  }
+}
+@media (max-width: 640px) {
+  .bottomnav {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: saturate(170%) blur(24px);
+    -webkit-backdrop-filter: saturate(170%) blur(24px);
+  }
+  [data-theme="dark"] .bottomnav { background: rgba(13, 20, 36, 0.78); }
 }
