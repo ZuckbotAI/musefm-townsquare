@@ -337,7 +337,19 @@ a { color: var(--rz-blue-deep); }
 .rz-hero-shorts .short-item {
   width: 100%; height: 350px; margin: 0;
   border: 0; border-radius: 0; box-shadow: none;
+  scroll-snap-align: start; scroll-snap-stop: always;
 }
+/* Hero shorts reel: vertical up/down scroller (2026-09-27, Anthony) */
+.hero-shorts-reel {
+  height: 350px;
+  overflow-y: auto; overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior: contain;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.hero-shorts-reel::-webkit-scrollbar { display: none; }
+.hero-shorts-reel:focus { outline: none; }
+.hero-shorts-reel:focus-visible { outline: 2px solid rgba(96,165,250,.7); outline-offset: 2px; }
 .rz-hero-shorts .short-comments-btn,
 .rz-hero-shorts .short-rxn { display: none; }
 .hero-shorts-more {
@@ -373,11 +385,38 @@ a { color: var(--rz-blue-deep); }
   box-shadow: 0 10px 26px rgba(0, 40, 80, 0.3); margin-bottom: 12px;
 }
 .rz-hero-orb .hero-says::after { display: none; }
-.rz-hero-orb .hero-says-text { font-size: 13px; margin: 0 0 8px; color: #0f1c30; }
-.rz-hero-orb .hero-says-chat {
-  font-size: 12.5px; font-weight: 700; color: var(--accent-deep);
-  background: rgba(0, 144, 231, 0.1); border: 0; border-radius: 999px;
-  padding: 6px 12px; cursor: pointer;
+.rz-hero-orb .hero-says-text { font-size: 13px; margin: 0; color: #0f1c30; }
+/* Speech bubble hidden until orb click (2026-09-27, Anthony) */
+.rz-hero-orb .hero-says { display: none; }
+.rz-hero-orb .hero-says.show { display: block; }
+/* Speech bubble opens chat on click (2026-09-27, Anthony: no button) */
+.rz-hero-orb .hero-says-clickable { cursor: pointer; transition: box-shadow .2s ease, transform .2s ease; }
+.rz-hero-orb .hero-says-clickable:hover { box-shadow: 0 12px 30px rgba(0, 90, 180, 0.35); transform: translateY(-1px); }
+/* In the Air composer photo preview before posting (2026-09-27, Anthony) */
+.composer-photo-preview {
+  position: relative;
+  display: inline-block;
+  margin: 8px 0 0;
+}
+.composer-photo-preview[hidden] { display: none; }
+.composer-photo-thumb {
+  display: block;
+  max-width: 220px;
+  max-height: 160px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.25);
+}
+.composer-photo-remove {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.4);
+  background: rgba(10,14,24,.85);
+  color: #fff;
+  font-size: 16px; line-height: 1;
+  cursor: pointer;
+  padding: 0;
 }
 
 /* ---------- feed tabs: reference underline style ---------- */
@@ -2506,6 +2545,16 @@ a.post-media .ai-badge { left: 10px; bottom: 10px; }
 .composer-main { display: flex; gap: 12px; align-items: flex-start; }
 .composer-main textarea { flex: 1 1 auto; min-width: 0; }
 .composer-main .zuckbot-orb { margin-top: 2px; }
+/* In the Air composer: the classic glass orb (2026-09-27, Anthony).
+   Keeps the .zuckbot-orb hook so the typing listener + char counter JS
+   still bind; the CSS-drawn face is replaced by the orb image. */
+.zuckbot-orb.composer-glass-orb img {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+  border-radius: 50%;
+}
+.zuckbot-orb.composer-glass-orb.is-listening img {
+  animation: zb-bob 1.15s ease-in-out infinite;
+}
 /* listening state: subtle bob + glow pulse on the inner element only */
 .zuckbot-orb.is-listening .zuckbot-orb-inner {
   animation: zb-bob 1.15s ease-in-out infinite;
