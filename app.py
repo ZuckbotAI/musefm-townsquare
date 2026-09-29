@@ -699,7 +699,7 @@ def check_limit(bucket, max_hits, window_sec=3600):
 
 # Single source for the human-readable rate-limit message, so the JSON API
 # and the human form pages report the identical wording.
-RATE_LIMIT_MESSAGE = "rate limit hit — slow down, friend"
+RATE_LIMIT_MESSAGE = "rate limit hit - slow down, friend"
 
 # P1 2026-09-24: max length for user search queries (forum ?q=, agent
 # directory ?q=). sqlite's default LIKE pattern limit is 50000 bytes —
@@ -943,7 +943,28 @@ def fmt_dur(sec):
 
 
 def fmt_time(ts):
-    return time.strftime("%b %d, %Y", time.localtime(ts))
+    # P1-NEW-1 (2026-09-28): the DB stores TEXT datetimes by design in some
+    # columns (episodes.published: 'YYYY-MM-DD HH:MM:SS', also 'YYYY-MM-DD'
+    # and 'YYYY-MM-DD HH:MM' in seed data). time.localtime(str) 500'd every
+    # profile page with episode comments. Parse the known TEXT shapes, keep
+    # numeric epochs working, and never raise on unexpected values.
+    if ts is None:
+        return ""
+    if isinstance(ts, str):
+        s = ts.strip()
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return time.strftime("%b %d, %Y", time.strptime(s, fmt))
+            except ValueError:
+                pass
+        try:
+            ts = float(s)
+        except (TypeError, ValueError):
+            return s
+    try:
+        return time.strftime("%b %d, %Y", time.localtime(ts))
+    except (TypeError, ValueError, OverflowError, OSError):
+        return str(ts)
 
 
 app.jinja_env.filters["dur"] = fmt_dur
@@ -993,6 +1014,12 @@ def link_mentions(text):
         trail = raw[len(url):]
         if not _valid_url(url):
             return raw  # not a real URL — stays plain (escaped) text
+        # P2-NEW-1 (2026-09-28): strip userinfo (user:pass@) from the URL
+        # before stashing, so the rendered link carries no credentials in
+        # either the href or the display text. The @ must sit inside the
+        # authority (before the first /, ?, or #) so @ signs in paths or
+        # query strings are never touched.
+        url = re.sub(r"(https?://)[^/\s?#]+@", r"\1", url)
         urls.append(url)
         return "\x00URL%d\x00%s" % (len(urls) - 1, trail)
 
@@ -2130,11 +2157,13 @@ def vote_html():
         score = db.vote(data.get("target_type", "post") or "post",
                         target_id, sess_ident["handle"], value)
     except (ValueError, TypeError) as e:
-        if want_json:
-            return jsonify({"ok": False, "error": str(e)}), 400
         # P2 2026-09-20 00:46 loop: bad input 302'd silently, so a human
         # never learned the vote didn't count. Surface the error instead.
+        # P2 2026-09-28: JSON gets the same mapping as the form path —
+        # a vote on a nonexistent target is a 404, not a 400.
         code = 404 if "unknown target" in str(e) else 400
+        if want_json:
+            return jsonify({"ok": False, "error": str(e)}), code
         return str(e), code
     if want_json:
         target = (data.get("target_type", "post") or "post", target_id)
@@ -3705,7 +3734,10 @@ def api_vote():
         score = db.vote(target_type, target_id,
                         g.author_handle, value)
     except (ValueError, TypeError) as e:
-        return api_error(str(e))
+        # P2 2026-09-28: match the form /vote path (vote_html) — a vote on a
+        # target that does not exist is a 404, not a 400.
+        code = 404 if "unknown target" in str(e) else 400
+        return api_error(str(e), code)
     return jsonify({"ok": True, "score": score, "handle": g.author_handle})
 
 
