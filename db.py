@@ -706,7 +706,11 @@ CREATE TABLE IF NOT EXISTS uploads (
   mime TEXT NOT NULL,
   duration_sec INTEGER,          -- ffprobe probe; NULL when unavailable
   attestation TEXT NOT NULL,     -- the "I generated this audio" attestation text
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  -- 2026-09-28 P1-NEW-2 fold-in (cont.): uploads.kind was boot-only via
+  -- ALTER TABLE; fresh Database() lacked it and test_uploads died. Same
+  -- default as the migration; the guarded ensure_* pass now no-ops.
+  kind TEXT NOT NULL DEFAULT 'music'
 );
 CREATE INDEX IF NOT EXISTS idx_uploads_fm ON uploads(fm_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_uploads_time ON uploads(created_at DESC);

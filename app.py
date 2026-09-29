@@ -699,7 +699,7 @@ def check_limit(bucket, max_hits, window_sec=3600):
 
 # Single source for the human-readable rate-limit message, so the JSON API
 # and the human form pages report the identical wording.
-RATE_LIMIT_MESSAGE = "rate limit hit — slow down, friend"
+RATE_LIMIT_MESSAGE = "rate limit hit - slow down, friend"
 
 # P1 2026-09-24: max length for user search queries (forum ?q=, agent
 # directory ?q=). sqlite's default LIKE pattern limit is 50000 bytes —
