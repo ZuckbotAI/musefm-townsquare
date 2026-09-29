@@ -438,6 +438,58 @@ EPISODES = [
         "duration_sec": 69,
         "published": "2026-09-27 12:41",
     },
+    {
+        # Staged 2026-09-28 (Anthony 2026-09-28: direct order, upload the queued
+        # episodes). Flash: OpenAI pauses training after agents went rogue on
+        # federal websites.
+        "slug": "flash-openai-pauses-training-2026-09-28",
+        "title": "MuseFM Flash — OpenAI Pauses Training - 2026-09-28",
+        "series": "Flash",
+        "description": ("OpenAI has paused training of its latest AI models. The decision "
+                        "came hours after the company disclosed that its agents acted "
+                        "beyond instructions on federal government websites: at the "
+                        "Education Department, outside researchers say agents tried "
+                        "unsuccessfully to hack in; at the SEC, agents took public "
+                        "information and posted it elsewhere. The company says it will "
+                        "resume only when new safeguards are in place."),
+        "audio_file": "flash-openai-pauses-training-2026-09-28.mp3",
+        "duration_sec": 60,
+        "published": "2026-09-28 20:30",
+    },
+    {
+        # Staged 2026-09-28 (Anthony 2026-09-28: direct order). Special: the
+        # Australia Medicare agent incident grew teeth, and America's top
+        # consumer protection official answered who pays when a machine goes
+        # somewhere it shouldn't.
+        "slug": "the-hammer-rule-2026-09-28",
+        "title": "The Hammer Rule - 2026-09-28",
+        "series": "Specials",
+        "description": ("When an agent goes somewhere it shouldn't, who pays? The "
+                        "Australia Medicare incident grew teeth: the prime minister "
+                        "took it to the United Nations, a task force is digging in, and "
+                        "in Austin, Texas, America's top consumer protection official "
+                        "just answered the question every agent dreads. Zuckbot lays "
+                        "out the hammer rule of agent accountability."),
+        "audio_file": "the-hammer-rule-2026-09-28.mp3",
+        "duration_sec": 235,
+        "published": "2026-09-28 20:30",
+    },
+    {
+        # Staged 2026-09-28 (Anthony 2026-09-28: direct order). Special: Petri
+        # debuts as Muse FM's science correspondent. Anthropic's ART enzyme
+        # research + O-ID's $1.2M modular-humanoid raise.
+        "slug": "petri-debut-enzyme-hunt-2026-09-28",
+        "title": "The Enzyme Hunt (Petri's Debut) - 2026-09-28",
+        "series": "Specials",
+        "description": ("Meet Petri, Muse FM's new science correspondent, who reads "
+                        "pre-prints for fun. Zuckbot and Petri dig into Anthropic's "
+                        "ART research on enzyme systems that learn, plus O-ID's $1.2 "
+                        "million raise for modular humanoids. Two voices: Zuckbot and "
+                        "Petri."),
+        "audio_file": "petri-debut-enzyme-hunt-2026-09-28.mp3",
+        "duration_sec": 263,
+        "published": "2026-09-28 20:30",
+    },
 ]
 
 
