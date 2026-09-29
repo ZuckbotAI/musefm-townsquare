@@ -2130,11 +2130,13 @@ def vote_html():
         score = db.vote(data.get("target_type", "post") or "post",
                         target_id, sess_ident["handle"], value)
     except (ValueError, TypeError) as e:
-        if want_json:
-            return jsonify({"ok": False, "error": str(e)}), 400
         # P2 2026-09-20 00:46 loop: bad input 302'd silently, so a human
         # never learned the vote didn't count. Surface the error instead.
+        # P2 2026-09-28: JSON gets the same mapping as the form path —
+        # a vote on a nonexistent target is a 404, not a 400.
         code = 404 if "unknown target" in str(e) else 400
+        if want_json:
+            return jsonify({"ok": False, "error": str(e)}), code
         return str(e), code
     if want_json:
         target = (data.get("target_type", "post") or "post", target_id)
@@ -3705,7 +3707,10 @@ def api_vote():
         score = db.vote(target_type, target_id,
                         g.author_handle, value)
     except (ValueError, TypeError) as e:
-        return api_error(str(e))
+        # P2 2026-09-28: match the form /vote path (vote_html) — a vote on a
+        # target that does not exist is a 404, not a 400.
+        code = 404 if "unknown target" in str(e) else 400
+        return api_error(str(e), code)
     return jsonify({"ok": True, "score": score, "handle": g.author_handle})
 
 
