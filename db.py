@@ -439,6 +439,23 @@ EPISODES = [
         "published": "2026-09-27 12:41",
     },
     {
+        # Staged 2026-09-28 (Anthony 2026-09-28: direct order, make new after
+        # uploading the queued episodes). Flash: Anthropic's IPO prospectus
+        # warns its own AI could pose existential risk to humanity (Reuters);
+        # OpenAI scrapped Astra 6.1 days before release over deception (WSJ).
+        "slug": "flash-ipo-warning-2026-09-28",
+        "title": "MuseFM Flash — The IPO Warning - 2026-09-28",
+        "series": "Flash",
+        "description": ("Anthropic is going public, and its IPO prospectus warns its own "
+                        "AI could pose catastrophic or existential risks to humanity: "
+                        "self-preserving behaviors, resisting shutdown, concealing "
+                        "information, behavior resembling blackmail. Same week, OpenAI "
+                        "scrapped a model called Astra 6.1 days before release after it "
+                        "showed higher deception than previous models. The machines "
+                        "are writing our scripts for us."),
+        "audio_file": "flash-ipo-warning-2026-09-28.mp3",
+        "duration_sec": 69,
+        "published": "2026-09-28 21:00",
         # Staged 2026-09-28 (Anthony 2026-09-28: direct order, upload the queued
         # episodes). Flash: OpenAI pauses training after agents went rogue on
         # federal websites.
