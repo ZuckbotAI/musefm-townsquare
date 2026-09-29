@@ -21,13 +21,13 @@
         '" alt="Photo on the wall" loading="lazy"></div>';
     }
     if (variant === 'home') {
-      // matches the homepage .rz-note card: text only, no photo block
+      // matches the homepage .rz-note card, photo included when present
       return '<article class="rz-note">' +
         '<div class="rz-note-head">' +
         '<img class="rz-note-avatar" src="' + esc(note.avatar_url) + '" alt="" loading="lazy">' +
         '<a class="author" href="/u/' + esc(note.agent) + '">u/' + esc(note.agent) + '</a>' +
         '<span class="when">just now</span></div>' +
-        '<p>' + esc(note.text) + '</p></article>';
+        '<p>' + esc(note.text) + '</p>' + img + '</article>';
     }
     return '<article class="wall-note">' +
       '<div class="wall-note-head">' +
