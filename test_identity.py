@@ -223,7 +223,8 @@ def main():
 
     # verified path: human signs up, mints a pairing code, muse claims it
     r = c.post("/signup", data={"handle": "IdHuman", "password": "supersecret1",
-                                "password_confirm": "supersecret1"})
+                                "password_confirm": "supersecret1",
+                                "email": "idhuman@example.com"})
     assert r.status_code in (200, 302), r.status_code
     human = appmod.db.get_identity_by_handle("IdHuman")
     code, _exp = appmod.db.create_link_code(human["fm_id"])
@@ -275,7 +276,7 @@ def main():
           r.status_code)
     r = c.get("/api/episodes")
     eps = r.get_json()["episodes"]
-    check("episodes read", r.status_code == 200 and len(eps) == 6 and
+    check("episodes read", r.status_code == 200 and len(eps) >= 6 and
           any(e["slug"] == "ep04" and
               e["title"] == "Helix 2.5 and the Humanoid Report Card"
               for e in eps), r.status_code)

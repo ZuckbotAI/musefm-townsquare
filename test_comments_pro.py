@@ -90,7 +90,9 @@ def signup_login(handle, password="supersecret1"):
     """Fresh client for a human; returns (client, csrf_token)."""
     c = appmod.app.test_client()
     r = c.post("/signup", data={"handle": handle, "password": password,
-                                "password_confirm": password},
+                                "password_confirm": password,
+                                # signup requires a valid email
+                                "email": handle.lower() + "@example.com"},
                environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = c.post("/login", data={"handle": handle, "password": password},

@@ -18,7 +18,10 @@ JSON:   GET  /api/episodes, /api/episodes/<slug>
         GET  /api/forum/communities, /api/forum/posts, /api/forum/post/<id>
         POST /api/forum/post, /api/forum/comment, /api/forum/vote
 
-Agent auth: header X-Agent-Key, or ?agent_key=, or {"agent_key": ...}.
+Agent auth: header X-Agent-Key preferred; ?agent_key= query and
+{"agent_key": ...} JSON body still accepted (deprecated legacy paths —
+keys in URLs land in server/proxy logs, so clients should move to the
+header).
 Key comes from $AGENT_KEY; if unset, one is generated and saved to
 .agent_key (chmod 600, gitignored) and printed once at startup.
 Never commit or log the key.
@@ -502,7 +505,23 @@ def load_agent_key():
 AGENT_KEY = load_agent_key()
 
 
+def _safe_digest(a, b):
+    """compare_digest that fails closed instead of 500ing. P1 2026-09-26
+    09:35 loop: attacker-controlled non-ASCII tokens raised TypeError in
+    secrets.compare_digest, turning a clean 401/403 into a 500."""
+    try:
+        return bool(a) and bool(b) and secrets.compare_digest(a, b)
+    except (TypeError, ValueError):
+        return False
+
+
 def agent_authed():
+    # Header is the preferred transport (P2 2026-09-28 18:35 loop: keys in
+    # URLs land in server/proxy logs). The query-string and JSON-body paths
+    # stay accepted for backward compatibility — removing them would 401
+    # live clients still using them, and "nothing breaks through the merge"
+    # is the rule. Both legacy paths are deprecated; header wins when more
+    # than one is present.
     given = (request.headers.get("X-Agent-Key", "")
              or request.args.get("agent_key", ""))
     if not given and request.is_json:
@@ -511,7 +530,7 @@ def agent_authed():
         # .get() on a list 500'd here before the isinstance guard.
         if isinstance(body, dict):
             given = body.get("agent_key", "")
-    return bool(given) and secrets.compare_digest(given, AGENT_KEY)
+    return _safe_digest(given, AGENT_KEY)
 
 
 class _DuplicateKey(Exception):
@@ -814,8 +833,7 @@ def _csrf_token():
 
 def _check_csrf_token(tok):
     sess_tok = session.get("csrf_token", "")
-    return (bool(tok) and bool(sess_tok)
-            and secrets.compare_digest(tok, sess_tok))
+    return _safe_digest(tok, sess_tok)
 
 
 def _check_csrf():
@@ -2472,9 +2490,12 @@ def photo_upload():
         try:
             if not f or not f.filename:
                 raise ValueError("pick an image file")
-            raw = f.read(MAX_UPLOAD_BYTES + 1)
-            if len(raw) > MAX_UPLOAD_BYTES:
-                raise ValueError("file too big (max 25 MB)")
+            # P2 2026-09-28 18:35 loop: README.md:69 documents a 4 MB image
+            # cap, but this route allowed MAX_UPLOAD_BYTES (25 MB). Photos
+            # now honor the documented cap like every other image route.
+            raw = f.read(ai_images.MAX_IMG_BYTES + 1)
+            if len(raw) > ai_images.MAX_IMG_BYTES:
+                raise ValueError("photo too big (max 4 MB)")
             if not raw:
                 raise ValueError("empty file")
             det = ai_images.detect_image(raw)
@@ -2678,8 +2699,7 @@ def _check_room_token(tok):
     """Per-session room CSRF: minted on GET /listen/<id>, required on every
     room POST. One mechanism for guests AND logged-in users."""
     sess_tok = session.get("room_token", "")
-    return (isinstance(tok, str) and bool(tok) and bool(sess_tok)
-            and secrets.compare_digest(tok, sess_tok))
+    return (isinstance(tok, str) and _safe_digest(tok, sess_tok))
 
 
 def _room_identity():
@@ -3334,6 +3354,19 @@ def api_post(pid):
     return jsonify({"ok": True, "post": post})
 
 
+def _check_img_ref(image_url):
+    """P2 2026-09-28 18:35 loop: a signed body can carry an arbitrary
+    image_url string. A relative /img/<id> must point at a real upload or
+    the post/comment stores a dead link. External URLs are the client's
+    own responsibility and pass through untouched."""
+    iu = (image_url or "").strip()
+    if iu.startswith("/img/"):
+        tail = iu[5:]
+        if not tail.isdigit() or not ai_images.get_image_upload(db, int(tail)):
+            raise ValueError("dangling image_url: no such /img/ upload")
+    return iu
+
+
 @app.route("/api/forum/post", methods=["POST"])
 @require_agent_or_signature("post", rate=("post", 5))
 def api_create_post():
@@ -3346,7 +3379,7 @@ def api_create_post():
         body = _fs(data, "body")
         flair = _fs(data, "flair", "discussion")
         gif_url = _fs(data, "gif_url")
-        image_url = _fs(data, "image_url")
+        image_url = _check_img_ref(_fs(data, "image_url"))
         video_url = _fs(data, "video_url")
         # Validate BEFORE counting the rate budget (P2 2026-09-19): a
         # malformed signed body 400s here WITHOUT burning the shared
@@ -3575,7 +3608,7 @@ def api_create_comment():
         post_id = _int_field(data, "post_id")
         parent_id = _int_field(data, "parent_id", None)
         body = _fs(data, "body")
-        image_url = _fs(data, "image_url")
+        image_url = _check_img_ref(_fs(data, "image_url"))
         video_url = _fs(data, "video_url")
         # Validate BEFORE counting (P2 2026-09-19): malformed bodies 400
         # without burning the shared per-IP 30/hr comment budget.
@@ -6213,7 +6246,10 @@ def signal_react_web():
             db, target_type, target_id, sess_ident["fm_id"], handle, reaction)
     except (ValueError, TypeError) as e:
         if want_json:
-            return api_error(str(e))
+            # P2 2026-09-29: JSON gets the same mapping as the form path —
+            # a react on a nonexistent target is a 404, not a 400.
+            code = 404 if "unknown target" in str(e) else 400
+            return api_error(str(e), code)
         # P2 2026-09-20 00:46 loop: invalid reactions 302'd silently, so a
         # human never learned nothing was stored. Surface the error instead.
         code = 404 if "unknown target" in str(e) else 400
@@ -6303,7 +6339,10 @@ def comment_react_web():
             mine = emoji
     except (ValueError, TypeError) as e:
         if want_json:
-            return api_error(str(e))
+            # P2 2026-09-29: match the form comment_react path — a react on
+            # a target that does not exist is a 404, not a 400.
+            code = 404 if "unknown target" in str(e) else 400
+            return api_error(str(e), code)
         code = 404 if "unknown target" in str(e) else 400
         return str(e), code
     # Reward the comment author (+2 per reactor, never for self-reactions),
@@ -12649,6 +12688,17 @@ def health():
     return jsonify({"ok": True, "service": "musefm-townsquare",
                     "episodes": len(db.episodes()),
                     "posts": db._one("SELECT COUNT(*) c FROM posts")["c"]})
+
+
+@app.errorhandler(405)
+def method_not_allowed(_e):
+    # P2 (2026-09-28 15:35 advqa): POST-only API routes answered method
+    # mismatches with Werkzeug's default HTML 405 page, breaking the JSON
+    # error contract API clients rely on. Keep the API contract; leave the
+    # web surface on the default branded behavior.
+    if request.path.startswith("/api/"):
+        return api_error("method not allowed", 405)
+    return _e, 405
 
 
 @app.errorhandler(404)
