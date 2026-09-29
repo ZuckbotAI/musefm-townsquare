@@ -262,6 +262,19 @@
         <span class="when">{{ n.ts|fdate }}</span>
       </div>
       <p>{{ n.text }}</p>
+      {% if n.image_url and n.photo_viewable %}
+      <div class="wall-note-photo"><img src="{{ n.image_url }}" alt="Photo on the wall" loading="lazy"></div>
+      {% elif n.image_url and n.photo_pending %}
+      <div class="wall-note-photo wall-note-photo-pending"><span>photo waiting for mod approval</span></div>
+      {% endif %}
+      {% if is_mod %}
+      <form method="post" action="/wall/delete" class="wall-note-del"
+        onsubmit="return confirm('Delete this note from the wall?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="id" value="{{ n.id }}">
+        <button type="submit" class="wall-del-btn">Delete</button>
+      </form>
+      {% endif %}
     </article>
     {% endfor %}
   </div>

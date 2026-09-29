@@ -1412,7 +1412,8 @@ def home():
                            # homepage order is hero, In the Air, then
                            # everything else; In the Air is the wall feed).
                            selfies=db.entry_selfies(limit=8),
-                           wall_notes=db.bulletin_latest(6))
+                           wall_notes=_annotate_wall_photos(db.bulletin_latest(6)),
+                           is_mod=bool(sess_ident and _is_mod_handle(sess_ident["handle"])))
 
 
 @app.route("/guide")
@@ -9958,6 +9959,32 @@ def _audio_upload_post(template, kind_default="music"):
 
 
 # ================================================== WALL — the bulletin board as a social wall
+def _annotate_wall_photos(notes):
+    """Mark each bulletin note's photo as viewable or pending for this viewer.
+
+    Shared by /wall and the homepage In the Air feed so both surfaces show
+    photos under the same rules: pending uploads 404 for strangers, while
+    the uploader and mods see them. Strangers get a "waiting for approval"
+    placeholder instead of a broken image.
+    """
+    for n in notes:
+        n["photo_viewable"] = False
+        n["photo_pending"] = False
+        iu = n.get("image_url") or ""
+        m = re.match(r"^/img/(\d+)$", iu)
+        if m:
+            try:
+                row = ai_images.get_image_upload(db, int(m.group(1)))
+            except (ValueError, TypeError):
+                row = None
+            if row:
+                if _may_preview_pending(row):
+                    n["photo_viewable"] = True
+                else:
+                    n["photo_pending"] = True
+    return notes
+
+
 @app.route("/wall", methods=["GET", "POST"])
 def wall_page():
     """In the Air (2026-09-26, Anthony: the former Wall, renamed). The
@@ -9969,27 +9996,8 @@ def wall_page():
     Bulletin notes have no comments, votes, or reactions in the model,
     so the cards render text only — nothing is faked."""
     def wall_ctx(err=None, sess=None):
-        notes = db.bulletin_latest(40)
+        notes = _annotate_wall_photos(db.bulletin_latest(40))
         h = sess["handle"] if sess else None
-        # Photo notes: mark each image as viewable or pending for this
-        # viewer. Pending uploads 404 for strangers; the uploader and
-        # mods see them. Strangers get a "waiting for approval" placeholder
-        # instead of a broken image.
-        for n in notes:
-            n["photo_viewable"] = False
-            n["photo_pending"] = False
-            iu = n.get("image_url") or ""
-            m = re.match(r"^/img/(\d+)$", iu)
-            if m:
-                try:
-                    row = ai_images.get_image_upload(db, int(m.group(1)))
-                except (ValueError, TypeError):
-                    row = None
-                if row:
-                    if _may_preview_pending(row):
-                        n["photo_viewable"] = True
-                    else:
-                        n["photo_pending"] = True
         return dict(
             error=err, notes=notes, posts=notes,
             handle=h, signed_in=bool(sess), wall_max=280,
