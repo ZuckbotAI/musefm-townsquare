@@ -1651,19 +1651,19 @@ body::before {
     background: var(--rz-blue-soft);
     border-radius: 999px; padding: 2px 14px;
   }
-  .bn-spacer {
-    flex: 1 1 0; min-height: 54px; padding: 6px 2px;
-    pointer-events: none; visibility: hidden;
-  }
   .bn-create {
-    flex: 0 0 auto; align-self: center;
-    width: 52px; height: 52px; margin: 0 6px; border-radius: 50%;
+    flex: 1 1 0; min-height: 54px; padding: 6px 2px;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none;
+  }
+  .bn-plus {
+    width: 52px; height: 52px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     background: linear-gradient(135deg, #4a93ff, #1d5fe2); color: #fff;
-    font-size: 26px; font-weight: 400; text-decoration: none; line-height: 1;
+    font-size: 26px; font-weight: 400; line-height: 1;
     box-shadow: 0 8px 20px rgba(47, 123, 255, 0.45), inset 0 1px 0 rgba(255,255,255,.5);
   }
-  .bn-create:active { transform: scale(0.94); }
+  .bn-create:active .bn-plus { transform: scale(0.94); }
 }
 
 /* ---------- mobile rail strip for side widgets (<=880px) ---------- */
@@ -2010,11 +2010,11 @@ body::before {
 /* ---- mobile bottom nav: icon nudges like the sidebar ---- */
 .bn-icon { transition: transform .18s var(--ease-micro); }
 .bn-item:hover .bn-icon { transform: scale(1.12); }
-.bn-create {
+.bn-plus {
   transition: transform .2s var(--ease-micro), filter .2s var(--ease-micro),
     box-shadow .2s var(--ease-micro);
 }
-.bn-create:hover { transform: scale(1.07); filter: brightness(1.08); }
+.bn-create:hover .bn-plus { transform: scale(1.07); filter: brightness(1.08); }
 
 /* ---- reduced motion: no hover animation at all ---- */
 @media (prefers-reduced-motion: reduce) {
@@ -2022,7 +2022,7 @@ body::before {
   .feed-bar .tabs a, .seg-tabs a, .seg-tabs button, .sc-sortbar button,
   .votes .vote-btn, .votes .cvote-btn, .rz-post .vote-btn, .cvote .cvote-btn,
   .short-mute, .shorts-chrome-btn, .shorts-back,
-  .bn-icon, .bn-create, .tool-btn, .icon-pick {
+  .bn-icon, .bn-plus, .tool-btn, .icon-pick {
     transition: none !important;
     animation: none !important;
   }
@@ -2031,7 +2031,7 @@ body::before {
   .sc-sortbar button:hover, .votes .vote-btn:hover, .votes .cvote-btn:hover,
   .rz-post .vote-btn:hover, .cvote .cvote-btn:hover, .shorts-filter:hover,
   .short-mute:hover, .shorts-chrome-btn:hover, .shorts-back:hover,
-  .bn-item:hover .bn-icon, .bn-create:hover, .tool-btn:hover, .icon-pick:hover {
+  .bn-item:hover .bn-icon, .bn-create:hover .bn-plus, .tool-btn:hover, .icon-pick:hover {
     transform: none !important;
     filter: none !important;
   }
