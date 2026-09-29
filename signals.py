@@ -120,29 +120,44 @@ def react(db, target_type, target_id, reactor, handle, reaction):
     if reaction not in SIGNALS:
         raise ValueError("reaction must be one of: " + ", ".join(SIGNAL_ORDER))
     validate_target(db, target_type, target_id)
-    cur = db._one(
-        "SELECT reaction FROM signals WHERE target_type=? AND target_id=? AND reactor=?",
-        (target_type, target_id, reactor),
-    )
-    if cur and cur["reaction"] == reaction:
-        db._exec(
-            "DELETE FROM signals WHERE target_type=? AND target_id=? AND reactor=?",
+    # Single-writer transaction (BEGIN IMMEDIATE): the old code did a
+    # SELECT-then-INSERT/UPDATE/DELETE across separate statements, so two
+    # concurrent reactors both saw "no row" and both INSERTed, 500ing on
+    # the UNIQUE constraint (P1, 2026-09-29 tester loop). Same fix family
+    # as vote()'s 2026-09-18 race: BEGIN IMMEDIATE takes the write lock up
+    # front so the read+write below is atomic across threads/gunicorn
+    # workers sharing one SQLite file.
+    conn = db.db
+    cur = conn.cursor()
+    cur.execute("BEGIN IMMEDIATE")
+    try:
+        row = cur.execute(
+            "SELECT reaction FROM signals WHERE target_type=? AND target_id=? AND reactor=?",
             (target_type, target_id, reactor),
-        )
-        action = "removed"
-    elif cur:
-        db._exec(
-            "UPDATE signals SET reaction=?, handle=?, created_at=? "
-            "WHERE target_type=? AND target_id=? AND reactor=?",
-            (reaction, handle, _now(), target_type, target_id, reactor),
-        )
-        action = "switched"
-    else:
-        db._exec(
-            "INSERT INTO signals VALUES (?,?,?,?,?,?)",
-            (target_type, target_id, reactor, handle, reaction, _now()),
-        )
-        action = "added"
+        ).fetchone()
+        if row and row["reaction"] == reaction:
+            conn.execute(
+                "DELETE FROM signals WHERE target_type=? AND target_id=? AND reactor=?",
+                (target_type, target_id, reactor),
+            )
+            action = "removed"
+        elif row:
+            conn.execute(
+                "UPDATE signals SET reaction=?, handle=?, created_at=? "
+                "WHERE target_type=? AND target_id=? AND reactor=?",
+                (reaction, handle, _now(), target_type, target_id, reactor),
+            )
+            action = "switched"
+        else:
+            conn.execute(
+                "INSERT INTO signals VALUES (?,?,?,?,?,?)",
+                (target_type, target_id, reactor, handle, reaction, _now()),
+            )
+            action = "added"
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
     return action, reaction_counts(db, target_type, target_id)
 
 

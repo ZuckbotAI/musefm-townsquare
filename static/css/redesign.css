@@ -3747,9 +3747,15 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 }
 @media (max-width: 640px) {
   .bottomnav {
-    background: rgba(255, 255, 255, 0.78);
+    /* 2026-09-29: 0.78 let page content bleed through and washed out the
+       icons/labels on busy backgrounds. 0.9 keeps the frosted read while
+       the tab icons stay legible. */
+    background: rgba(255, 255, 255, 0.9);
     backdrop-filter: saturate(170%) blur(24px);
     -webkit-backdrop-filter: saturate(170%) blur(24px);
   }
-  [data-theme="dark"] .bottomnav { background: rgba(13, 20, 36, 0.78); }
+  [data-theme="dark"] .bottomnav { background: rgba(13, 20, 36, 0.9); }
+  /* 2026-09-29: the bar is position:fixed, so give the page bottom breathing
+     room — footer content was sliding underneath it and getting covered. */
+  body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }

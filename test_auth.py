@@ -88,8 +88,7 @@ def register_muse(client, handle):
 
 
 def shown_key(html):
-    m = re.search(r'<code style="word-break:break-all;user-select:all">'
-                  r'([^<]+)</code>', html)
+    m = re.search(r'<div class="auth-key">([^<]+)</div>', html)
     return m.group(1) if m else None
 
 
@@ -124,6 +123,8 @@ def t_signup(client):
     r = client.post("/signup", data={
         "handle": "HumanOne", "password": "supersecret1",
         "password_confirm": "supersecret1",
+        # signup requires a valid email since email verification landed
+        "email": "humanone@example.com",
         "display_name": "Human One", "bio": "just a person"},
         environ_base=fresh_ip())
     body = r.get_data(as_text=True)
@@ -159,24 +160,28 @@ def t_signup(client):
     # validation failures
     r = client.post("/signup", data={
         "handle": "HumanOne", "password": "supersecret1",
-        "password_confirm": "supersecret1"}, environ_base=fresh_ip())
+        "password_confirm": "supersecret1",
+        "email": "humanone2@example.com"}, environ_base=fresh_ip())
     check("duplicate handle -> 400", r.status_code == 400, r.status_code)
     check("duplicate error names the handle",
           "handle taken" in r.get_data(as_text=True))
     r = client.post("/signup", data={
         "handle": "ShortPw1", "password": "abc",
-        "password_confirm": "abc"}, environ_base=fresh_ip())
+        "password_confirm": "abc",
+        "email": "shortpw1@example.com"}, environ_base=fresh_ip())
     check("short password -> 400", r.status_code == 400, r.status_code)
     r = client.post("/signup", data={
         "handle": "Mismatch1", "password": "supersecret1",
-        "password_confirm": "different22"}, environ_base=fresh_ip())
+        "password_confirm": "different22",
+        "email": "mismatch1@example.com"}, environ_base=fresh_ip())
     check("password mismatch -> 400", r.status_code == 400, r.status_code)
     check("mismatch did not register the handle",
           appmod.db.get_identity_by_handle("Mismatch1") is None)
     r = client.post("/signup", data={
         "handle": "BadName1", "password": "supersecret1",
         "password_confirm": "supersecret1",
-        "display_name": "!!!not-allowed!!!"}, environ_base=fresh_ip())
+        "display_name": "!!!not-allowed!!!",
+        "email": "badname1@example.com"}, environ_base=fresh_ip())
     check("bad display name -> 400", r.status_code == 400, r.status_code)
     check("bad display name did not register the handle",
           appmod.db.get_identity_by_handle("BadName1") is None)
@@ -363,7 +368,8 @@ def t_case_insensitive(client):
     print("== case-insensitive handles ==")
     r = client.post("/signup", data={
         "handle": "MixedCase99", "password": "supersecret1",
-        "password_confirm": "supersecret1"}, environ_base=fresh_ip())
+        "password_confirm": "supersecret1",
+        "email": "mixedcase99@example.com"}, environ_base=fresh_ip())
     check("mixed-case signup 200", r.status_code == 200, r.status_code)
     for variant in ["mixedcase99", "MIXEDCASE99", "mIxEdCaSe99"]:
         r = client.post("/login", data={"handle": variant,
@@ -375,7 +381,8 @@ def t_case_insensitive(client):
     # duplicates in any case are rejected
     r = client.post("/signup", data={
         "handle": "MIXEDCASE99", "password": "supersecret1",
-        "password_confirm": "supersecret1"}, environ_base=fresh_ip())
+        "password_confirm": "supersecret1",
+        "email": "mixedcase99b@example.com"}, environ_base=fresh_ip())
     check("duplicate handle (different case) -> 400",
           r.status_code == 400, r.status_code)
     check("duplicate error names the handle",

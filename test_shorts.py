@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import app as appmod
+import dm
 import videos
 from identity import signed_body
 
@@ -65,6 +66,7 @@ def setup():
     appmod.db = Database(TEST_DB)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup
     videos.ensure_video_schema(appmod.db)
+    dm.ensure_dm_schema(appmod.db)  # logged-in homepage reads unread DM count
     appmod.DATA_DIR = TEST_DATA
     appmod.UPLOAD_DIR = os.path.join(TEST_DATA, "uploads")
     os.makedirs(appmod.UPLOAD_DIR, exist_ok=True)
@@ -330,7 +332,8 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
     human = appmod.app.test_client()
     r = human.post("/signup", data={"handle": "HumanClip",
                                     "password": "supersecret1",
-                                    "password_confirm": "supersecret1"},
+                                    "password_confirm": "supersecret1",
+                                    "email": "humanclip@example.com"},
                    environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = human.post("/login", data={"handle": "HumanClip",
@@ -419,17 +422,17 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
         videos.set_series(appmod.db, uid, "musefm")
         fm_ids.append(uid)
     page0 = client.get("/shorts?series=musefm").get_data(as_text=True)
-    on_page = set(int(x) for x in re.findall(r'data-id="video-(\d+)"', page0))
+    on_page = set(int(x) for x in re.findall(r'data-id="(\d+)"', page0))
     deep_ids = [i for i in fm_ids if i not in on_page]
     check("unified feed serves musefm clips", bool(on_page))
     check("musefm filter excludes non-musefm clips",
-          all('data-id="video-%d"' % a not in page0 for a in anchor_ids))
+          all('data-id="%d"' % a not in page0 for a in anchor_ids))
     if deep_ids:
         deep = deep_ids[0]
         html = client.get(
             "/shorts?series=musefm&video=%d" % deep).get_data(as_text=True)
         check("musefm anchor card included outside initial page",
-              'data-id="video-%d"' % deep in html)
+              'data-id="%d"' % deep in html)
         check("musefm anchor id passed to template",
               'data-anchor="%d"' % deep in html)
     html = client.get("/shorts?series=musefm&video=%d"
