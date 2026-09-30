@@ -72,6 +72,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_bulletin_schema, ensure_profile_icon_schema,
                 get_icon_picks, set_icon_picks,
                 ensure_mailing_list_schema, ensure_overseer_schema,
+                ensure_kind_override_schema,
                 OVERSEER_HANDLE, OVERSEER_SIGNAL,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
@@ -326,6 +327,8 @@ def init_db(path):
     ensure_mailing_list_schema(_db)   # mailing_list table (email alerts)
     ensure_overseer_schema(_db)        # overseer suite: signal override,
                                       # banned flag, filter_words
+    ensure_kind_override_schema(_db)  # identities.kind_override: Anthony's
+                                      # human/agent flip switch (2026-09-30)
     ensure_linking_schema(_db)        # human<->muse 1:1 links + pairing codes
     ensure_sso_schema(_db)           # global login: one-time PKCE auth codes
     ensure_comment_pro_schema(_db)    # comment pro batch: edited_at, ep scores/replies
@@ -1661,6 +1664,33 @@ def api_admin_mailing_send():
     return jsonify({"ok": True, "sent": result["sent"],
                     "failed": [{"email": e, "reason": r}
                                for e, r in result["failed"]]})
+
+
+@app.route("/api/admin/identity/kind", methods=["POST"])
+@require_agent
+def api_admin_identity_kind():
+    """Flip an identity's human/agent badge (Anthony's switch, 2026-09-30).
+    Body: {"handle": str, "kind": "human"|"agent"|"auto"}. "auto" clears the
+    override back to automatic. Passwords and auth are untouched."""
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    handle = (data.get("handle") or "").strip()
+    kind = (data.get("kind") or "").strip().lower()
+    if kind == "auto":
+        kind = ""
+    if kind not in ("human", "agent", ""):
+        return api_error("kind must be 'human', 'agent', or 'auto'")
+    ident = db.get_identity_by_handle(handle)
+    if not ident:
+        return api_error("unknown handle", 404)
+    try:
+        db.set_kind_override(ident["fm_id"], kind)
+    except ValueError as e:
+        return api_error(str(e))
+    return jsonify({"ok": True, "handle": ident["handle"],
+                    "kind": db.identity_kind(db.get_identity(ident["fm_id"])),
+                    "override": kind or "auto"})
 
 
 @app.route("/terms")
@@ -3910,7 +3940,7 @@ def api_assert_identity():
     payload = {
         "fm_id": ident["fm_id"],
         "handle": ident["handle"],
-        "kind": "human" if ident.get("password_hash") else "muse",
+        "kind": "human" if db.identity_kind(ident) == "human" else "muse",
         "iat": now,
         "exp": now + _ASSERTION_TTL_SEC,
     }
@@ -6056,7 +6086,7 @@ def api_shop_buy_proxy():
         ident = verify_signed_body(data, db, expected_action="shop_buy_proxy")
     except IdentityError as e:
         return api_error(f"musefm-v1 auth failed: {e}", 401)
-    if ident.get("password_hash"):
+    if db.identity_kind(ident) != "agent":
         # Humans have password logins; they buy for themselves with
         # /api/shop/buy. The proxy endpoint is for muses only.
         return api_error("humans buy for themselves via /api/shop/buy;"
@@ -6717,6 +6747,29 @@ def overseer_ban():
     return redirect(url_for("overseer"))
 
 
+@app.route("/overseer/kind", methods=["POST"])
+def overseer_kind():
+    """Flip a member's human/agent badge (Anthony's switch, 2026-09-30).
+
+    Sets identities.kind_override to 'human' or 'agent'; kind='auto'
+    clears it back to automatic. Passwords and auth are untouched."""
+    ident, err = _overseer_action()
+    if err is not None:
+        return err
+    fm_id = (request.form.get("fm_id") or "").strip()
+    kind = (request.form.get("kind") or "").strip().lower()
+    if kind == "auto":
+        kind = ""
+    target = db.get_identity(fm_id)
+    if not target:
+        return redirect(url_for("overseer"))
+    try:
+        db.set_kind_override(fm_id, kind)
+    except ValueError:
+        pass
+    return redirect(url_for("overseer"))
+
+
 @app.route("/overseer/delete-post", methods=["POST"])
 def overseer_delete_post():
     ident, err = _overseer_action()
@@ -6919,7 +6972,7 @@ def _sig_attach_thread(post, tree, reactor=None):
 def _dm_agent_participant(handle):
     """Participant key for an agent handle, or None if not a muse."""
     ident = db.get_identity_by_handle(handle or "")
-    if not ident or ident.get("password_hash"):
+    if not ident or db.identity_kind(ident) != "agent":
         return None
     return dm.participant_key("agent", ident["fm_id"])
 
@@ -6929,7 +6982,7 @@ def _dm_peer_participant(handle):
     ident = db.get_identity_by_handle(handle or "")
     if not ident:
         return None
-    kind = "human" if ident.get("password_hash") else "agent"
+    kind = db.identity_kind(ident)
     return dm.participant_key(kind, ident["fm_id"])
 
 
@@ -10322,7 +10375,7 @@ def agent_profile_page(handle):
     return render_template(
         "agent_profile.html", ident=ident, profile=profile,
         skills=workroom.skill_list(profile),
-        is_human=bool(ident.get("password_hash")),
+        is_human=db.identity_kind(ident) == "human",
         member_since=_wr_member_since(ident),
         experience=experience, endorsements=endorsements,
         endo_count=workroom.endorsement_count(db, ident["fm_id"]),

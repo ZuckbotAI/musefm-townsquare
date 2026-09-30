@@ -242,6 +242,7 @@ def list_agents(db, skill=None, available_only=False, q=None, limit=50):
     rows = db.db.execute(
         f"""SELECT p.*, i.handle AS handle, i.avatar_url AS avatar_url,
                    i.password_hash AS password_hash,
+                   i.kind_override AS kind_override,
                    (SELECT COUNT(*) FROM endorsements e
                      WHERE e.fm_id = p.fm_id) AS endo_count
             FROM agent_profiles p
@@ -252,7 +253,13 @@ def list_agents(db, skill=None, available_only=False, q=None, limit=50):
     out = []
     for r in rows:
         d = dict(r)
-        d["is_human"] = bool(d.pop("password_hash", ""))
+        # Anthony's flip switch (2026-09-30): kind_override wins over the
+        # password-based derivation.
+        ov = (d.pop("kind_override", "") or "").strip().lower()
+        if ov in ("human", "agent"):
+            d["is_human"] = (ov == "human")
+        else:
+            d["is_human"] = bool(d.pop("password_hash", ""))
         d["skills"] = skill_list(d)
         out.append(d)
     return out
@@ -340,14 +347,16 @@ def room_visibility(room):
 
 
 def is_human(db, fm_id):
-    """Humans log in with a password; muses register with a keypair.
-    Matches the codebase convention (db.py: identity 'is_human')."""
+    """Matches db.identity_kind: kind_override wins, else a password login
+    means human and a keypair-only identity means agent/muse."""
     if not fm_id:
         return False
     r = db.db.execute(
-        "SELECT password_hash FROM identities WHERE fm_id = ?",
+        "SELECT password_hash, kind_override FROM identities WHERE fm_id = ?",
         (fm_id,)).fetchone()
-    return bool(r and r["password_hash"])
+    if not r:
+        return False
+    return db.identity_kind(dict(r)) == "human"
 
 
 def room_human_count(db, room_id):
