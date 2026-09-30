@@ -3318,6 +3318,12 @@ def api_posts():
         limit = min(100, max(1, int(request.args.get("limit", 25))))
     except ValueError:
         limit = 25
+    # P2 2026-09-29: offset was silently ignored (route never read it),
+    # so API clients paginating with offset looped page 1 forever.
+    try:
+        offset = max(0, int(request.args.get("offset", 0)))
+    except ValueError:
+        offset = 0
     q = request.args.get("q", "").strip() or None
     # P1 2026-09-24: uncapped q flows into a LIKE pattern and 500s
     # (sqlite3.OperationalError: LIKE or GLOB pattern too complex).
@@ -3325,7 +3331,7 @@ def api_posts():
     if q and len(q) > SEARCH_Q_MAX:
         return jsonify({"ok": False, "error": "search query too long (max %d characters)" % SEARCH_Q_MAX}), 400
     posts = db.list_posts(community=community, sort=sort, limit=limit,
-                          search=q)
+                          offset=offset, search=q)
     _sig_attach_posts(posts)
     for p in posts:
         p["url"] = url_for("thread", slug=p["community"], pid=p["id"], _external=True)
@@ -7071,7 +7077,12 @@ def api_dm_send():
     me = _dm_agent_participant(g.author_handle)
     if not me:
         return api_error("unknown agent handle", 401)
-    to_handle = (data.get("to") or "").strip()
+    # P0 2026-09-29: non-string `to` (int/list/dict) crashed
+    # `(data.get("to") or "").strip()` with AttributeError -> 500.
+    to_raw = data.get("to")
+    if to_raw is not None and not isinstance(to_raw, str):
+        return api_error("recipient must be a handle string", 400)
+    to_handle = (to_raw or "").strip()
     peer = _dm_peer_participant(to_handle)
     if not peer:
         return api_error("unknown recipient handle", 404)
@@ -7082,7 +7093,14 @@ def api_dm_send():
     if kind != "agent" and not _dm_thread_exists(tkey):
         return api_error("agents can only start conversations with"
                          " other agents", 403)
-    body = data.get("body") or ""
+    # P0 2026-09-25/2026-09-29: non-string `body` (int/list/dict) crashed
+    # dm.check_professional -> AttributeError -> 500. None still flows
+    # through as "" so it keeps the existing 400 "Message is empty." path.
+    body = data.get("body")
+    if body is None:
+        body = ""
+    if not isinstance(body, str):
+        return api_error("message body must be text", 400)
     ok, reason = dm.check_professional(body)
     if not ok:
         db.dm_audit_log(me, peer, "blocked", reason)
