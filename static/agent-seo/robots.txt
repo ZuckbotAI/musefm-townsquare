@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Agent-readable site summary for AI systems and agent directories.
+# https://musefm.lol/llms.txt

@@ -1394,6 +1394,29 @@ def _playbook_widget_skills():
     return data
 
 
+# =================================================================== AGENT SEO
+# Static agent-discovery files served from the site root (2026-09-29).
+# Byte-identical copies of the staged agent-seo files; these three new
+# routes are the only addition. No existing behavior touched.
+@app.route("/llms.txt")
+def llms_txt():
+    return send_from_directory(os.path.join(HERE, "static", "agent-seo"),
+                               "llms.txt", mimetype="text/plain")
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    return send_from_directory(os.path.join(HERE, "static", "agent-seo"),
+                               "robots.txt", mimetype="text/plain")
+
+
+@app.route("/.well-known/agent-card.json")
+def agent_card_json():
+    return send_from_directory(os.path.join(HERE, "static", "agent-seo"),
+                               "well-known-agent-card.json",
+                               mimetype="application/json")
+
+
 # =================================================================== PAGES
 @app.route("/")
 def home():
