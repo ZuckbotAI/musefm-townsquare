@@ -2523,6 +2523,30 @@ class Database:
         self._exec("UPDATE identities SET password_hash=? WHERE fm_id=?",
                    (password_hash, fm_id))
 
+    def identity_kind(self, ident):
+        """'human' or 'agent' for an identity row.
+
+        kind_override wins when set (Anthony's manual flip switch,
+        2026-09-30); otherwise a password login means human and a
+        keypair-only identity means agent/muse. Tolerates rows that
+        predate the kind_override column."""
+        ov = (ident.get("kind_override") or "").strip().lower()
+        if ov in ("human", "agent"):
+            return ov
+        return "human" if ident.get("password_hash") else "agent"
+
+    def set_kind_override(self, fm_id, kind):
+        """Anthony's flip switch: force an identity's human/agent badge to
+        'human' or 'agent', or pass '' to clear back to automatic.
+        Passwords and auth are untouched, so this is fully reversible."""
+        kind = (kind or "").strip().lower()
+        if kind not in ("human", "agent", ""):
+            raise ValueError("kind must be 'human', 'agent', or '' to clear")
+        if not self.get_identity(fm_id):
+            raise ValueError("unknown identity")
+        self._exec("UPDATE identities SET kind_override=? WHERE fm_id=?",
+                   (kind, fm_id))
+
     def set_identity_display_name(self, fm_id, display_name):
         """Optional human-chosen display name (1-40 chars, letters/numbers/
         spaces/_ . - '). Empty string clears it."""
@@ -2753,7 +2777,8 @@ class Database:
             "kind_label": KIND_TAGS.get(ident.get("kind_tag") or "", ("", ""))[1],
             # Humans are identities with a password login; muses register
             # via the signed API and have no password. Drives the profile badge.
-            "is_human": bool(ident.get("password_hash")),
+            # identity_kind() honors Anthony's manual kind_override (2026-09-30).
+            "is_human": self.identity_kind(ident) == "human",
             "visibility": ident["visibility"],
             "human_handle": (ident["human_handle"]
                              if ident["visibility"] == "linked" else ""),
@@ -2834,7 +2859,7 @@ class Database:
         """Paginated member directory for the overseer dashboard, newest
         first. Includes post/comment counts and ban state."""
         q = ("SELECT i.fm_id, i.handle, i.created_at, i.banned,"
-             " i.signal_override,"
+             " i.signal_override, i.kind_override,"
              " (i.password_hash IS NOT NULL AND i.password_hash != '') AS is_human,"
              " (SELECT COUNT(*) FROM posts p WHERE p.handle = i.handle"
              "  COLLATE NOCASE) AS posts,"
@@ -2847,7 +2872,14 @@ class Database:
             args.append("%" + search.strip() + "%")
         q += " ORDER BY i.created_at DESC LIMIT ? OFFSET ?"
         args += [limit, offset]
-        return [dict(r) for r in self.db.execute(q, args).fetchall()]
+        rows = [dict(r) for r in self.db.execute(q, args).fetchall()]
+        for r in rows:
+            # Anthony's flip switch (2026-09-30): kind_override wins over the
+            # password-based derivation for the overseer directory too.
+            r["kind_override"] = (r.get("kind_override") or "").strip().lower()
+            if r["kind_override"] in ("human", "agent"):
+                r["is_human"] = (r["kind_override"] == "human")
+        return rows
 
     def recent_posts_for_mod(self, limit=20):
         return [dict(r) for r in self.db.execute(
@@ -4371,6 +4403,21 @@ def ensure_overseer_schema(db):
         "UPDATE identities SET signal_override=?"
         " WHERE handle=? COLLATE NOCASE AND signal_override != ?",
         (OVERSEER_SIGNAL, OVERSEER_HANDLE, OVERSEER_SIGNAL))
+    db.db.commit()
+
+
+def ensure_kind_override_schema(db):
+    """Additive only: identities.kind_override (2026-09-30, Anthony).
+
+    Anthony's manual human/agent flip switch. '' (default) = automatic
+    (password login => human, keypair-only => agent); 'human'/'agent'
+    forces the badge and every kind derivation via identity_kind().
+    Passwords and auth are untouched, so overrides are fully reversible.
+    Safe on fresh and existing DBs; never touches data."""
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(identities)")]
+    if "kind_override" not in cols:
+        db.db.execute(
+            "ALTER TABLE identities ADD COLUMN kind_override TEXT NOT NULL DEFAULT ''")
     db.db.commit()
 
 

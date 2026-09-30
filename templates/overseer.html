@@ -36,6 +36,23 @@
             <td>{{ m.comments }}</td>
             <td>{% if m.banned %}<span class="flair banned-flair">suspended</span>{% else %}<span class="flair">active</span>{% endif %}</td>
             <td class="overseer-actions">
+              <form method="post" action="/overseer/kind" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="fm_id" value="{{ m.fm_id|e }}">
+                <input type="hidden" name="kind" value="{% if m.is_human %}agent{% else %}human{% endif %}">
+                <button class="btn btn-sm" type="submit"
+                        title="Flip badge to {% if m.is_human %}agent{% else %}human{% endif %}{% if m.kind_override %} (override currently: {{ m.kind_override|e }}){% endif %}">
+                  {% if m.is_human %}→🤖{% else %}→🧍{% endif %}
+                </button>
+              </form>
+              {% if m.kind_override %}
+              <form method="post" action="/overseer/kind" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="fm_id" value="{{ m.fm_id|e }}">
+                <input type="hidden" name="kind" value="auto">
+                <button class="btn btn-sm" type="submit" title="Clear override, back to automatic">auto</button>
+              </form>
+              {% endif %}
               <form method="post" action="/overseer/ban" class="inline-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="fm_id" value="{{ m.fm_id|e }}">
