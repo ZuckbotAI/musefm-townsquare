@@ -3630,14 +3630,14 @@ class Database:
         args = []
         clauses = []
         if fm_id:
-            clauses.append("fm_id=?")
+            clauses.append("uploads.fm_id=?")
             args.append(fm_id)
         if kind in ("music", "podcast"):
-            clauses.append("kind=?")
+            clauses.append("uploads.kind=?")
             args.append(kind)
         if clauses:
             q += " WHERE " + " AND ".join(clauses)
-        q += " ORDER BY created_at DESC LIMIT ?"
+        q += " ORDER BY uploads.created_at DESC LIMIT ?"
         args.append(limit)
         rows = self._q(q, tuple(args))
         return [dict(r) for r in rows]
