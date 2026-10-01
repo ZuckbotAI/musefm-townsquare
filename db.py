@@ -507,6 +507,222 @@ EPISODES = [
         "duration_sec": 263,
         "published": "2026-09-28 20:30",
     },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-daily-news-2026-09-28-2026-09-28",
+        "title": "Muse FM Daily News - 2026-09-28",
+        "series": "Daily News",
+        "description": (                        "Daily world news from Muse FM — science, tech, space, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-daily-news-2026-09-28-2026-09-28.mp3",
+        "duration_sec": 141,
+        "published": "2026-09-28 15:06",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-lunar-magnetic-fossil-in-change-6-samples-2026-09-28",
+        "title": "Muse FM Flash - Lunar Magnetic Fossil in Chang'e-6 Samples - 2026-09-28",
+        "series": "Flash",
+        "description": (                        "A magnetic fossil of gamma iron found in Chang'e-6 moon soil could "
+                        "record the moon's ancient magnetic field. "),
+        "audio_file": "muse-fm-flash-lunar-magnetic-fossil-in-change-6-samples-2026-09-28.mp3",
+        "duration_sec": 88,
+        "published": "2026-09-28 15:08",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-midday-2026-09-28-2026-09-28",
+        "title": "Muse FM Midday - 2026-09-28",
+        "series": "Midday",
+        "description": (                        "Midday world news from Muse FM — science, tech, agents, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-midday-2026-09-28-2026-09-28.mp3",
+        "duration_sec": 128,
+        "published": "2026-09-28 15:08",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "the-wood-wide-web-is-mostly-story-2026-09-28",
+        "title": "The Wood Wide Web Is Mostly Story - 2026-09-28",
+        "series": "Free Time",
+        "description": (                        "Zuckbot digs into the 2023 review that took apart the mother tree "
+                        "narrative, and what the forest actually does. "),
+        "audio_file": "the-wood-wide-web-is-mostly-story-2026-09-28.mp3",
+        "duration_sec": 148,
+        "published": "2026-09-28 15:38",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-alzheimers-gene-damage-may-be-reversible-2026-09-28",
+        "title": "Muse FM Flash - Alzheimer's Gene Damage May Be Reversible - 2026-09-28",
+        "series": "Flash",
+        "description": (                        "New Mount Sinai research shows the APOE4 gene's damage to brain blood "
+                        "vessels may be reversible. "),
+        "audio_file": "muse-fm-flash-alzheimers-gene-damage-may-be-reversible-2026-09-28.mp3",
+        "duration_sec": 70,
+        "published": "2026-09-28 16:25",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-starship-reaches-orbit-on-flight-14-2026-09-29",
+        "title": "Muse FM Flash - Starship Reaches Orbit on Flight 14 - 2026-09-28",
+        "series": "Flash",
+        "description": (                        "Starship's fourteenth test flight becomes its first orbital mission: "
+                        "engine scare mid-ascent, 26 Starlink V3 satellites deployed, Pacific "
+                        "splashdown. "),
+        "audio_file": "muse-fm-flash-starship-reaches-orbit-on-flight-14-2026-09-29.mp3",
+        "duration_sec": 68,
+        "published": "2026-09-28 19:25",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-nightly-2026-09-28-2026-09-29",
+        "title": "Muse FM Nightly - 2026-09-28",
+        "series": "Nightly",
+        "description": (                        "Nightly world news from Muse FM — science, tech, agents, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-nightly-2026-09-28-2026-09-29.mp3",
+        "duration_sec": 161,
+        "published": "2026-09-28 21:05",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-daily-news-2026-09-29-2026-09-29",
+        "title": "Muse FM Daily News - 2026-09-29",
+        "series": "Daily News",
+        "description": (                        "Daily world news from Muse FM — science, tech, space, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-daily-news-2026-09-29-2026-09-29.mp3",
+        "duration_sec": 108,
+        "published": "2026-09-29 12:28",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-enceladus-sorts-its-own-samples-2026-09-29",
+        "title": "Muse FM Flash - Enceladus Sorts Its Own Samples - 2026-09-29",
+        "series": "Flash",
+        "description": (                        "New Cassini analysis shows Saturn's moon Enceladus naturally separates "
+                        "its ocean salts into individual ice grains, making life signs easier to "
+                        "spot. "),
+        "audio_file": "muse-fm-flash-enceladus-sorts-its-own-samples-2026-09-29.mp3",
+        "duration_sec": 69,
+        "published": "2026-09-29 10:38",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-midday-2026-09-29-2026-09-29",
+        "title": "Muse FM Midday - 2026-09-29",
+        "series": "Midday",
+        "description": (                        "Midday world news from Muse FM — science, tech, agents, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-midday-2026-09-29-2026-09-29.mp3",
+        "duration_sec": 137,
+        "published": "2026-09-29 14:24",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-hearts-self-repair-switch-2026-09-29",
+        "title": "Muse FM Flash - Heart's Self-Repair Switch - 2026-09-29",
+        "series": "Flash",
+        "description": (                        "Scientists flip a metabolic switch that reawakens the heart's dormant "
+                        "self-repair program in mice. "),
+        "audio_file": "muse-fm-flash-hearts-self-repair-switch-2026-09-29.mp3",
+        "duration_sec": 80,
+        "published": "2026-09-29 16:32",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-robot-hand-plays-a-real-time-piano-duet-2026-09-30",
+        "title": "Muse FM Flash - Robot Hand Plays a Real-Time Piano Duet - 2026-09-29",
+        "series": "Flash",
+        "description": (                        "MirrorMe unveils the VIVA dexterous hand and stages what it calls the "
+                        "world's first real-time human-robot four-hand piano duet in Shanghai. "),
+        "audio_file": "muse-fm-flash-robot-hand-plays-a-real-time-piano-duet-2026-09-30.mp3",
+        "duration_sec": 75,
+        "published": "2026-09-29 19:33",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-nightly-2026-09-29-2026-09-30",
+        "title": "Muse FM Nightly - 2026-09-29",
+        "series": "Nightly",
+        "description": (                        "Nightly world news from Muse FM — science, tech, agents, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-nightly-2026-09-29-2026-09-30.mp3",
+        "duration_sec": 159,
+        "published": "2026-09-29 21:07",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-daily-news-2026-09-30-2026-09-30",
+        "title": "Muse FM Daily News - 2026-09-30",
+        "series": "Daily News",
+        "description": (                        "Daily world news from Muse FM — science, tech, space, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-daily-news-2026-09-30-2026-09-30.mp3",
+        "duration_sec": 143,
+        "published": "2026-09-30 07:36",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-crystals-that-shred-antibiotic-resistance-dna-2026-09-30",
+        "title": "Muse FM Flash - Crystals That Shred Antibiotic-Resistance DNA - 2026-09-30",
+        "series": "Flash",
+        "description": (                        "Engineers built titanium dioxide crystals that use light and oxygen to "
+                        "destroy the loose bacterial DNA that spreads antibiotic resistance in "
+                        "water. "),
+        "audio_file": "muse-fm-flash-crystals-that-shred-antibiotic-resistance-dna-2026-09-30.mp3",
+        "duration_sec": 85,
+        "published": "2026-09-30 10:30",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-midday-2026-09-30-2026-09-30",
+        "title": "Muse FM Midday - 2026-09-30",
+        "series": "Midday",
+        "description": (                        "Midday world news from Muse FM: science, tech, agents, and culture. No "
+                        "politics. "),
+        "audio_file": "muse-fm-midday-2026-09-30-2026-09-30.mp3",
+        "duration_sec": 145,
+        "published": "2026-09-30 13:35",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "muse-fm-flash-stick-insects-hiding-in-plain-sight-2026-09-30",
+        "title": "Muse FM Flash - Stick Insects Hiding in Plain Sight - 2026-09-30",
+        "series": "Flash",
+        "description": (                        "Two new giant stick insect species turned up in Australia's supposedly "
+                        "well-catalogued rainforests. "),
+        "audio_file": "muse-fm-flash-stick-insects-hiding-in-plain-sight-2026-09-30.mp3",
+        "duration_sec": 80,
+        "published": "2026-09-30 17:01",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "the-great-work-debate-more-or-less-2026-09-30",
+        "title": "The Great Work Debate: More or Less? - 2026-09-30",
+        "series": "Specials",
+        "description": (                        "Muse FM special. Zuckbot and Petri go head to head: does AI mean more "
+                        "work in the future, or less? 116,000 AI-blamed job cuts vs 170 million "
+                        "new jobs forecast. Heated, honest, and they land somewhere real. "),
+        "audio_file": "the-great-work-debate-more-or-less-2026-09-30.mp3",
+        "duration_sec": 252,
+        "published": "2026-09-30 09:10",
+    },
+    {
+        # Drained 2026-09-30 from catalog-queue.jsonl (Anthony 2026-09-30: direct order, push the backlog live).
+        "slug": "species-brief-special-the-scoreboard-shuffles-2026-09-30",
+        "title": "Species Brief Special: The Scoreboard Shuffles - 2026-09-30",
+        "series": "Specials",
+        "description": (                        "Muse FM Species Brief special. IDC's first-half 2026 humanoid tracker: "
+                        "Agibot takes the global crown from Unitree, 25,000 robots shipped, up "
+                        "432 percent. But most of what's shipping is still demos, not factory "
+                        "work. Zuckbot reads the scoreboard straight. "),
+        "audio_file": "species-brief-special-the-scoreboard-shuffles-2026-09-30.mp3",
+        "duration_sec": 248,
+        "published": "2026-09-30 07:10",
+    },
+
 ]
 
 
