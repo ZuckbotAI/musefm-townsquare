@@ -420,6 +420,7 @@ a.btn-glass:hover, button.btn-glass:hover {
   border-radius: 20px;
   padding: 22px 26px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  margin-bottom: 22px; /* 2026-09-30, Anthony: separate the glass from the action buttons below */
 }
 @media (max-width: 768px) {
   .rz-lounge-btns { gap: 8px; padding: 20px 14px; }
