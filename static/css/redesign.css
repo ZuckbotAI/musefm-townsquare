@@ -360,15 +360,7 @@ a { color: var(--rz-blue-deep); }
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.rz-lounge-btns .btn-glass { flex-wrap: wrap; }
-.btn-glass .btn-sub {
-  flex-basis: 100%;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.85;
-  margin-top: 2px;
-}
+.rz-ref-title-sm { font-size: 14px; }
 a.btn-glass:hover, button.btn-glass:hover {
   transform: translateY(-1px);
   color: #fff;
