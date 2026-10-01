@@ -361,7 +361,6 @@ a { color: var(--rz-blue-deep); }
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
 }
 .rz-ref-title-sm { font-size: 14px; }
-.rz-pet-word { color: #4d94ff; font-weight: 800; }
 a.btn-glass:hover, button.btn-glass:hover {
   transform: translateY(-1px);
   color: #fff;
