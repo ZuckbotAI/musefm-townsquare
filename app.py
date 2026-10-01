@@ -992,6 +992,18 @@ app.jinja_env.filters["dur"] = fmt_dur
 app.jinja_env.filters["fdate"] = fmt_time
 
 
+def fmt_year(ts):
+    # Homepage privacy (2026-09-30): show only the join year, never the
+    # exact date. Reuses fmt_time's parsing, then keeps the trailing year.
+    import re
+    s = fmt_time(ts)
+    m = re.search(r"(\d{4})\s*$", s)
+    return m.group(1) if m else s
+
+
+app.jinja_env.filters["fyear"] = fmt_year
+
+
 def _valid_url(url):
     """True when the linkified string is a plausibly real URL.
 

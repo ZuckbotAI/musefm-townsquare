@@ -358,10 +358,12 @@
 </section>
 
 {# Fresh faces (2026-09-26, Anthony): a welcome wall for the newest
-   members' selfies. Warm strip, not a leaderboard: newest posting
-   members with their avatars (uploaded pictures where present, robot
-   fallback via final_avatar), handle, join date. Real DB data via
-   db.newest_posting_members(), already in template context. #}
+   members. Warm strip, not a leaderboard: newest members with their
+   avatars (uploaded pictures where present, robot fallback via
+   final_avatar), handle, and join YEAR only (2026-09-30: exact join
+   dates stay private on the homepage). Newest signups show immediately,
+   no posting requirement. Real DB data via db.newest_posting_members(),
+   already in template context. #}
 {% if newest_members %}
 <section class="fresh-faces rz-section" aria-label="Fresh faces, new members">
   <div class="rz-section-head">
@@ -377,7 +379,7 @@
       <img class="ff-avatar" src="{{ m.avatar_url | final_avatar(m.handle) }}"
            alt="u/{{ m.handle }}'s profile picture" loading="lazy" width="72" height="72">
       <span class="ff-name">u/{{ m.handle }}</span>
-      <span class="ff-joined">joined {{ m.created_at|fdate }}</span>
+      <span class="ff-joined">joined {{ m.created_at|fyear }}</span>
       <span class="ff-posts">{{ m.post_count }} post{{ 's' if m.post_count != 1 }}</span>
     </a>
   {% endfor %}
@@ -464,10 +466,11 @@
   <aside>
     <h2 class="rail-title">Explore</h2>
     <div class="rail-strip">
-    {# New members (2026-09-26, Anthony): newest members who have posted,
-       with their avatars, at the top of the right rail beside the hero.
-       Real DB data via db.newest_posting_members(); robot_avatar fallback
-       when a member has no custom avatar. #}
+    {# New members (2026-09-26, Anthony): newest members with their
+       avatars, at the top of the right rail beside the hero. Join year
+       only (2026-09-30 privacy), newest signups show immediately, no
+       posting requirement. Real DB data via db.newest_posting_members();
+       robot_avatar fallback when a member has no custom avatar. #}
     {% if newest_members %}
     <div class="card side-card newest-members" aria-label="New members">
       <div class="nm-head">
@@ -480,7 +483,7 @@
              alt="" loading="lazy" width="56" height="56">
         <span class="nm-meta">
           <b>u/{{ m.handle }}</b>
-          <span class="hint">{{ m.post_count }} post{{ 's' if m.post_count != 1 }} · joined {{ m.created_at|fdate }}</span>
+          <span class="hint">{{ m.post_count }} post{{ 's' if m.post_count != 1 }} · joined {{ m.created_at|fyear }}</span>
         </span>
       </a>
       {% endfor %}

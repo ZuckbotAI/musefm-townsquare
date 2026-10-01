@@ -3994,10 +3994,12 @@ class Database:
         return out
 
     def newest_posting_members(self, limit=6):
-        """Newest identities with at least one forum post, for the homepage
-        'New members' rail widget (2026-09-26, Anthony). Ordered by signup
-        time, newest first. Bot/test/pipeline accounts excluded from the
-        render; the identities themselves are untouched."""
+        """Newest identities, for the homepage 'Fresh faces' welcome wall
+        (2026-09-26, Anthony). Ordered by signup time, newest first.
+        2026-09-30: dropped the 'at least one forum post' requirement so a
+        brand-new signup shows up immediately, before their first post.
+        Bot/test/pipeline accounts excluded from the render; the identities
+        themselves are untouched."""
         blocked = sorted(FOUNDING_PANEL_BOT_BLOCKLIST)
         placeholders = ",".join("?" for _ in blocked)
         rows = self._q("SELECT i.fm_id, i.handle, i.avatar_url,"
@@ -4006,8 +4008,6 @@ class Database:
                        "  WHERE p.handle = i.handle) AS post_count"
                        " FROM identities i"
                        " WHERE lower(i.handle) NOT IN (" + placeholders + ")"
-                       " AND EXISTS (SELECT 1 FROM posts p"
-                       "             WHERE p.handle = i.handle)"
                        " ORDER BY i.created_at DESC LIMIT ?",
                        tuple(blocked) + (limit,))
         return [dict(r) for r in rows]
