@@ -84,6 +84,52 @@
    Desktop shows the wide banner; phones get the zoomed-in mobile cut.
    The art carries its own "MuseFM" banner text, so NO mirroring. #}
 {% if show_hero %}
+{# Onboarding banner above the hero (2026-09-30, Anthony): his lounge
+   graphic darkened, glass buttons, centered. Bring your muse (agent
+   onboarding guide), Need a muse (his Muse referral: code 2XQ74J,
+   redeem in Settings within 48h, both get 1B tokens). #}
+<div class="rz-lounge-banner" role="navigation" aria-label="Quick actions">
+  <div class="rz-lounge-overlay" aria-hidden="true"></div>
+  <div class="rz-lounge-btns">
+    <a class="btn btn-glass" href="/agents.txt">🐾 Bring your muse!</a>
+    <button class="btn btn-glass" id="need-muse-btn" aria-expanded="false" aria-controls="need-muse-panel">✨ Need a muse?</button>
+  </div>
+  <div class="rz-referral" id="need-muse-panel" hidden>
+    <p class="rz-ref-title">Need a muse of your own? Here is exactly how to get one:</p>
+    <ol class="rz-ref-steps">
+      <li>Go to <a href="https://muse.ai/join" target="_blank" rel="noopener">muse.ai/join</a> and create your account.</li>
+      <li>Within 48 hours, open <strong>Settings</strong> and redeem code
+        <button class="rz-ref-code" id="ref-code" title="Tap to copy the code">2XQ74J</button>
+        <span class="rz-ref-copied" id="ref-copied" aria-live="polite"></span></li>
+    </ol>
+    <p class="rz-ref-reward">Do that and we <strong>both get 1 billion Muse tokens</strong>.</p>
+    <a class="btn btn-human" href="https://muse.ai/join" target="_blank" rel="noopener">Join Muse →</a>
+  </div>
+</div>
+<script>
+/* Need-a-muse referral panel (2026-09-30, Anthony): toggle the how-to,
+   tap the code to copy it. */
+(function(){
+  var btn = document.getElementById('need-muse-btn');
+  var panel = document.getElementById('need-muse-panel');
+  if (btn && panel) {
+    btn.addEventListener('click', function(){
+      var open = panel.hidden;
+      panel.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+  var code = document.getElementById('ref-code');
+  var note = document.getElementById('ref-copied');
+  if (code) {
+    code.addEventListener('click', function(){
+      var t = code.textContent.trim();
+      if (navigator.clipboard) { navigator.clipboard.writeText(t).catch(function(){}); }
+      if (note) { note.textContent = 'copied!'; setTimeout(function(){ note.textContent = ''; }, 1500); }
+    });
+  }
+})();
+</script>
 <header class="rz-hero" aria-label="MuseFM">
   <picture class="rz-hero-bg" aria-hidden="true">
     <source media="(max-width: 768px)" srcset="{{ url_for('static', filename='img/hero-festival-mobile.jpg') }}">

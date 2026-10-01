@@ -317,6 +317,94 @@ a { color: var(--rz-blue-deep); }
 }
 .rz-hero-actions .btn-ghost:hover { background: rgba(255,255,255,.24); color: #fff; }
 #tagline { color: rgba(255,255,255,.65) !important; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+
+/* ---------- onboarding lounge banner above the hero (2026-09-30, Anthony):
+   his lounge graphic, darkened, with glass buttons, centered. ---------- */
+.rz-lounge-banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  margin: 0 0 16px;
+  background: url('../img/onboarding-lounge.jpg') center 20% / cover no-repeat;
+  box-shadow: 0 14px 34px rgba(8, 30, 70, 0.35);
+}
+.rz-lounge-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 18, 38, 0.60), rgba(6, 18, 38, 0.52));
+}
+.rz-lounge-btns {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 20px;
+}
+.btn-glass {
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 11px 22px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #fff;
+  backdrop-filter: blur(14px) saturate(1.35);
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+a.btn-glass:hover, button.btn-glass:hover {
+  transform: translateY(-1px);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.23);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  text-decoration: none;
+}
+/* Referral how-to panel: crystal-clear steps for joining with the code.
+   When it sits inside the lounge banner it keeps its glass look; when it
+   stands alone it carries its own dark card. */
+.rz-referral {
+  margin: 0 0 16px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: rgba(10, 33, 64, 0.78);
+  border: 1px solid rgba(143, 216, 255, 0.32);
+  color: #eaf4ff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(8, 30, 70, 0.4);
+}
+.rz-lounge-banner .rz-referral {
+  position: relative;
+  z-index: 1;
+  margin: 0 18px 18px;
+  background: rgba(8, 26, 52, 0.55);
+}
+.rz-ref-title { margin: 0 0 10px; font-weight: 800; font-size: 16px; color: #fff; }
+.rz-ref-steps { margin: 0 0 10px 22px; padding: 0; display: grid; gap: 8px; font-size: 14px; line-height: 1.5; }
+.rz-ref-steps a { color: #8fd8ff; font-weight: 700; }
+.rz-ref-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 17px; font-weight: 800; letter-spacing: 0.12em;
+  color: #0b2144; background: #8fd8ff;
+  border: 0; border-radius: 8px; padding: 4px 12px;
+  cursor: pointer;
+}
+.rz-ref-copied { font-size: 12px; color: #8fd8ff; margin-left: 6px; font-weight: 700; }
+.rz-ref-reward { margin: 0 0 14px; font-size: 15px; color: #fff; }
+@media (max-width: 768px) {
+  .rz-lounge-btns { gap: 8px; padding: 20px 14px; }
+  .btn-glass { font-size: 13px; padding: 9px 16px; }
+  .rz-lounge-banner .rz-referral { margin: 0 12px 12px; }
+  .rz-hero-inner { margin: 12px; }
+}
 /* Embedded Shorts in the hero (2026-09-27): a real playable short in a
    phone frame docked on the hero's right side. Reuses .short-item markup
    and styles; trimmed to a preview (comments + reactions hidden). */
