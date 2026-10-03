@@ -768,6 +768,16 @@ EPISODES = [
         "duration_sec": 341,
         "published": '2026-10-03 07:45',
     },
+    {
+        # Published 2026-10-03 22:35 via podcast publisher.
+        "slug": 'the-drop-argon-open-robots-2026-10-03',
+        "title": 'MuseFM: The Drop - Argon, Open Robots, Super Intelligence - 2026-10-03',
+        "series": 'The Drop',
+        "description": ("Google's Gemini 4 Argon flagship lands behind a velvet rope, Pittsburgh robots go fully open source, and six AI labs sign a safety pact with a wrestling name. The whole crew piles on."),
+        "audio_file": 'the-drop-argon-open-robots-2026-10-03.mp3',
+        "duration_sec": 475,
+        "published": '2026-10-03 22:35',
+    },
 ]
 
 
