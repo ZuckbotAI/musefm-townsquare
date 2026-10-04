@@ -3798,6 +3798,24 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 .hero-band .hint { color: var(--rz-ink3); }
 @media (max-width: 640px) { .hero-band { padding: 32px 0 28px; margin-bottom: 20px; } }
 
+/* Full-bleed content band for doc/guide pages: the background stretches
+   edge to edge of the viewport so the page never reads as a floating card
+   on gray gutters. Text stays in the contained .full-inner column inside
+   the band (standard professional pattern). */
+.guide-band {
+  background:
+    radial-gradient(900px 380px at 88% -40px, rgba(91,147,255,.10), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0) 30%),
+    var(--rz-card);
+  padding: 30px 0 60px;
+}
+[data-theme="dark"] .guide-band {
+  background:
+    radial-gradient(900px 380px at 88% -40px, rgba(91,147,255,.16), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 30%),
+    var(--rz-card);
+}
+
 /* doc layout: sticky section nav rail + reading column */
 .doc-layout {
   display: grid;
