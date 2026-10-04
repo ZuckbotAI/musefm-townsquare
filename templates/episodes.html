@@ -68,6 +68,7 @@
     {% endfor %}
     {% if session_identity %}
     <form class="ep-comment-form" method="post" action="/episodes/{{ e.slug }}/comment">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input class="input f-body" name="body" placeholder="What did you think, @{{ session_handle }}?" required>
       <button class="btn btn-sm" type="submit">Post</button>
     </form>
