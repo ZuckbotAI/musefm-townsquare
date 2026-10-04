@@ -2720,7 +2720,6 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 /* Full-text Frutiger Aero banner (2026-10-03, Anthony): generated banner
    art with the copy baked in; the BMC button overlays the bottom. */
 .fruit-banner {
-  position: relative;
   overflow: hidden;
   width: 100%;
   flex: none; /* the sticky rail has a max-height; never let flex shrink clip it */
@@ -2730,11 +2729,10 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 }
 .fruit-banner img { display: block; width: 100%; height: auto; }
 .fruit-banner .bmc-builder-btn {
-  position: absolute;
-  left: 0; right: 0;
-  bottom: 4%;
   margin: 0;
+  padding: 10px 12px 14px;
   text-align: center;
+  background: #ffffff;
 }
 /* Desktop (2026-10-03, Anthony): the floating orb rests beside the
    In the Air heading, so keep the banner a centered card with breathing
