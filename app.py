@@ -1815,6 +1815,14 @@ def support():
     return render_template("support.html")
 
 
+@app.route("/donate")
+def donate():
+    """Donation page: Frutiger Aero hero, Buy Me a Coffee tiers, Meta pixel
+    placeholder (fires PageView + InitiateCheckout once a real pixel ID is
+    set in templates/donate.html)."""
+    return render_template("donate.html")
+
+
 @app.route("/facts")
 def facts():
     """The facts live on the FAQ page now; keep /facts working as a redirect."""
