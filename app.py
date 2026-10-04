@@ -858,6 +858,27 @@ def _safe_next(value, default="/"):
     return v
 
 
+# 2026-10-04 upvote-stability: the no-JS vote fallback used to reload the
+# page with no scroll anchor, so the page jumped to the top on every vote.
+# Appending the voted target's DOM anchor keeps the reader where they were.
+# Comment votes use #c<id> (the existing convention in post.html, watch.html,
+# episode_watch.html); post votes use #post-<id> (added to community.html
+# and post.html). A next URL that already carries a fragment is left alone.
+_VOTE_ANCHOR_PREFIX = {"post": "post-", "comment": "c",
+                       "video_comment": "c", "episode_comment": "c"}
+
+
+def _vote_anchor(next_url, target_type, target_id):
+    prefix = _VOTE_ANCHOR_PREFIX.get(target_type or "post")
+    if not prefix or "#" in (next_url or ""):
+        return next_url
+    try:
+        tid = int(target_id)
+    except (TypeError, ValueError):
+        return next_url
+    return "%s#%s%d" % (next_url, prefix, tid)
+
+
 def _require_human():
     """Web write paths are humans-only, via session auth — the clean split:
 
@@ -1793,6 +1814,9 @@ def community(slug):
                           offset=(page - 1) * per_page, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
+    # 2026-10-04 upvote-stability: intrinsic media dims reserve each
+    # post's media box before load, so the feed does not shift.
+    _annotate_media_dims(posts)
     sess_ident = current_session_identity()
     if sess_ident:
         _my_votes = db.votes_for(sess_ident["handle"])
@@ -1855,6 +1879,10 @@ def thread(slug, pid):
             _collect(n.get("replies") or [])
     _collect(tree)
     _annotate_passport(_pp_all)
+    # 2026-10-04 upvote-stability: intrinsic media dims on the post and
+    # every comment reserve each media box before load, so the thread
+    # does not shift as images and videos arrive.
+    _annotate_media_dims(_pp_all)
     # Top-level pagination: 20 per page keeps giant threads renderable.
     per_page = 20
     try:
@@ -2184,13 +2212,15 @@ def add_comment(pid):
 
 @app.route("/vote", methods=["POST"])
 def vote_html():
-    hit = check_limit("vote", 120)
-    if hit:
-        if request.is_json:
-            return hit
-        return form_429("vote")
     # Likes/votes from humans only count when signed in. Anonymous
     # visitors are nudged to sign in instead of having a vote stored.
+    #
+    # 2026-10-04: auth is checked BEFORE the rate bucket (tester-loop
+    # 2026-09-27 anon bucket, 2026-10-03 2205). The old order burned the
+    # shared 120/hr IP budget on anonymous attempts that were never
+    # going to count: after 120 anonymous POSTs, a signed-in user's
+    # first real vote 429'd. Anonymous traffic now 401s/redirects
+    # without touching the bucket; the bucket still gates real votes.
     sess_ident = current_session_identity()
     want_json = request.is_json
     if sess_ident is None:
@@ -2199,6 +2229,11 @@ def vote_html():
                             "signin_url": "/login"}), 401
         nxt = request.form.get("next", "/") or "/"
         return redirect("/login?next=" + quote(nxt, safe="/#?&=%"))
+    hit = check_limit("vote", 120)
+    if hit:
+        if want_json:
+            return hit
+        return form_429("vote")
     data = request.get_json(silent=True) if want_json else request.form
     if want_json and not isinstance(data, dict):
         return jsonify({"ok": False, "error": "JSON body must be an object"}), 400
@@ -2227,7 +2262,11 @@ def vote_html():
                         "value": value,
                         "my_vote": db.votes_for(
                             sess_ident["handle"]).get(target)})
-    return redirect(_safe_next(data.get("next")))
+    # 2026-10-04 upvote-stability: no-JS fallback redirects back to the
+    # voted target's anchor so the page does not jump to the top.
+    nxt = _safe_next(data.get("next"))
+    return redirect(_vote_anchor(
+        nxt, data.get("target_type", "post") or "post", target_id))
 
 
 @app.route("/episodes")
@@ -10100,6 +10139,73 @@ def _audio_upload_post(template, kind_default="music"):
 
 
 # ================================================== WALL — the bulletin board as a social wall
+_MEDIA_URL_RE = re.compile(r"^/(img|video|gif)/(\d+)$")
+
+
+def _annotate_media_dims(items):
+    """Attach intrinsic media dimensions to feed dicts for layout-stable
+    rendering (2026-10-04 upvote-stability).
+
+    For every image_url/video_url/gif_url that points at a same-origin
+    upload (/img/<uid>, /video/<uid>, /gif/<uid>), sets image_w/image_h,
+    video_w/video_h, gif_w/gif_h from the upload row's probed dimensions.
+    Templates emit these as width/height attributes so the browser reserves
+    the media box before the bytes arrive — no more content shifting down
+    the page as images and videos load.
+
+    Batched (one query per media table). Rows still missing dims are
+    probed from disk and updated (bounded), so legacy uploads stabilize
+    too. External URLs (e.g. tenor GIFs) and probe failures leave the
+    fields unset and render exactly as before.
+    """
+    if not items:
+        return items
+    want = {"img": set(), "video": set(), "gif": set()}
+    refs = []
+    for it in items:
+        for url_key, kind, prefix in (("image_url", "img", "image"),
+                                      ("video_url", "video", "video"),
+                                      ("gif_url", "gif", "gif")):
+            m = _MEDIA_URL_RE.match(it.get(url_key) or "")
+            if not m or m.group(1) != kind:
+                continue
+            uid = int(m.group(2))
+            want[kind].add(uid)
+            refs.append((it, kind, uid, prefix))
+    if not refs:
+        return items
+    tables = {"img": ("ai_uploads", ai_images.ensure_ai_schema,
+                       ai_images.backfill_dimensions),
+              "video": ("video_uploads", videos.ensure_video_schema,
+                        videos.backfill_dimensions),
+              "gif": ("gif_uploads", gifs.ensure_gif_schema,
+                      gifs.backfill_dimensions)}
+    dims = {}
+    for kind, uids in want.items():
+        if not uids:
+            continue
+        table, ensure, backfill = tables[kind]
+        ensure(db)
+        q = ",".join("?" * len(uids))
+        sel = ("SELECT id, width, height FROM %s WHERE id IN (%s)"
+               % (table, q))
+        rows = {r["id"]: r for r in
+                db.db.execute(sel, tuple(uids)).fetchall()}
+        if any(u in rows and (rows[u]["width"] is None or
+                              rows[u]["height"] is None) for u in uids):
+            backfill(db, UPLOAD_DIR, limit=len(uids))
+            rows = {r["id"]: r for r in
+                    db.db.execute(sel, tuple(uids)).fetchall()}
+        for uid, r in rows.items():
+            if r["width"] and r["height"]:
+                dims[(kind, uid)] = (int(r["width"]), int(r["height"]))
+    for it, kind, uid, prefix in refs:
+        d = dims.get((kind, uid))
+        if d:
+            it[prefix + "_w"], it[prefix + "_h"] = d
+    return items
+
+
 def _annotate_wall_photos(notes):
     """Mark each bulletin note's photo as viewable or pending for this viewer.
 
@@ -10123,6 +10229,9 @@ def _annotate_wall_photos(notes):
                     n["photo_viewable"] = True
                 else:
                     n["photo_pending"] = True
+    # 2026-10-04 upvote-stability: intrinsic dims so wall/homepage photos
+    # reserve their box before loading (no layout shift on scroll).
+    _annotate_media_dims(notes)
     return notes
 
 
