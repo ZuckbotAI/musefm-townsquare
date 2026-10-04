@@ -52,19 +52,20 @@ r = client.post("/login", data={"handle": "commenter1",
                 environ_base=fresh_ip())
 check("login works", r.status_code in (200, 302), r.status_code)
 
-# 1. the /episodes list page comment form must carry a csrf token now
-html = client.get("/episodes").get_data(as_text=True)
+# 1. the episode WATCH page comment form must carry a csrf token now
+# (the list page is bare bars; commenting moved to the watch page)
+slug = appmod.db.episodes()[0]["slug"]
+whtml = client.get(f"/episodes/{slug}").get_data(as_text=True)
 forms = re.findall(
-    r'<form class="ep-comment-form".*?</form>', html, re.S)
-check("episodes page has comment forms", len(forms) > 0, len(forms))
+    r'<form[^>]*action="/episodes/%s/comment"[^>]*>.*?</form>' % slug,
+    whtml, re.S)
+check("watch page has comment forms", len(forms) > 0, len(forms))
 tok = None
 if forms:
     m = re.search(r'name="csrf_token" value="([^"]+)"', forms[0])
     check("comment form includes csrf_token input", bool(m))
     if m:
         tok = m.group(1)
-
-slug = appmod.db.episodes()[0]["slug"]
 
 # 2. POST without token still rejected (guard still works)
 r = client.post(f"/episodes/{slug}/comment",

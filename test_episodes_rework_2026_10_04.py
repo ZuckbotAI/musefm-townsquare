@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Episodes page rework tests (2026-10-04, overhaul item 7: homepage standard,
-less wide cards, less dead space, plain buttons, share with rollouts).
+Episodes page bars redesign tests (2026-10-04, Anthony feedback:
+"Podcast should be small bars and long. They are not to be big rectangles."
+plus studio hero banner at top, no text/emoji header).
 
 Proves:
-  * /episodes renders the slim page head (no big orb hero).
-  * each episode card is compact: Play / Up next / Share / Watch page row,
-    progress bar, reactions.
-  * clips, comments, and extra actions live inside collapsed <details>
-    rollouts (no `open` attribute), with counts in the summaries.
-  * buttons are plain text (no emoji glyphs in labels).
-  * the comment form inside the rollout still carries its CSRF token.
+  * /episodes shows the studio hero image banner and no text page head.
+  * each episode is one small horizontal bar: play button, series tag,
+    title link to the watch page, duration/date meta, slim progress line.
+  * no big rectangle cards, no clips/comments/more-actions rollouts on the
+    list page (those live on the episode watch page).
+  * player hooks intact: data-play / data-src / data-title / data-dur /
+    data-seek / data-elapsed attributes present for player.js.
 
 Run:  python3 test_episodes_rework_2026_10_04.py
 Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
@@ -67,49 +68,56 @@ def main():
     client = setup()
     html = client.get("/episodes").get_data(as_text=True)
 
-    print("== slim page head ==")
-    check("page-head present", 'class="page-head"' in html)
+    print("== hero banner, no text head ==")
+    check("hero image present", 'class="ep-hero"' in html)
+    check("hero points at studio art",
+          "img/episodes-hero.jpg" in html)
+    check("no text page head", 'class="page-head"' not in html)
     check("no orb hero on episodes page", "hero-orb-stage" not in html)
+
+    print("== small bars, not big rectangles ==")
+    bars = html.count('class="ep-bar"')
+    check("episode bars rendered", bars >= 1, f"bars={bars}")
+    check("no big rectangle cards", 'class="card ep-compact"' not in html)
+    check("no ep-card markup", "ep-card" not in html)
     check("episode listed", "Test Episode One" in html)
+    check("title links to watch page", 'href="/episodes/ep-test-1"' in html)
+    check("series tag on bar", "Muse FM Midday" in html)
+    check("duration/date meta on bar", "2:12" in html)
 
-    print("== compact card ==")
-    check("plain Play button", ">Play</button>" in html)
-    check("plain Up next button", ">Up next</button>" in html)
-    check("plain Share button", ">Share</button>" in html)
-    check("plain Watch page link", ">Watch page</a>" in html)
-    check("no emoji in Play label", "▶ Play" not in html)
-    check("no emoji in Share label", "↗ Share" not in html)
-    check("no emoji in Download label", "⬇ Download" not in html)
-    check("progress bar present", 'class="progress"' in html)
+    print("== clutter stripped ==")
+    check("no clips rollout", "Clips from the town" not in html)
+    check("no comments rollout", ">Comments<" not in html)
+    check("no More actions rollout", "More actions" not in html)
+    check("no details rollouts at all", "<details" not in html)
+    check("no reaction widget on list",
+          'class="rxn' not in html and "sig-tray" not in html)
+    check("no Up next button", "Up next" not in html)
+    check("no Share button", "data-share" not in html)
 
-    print("== rollouts collapsed ==")
-    cards = html.count('class="card ep-compact"')
-    rollouts = re.findall(r"<details class=\"ep-rollout\"([^>]*)>", html)
-    check("episode cards rendered", cards >= 1, f"cards={cards}")
-    check("three rollouts per episode", len(rollouts) == 3 * cards,
-          f"found {len(rollouts)} for {cards} cards")
-    check("all collapsed by default",
-          all("open" not in attrs for attrs in rollouts))
-    check("clips count in summary", "Clips from the town (1)" in html)
-    check("comments count in summary", "Comments (1)" in html)
-    check("clip row inside rollout", "funny bit" in html)
-    check("comment inside rollout", "great episode" in html)
-    check("download in More actions rollout", ">Download</a>" in html)
-    check("listen live in More actions rollout", ">Listen live</a>" in html)
+    print("== player hooks intact ==")
+    check("play button", 'class="ep-play"' in html)
+    check("data-play attr", 'data-play="ep-test-1"' in html)
+    check("data-src attr", 'data-src="/audio/ep-test-1.mp3"' in html)
+    check("data-dur attr", 'data-dur="132"' in html)
+    check("data-seek attr", 'data-seek="ep-test-1"' in html)
+    check("data-elapsed attr", 'data-elapsed="ep-test-1"' in html)
+    check("slim progress class", "ep-bar-progress" in html)
 
-    print("== comment form keeps CSRF ==")
-    client.post("/signup", data={"handle": "epviewer",
+    print("== watch page still carries the extras ==")
+    client.post("/signup", data={"handle": "epviewer2",
                                  "password": "s3cretpw!!",
                                  "password_confirm": "s3cretpw!!",
-                                 "email": "epviewer@example.com"})
-    client.post("/login", data={"handle": "epviewer",
+                                 "email": "epviewer2@example.com"})
+    client.post("/login", data={"handle": "epviewer2",
                                 "password": "s3cretpw!!"})
-    html = client.get("/episodes").get_data(as_text=True)
-    m = re.search(
-        r'<form class="ep-comment-form"[^>]*>.*?</form>', html, re.S)
-    check("comment form present", m is not None)
-    check("csrf token in comment form",
-          m is not None and 'name="csrf_token"' in m.group(0))
+    whtml = client.get("/episodes/ep-test-1").get_data(as_text=True)
+    check("watch page has clips", "funny bit" in whtml)
+    check("watch page has comments", "great episode" in whtml)
+    check("watch page has download", "Download" in whtml)
+    check("watch page comment form has CSRF",
+          re.search(r'action="/episodes/ep-test-1/comment"[^>]*>.*?'
+                    r'name="csrf_token"', whtml, re.S) is not None)
 
     print(f"\n{len(PASS)} passed, {len(FAIL)} failed: {FAIL}")
     sys.exit(1 if FAIL else 0)
