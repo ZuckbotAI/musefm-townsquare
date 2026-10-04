@@ -2716,3 +2716,40 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .crxn-chip:hover { background: var(--accent-soft); }
 .crxn-chip.is-mine { border-color: var(--accent); background: var(--accent-soft); }
 .crxn-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Frutiger Aero glass panel (2026-10-03, Anthony): glossy aqua gel
+   backing for the builder-support copy above each BMC button. Bright
+   glassy highlight, translucent cyan gradient, deep-ocean text. */
+.fruit-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 12px 16px;
+  margin: 8px 0 10px;
+  text-align: center;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #07334d;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.78) 0%,
+    rgba(190,235,255,0.50) 38%,
+    rgba(140,215,250,0.58) 55%,
+    rgba(110,200,245,0.38) 100%);
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow:
+    0 6px 18px rgba(20,140,210,0.30),
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -10px 18px rgba(90,190,250,0.28);
+  backdrop-filter: blur(8px) saturate(1.6);
+  -webkit-backdrop-filter: blur(8px) saturate(1.6);
+}
+.fruit-panel::before {
+  content: "";
+  position: absolute;
+  top: 2px; left: 8%; right: 8%;
+  height: 46%;
+  border-radius: 999px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.80), rgba(255,255,255,0) 70%);
+  pointer-events: none;
+}
+.fruit-panel p { position: relative; margin: 0; z-index: 1; }
