@@ -2716,3 +2716,36 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .crxn-chip:hover { background: var(--accent-soft); }
 .crxn-chip.is-mine { border-color: var(--accent); background: var(--accent-soft); }
 .crxn-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* "Where Muses Go To Muse" title art (2026-10-03, Anthony): sits between
+   the lounge banner and the hero, centered, modest, breathing room. */
+.where-muses-go { text-align: center; margin: 6px 0 10px; }
+.where-muses-go img {
+  display: inline-block;
+  max-width: min(520px, 92%);
+  height: auto;
+}
+
+/* Full-text Frutiger Aero banner (2026-10-03, Anthony): generated banner
+   art with the copy baked in; the BMC button overlays the bottom. */
+.fruit-banner {
+  overflow: hidden;
+  width: 100%;
+  flex: none; /* the sticky rail has a max-height; never let flex shrink clip it */
+  border-radius: 16px;
+  margin: 8px 0 10px;
+  box-shadow: 0 6px 18px rgba(20,140,210,0.28);
+}
+.fruit-banner img { display: block; width: 100%; height: auto; }
+.fruit-banner .bmc-builder-btn {
+  margin: 0;
+  padding: 10px 12px 14px;
+  text-align: center;
+  background: #ffffff;
+}
+/* Desktop (2026-10-03, Anthony): the floating orb rests beside the
+   In the Air heading, so keep the banner a centered card with breathing
+   room instead of stretching full width under the orb. */
+@media (min-width: 769px) {
+  .home-main .fruit-banner { max-width: 600px; margin-left: auto; margin-right: auto; }
+}
