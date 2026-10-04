@@ -4,8 +4,8 @@ Topbar order test (2026-10-04, overhaul item 3: top bar reorder, desktop).
 
 Proves the left-to-right order inside <div class="topbar-right">:
   logged in:  messages (dm-mail) -> notifications (notif-bell) ->
-              user login tag (handle-chip) -> dark-mode toggle (theme-btn) ->
-              search (topbar-search) -> log out (logout-inline, far right)
+              dark-mode toggle (theme-btn) -> search (topbar-search) ->
+              user login tag (handle-chip) -> log out (logout-inline, far right)
   logged out: handle-chip -> theme-btn -> topbar-search -> Log in -> Sign up
 
 Also proves:
@@ -75,9 +75,9 @@ def main():
 
     print("== logged-out topbar order ==")
     html = topbar_slice(client.get("/").get_data(as_text=True))
-    assert_order("anon: chip, theme, search, log in, sign up",
-                 html, ['id="handle-chip"', 'class="theme-btn"',
-                        'class="topbar-search"', 'href="/login"',
+    assert_order("anon: theme, search, chip (empty), log in, sign up",
+                 html, ['class="theme-btn"', 'class="topbar-search"',
+                        'id="handle-chip"', 'href="/login"',
                         'href="/signup"'])
     check("anon: no messages icon", 'class="dm-mail' not in html)
     check("anon: no notifications bell", 'id="notif-bell-btn"' not in html)
@@ -91,10 +91,10 @@ def main():
     client.post("/login", data={"handle": "topbarhuman",
                                 "password": "s3cretpw!!"})
     html = topbar_slice(client.get("/").get_data(as_text=True))
-    assert_order("logged in: messages, notifications, tag, theme, search, log out",
+    assert_order("logged in: messages, notifications, theme, search, tag, log out",
                  html, ['class="dm-mail', 'id="notif-bell-btn"',
-                        'id="handle-chip"', 'class="theme-btn"',
-                        'class="topbar-search"', 'class="logout-inline"'])
+                        'class="theme-btn"', 'class="topbar-search"',
+                        'id="handle-chip"', 'class="logout-inline"'])
     check("handle chip shows the login tag", "u/topbarhuman" in html)
     check("log out is a POST form to /logout",
           re.search(r'<form[^>]*method="post"[^>]*action="/logout"[^>]*class="logout-inline"',

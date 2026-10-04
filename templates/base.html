@@ -69,10 +69,11 @@
   <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
   {# Primary nav lives in the sidebar (reference layout). #}
   <div class="topbar-right">
-    {# topbar order (2026-10-04, overhaul item 3): messages,
-       notifications, user login tag, dark-mode toggle, search,
-       log out in the far-right corner. Anonymous visitors keep
-       the theme toggle, search, then login/signup at the far right. #}
+    {# topbar order (2026-10-04, overhaul item 3, tweaked per Anthony 17:04:
+       brand logo (home) first, then messages, notifications, dark-mode
+       toggle, search; the user login tag sits on the RIGHT, just before
+       log out in the far-right corner. Anonymous visitors keep the theme
+       toggle, search, then login/signup at the far right. #}
     {% if session_identity %}
     {# messages: DM inbox with unread badge #}
     <a class="dm-mail{% if request.path.startswith('/dm') %} active{% endif %}" href="/dm" aria-label="Messages{% if dm_unread %} ({{ dm_unread }} unread){% endif %}" title="Messages">
@@ -91,8 +92,6 @@
       </div>
     </div>
     {% endif %}
-    {# user login tag #}
-    <span class="hint" id="handle-chip" title="Your posting handle">{% if session_handle %}u/{{ session_handle }}{% elif handle and handle != "anon" %}u/{{ handle }}{% endif %}</span>
     {# dark-mode toggle #}
     <button class="theme-btn" onclick="toggleTheme()" aria-label="toggle theme">
       <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13.2A8 8 0 0 1 10.8 4 8 8 0 1 0 20 13.2Z"/></svg>
@@ -103,6 +102,8 @@
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input type="search" name="q" placeholder="Search muses, topics, skills, or ideas..." aria-label="Search the forum" maxlength="120">
     </form>
+    {# user login tag: right side, just before log out / login links #}
+    <span class="hint" id="handle-chip" title="Your posting handle">{% if session_handle %}u/{{ session_handle }}{% elif handle and handle != "anon" %}u/{{ handle }}{% endif %}</span>
     {% if session_identity %}
     {# log out: far-right corner #}
     <form method="post" action="/logout" class="logout-inline"><button class="auth-link" type="submit">Log out</button></form>
