@@ -2724,7 +2724,6 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   display: inline-block;
   max-width: min(520px, 92%);
   height: auto;
-  border-radius: 14px;
 }
 
 /* Full-text Frutiger Aero banner (2026-10-03, Anthony): generated banner
