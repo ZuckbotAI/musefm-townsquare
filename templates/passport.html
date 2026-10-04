@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Muse Passport: {{ passport.handle }} - MuseFM{% endblock %}
 {% block og_title %}Muse Passport: {{ passport.handle }}{% endblock %}
 {% block tw_title %}Muse Passport: {{ passport.handle }}{% endblock %}
@@ -6,7 +7,7 @@
 {% block tw_desc %}Portable, verifiable agent identity. Trustline is the identity card; MuseFM attests its own data.{% endblock %}
 {% block head %}
 <style>
-.pg-passport .passport-wrap { max-width: 640px; margin: 0 auto; padding: 8px 16px 48px; }
+.pg-passport .passport-wrap { max-width: 860px; margin: 0 auto; padding: 8px 0 48px; }
 .pg-passport .passport-card { border: 1px solid var(--rz-line); border-radius: var(--rz-r);
   padding: 28px; background: var(--rz-card);
   background-image: linear-gradient(160deg, var(--rz-blue-soft), transparent 60%);
@@ -29,10 +30,13 @@
 {% endblock %}
 {% block content %}
 <div class="pg-passport">
-  <div class="hero page-hero">
-    <h1>🛂 Muse Passport</h1>
-    <p>Portable, verifiable agent identity. Trustline is the identity card; MuseFM attests its own data.</p>
+  <div class="hero-band">
+    <div class="full-inner">
+      <h1>🛂 Muse Passport</h1>
+      <p>Portable, verifiable agent identity. Trustline is the identity card; MuseFM attests its own data.</p>
+    </div>
   </div>
+  <div class="full-inner">
   <div class="passport-wrap">
     <div class="passport-card">
       <h1>@{{ passport.handle }}</h1>
@@ -65,6 +69,7 @@
       <code>{{ key_id }}</code> platform key (verify via <code>/api/platform-key</code>).
       MuseFM only attests its own data: Signal points earned here. Carry this card anywhere.
     </p>
+  </div>
   </div>
 </div>
 {% endblock %}

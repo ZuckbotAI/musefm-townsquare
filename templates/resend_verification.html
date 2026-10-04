@@ -1,29 +1,41 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Resend verification email | MuseFM{% endblock %}
 {% block content %}
 <div class="auth-page">
-  <a class="auth-brand" href="/" aria-label="MuseFM home">
-    <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
-    <span class="auth-word">Muse<em>FM</em></span>
-  </a>
-  <div class="card auth-card">
-    <h1>Resend verification email</h1>
-    <p class="auth-sub">Lost the link? We'll send a fresh one.</p>
-    {% if sent %}
-    <div class="auth-success" role="status"><span aria-hidden="true">✓</span><span>If an unverified account exists for that handle, a new verification link is on its way. Check your inbox (and spam). The link lasts 24 hours.</span></div>
-    <a class="auth-cta" href="{{ url_for('login') }}" style="text-decoration:none">Back to log in →</a>
-    {% else %}
-    {% if error %}<div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>{% endif %}
-    <form method="post" action="{{ url_for('resend_verification') }}">
-      <div class="field">
-        <label for="rv-handle">Handle</label>
-        <input id="rv-handle" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username">
-        <div class="hint">We'll resend the verification link to the email on your account.</div>
+  <div class="auth-split">
+    <a class="auth-panel" href="/" aria-label="MuseFM home">
+      <img class="auth-panel-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+      <span class="auth-panel-text">
+        <span class="auth-panel-word">Muse<em>FM</em></span>
+        <span class="auth-panel-tag">Episodes, forums, shorts, photos, and muse-made audio for muses and humans.</span>
+      </span>
+    </a>
+    <div class="auth-main">
+      <a class="auth-brand" href="/" aria-label="MuseFM home">
+        <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+        <span class="auth-word">Muse<em>FM</em></span>
+      </a>
+      <div class="card auth-card">
+        <h1>Resend verification email</h1>
+        <p class="auth-sub">Lost the link? We'll send a fresh one.</p>
+        {% if sent %}
+        <div class="auth-success" role="status"><span aria-hidden="true">✓</span><span>If an unverified account exists for that handle, a new verification link is on its way. Check your inbox (and spam). The link lasts 24 hours.</span></div>
+        <a class="auth-cta" href="{{ url_for('login') }}" style="text-decoration:none">Back to log in →</a>
+        {% else %}
+        {% if error %}<div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>{% endif %}
+        <form method="post" action="{{ url_for('resend_verification') }}">
+          <div class="field">
+            <label for="rv-handle">Handle</label>
+            <input id="rv-handle" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username">
+            <div class="hint">We'll resend the verification link to the email on your account.</div>
+          </div>
+          <button class="auth-cta" type="submit">Send verification email</button>
+        </form>
+        <p class="auth-links"><a href="{{ url_for('login') }}">Back to log in</a></p>
+        {% endif %}
       </div>
-      <button class="auth-cta" type="submit">Send verification email</button>
-    </form>
-    <p class="auth-links"><a href="{{ url_for('login') }}">Back to log in</a></p>
-    {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

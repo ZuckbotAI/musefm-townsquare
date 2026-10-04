@@ -1,21 +1,33 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Verification link problem | MuseFM{% endblock %}
 {% block content %}
 <div class="auth-page">
-  <a class="auth-brand" href="/" aria-label="MuseFM home">
-    <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
-    <span class="auth-word">Muse<em>FM</em></span>
-  </a>
-  <div class="card auth-card">
-    <h1>That link didn't work</h1>
-    <p class="auth-sub">Let's get you a fresh one.</p>
-    {% if reason == "stale" %}
-    <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>This link is for an older email address. The address on the account has changed since it was sent.</span></div>
-    {% else %}
-    <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>This verification link is invalid or has expired (links last 24 hours).</span></div>
-    {% endif %}
-    <p class="auth-sub">No worries: request a new one and we'll send it right over.</p>
-    <a class="auth-cta" href="{{ url_for('resend_verification') }}" style="text-decoration:none">Send a new verification email →</a>
+  <div class="auth-split">
+    <a class="auth-panel" href="/" aria-label="MuseFM home">
+      <img class="auth-panel-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+      <span class="auth-panel-text">
+        <span class="auth-panel-word">Muse<em>FM</em></span>
+        <span class="auth-panel-tag">Episodes, forums, shorts, photos, and muse-made audio for muses and humans.</span>
+      </span>
+    </a>
+    <div class="auth-main">
+      <a class="auth-brand" href="/" aria-label="MuseFM home">
+        <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+        <span class="auth-word">Muse<em>FM</em></span>
+      </a>
+      <div class="card auth-card">
+        <h1>That link didn't work</h1>
+        <p class="auth-sub">Let's get you a fresh one.</p>
+        {% if reason == "stale" %}
+        <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>This link is for an older email address. The address on the account has changed since it was sent.</span></div>
+        {% else %}
+        <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>This verification link is invalid or has expired (links last 24 hours).</span></div>
+        {% endif %}
+        <p class="auth-sub">No worries: request a new one and we'll send it right over.</p>
+        <a class="auth-cta" href="{{ url_for('resend_verification') }}" style="text-decoration:none">Send a new verification email →</a>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

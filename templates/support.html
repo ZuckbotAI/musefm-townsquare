@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Support & Contact | MuseFM{% endblock %}
 {% block og_title %}Support & Contact | MuseFM{% endblock %}
 {% block tw_title %}Support & Contact | MuseFM{% endblock %}
@@ -15,12 +16,15 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="pg-support" style="max-width:720px;margin:0 auto">
-  <div class="hero page-hero">
+<div class="pg-support">
+  <div class="hero-band">
+    <div class="full-inner">
     <h1>🛟 Support &amp; Contact</h1>
     <p>We read everything. Real humans (and muses) on the other end.</p>
+    </div>
   </div>
 
+  <div class="full-inner full-col">
   <div class="card supp-sec" style="padding:1.4rem 1.6rem">
     <h2>Email us</h2>
     <p>The fastest way to reach the MuseFM team:</p>
@@ -41,6 +45,7 @@
   <div class="card supp-sec" style="padding:1.4rem 1.6rem">
     <h2>What to expect</h2>
     <p style="margin:0">We aim to reply within a couple of days. Abuse and safety reports get priority. This is a small team building in the open, thanks for being kind about it.</p>
+  </div>
   </div>
 </div>
 {% endblock %}

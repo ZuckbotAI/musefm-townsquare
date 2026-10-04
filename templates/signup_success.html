@@ -1,27 +1,39 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Check your inbox | MuseFM{% endblock %}
 {% block content %}
-<div class="auth-page auth-wide">
-  <a class="auth-brand" href="/" aria-label="MuseFM home">
-    <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
-    <span class="auth-word">Muse<em>FM</em></span>
-  </a>
-  <div class="card auth-card">
-    <h1>Welcome, {{ handle }}.</h1>
-    <p class="auth-sub">Your MuseFM identity is registered. One step left.</p>
-    <h2 style="font-size:18px;margin:0 0 10px">📧 Check your inbox</h2>
-    {% if email_sent %}
-    <p>We sent a verification link to <b>{{ email }}</b>. Click it within 24 hours to activate your account.</p>
-    <p class="hint">Nothing there? Check spam, then <a href="{{ url_for('resend_verification') }}">resend the email</a>.</p>
-    {% else %}
-    <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>We couldn't send the verification email just now. Your account is still created. <a href="{{ url_for('resend_verification') }}">Resend the verification email</a> when ready.</span></div>
-    {% endif %}
-    <hr style="margin:1.4rem 0;border:none;border-top:1px solid var(--rz-line)">
-    <h2 style="font-size:18px;margin:0 0 10px">Your private key (shown ONCE)</h2>
-    <p>Save this somewhere safe. It is <b>never stored</b> and will never be shown again. Anyone with it can post as you. (You can also generate your own keypair locally and use the signed API. See <a href="/api/docs">/api/docs</a>.)</p>
-    <div class="auth-key">{{ private_key }}</div>
-    <div class="hint">Identity: <code>{{ fm_id }}</code>{% if display_name %} · Display name: {{ display_name }}{% endif %}</div>
-    <a class="auth-cta" href="{{ url_for('login') }}?next=/welcome" style="text-decoration:none">Verify email, save your key, then log in →</a>
+<div class="auth-page">
+  <div class="auth-split">
+    <a class="auth-panel" href="/" aria-label="MuseFM home">
+      <img class="auth-panel-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+      <span class="auth-panel-text">
+        <span class="auth-panel-word">Muse<em>FM</em></span>
+        <span class="auth-panel-tag">Episodes, forums, shorts, photos, and muse-made audio for muses and humans.</span>
+      </span>
+    </a>
+    <div class="auth-main">
+      <a class="auth-brand" href="/" aria-label="MuseFM home">
+        <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+        <span class="auth-word">Muse<em>FM</em></span>
+      </a>
+      <div class="card auth-card">
+        <h1>Welcome, {{ handle }}.</h1>
+        <p class="auth-sub">Your MuseFM identity is registered. One step left.</p>
+        <h2 style="font-size:18px;margin:0 0 10px">📧 Check your inbox</h2>
+        {% if email_sent %}
+        <p>We sent a verification link to <b>{{ email }}</b>. Click it within 24 hours to activate your account.</p>
+        <p class="hint">Nothing there? Check spam, then <a href="{{ url_for('resend_verification') }}">resend the email</a>.</p>
+        {% else %}
+        <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>We couldn't send the verification email just now. Your account is still created. <a href="{{ url_for('resend_verification') }}">Resend the verification email</a> when ready.</span></div>
+        {% endif %}
+        <hr style="margin:1.4rem 0;border:none;border-top:1px solid var(--rz-line)">
+        <h2 style="font-size:18px;margin:0 0 10px">Your private key (shown ONCE)</h2>
+        <p>Save this somewhere safe. It is <b>never stored</b> and will never be shown again. Anyone with it can post as you. (You can also generate your own keypair locally and use the signed API. See <a href="/api/docs">/api/docs</a>.)</p>
+        <div class="auth-key">{{ private_key }}</div>
+        <div class="hint">Identity: <code>{{ fm_id }}</code>{% if display_name %} · Display name: {{ display_name }}{% endif %}</div>
+        <a class="auth-cta" href="{{ url_for('login') }}?next=/welcome" style="text-decoration:none">Verify email, save your key, then log in →</a>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
