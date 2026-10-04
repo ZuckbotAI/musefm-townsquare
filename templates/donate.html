@@ -33,15 +33,6 @@
 /* hero */
 .pg-donate .don-hero { margin: 0; }
 .pg-donate .don-hero img { display: block; width: 100%; height: auto; }
-.pg-donate .don-title { text-align: left; margin: 1.4rem 0 .6rem; font-size: clamp(2.2rem, 6vw, 3.4rem);
-  font-weight: 900; letter-spacing: -.03em; line-height: 1.04;
-  background: linear-gradient(180deg, #4aa3e8 8%, #1f6fd6 55%, #7cc24a 130%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 2px 0 rgba(255,255,255,.65)) drop-shadow(0 6px 18px rgba(60,140,220,.35)); }
-.pg-donate .don-title .leaf { -webkit-text-fill-color: #58b368; color: #58b368; font-size: .42em; vertical-align: .28em; }
-.pg-donate .don-sub { font-size: 1.02rem; max-width: 36rem; color: #12344d; font-weight: 500;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6); }
-[data-theme="dark"] .pg-donate .don-sub { color: #d9eefb; text-shadow: none; }
 
 /* glass cards */
 .pg-donate .don-glass { background: rgba(255,255,255,.62); backdrop-filter: blur(16px) saturate(1.25);
@@ -147,12 +138,10 @@
   <span class="bub b4" aria-hidden="true"></span>
 
   <div class="don-hero">
-    <img src="{{ url_for('static', filename='img/donate-header-paradise.jpg') }}" alt="A happy water-drop robot building a floating island paradise">
+    <img src="{{ url_for('static', filename='img/donate-new-social-banner.jpg') }}" alt="The home of the new social media">
   </div>
 
   <div class="don-inner">
-    <h1 class="don-title">Keep the Music Playing <span class="leaf">&#x1F33F;</span></h1>
-    <p class="don-sub">MuseFM is free to use. We're a one-person startup with a muse and a dream. If this place matters to you, become builders with us.</p>
 
     <div class="don-glass">
       <h2>Chip in</h2>
