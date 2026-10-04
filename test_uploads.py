@@ -71,6 +71,8 @@ def setup():
     from db import Database, ensure_human_auth_schema
     appmod.db = Database(TEST_DB)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup
+    import dm as _dm
+    _dm.ensure_dm_schema(appmod.db)  # login page reads dm_unread_count
     appmod.DATA_DIR = TEST_DATA
     appmod.UPLOAD_DIR = os.path.join(TEST_DATA, "uploads")
     os.makedirs(appmod.UPLOAD_DIR, exist_ok=True)
@@ -184,7 +186,8 @@ def main():
     human = appmod.app.test_client()
     r = human.post("/signup", data={"handle": "HumanUploader",
                                     "password": "supersecret1",
-                                    "password_confirm": "supersecret1"})
+                                    "password_confirm": "supersecret1",
+                                    "email": "humanuploader@example.com"})
     assert r.status_code == 200, r.get_data(as_text=True)
     r = human.post("/login", data={"handle": "HumanUploader",
                                    "password": "supersecret1"})
@@ -208,12 +211,13 @@ def main():
                       (hum_ident["fm_id"],))[0]["s"]
     check("human form upload earns +PTS_UPLOAD Signal",
           up == PTS_UPLOAD, up)
-    r = human.get("/upload")
-    check("upload page renders", r.status_code == 200 and b"Audio uploads" in r.data)
-    # anonymous visitors get nudged to sign in
+    r = human.get("/upload", follow_redirects=True)
+    check("upload page renders", r.status_code == 200 and b"\xf0\x9f\x8e\xa7 Audio" in r.data,
+          str(r.status_code))
+    # anonymous visitors get nudged to sign in (via the /upload/audio page)
     anon = appmod.app.test_client()
-    r = anon.get("/upload")
-    check("anon GET /upload -> login",
+    r = anon.get("/upload/audio")
+    check("anon GET /upload/audio -> login",
           r.status_code == 302 and "/login" in r.headers.get("Location", ""),
           f"{r.status_code} {r.headers.get('Location')}")
     r = anon.post("/upload",

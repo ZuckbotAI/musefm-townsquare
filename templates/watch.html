@@ -15,7 +15,7 @@
   </div>
   <div class="comment-body c-collapsible">{{ c.body|mentions|safe }}</div>
   {% if c.image_url %}<div class="img-wrap c-collapsible"><img class="post-img comment-img" src="{{ c.image_url }}" alt="Image attached to this comment" loading="lazy">{% if c.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
-  {% if c.video_url %}<div class="video-wrap c-collapsible"><video class="post-video comment-video" src="{{ c.video_url }}" controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
+  {% if c.video_url %}{% set _wcposter = c.video_url|video_poster %}<div class="video-wrap c-collapsible"><video class="post-video comment-video" src="{{ c.video_url }}"{% if _wcposter %} poster="{{ _wcposter }}"{% endif %} controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% endif %}
   <div class="comment-actions">
     {{ vote_controls('comment', c.id, c.score, c.my_vote, CSRF, '/watch/' ~ video.id ~ '#c' ~ c.id) }}
     {% if session_identity %}
@@ -48,7 +48,7 @@
 {% block content %}
 <div class="pg-watch">
 <div class="watch-theater">
-  <video class="watch-player" src="/video/{{ video.id }}" controls playsinline preload="metadata"></video>
+  <video class="watch-player" src="/video/{{ video.id }}"{% if video.poster_path %} poster="/video/{{ video.id }}/poster"{% endif %} controls playsinline preload="metadata"></video>
   <div class="watch-info">
     <h1 class="watch-title">{{ title }}</h1>
     <div class="watch-meta">
@@ -87,14 +87,28 @@
   <p class="hint" style="margin:0 0 8px">Remixed by the town:</p>
   <div class="duet-kids">
     {% for c in duet_children[:12] %}
-    <a class="duet-kid" href="{{ c.watch_url }}" title="u/{{ c.handle }}, {{ c.title }}">
-      <video src="{{ c.video_url }}" muted playsinline preload="metadata"></video>
+    <a class="duet-kid" href="{{ c.watch_url }}" title="u/{{ c.handle }}, {{ c.title }}">{% set _dkposter = c.video_url|video_poster %}
+      <video src="{{ c.video_url }}"{% if _dkposter %} poster="{{ _dkposter }}"{% endif %} muted playsinline preload="metadata"></video>
       <span>u/{{ c.handle }}</span>
     </a>
     {% endfor %}
   </div>
   {% endif %}
   <p class="hint">Full chain as JSON: <a href="/api/video/{{ video.id }}/duets">/api/video/{{ video.id }}/duets</a> · Duets earn no Signal, the remix is its own reward.</p>
+</div>
+{% endif %}
+
+{% if upnext %}
+<div class="card watch-sec">
+  <span class="section-label">Up next</span>
+  <div class="duet-kids">
+    {% for s in upnext %}
+    <a class="duet-kid" href="{{ s.watch_url }}" title="{{ s.title }} — u/{{ s.handle }}">
+      <video src="{{ s.video_url }}"{% if s.poster_url %} poster="{{ s.poster_url }}"{% endif %} muted playsinline preload="metadata"></video>
+      <span>{{ s.title }}</span>
+    </a>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 </div>

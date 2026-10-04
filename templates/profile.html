@@ -131,7 +131,7 @@
         <div class="pgrid pgrid-shorts">
           {% for it in shorts %}
           <a class="pgrid-item" href="{{ it.watch_url }}" title="{{ it.title|e }}">
-            <video src="{{ it.video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
+            <video src="{{ it.video_url }}"{% if it.poster_url %} poster="{{ it.poster_url }}"{% endif %} muted playsinline preload="metadata" disablepictureinpicture></video>
             <span class="pgrid-cap">{{ it.title }}</span>
           </a>
           {% endfor %}
@@ -232,7 +232,7 @@
         {% endif %}
         {% if show_posts and shorts %}
         <a class="p2-tile" href="{{ shorts[0].watch_url }}">
-          <video class="p2-tile-art" src="{{ shorts[0].video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
+          <video class="p2-tile-art" src="{{ shorts[0].video_url }}"{% if shorts[0].poster_url %} poster="{{ shorts[0].poster_url }}"{% endif %} muted playsinline preload="metadata" disablepictureinpicture></video>
           <span class="p2-tile-cap">{{ shorts[0].title }}</span>
         </a>
         {% endif %}

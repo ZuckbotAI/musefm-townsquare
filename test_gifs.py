@@ -92,7 +92,8 @@ def login_human(handle="GifHuman", password="supersecret1"):
     """Sign up + log in a human on a fresh test client. Returns the client."""
     me = appmod.app.test_client()
     r = me.post("/signup", data={"handle": handle, "password": password,
-                                 "password_confirm": password},
+                                 "password_confirm": password,
+                                 "email": "%s@example.com" % handle.lower()},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = me.post("/login", data={"handle": handle, "password": password},
@@ -286,9 +287,10 @@ def main():
     html = thread.get_data(as_text=True)
     check("thread page embeds gif img",
           'class="post-gif"' in html and good in html)
-    idx = client.get("/")
-    check("index shows gif thumbnail",
-          'class="post-gif-thumb"' in idx.get_data(as_text=True))
+    idx = client.get("/c/lobby")
+    idx_html = idx.get_data(as_text=True)
+    check("community feed shows gif thumbnail",
+          'class="post-thumb"' in idx_html and "uploaded gif" in idx_html)
     check("xss in gif_url impossible (whitelist)",
           "evil.example.com" not in html)
 

@@ -919,6 +919,39 @@ def _notify_mods(ntype, ref_type, ref_id, text):
         pass
 
 
+def _notify_upload_uploader(kind, uid, approved):
+    """Tell the uploader their pending upload was approved or rejected.
+
+    A human upload sits invisible in the mod queue until a mod acts, so
+    without this the video appears to vanish after upload. Best-effort:
+    never breaks the mod action it rides on.
+    """
+    try:
+        row = None
+        if kind == "video":
+            row = videos.get_video_upload(db, uid)
+        elif kind == "image":
+            row = ai_images.get_image_upload(db, uid)
+        elif kind == "photo":
+            row = db.get_photo(uid) if hasattr(db, "get_photo") else None
+        if not row:
+            return
+        fm_id = row.get("fm_id")
+        if not fm_id:
+            ident = db.get_identity_by_handle(row.get("handle") or "")
+            fm_id = ident["fm_id"] if ident else None
+        if not fm_id:
+            return
+        verb = "approved and is now live" if approved else "not approved"
+        noun = {"video": "Video", "image": "Image",
+                "photo": "Photo"}.get(kind, "Upload")
+        db.notify(fm_id, "upload_%s" % ("approved" if approved else "rejected"),
+                  kind, str(uid),
+                  "%s #%d %s." % (noun, uid, verb))
+    except Exception:
+        pass
+
+
 def _require_mod():
     """Mod-queue gate: a signed-in human whose handle is in MUSEFM_MODS."""
     ident, redir = _require_human()
@@ -1122,6 +1155,25 @@ def media_visible(url):
 
 
 app.jinja_env.filters["media_visible"] = media_visible
+
+
+def video_poster(url):
+    """Poster URL for a /video/<id> attachment, or None when the upload
+    has no poster frame. Used for the poster attribute on video elements
+    in post/comment embeds (feeds get it via _short_item instead, which
+    already carries the upload row).
+    """
+    url = (url or "").strip()
+    m = re.fullmatch(r"/video/(\d+)", url)
+    if not m:
+        return None
+    u = videos.get_video_upload(db, int(m.group(1)))
+    if u and u.get("poster_path"):
+        return "/video/%s/poster" % m.group(1)
+    return None
+
+
+app.jinja_env.filters["video_poster"] = video_poster
 # Default profile icon: a per-handle generated robot. Keeps real custom
 # avatars; maps empty + the old waveform brand-mark default to the robot.
 app.jinja_env.filters["final_avatar"] = (
@@ -2343,13 +2395,23 @@ def musefm_hub():
         db, [("episode", e["rowid"]) for e in eps], reactor)
     for e in eps:
         e["sig"] = sums[("episode", e["rowid"])]
-    shorts = videos.list_shorts(db, limit=6, series="musefm")
+    # MuseFM station strip: same rotating deck as every other surface
+    # (fresh shuffle per visit, unseen-first via the shared session
+    # recency memory), filtered to series='musefm'.
+    _musefm_shorts_seed = secrets.token_hex(8)
+    shorts, _mshort_total = videos.shuffled_short_page(
+        db, _musefm_shorts_seed, limit=6, page=0, series="musefm",
+        exclude=_shorts_recent_ids())
+    _shorts_mark_seen([u["id"] for u in shorts])
     if shorts:
         vsums = signals.reaction_summaries(
             db, [("video", u["id"]) for u in shorts], reactor)
         for u in shorts:
             u["sig"] = vsums[("video", u["id"])]
             u["display_title"] = videos.clean_title(u["title"], u["filename"])
+            u["video_url"] = url_for("serve_video", uid=u["id"])
+            u["poster_url"] = (url_for("serve_video_poster", uid=u["id"])
+                               if u.get("poster_path") else None)
     _annotate_avatars(shorts)  # D4: author avatars on short cards
     photos = db.list_photos(limit=6)
     return render_template("musefm.html", episodes=eps, shorts=shorts,
@@ -6851,6 +6913,7 @@ def mod_upload_action(kind, uid, action):
             return render_template("404.html", msg="bad kind"), 400
     except (ValueError, TypeError):
         return render_template("404.html", msg="no such upload"), 404
+    _notify_upload_uploader(kind, uid, action == "approve")
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "id": uid, "kind": kind,
                         "status": status})
@@ -6889,6 +6952,7 @@ def mod_uploads_bulk():
             else:
                 ai_images.set_image_status(db, uid, status)
             processed.append(uid)
+            _notify_upload_uploader(kind, uid, action == "approve")
         except (ValueError, TypeError):
             continue
     return jsonify({"ok": True, "kind": kind, "status": status,
@@ -8338,7 +8402,7 @@ def api_upload_audio():
     # the bytes must hash to the sha256 the muse signed: binds the file to
     # the signature, so the attestation covers THIS audio, not just metadata
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
@@ -8605,7 +8669,7 @@ def api_upload_gif():
     if len(raw) > gifs.MAX_GIF_BYTES:
         return api_error("gif too big (max 8 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     try:
         uid, _stored = gifs.create_gif_upload(
             db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR)
@@ -8657,7 +8721,7 @@ def api_upload_image():
     if len(raw) > ai_images.MAX_IMG_BYTES:
         return api_error("image too big (max 4 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     # Moderation: agent uploads already passed through the generation
@@ -8709,7 +8773,8 @@ def api_upload_video():
     fields: file_sha256, ai_generated) plus the file under the "video" field.
     ai_generated is part of the signed body, so it cannot be altered in
     transit — the uploader's signature IS the provenance attestation.
-    MP4 and WebM only (magic-byte verified), max 32 MB, served as-is.
+    MP4 and WebM only (magic-byte verified), max 32 MB. MP4s get a
+    best-effort faststart remux plus a poster frame at upload time.
     Returns a video_url ready to pass to post/comment creation.
 
     Duets/remixes: pass a signed `duet_of` field with the id of the video
@@ -8743,7 +8808,7 @@ def api_upload_video():
     if len(raw) > videos.MAX_VIDEO_BYTES:
         return api_error("video too big (max 32 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     try:
@@ -8791,11 +8856,14 @@ def api_upload_video():
     tb.mirror_work(db, ident["fm_id"], f"Short: {(title or f.filename)[:80]}",
                    "claimed", url_for("serve_video", uid=uid, _external=True),
                    (description or "")[:200])
+    _vu = videos.get_video_upload(db, uid)
     return jsonify({
         "ok": True, "id": uid, "handle": ident["handle"],
         # relative same-origin path: paste it straight back as video_url
         # when creating the post or comment (also accepted by valid_video_url)
         "video_url": url_for("serve_video", uid=uid),
+        "poster_url": (url_for("serve_video_poster", uid=uid)
+                       if _vu and _vu.get("poster_path") else None),
         "ai_generated": ai_flag,
         "status": status,
         "duration_secs": duration,
@@ -8994,6 +9062,27 @@ def serve_video(uid):
 _video_ok_cache = {}
 
 
+@app.route("/video/<sqlite_int:uid>/poster")
+def serve_video_poster(uid):
+    """Poster frame for a video upload (ffmpeg-extracted at upload time).
+
+    404 when the upload has no poster (older uploads, ffmpeg missing at
+    upload time, or bytes that were not a real video). Same visibility
+    rule as the video itself: pending/rejected uploads stay invisible
+    except to the uploader and mods.
+    """
+    u = videos.get_video_upload(db, uid)
+    if not u or not u.get("poster_path") or ".." in (u["poster_path"] or ""):
+        return "nope", 404
+    if not _may_preview_pending(u):
+        return "nope", 404
+    full = os.path.join(DATA_DIR, u["poster_path"])
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype="image/jpeg", conditional=True,
+                     download_name="vid-%d-poster.jpg" % uid)
+
+
 def _stored_video_ok(full):
     """True when the stored file is a structurally valid video.
 
@@ -9087,6 +9176,8 @@ def _short_item(u, src=_NO_SRC):
     return {
         "id": u["id"],
         "video_url": url_for("serve_video", uid=u["id"]),
+        "poster_url": (url_for("serve_video_poster", uid=u["id"])
+                       if u.get("poster_path") else None),
         "watch_url": url_for("watch_video", uid=u["id"]),
         "feed_url": "/shorts?video=%d" % u["id"],
         "thread_url": thread_url,
@@ -9146,12 +9237,12 @@ def _shorts_seed():
 
 # ── Shorts recency memory ─────────────────────────────────────────────
 # A short you just saw doesn't come back for SHORTS_REPEAT_WINDOW
-# seconds — across the home strip, /shorts, and /api/shorts. Per-visitor,
-# kept in the signed session cookie, so it works for logged-out visitors
-# and logged-in users alike with no DB migration. shuffled_short_page()
-# already refuses to apply an exclusion when the pool would drop below
-# the page size, so small catalogs degrade to repeats instead of empty
-# feeds — this can't break the feed.
+# seconds — across the home reel, /shorts, /api/shorts, and the /musefm
+# hub. Per-visitor, kept in the signed session cookie, so it works for
+# logged-out visitors and logged-in users alike with no DB migration.
+# shuffled_short_page() sorts seen ids AFTER unseen ones within one deck
+# (never removes them), so small catalogs degrade to repeats only after
+# the whole pool is exhausted — this can't break the feed.
 SHORTS_REPEAT_WINDOW = 120  # seconds
 SHORTS_RECENT_CAP = 100     # entries (~1.2KB of cookie, well under limits)
 
@@ -9173,6 +9264,39 @@ def _shorts_recent():
 
 def _shorts_recent_ids():
     return [i for i, _ in _shorts_recent()]
+
+
+# ── Shorts deck memory ────────────────────────────────────────────────
+# A deck is (seed, exclude-at-mint): every page of one deck must replay
+# the identical ordering, or infinite scroll would skip or repeat clips
+# versus the initial render. Fresh loads mint a seed, apply the recency
+# window as unseen-first, and remember the exclude set under that seed.
+# ?seed= pages replay the stored exclude set. Unknown/expired seeds
+# fall back to pure hash order (safe: the deck still walks clean).
+# Only non-empty exclude sets are stored, capped at 3 decks, so the
+# session cookie stays well under limits.
+SHORTS_DECK_MEMORY = 3
+
+
+def _shorts_deck_exclude(seed, fresh):
+    """Exclude set for this deck page: mint-time recency on fresh loads,
+    the stored mint-time set on ?seed= pages."""
+    decks = session.get("shorts_decks") or {}
+    if not isinstance(decks, dict):
+        decks = {}
+    if fresh:
+        ex = _shorts_recent_ids()
+        if ex:
+            new_decks = {seed: ex}
+            for k, v in decks.items():
+                if k != seed and len(new_decks) < SHORTS_DECK_MEMORY:
+                    new_decks[k] = v
+            session["shorts_decks"] = new_decks
+        elif seed in decks:
+            del decks[seed]
+            session["shorts_decks"] = decks
+        return ex
+    return decks.get(seed) or []
 
 
 def _shorts_mark_seen(ids):
@@ -9234,9 +9358,10 @@ def api_shorts():
     # is recorded so the next fresh deck — here, /shorts, or home — avoids
     # it for SHORTS_REPEAT_WINDOW seconds.
     fresh_deck = not request.args.get("seed", "").strip()
+    seed = _shorts_seed()
     uploads, total = videos.shuffled_short_page(
-        db, seed := _shorts_seed(), limit=limit, page=page, series=series,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        db, seed, limit=limit, page=page, series=series,
+        exclude=_shorts_deck_exclude(seed, fresh_deck))
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
@@ -9280,9 +9405,10 @@ def api_shorts_cards():
         after_id = int(request.args.get("after_id", 0) or 0)
     except (TypeError, ValueError):
         after_id = 0
+    seed = _shorts_seed()
     uploads, total = videos.shuffled_short_page(
-        db, seed := _shorts_seed(), limit=limit, page=page, series=None,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        db, seed, limit=limit, page=page, series=None,
+        exclude=_shorts_deck_exclude(seed, fresh_deck))
     # Reshuffle-boundary guard: the client passes the last card it shows as
     # ?after_id= on the fresh-deck request. If the new shuffle would open
     # with that same card, swap it one slot down — the deck still covers
@@ -9436,7 +9562,7 @@ def shorts_page():
     fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
         db, seed, limit=10, page=0, series=series,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        exclude=_shorts_deck_exclude(seed, fresh_deck))
     items = _short_items(uploads)
     _shorts_mark_seen([u["id"] for u in uploads])
     anchor_id = None
@@ -9949,11 +10075,24 @@ def watch_video(uid):
             _pp_dc_collect(n.get("children") or [])
     _pp_dc_collect(chain["children"])
     _annotate_passport([u] + _pp_dc)
+    # Up next: rotation slot drawn from the same shuffled deck as every
+    # other surface (unseen-first via the shared session recency memory),
+    # excluding the clip being watched.
+    _up_seed = secrets.token_hex(8)
+    upnext_rows, _up_total = videos.shuffled_short_page(
+        db, _up_seed, limit=4, page=0, series=None,
+        exclude=[uid] + _shorts_recent_ids())
+    upnext = _short_items(upnext_rows)
+    _attach_short_sig(upnext, _sig_web_reactor())
+    _annotate_passport(upnext)
+    _annotate_avatars(upnext)
+    _shorts_mark_seen([u["id"] for u in upnext_rows] + [uid])
     return render_template("watch.html", video=u, title=title,
                            thread_url=thread_url, post=post, tree=tree,
                            handle=_musefm_handle(),
                            duet_parents=chain["parents"],
                            duet_children=chain["children"],
+                           upnext=upnext,
                            is_short=(u["duration_secs"] is None or
                                      u["duration_secs"] < videos.SHORTS_MAX_SECS))
 

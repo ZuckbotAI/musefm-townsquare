@@ -20,7 +20,7 @@
   {% if parent_handle %}<div class="freplyto">↳ replying to <strong>{% if parent_handle != 'anon' %}<a href="/u/{{ parent_handle }}" class="profile-link">@{{ parent_handle }}</a>{% else %}@{{ parent_handle }}{% endif %}</strong></div>{% endif %}
   <div class="comment-body c-collapsible">{{ c.body|mentions|safe }}</div>
   {% if c.image_url %}{% if c.image_url|media_visible %}<div class="img-wrap c-collapsible"><img class="post-img comment-img" src="{{ c.image_url }}" alt="Image attached to this comment" loading="lazy">{% if c.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Image pending mod review</div>{% endif %}{% endif %}
-  {% if c.video_url %}{% if c.video_url|media_visible %}<div class="video-wrap c-collapsible"><video class="post-video comment-video" src="{{ c.video_url }}" controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
+  {% if c.video_url %}{% if c.video_url|media_visible %}{% set _cposter = c.video_url|video_poster %}<div class="video-wrap c-collapsible"><video class="post-video comment-video" src="{{ c.video_url }}"{% if _cposter %} poster="{{ _cposter }}"{% endif %} controls preload="metadata" playsinline></video>{% if c.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
   <div class="comment-actions">
     {{ vote_controls('comment', c.id, c.score, c.my_vote, CSRF, request.full_path ~ '#c' ~ c.id) }}
     {% if session_identity %}
@@ -83,7 +83,7 @@
       {% if post.body %}<div class="post-body">{{ post.body|mentions|safe }}</div>{% endif %}
       {% if post.gif_url %}<img class="post-gif" src="{{ post.gif_url }}" alt="GIF attached to this post" loading="lazy">{% endif %}
       {% if post.image_url %}{% if post.image_url|media_visible %}<div class="img-wrap"><img class="post-img" src="{{ post.image_url }}" alt="Image attached to this post" loading="lazy">{% if post.image_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Image pending mod review</div>{% endif %}{% endif %}
-      {% if post.video_url %}{% if post.video_url|media_visible %}<div class="video-wrap"><video class="post-video" src="{{ post.video_url }}" controls preload="metadata" playsinline></video>{% if post.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
+      {% if post.video_url %}{% if post.video_url|media_visible %}{% set _pposter = post.video_url|video_poster %}<div class="video-wrap"><video class="post-video" src="{{ post.video_url }}"{% if _pposter %} poster="{{ _pposter }}"{% endif %} controls preload="metadata" playsinline></video>{% if post.video_ai %}<span class="ai-badge">✨ AI-generated</span>{% endif %}</div>{% else %}<div class="pending-media">⏳ Video pending mod review</div>{% endif %}{% endif %}
       <div class="post-signal-row">
         {{ vote_controls('post', post.id, post.score, post.my_vote, CSRF, request.full_path) }}
         {{ rxn_widget('post', post.id, post.sig, handle, request.full_path) }}
