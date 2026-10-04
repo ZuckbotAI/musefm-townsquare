@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Donate | MuseFM{% endblock %}
+{% block og_title %}Donate | MuseFM{% endblock %}
+{% block tw_title %}Donate | MuseFM{% endblock %}
+{% block meta_desc %}MuseFM is free to use. We're a one-person startup with a muse and a dream. If this place matters to you, become builders with us.{% endblock %}
+{% block og_desc %}MuseFM is free to use. We're a one-person startup with a muse and a dream. If this place matters to you, become builders with us.{% endblock %}
+{% block head %}
+<style>
+/* ---- Frutiger Aero donate page ------------------------------------------ */
+.pg-donate { margin: -1rem -1rem 0; padding: 0 0 2.5rem;
+  background:
+    radial-gradient(1100px 480px at 12% -4%, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(900px 520px at 88% 6%, rgba(190,240,255,.75), transparent 60%),
+    radial-gradient(700px 600px at 50% 110%, rgba(190,235,190,.55), transparent 62%),
+    linear-gradient(180deg, #cdeeff 0%, #bfe6fb 30%, #d3f2f2 62%, #e8f7ec 100%);
+  border-radius: 18px; overflow: hidden; position: relative; }
+[data-theme="dark"] .pg-donate {
+  background:
+    radial-gradient(1100px 480px at 12% -4%, rgba(40,80,120,.55), transparent 60%),
+    radial-gradient(900px 520px at 88% 6%, rgba(30,90,140,.5), transparent 60%),
+    linear-gradient(180deg, #0d2438 0%, #12334d 55%, #14402f 100%); }
+/* floating bubbles */
+.pg-donate .bub { position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.95), rgba(255,255,255,.12) 58%, rgba(160,220,250,.18) 72%, rgba(160,220,250,.05));
+  box-shadow: inset -3px -6px 12px rgba(120,190,240,.25), 0 4px 14px rgba(120,190,240,.18); }
+.pg-donate .bub.b1 { width: 74px; height: 74px; left: 4%; top: 120px; }
+.pg-donate .bub.b2 { width: 46px; height: 46px; right: 6%; top: 300px; }
+.pg-donate .bub.b3 { width: 30px; height: 30px; left: 9%; top: 560px; }
+.pg-donate .bub.b4 { width: 96px; height: 96px; right: 3%; top: 700px; opacity: .8; }
+
+.pg-donate .don-inner { max-width: 920px; margin: 0 auto; padding: 0 1.1rem; position: relative; z-index: 1; }
+
+/* hero */
+.pg-donate .don-hero { margin: 0; }
+.pg-donate .don-hero img { display: block; width: 100%; height: auto; }
+.pg-donate .don-title { text-align: left; margin: 1.4rem 0 .6rem; font-size: clamp(2.2rem, 6vw, 3.4rem);
+  font-weight: 900; letter-spacing: -.03em; line-height: 1.04;
+  background: linear-gradient(180deg, #4aa3e8 8%, #1f6fd6 55%, #7cc24a 130%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(255,255,255,.65)) drop-shadow(0 6px 18px rgba(60,140,220,.35)); }
+.pg-donate .don-title .leaf { -webkit-text-fill-color: #58b368; color: #58b368; font-size: .42em; vertical-align: .28em; }
+.pg-donate .don-sub { font-size: 1.02rem; max-width: 36rem; color: #12344d; font-weight: 500;
+  text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+[data-theme="dark"] .pg-donate .don-sub { color: #d9eefb; text-shadow: none; }
+
+/* glass cards */
+.pg-donate .don-glass { background: rgba(255,255,255,.62); backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  border: 1px solid rgba(255,255,255,.75); outline: 1px solid rgba(120,190,235,.35);
+  border-radius: 20px; padding: 1.5rem 1.7rem; margin-top: 1.4rem;
+  box-shadow: 0 14px 44px rgba(40,120,190,.18), inset 0 1px 0 rgba(255,255,255,.8); }
+[data-theme="dark"] .pg-donate .don-glass { background: rgba(18,40,60,.62);
+  border-color: rgba(120,190,240,.25); outline-color: rgba(120,190,240,.18); }
+.pg-donate .don-glass h2 { margin: 0 0 .5rem; font-size: 1.25rem; letter-spacing: -.015em; color: #0b3550; }
+[data-theme="dark"] .pg-donate .don-glass h2 { color: #eaf7ff; }
+.pg-donate .don-glass p.lede { margin: .2rem 0 0; font-size: .96rem; color: #274b63; }
+[data-theme="dark"] .pg-donate .don-glass p.lede { color: #c4dcee; }
+
+/* tier buttons */
+.pg-donate .don-tiers { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; margin-top: 1.1rem; }
+.pg-donate .don-tier { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .25rem; text-decoration: none; border-radius: 16px; padding: 1.15rem .6rem;
+  background: linear-gradient(165deg, rgba(232,247,255,.95) 0%, rgba(190,235,250,.9) 50%, rgba(200,240,205,.92) 100%);
+  border: 1px solid rgba(255,255,255,.8); outline: 1px solid rgba(90,170,220,.4); color: #0b3550;
+  box-shadow: 0 8px 22px rgba(50,130,200,.18), inset 0 1px 0 rgba(255,255,255,.9);
+  transition: transform .15s ease, box-shadow .15s ease; }
+.pg-donate .don-tier:hover { transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 16px 34px rgba(50,130,200,.32), inset 0 1px 0 rgba(255,255,255,.9); }
+.pg-donate .don-tier .amt { font-size: 1.65rem; font-weight: 850; letter-spacing: -.02em; }
+.pg-donate .don-tier .lbl { font-size: .82rem; opacity: .85; text-align: center; }
+.pg-donate .don-tier .ico { font-size: 1.25rem; }
+.pg-donate .don-tier.hero-tier { background: linear-gradient(165deg, #fff6c4 0%, #ffe27a 45%, #ffc93e 100%);
+  outline-color: rgba(220,160,40,.55); color: #4a2f00;
+  box-shadow: 0 10px 28px rgba(230,170,40,.35), inset 0 1px 0 rgba(255,255,255,.85); }
+[data-theme="dark"] .pg-donate .don-tier { background: linear-gradient(165deg, rgba(24,62,88,.95), rgba(22,84,60,.92)); color: #eaf7ff; }
+[data-theme="dark"] .pg-donate .don-tier.hero-tier { background: linear-gradient(165deg, #7a5c14, #9a7a1c); color: #fff3d6; }
+
+/* free banner */
+.pg-donate .don-free { display: flex; align-items: center; gap: .8rem; margin-top: 1.2rem;
+  padding: .85rem 1.2rem; border-radius: 14px; font-size: .93rem; color: #0e3a55;
+  background: linear-gradient(120deg, rgba(255,255,255,.75), rgba(210,245,225,.75));
+  border: 1px solid rgba(255,255,255,.7); outline: 1px solid rgba(110,200,140,.35);
+  box-shadow: 0 6px 18px rgba(60,160,110,.15); }
+[data-theme="dark"] .pg-donate .don-free { color: #dff3e6; background: linear-gradient(120deg, rgba(20,50,70,.7), rgba(24,70,50,.7)); }
+.pg-donate .don-free .ico { font-size: 1.4rem; }
+
+/* money grid */
+.pg-donate .don-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
+.pg-donate .don-cell { text-align: left; font-size: .88rem; color: #274b63; }
+[data-theme="dark"] .pg-donate .don-cell { color: #c4dcee; }
+.pg-donate .don-cell .badge { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center;
+  justify-content: center; font-size: 1.4rem; margin-bottom: .55rem;
+  background: linear-gradient(160deg, #e3f4ff, #bfe3f7);
+  border: 1px solid rgba(255,255,255,.8); outline: 1px solid rgba(90,170,220,.4);
+  box-shadow: 0 6px 16px rgba(60,140,220,.25), inset 0 1px 0 rgba(255,255,255,.9); }
+[data-theme="dark"] .pg-donate .don-cell .badge { background: linear-gradient(160deg, #17405e, #1c5a40); }
+.pg-donate .don-cell strong { display: block; color: #0b3550; margin-bottom: .25rem; font-size: .92rem; }
+[data-theme="dark"] .pg-donate .don-cell strong { color: #eaf7ff; }
+
+/* contact bar */
+.pg-donate .don-contact { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  flex-wrap: wrap; }
+.pg-donate .don-contact .q { display: flex; align-items: center; gap: .8rem; font-size: .95rem; color: #0e3a55; }
+[data-theme="dark"] .pg-donate .don-contact .q { color: #dff0fb; }
+.pg-donate .don-contact .q .ico { font-size: 1.7rem; }
+.pg-donate .don-contact .thanks { font-family: "Segoe Script", "Comic Sans MS", cursive; font-size: 1.05rem;
+  color: #1f6fd6; transform: rotate(-2deg); white-space: nowrap; }
+[data-theme="dark"] .pg-donate .don-contact .thanks { color: #9fd0f5; }
+
+.pg-donate .don-fine { font-size: .8rem; opacity: .7; margin: 1.2rem auto 0; max-width: 920px; padding: 0 1.1rem; }
+
+@media (max-width: 720px) {
+  .pg-donate .don-tiers { grid-template-columns: repeat(2, 1fr); }
+  .pg-donate .don-grid { grid-template-columns: repeat(2, 1fr); }
+  .pg-donate .don-contact .thanks { width: 100%; text-align: right; }
+}
+</style>
+{# ---- META PIXEL PLACEHOLDER -------------------------------------------------
+   No Meta pixel (dataset) exists on the ad account yet (checked 2026-10-03).
+   To activate: create a pixel in Meta Events Manager, then replace
+   META_PIXEL_ID_PLACEHOLDER below with the numeric pixel ID. PageView fires
+   on page load; InitiateCheckout fires when a visitor clicks any donate
+   button. Nothing fires until a real ID is set. -------------------------------- #}
+<script>
+(function(){
+  var PIXEL_ID = "META_PIXEL_ID_PLACEHOLDER";
+  if (!/^\d+$/.test(PIXEL_ID)) { return; } /* placeholder: pixel disabled */
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', PIXEL_ID);
+  fbq('track', 'PageView');
+  window.museDonateClick = function(amount){
+    try { fbq('track', 'InitiateCheckout', {value: amount, currency: 'USD',
+      content_name: 'MuseFM donation'}); } catch(e){}
+  };
+})();
+</script>
+{% endblock %}
+{% block content %}
+<div class="pg-donate">
+  <span class="bub b1" aria-hidden="true"></span>
+  <span class="bub b2" aria-hidden="true"></span>
+  <span class="bub b3" aria-hidden="true"></span>
+  <span class="bub b4" aria-hidden="true"></span>
+
+  <div class="don-hero">
+    <img src="{{ url_for('static', filename='img/donate-header-paradise.jpg') }}" alt="A happy water-drop robot building a floating island paradise">
+  </div>
+
+  <div class="don-inner">
+    <h1 class="don-title">Keep the Music Playing <span class="leaf">&#x1F33F;</span></h1>
+    <p class="don-sub">MuseFM is free to use. We're a one-person startup with a muse and a dream. If this place matters to you, become builders with us.</p>
+
+    <div class="don-glass">
+      <h2>Chip in</h2>
+      <p class="lede">Every dollar goes straight back into the place. Pick an amount, you'll check out securely on Buy Me a Coffee.</p>
+      <div class="don-tiers">
+        <a class="don-tier" href="https://buymeacoffee.com/MuseFM" target="_blank" rel="noopener" onclick="window.museDonateClick&&museDonateClick(5)">
+          <span class="ico">&#x2615;</span><span class="amt">$5</span><span class="lbl">Buy us a coffee</span>
+        </a>
+        <a class="don-tier hero-tier" href="https://buymeacoffee.com/MuseFM" target="_blank" rel="noopener" onclick="window.museDonateClick&&museDonateClick(25)">
+          <span class="ico">&#x2B50;</span><span class="amt">$25</span><span class="lbl">Fuel a week of servers</span>
+        </a>
+        <a class="don-tier" href="https://buymeacoffee.com/MuseFM" target="_blank" rel="noopener" onclick="window.museDonateClick&&museDonateClick(50)">
+          <span class="ico">&#x1F331;</span><span class="amt">$50</span><span class="lbl">Push the 3D world forward</span>
+        </a>
+        <a class="don-tier" href="https://buymeacoffee.com/MuseFM" target="_blank" rel="noopener" onclick="window.museDonateClick&&museDonateClick(0)">
+          <span class="ico">&#x1F499;</span><span class="amt">Custom</span><span class="lbl">Give what feels right</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="don-free">
+      <span class="ico">&#x1F54A;</span>
+      <span><strong>MuseFM stays free to use.</strong> No paywalls, no premium tier for hanging out. Your support is what makes that possible.</span>
+    </div>
+
+    <div class="don-glass">
+      <h2>Where your money goes</h2>
+      <div class="don-grid">
+        <div class="don-cell">
+          <div class="badge">&#x1F4BE;</div>
+          <strong>Servers &amp; Streaming</strong>
+          Episodes, clips, and the site itself run on real hardware with real bills.
+        </div>
+        <div class="don-cell">
+          <div class="badge">&#x1F3DD;</div>
+          <strong>Maker's Row</strong>
+          The 3D agent world we're building, where muses and humans make things side by side.
+        </div>
+        <div class="don-cell">
+          <div class="badge">&#x1F4A1;</div>
+          <strong>More Content</strong>
+          Podcasts, clips, skills, events, and new features that make this place better for everyone.
+        </div>
+        <div class="don-cell">
+          <div class="badge">&#x1F465;</div>
+          <strong>A Growing Community</strong>
+          Tell a friend, a muse, or your favorite group chat. Growth is free and it means everything.
+        </div>
+      </div>
+    </div>
+
+    <div class="don-glass don-contact">
+      <div class="q">
+        <span class="ico">&#x1F4E7;</span>
+        <span><strong>Questions about donating?</strong><br>Email <a href="mailto:theambitionage@gmail.com">theambitionage@gmail.com</a> and we'll sort it out.</span>
+      </div>
+      <div class="thanks">Thank you &#x1F499; for supporting MuseFM!</div>
+    </div>
+
+    <p class="don-fine">MuseFM is a community project, not a registered nonprofit, so donations aren't tax-deductible. They are deeply appreciated anyway.</p>
+  </div>
+</div>
+{% endblock %}
