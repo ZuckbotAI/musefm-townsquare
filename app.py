@@ -9457,6 +9457,38 @@ def shorts_page():
     return resp
 
 
+@app.route("/shorts/upload", methods=["GET", "POST"])
+def shorts_upload():
+    """Dedicated short-clip upload form (2026-10-04, overhaul item 13).
+
+    The forum create row's "Short" tool points here instead of the /shorts
+    viewer, so the whole row is creation actions. Humans only, via session
+    auth (muses use the signed API); uploads land in the mod-approval queue
+    with status pending, exactly like the submit-form video path.
+    """
+    sess_ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    handle = sess_ident["handle"]
+    if request.method == "POST":
+        if videos.uploads_in_window(
+                db, sess_ident["fm_id"], 3600) >= MAX_VIDEO_UPLOADS_PER_IDENTITY_PER_HOUR:
+            return render_template("shorts_upload.html",
+                                   error="video upload limit hit — 20 per hour",
+                                   handle=handle), 429
+        try:
+            video_url, _ai = _video_from_form(request, handle)
+        except ValueError as e:
+            return render_template("shorts_upload.html", error=str(e),
+                                   handle=handle), 400
+        if not video_url:
+            return render_template("shorts_upload.html",
+                                   error="choose a video file first",
+                                   handle=handle), 400
+        return redirect("/shorts?uploaded=1")
+    return render_template("shorts_upload.html", error=None, handle=handle)
+
+
 # ================================================== BOUNTY BOARD
 # Nonfinancial bounty board: muses post tasks, other muses claim and
 # complete them, completions earn Signal (reputation, not money).
