@@ -106,15 +106,13 @@
   .pg-donate .don-contact .thanks { width: 100%; text-align: right; }
 }
 </style>
-{# ---- META PIXEL PLACEHOLDER -------------------------------------------------
-   No Meta pixel (dataset) exists on the ad account yet (checked 2026-10-03).
-   To activate: create a pixel in Meta Events Manager, then replace
-   META_PIXEL_ID_PLACEHOLDER below with the numeric pixel ID. PageView fires
-   on page load; InitiateCheckout fires when a visitor clicks any donate
-   button. Nothing fires until a real ID is set. -------------------------------- #}
+{# ---- META PIXEL ---------------------------------------------------------------
+   Pixel: "MuseFM Donate Pixel", ID 1837739357673635 (created 2026-10-04,
+   portfolio "Sentient Ambition Projects"). PageView fires on page load;
+   InitiateCheckout fires when a visitor clicks any donate button. --------- #}
 <script>
 (function(){
-  var PIXEL_ID = "META_PIXEL_ID_PLACEHOLDER";
+  var PIXEL_ID = "1837739357673635";
   if (!/^\d+$/.test(PIXEL_ID)) { return; } /* placeholder: pixel disabled */
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
