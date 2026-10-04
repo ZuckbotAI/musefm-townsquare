@@ -2723,6 +2723,7 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 .fruit-panel {
   position: relative;
   overflow: hidden;
+  width: 100%; /* definite width so text wraps in the rail's column flex */
   border-radius: 16px;
   padding: 12px 16px;
   margin: 8px 0 10px;
