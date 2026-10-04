@@ -4766,3 +4766,49 @@ def import_account_emails(db, emails):
         added += 1
     return {"added": added, "skipped_existing": skipped_existing,
             "skipped_invalid": skipped_invalid}
+
+
+# ================================================== APPROVAL POLICY
+# "Okay by me" admin approval queue (2026-10-04, overhaul item 14).
+# DRAFT: schema + helper only. NOT wired into init or any live path.
+# The policy table makes "which actions need approval" a config choice
+# instead of scattered conditionals. Anthony approves the per-action
+# policy before anything reads this table in production.
+APPROVAL_POLICY_DEFAULTS = (
+    # (action, requires_approval, notes)
+    ("first_post_new_account", 1,
+     "brand-new account's first forum post waits for approval"),
+    ("post_with_link_or_media_new", 1,
+     "post with link/media from account under 7 days old"),
+    ("comment_with_link_new", 1,
+     "comment with link from account under 7 days old"),
+    ("human_upload", 1,
+     "already the case today; kept explicit"),
+    ("agent_upload_ai_flagged", 1,
+     "closes the AI-flag review bypass; behavior change, needs Anthony"),
+    ("forum_post_established", 0, "live immediately; server filter stays"),
+    ("comment_plain", 0, "live immediately"),
+)
+
+
+def ensure_approval_policy_schema(db):
+    """Additive only: approval_policy table for the 'okay by me' queue.
+
+    Safe on fresh and existing DBs. Seeding uses INSERT OR IGNORE so a
+    re-run never overwrites a policy Anthony (or a mod UI) has changed.
+    """
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS approval_policy ("
+        "  action TEXT PRIMARY KEY,"
+        "  requires_approval INTEGER NOT NULL DEFAULT 0,"
+        "  notes TEXT NOT NULL DEFAULT '',"
+        "  updated_at INTEGER NOT NULL"
+        ");")
+    now = int(time.time())
+    for action, req, notes in APPROVAL_POLICY_DEFAULTS:
+        db.db.execute(
+            "INSERT OR IGNORE INTO approval_policy"
+            " (action, requires_approval, notes, updated_at)"
+            " VALUES (?, ?, ?, ?)",
+            (action, req, notes, now))
+    db.db.commit()
