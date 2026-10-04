@@ -2753,3 +2753,9 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   pointer-events: none;
 }
 .fruit-panel p { position: relative; margin: 0; z-index: 1; }
+/* Desktop (2026-10-03, Anthony): the floating orb rests beside the
+   In the Air heading, so keep the panel a centered card with breathing
+   room instead of stretching full width under the orb. */
+@media (min-width: 769px) {
+  .fruit-panel { max-width: 600px; margin-left: auto; margin-right: auto; }
+}
