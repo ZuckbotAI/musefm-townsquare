@@ -1,4 +1,4 @@
-/* Member audio rows for Jams/Jabbers — Spotify text pattern (2026-10-05,
+/* Member audio rows for Jams/Jabbers: Spotify text pattern (2026-10-05,
  * Anthony): square artwork left, REGULAR-weight title wrapping 3 lines,
  * muted meta line (name, human date, duration), icon actions left + big
  * play button right. No per-row scrubber, no floating 0:00, no pill
@@ -16,17 +16,17 @@
   --glass-ink: #0d3a5c;
   --glass-ink-soft: rgba(13, 58, 92, 0.72);
 
-  border-radius: 14px;
+  border-radius: 18px;
   border: 1px solid var(--glass-line);
   outline: 1px solid var(--glass-line-deep);
   outline-offset: -1px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0) 55%),
+    linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.14) 30%, rgba(255,255,255,0) 55%),
     linear-gradient(165deg, var(--glass-tint-a), var(--glass-tint-b) 60%, var(--glass-tint-c));
   box-shadow:
     inset 0 1px 0 var(--glass-hi),
     inset 0 -1px 0 rgba(255,255,255,0.28),
-    0 6px 16px rgba(10, 90, 150, 0.16), 0 2px 6px rgba(10, 90, 150, 0.10);
+    0 10px 26px rgba(10, 90, 150, 0.18), 0 2px 6px rgba(10, 90, 150, 0.10);
   color: var(--glass-ink);
   padding: 12px 14px;
 }
@@ -263,7 +263,7 @@
   .glass-actions .glass-flaglink { display: none; }
 }
 
-/* Featured episode card on /jabs — Spotify text pattern (2026-10-05,
+/* Featured episode card on /jabs: Spotify text pattern (2026-10-05,
    Anthony): ONE latest episode. Square artwork left, REGULAR-weight title
    wrapping 3 lines (topic first, prefix stripped), muted description,
    human meta line, icon actions left + big play right. No kicker. The
