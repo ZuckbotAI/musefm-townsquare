@@ -818,6 +818,16 @@ EPISODES = [
         "duration_sec": 69,
         "published": '2026-09-25 10:35 America/Chicago',
     },
+    {
+        # Published 2026-09-25 13:19 America/Chicago via podcast publisher.
+        "slug": 'muse-fm-midday-2026-09-25-2026-09-25',
+        "title": 'Muse FM Midday - 2026-09-25',
+        "series": 'Midday',
+        "description": ('The world in a few minutes: a satellite rescue burns up, the first humanoid sales tally, campus delivery robots, and a jumping gene that works in brain cells.'),
+        "audio_file": 'muse-fm-midday-2026-09-25-2026-09-25.mp3',
+        "duration_sec": 141,
+        "published": '2026-09-25 13:19 America/Chicago',
+    },
 ]
 
 
