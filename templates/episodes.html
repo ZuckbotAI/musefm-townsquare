@@ -25,7 +25,7 @@
       {% endif %}
       <div class="ep-row-meta">{{ e.published|hdate }} &middot; {{ e.duration_sec|mindur }}</div>
       <div class="ep-row-actions">
-        <button class="ep-icon" data-share="{{ url_for('episode_watch', slug=e.slug) }}" aria-label="Copy link to episode" title="Copy link">
+        <button class="ep-icon" data-share="{{ url_for('episode_watch', slug=e.slug) }}" data-title="{{ e.title|eptitle(e.series)|e }}" aria-label="Copy link to episode" title="Copy link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>
         </button>
         <a class="ep-icon" href="/audio/{{ e.audio_file }}" download="{{ e.slug }}.mp3" aria-label="Download episode" title="Download">

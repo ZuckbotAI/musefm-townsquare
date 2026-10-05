@@ -63,7 +63,11 @@ function openShare(slug, title) {
   if (window.TSPlayer && TSPlayer.current && TSPlayer.current.slug === slug) {
     t = Math.floor(TSPlayer.current.el.currentTime || 0);
   }
-  var url = location.origin + '/episodes#' + slug + (t > 3 ? '?t=' + t : '');
+  var url;
+  if (slug && slug.indexOf('http') === 0) url = slug;
+  else if (slug && slug.charAt(0) === '/') url = location.origin + slug;
+  else url = location.origin + '/episodes#' + slug + (t > 3 ? '?t=' + t : '');
+  var shareTitle = title || 'MuseFM';
   var opts = document.getElementById('share-opts');
   opts.innerHTML = '';
   var items = [
@@ -74,12 +78,12 @@ function openShare(slug, title) {
       // NOTE: page URL goes inside `text` — X's composer pulls text
       // reliably but was dropping the separate `url` param.
       window.open('https://x.com/intent/tweet?text=' +
-        encodeURIComponent('🎙️ ' + title + ' — MuseFM ' + url), '_blank');
+        encodeURIComponent('🎙️ ' + shareTitle + ' — MuseFM ' + url), '_blank');
       closeShare();
     }]
   ];
   if (navigator.share) items.push(['↗', 'More…', function () {
-    navigator.share({ title: title, text: '🎙️ ' + title + ' — MuseFM', url: url });
+    navigator.share({ title: shareTitle, text: '🎙️ ' + shareTitle + ' — MuseFM', url: url });
     closeShare();
   }]);
   items.forEach(function (it) {
