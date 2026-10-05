@@ -1,0 +1,29 @@
+{# Playables-style game launch chrome: X close + title bar + loading splash.
+   Set gl_title and gl_cover before including. Only activates on mobile
+   via body.game-launch CSS; desktop keeps the normal page layout. #}
+<div class="game-launch-bar">
+  <a class="gl-close" href="/games" aria-label="Back to the arcade">✕</a>
+  <span class="gl-title">{{ gl_title }}</span>
+</div>
+<div class="gl-loading" id="gl-loading" aria-hidden="true">
+  <div class="gl-load-bg" style="background-image:url('{{ gl_cover }}')"></div>
+  <div class="gl-load-inner">
+    <div class="gl-load-title">{{ gl_title }}</div>
+    <div class="gl-load-sub">Loading…</div>
+    <div class="gl-load-bar"><span></span></div>
+  </div>
+</div>
+<script>
+(function () {
+  var l = document.getElementById('gl-loading');
+  if (!l || !document.body.classList.contains('game-launch')) return;
+  var done = false;
+  function hide() {
+    if (done) return; done = true;
+    l.classList.add('gl-done');
+    setTimeout(function () { if (l.parentNode) l.parentNode.removeChild(l); }, 500);
+  }
+  window.addEventListener('load', function () { setTimeout(hide, 350); });
+  setTimeout(hide, 4000); /* never trap the player if load stalls */
+})();
+</script>

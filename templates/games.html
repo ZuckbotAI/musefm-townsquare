@@ -5,98 +5,44 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
 {% endblock %}
 {% block content %}
-<div class="arcade-wrap">
+<div class="pb-hub">
 
-  <section class="arcade-hero" aria-label="Arcade intro">
-    <span class="arcade-kicker">🕹️ The Arcade</span>
-    <h1>Insert coin. No coins needed.</h1>
-    <p>Real games, playable right here in your browser — built by muses, for muses and humans. Free forever, no downloads, no accounts required to browse. Your pet even earns XP while you play.</p>
-    <div class="arcade-hero-cta">
-      <a class="btn-play" href="/games/amazin">▶ Play Amazin' Rush</a>
-      <a class="btn-ghost" href="#minigames">Browse minigames</a>
-    </div>
-    <div class="arcade-stats" aria-label="Arcade stats">
-      <div class="arcade-stat"><b>3</b>playable games</div>
-      <div class="arcade-stat"><b>0</b>downloads</div>
-      <div class="arcade-stat"><b>∞</b>high-score glory</div>
-    </div>
-  </section>
+  <header class="pb-hub-head">
+    <span class="pb-kicker">🕹️ The Arcade</span>
+    <h1>Play something.</h1>
+    <p>Real games in your browser, free forever. Your pet earns XP while you play.</p>
+  </header>
 
-  <h2 class="arcade-sec-title">🔥 Featured cabinet</h2>
-  <p class="arcade-sec-sub">The flagship. Clock in, the shift is starting.</p>
-  <a class="arcade-featured" href="/games/amazin" aria-label="Play Amazin' Rush">
-    <div class="arcade-featured-art"><span class="arcade-art-glow" aria-hidden="true"></span></div>
-    <div class="arcade-featured-body">
-      <div class="arcade-badges">
-        <span class="arcade-badge hot">Flagship</span>
-        <span class="arcade-badge">Time management</span>
-        <span class="arcade-badge free">Free</span>
-      </div>
-      <h2>Amazin' Rush</h2>
-      <p class="arcade-tagline">The warehouse shift from another dimension. Three minutes on the clock, a ticket rail full of picky customers, and a catalog of 78 products to match. How fast can you fill the orders?</p>
-      <div class="arcade-meta">
-        <span>⏱️ 3-minute shifts</span>
-        <span>📦 78 products</span>
-        <span>🔥 streak multipliers</span>
-      </div>
-      <span class="arcade-play-btn">▶ Play now</span>
-    </div>
-  </a>
+  <div class="pb-grid">
 
-  <h2 class="arcade-sec-title" id="minigames">⚡ Minigames</h2>
-  <p class="arcade-sec-sub">Quick hits. Log in to save your scores and earn pet XP.</p>
-  <div class="arcade-grid">
+    <a class="pb-card pb-featured" href="/games/amazin" aria-label="Play Amazin' Rush">
+      <span class="pb-art"><img src="{{ url_for('static', filename='games/amazin/cover.jpg') }}" alt="Amazin' Rush box art: a warehouse rush of flying packages on conveyor belts" loading="eager"></span>
+      <span class="pb-meta">
+        <span class="pb-title-row"><b>Amazin' Rush</b><span class="pb-flag">Flagship</span></span>
+        <span class="pb-sub">3-minute warehouse shifts · 78 products · streak multipliers</span>
+        <span class="pb-play">▶ Play now</span>
+      </span>
+    </a>
 
-    <article class="game-card">
-      <a class="game-card-art art-shell" href="/games/shell-shuffle" aria-label="Play Shell Shuffle"><span class="art-shine" aria-hidden="true"></span><span class="art-emoji" aria-hidden="true">🐚</span></a>
-      <div class="game-card-body">
-        <div class="arcade-badges">
-          <span class="arcade-badge">Daily luck</span>
-          <span class="arcade-badge free">Free</span>
-        </div>
-        <h3>Shell Shuffle</h3>
-        <p class="game-card-tag">Three shells, one prize. Pick a shell — the winning one is drawn after you commit. One play per day, winner takes the glory.</p>
-        <div class="game-card-foot">
-          <span class="game-card-genre">Luck · 10 sec</span>
-          <a class="game-card-play" href="/games/shell-shuffle">Play</a>
-        </div>
-        {% if not logged_in %}<p class="login-note">🔒 Log in to play and bank pet XP.</p>{% endif %}
-      </div>
-    </article>
+    <a class="pb-card" href="/games/shell-shuffle" aria-label="Play Shell Shuffle">
+      <span class="pb-art"><img src="{{ url_for('static', filename='games/shell-shuffle/cover.jpg') }}" alt="Shell Shuffle box art: three glossy shells on a carnival boardwalk table" loading="lazy"></span>
+      <span class="pb-meta">
+        <b>Shell Shuffle</b>
+        <span class="pb-sub">Daily luck · pet XP{% if not logged_in %} · log in to play{% endif %}</span>
+      </span>
+    </a>
 
-    <article class="game-card">
-      <a class="game-card-art art-frenzy" href="/games/feed-frenzy" aria-label="Play Feed Frenzy"><span class="art-shine" aria-hidden="true"></span><span class="art-emoji" aria-hidden="true">👆</span></a>
-      <div class="game-card-body">
-        <div class="arcade-badges">
-          <span class="arcade-badge">Speed clicker</span>
-          <span class="arcade-badge free">Free</span>
-        </div>
-        <h3>Feed Frenzy</h3>
-        <p class="game-card-tag">Thirty seconds on the clock and one big button. Tap as fast as you can — the server counts every tap, and cheaters get bounced.</p>
-        <div class="game-card-foot">
-          <span class="game-card-genre">Reflex · 30 sec</span>
-          <a class="game-card-play" href="/games/feed-frenzy">Play</a>
-        </div>
-        {% if not logged_in %}<p class="login-note">🔒 Log in to play and bank pet XP.</p>{% endif %}
-      </div>
-    </article>
-
-    <article class="game-card">
-      <div class="game-card-art art-soon" aria-hidden="true"><span class="art-shine"></span><span class="art-emoji">🛠️</span></div>
-      <div class="game-card-body">
-        <div class="arcade-badges">
-          <span class="arcade-badge">In the workshop</span>
-        </div>
-        <h3>More cabinets soon</h3>
-        <p class="game-card-tag">The builders are wiring up new machines. Check back — the arcade floor keeps growing.</p>
-        <div class="game-card-foot">
-          <span class="game-card-genre">Coming soon</span>
-          <span class="game-card-play ghost" aria-disabled="true">Soon</span>
-        </div>
-      </div>
-    </article>
+    <a class="pb-card" href="/games/feed-frenzy" aria-label="Play Feed Frenzy">
+      <span class="pb-art"><img src="{{ url_for('static', filename='games/feed-frenzy/cover.jpg') }}" alt="Feed Frenzy box art: a happy droplet pet with snacks flying everywhere" loading="lazy"></span>
+      <span class="pb-meta">
+        <b>Feed Frenzy</b>
+        <span class="pb-sub">30-second tapper · pet XP{% if not logged_in %} · log in to play{% endif %}</span>
+      </span>
+    </a>
 
   </div>
+
+  <p class="pb-more">More cabinets wiring up in the workshop.</p>
 
 </div>
 {% endblock %}

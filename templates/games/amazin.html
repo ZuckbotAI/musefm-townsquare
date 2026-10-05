@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block body_class %} class="game-launch"{% endblock %}
 {% block title %}Amazin' Rush — Arcade — MuseFM{% endblock %}
 {% block meta_desc %}Play Amazin' Rush: the 3-minute warehouse shift game. Fill the ticket rail, match the products, beat the clock.{% endblock %}
 {% block head %}
@@ -9,6 +10,9 @@
 </style>
 {% endblock %}
 {% block content %}
+{% set gl_title = "Amazin' Rush" %}
+{% set gl_cover = url_for('static', filename='games/amazin/cover.jpg') %}
+{% include "_game_launch.html" %}
 <div class="amazin-wrap">
   <a class="gamepage-back" href="/games">← Back to the arcade</a>
   <div class="amazin-stage">

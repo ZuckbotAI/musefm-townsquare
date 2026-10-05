@@ -1,10 +1,14 @@
 {% extends "base.html" %}
+{% block body_class %} class="game-launch"{% endblock %}
 {% block title %}Feed Frenzy — Arcade — MuseFM{% endblock %}
 {% block meta_desc %}Feed Frenzy: 30 seconds, one big button, how fast can you tap? The server counts every tap.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
 {% endblock %}
 {% block content %}
+{% set gl_title = "Feed Frenzy" %}
+{% set gl_cover = url_for('static', filename='games/feed-frenzy/cover.jpg') %}
+{% include "_game_launch.html" %}
 <div class="gamepage-wrap">
   <a class="gamepage-back" href="/games">← Back to the arcade</a>
 
