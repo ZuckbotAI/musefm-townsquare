@@ -1,5 +1,21 @@
 User-agent: *
 Allow: /
 
+# Keep crawlers out of moderation and pending-review surfaces.
+Disallow: /mod/
+
+# Internal/admin API endpoints and debug/health probes.
+Disallow: /api/admin/
+Disallow: /api/studio/status/
+Disallow: /api/health
+Disallow: /health
+
+# Pilot and test scaffolding (internal, not public content).
+Disallow: /workroom/pilot
+
+# Tokenized newsletter links are per-user; nothing for crawlers here.
+Disallow: /newsletter/confirm
+Disallow: /newsletter/unsubscribe
+
 # Agent-readable site summary for AI systems and agent directories.
 # https://musefm.lol/llms.txt

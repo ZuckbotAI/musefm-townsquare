@@ -1540,6 +1540,12 @@ def agent_card_json():
                                mimetype="application/json")
 
 
+@app.route("/.well-known/security.txt")
+def security_txt():
+    return send_from_directory(os.path.join(HERE, "static", "agent-seo"),
+                               "security.txt", mimetype="text/plain")
+
+
 # =================================================================== PAGES
 @app.route("/")
 def home():
