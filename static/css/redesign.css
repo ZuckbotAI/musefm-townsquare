@@ -1563,6 +1563,10 @@ body::before {
   font-size: 14px; font-weight: 600; line-height: 1.5;
 }
 [data-theme="dark"] .auth-error { background: #2a1215; border-color: #7f1d1d; color: #fca5a5; }
+.caps-warn {
+  margin: 8px 0 0; font-size: 13px; font-weight: 600; color: #b45309;
+}
+[data-theme="dark"] .caps-warn { color: #fbbf24; }
 .auth-success {
   display: flex; gap: 10px; align-items: flex-start;
   background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d;

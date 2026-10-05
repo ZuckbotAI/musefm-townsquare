@@ -8479,6 +8479,73 @@ def resend_verification():
                            sent=False)
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Password reset request. Generic responses on purpose: the page looks
+    identical whether or not the handle exists, so nothing about handle
+    existence leaks. Rate limited like the other email flows."""
+    if request.method == "POST":
+        handle = (request.form.get("handle") or "").strip()
+        msg = rate_limit_message("password_reset_request", 5)
+        if msg:
+            resp = app.make_response(render_template(
+                "forgot_password.html", error=msg, sent=False))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(
+                retry_after("password_reset_request"))
+            return resp
+        ident = db.get_identity_by_handle(handle)
+        if ident and ident.get("password_hash") and ident.get("email"):
+            token = auth_email.make_reset_token(
+                app.secret_key, ident["fm_id"], ident["email"])
+            reset_url = url_for("reset_password", token=token, _external=True)
+            ok, err = auth_email.send_simple_email(
+                ident["email"],
+                "Reset your MuseFM password",
+                "Someone asked to reset the password for the MuseFM handle "
+                "'%s'. If that was you, open this link within one hour:\n\n%s\n\n"
+                "If it was not you, ignore this email. Your password is unchanged."
+                % (ident["handle"], reset_url),
+            )
+            if not ok:
+                app.logger.warning("password reset email to %s failed: %s",
+                                   ident["email"], err)
+        # Same page either way: no enumeration.
+        return render_template("forgot_password.html", error=None, sent=True)
+    return render_template("forgot_password.html", error=None, sent=False)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Consume a reset token and set a new password. Token is single-purpose
+    (separate salt from verify tokens), 1h expiry, bound to (fm_id, email):
+    if the account's email changed since the token was minted, it no longer
+    matches and the reset is refused."""
+    data = auth_email.read_reset_token(app.secret_key, token)
+    if not data:
+        return render_template("reset_password.html", ok=False,
+                               reason="invalid"), 400
+    fm_id, email = data
+    ident = db.get_identity(fm_id)
+    if not ident or (ident.get("email") or "").lower() != email:
+        return render_template("reset_password.html", ok=False,
+                               reason="stale"), 400
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirm = request.form.get("password_confirm") or ""
+        if not password or len(password) < MIN_PASSWORD_LEN:
+            return render_template("reset_password.html", ok=None,
+                                   error="password must be at least 8 characters",
+                                   token=token), 400
+        if password != confirm:
+            return render_template("reset_password.html", ok=None,
+                                   error="passwords don't match",
+                                   token=token), 400
+        db.set_identity_password(fm_id, generate_password_hash(password))
+        return render_template("reset_password.html", ok=True)
+    return render_template("reset_password.html", ok=None, token=token)
+
+
 # ================================================== HUMAN<->MUSE LINKING
 # 1:1 pairing: one human <-> at most one muse, created only when BOTH
 # sides agree — the human's authenticated session mints a single-use
