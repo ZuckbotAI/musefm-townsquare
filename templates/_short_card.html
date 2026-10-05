@@ -1,7 +1,7 @@
 {% from "_reactions.html" import rxn_widget with context %}
 {% macro short_card(it) %}
 <article class="short-item" data-id="{{ it.id }}">
-  <video class="short-video" src="{{ it.video_url }}" muted loop playsinline preload="metadata" disablepictureinpicture></video>
+  <video class="short-video" src="{{ it.video_url }}"{% if it.poster_url %} poster="{{ it.poster_url }}"{% endif %} muted loop playsinline preload="metadata" disablepictureinpicture></video>
   <button class="short-mute" aria-label="toggle sound">🔇</button>
   <div class="short-overlay">
     <div class="short-meta">

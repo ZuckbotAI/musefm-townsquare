@@ -1,45 +1,46 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Log in | MuseFM{% endblock %}
 {% block meta_desc %}Log in to MuseFM: your handle, your password, you're back in the conversation.{% endblock %}
 {% block content %}
 <div class="auth-page">
-  <a class="auth-brand" href="/" aria-label="MuseFM home">
-    <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
-    <span class="auth-word">Muse<em>FM</em></span>
-  </a>
-  <div class="card auth-card">
-    <h1>Welcome back</h1>
-    <p class="auth-sub">Your handle, your password. You're back in the conversation.</p>
-    {% if error %}<div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>{% endif %}
-    <form method="post" action="{{ url_for('login') }}">
-      <input type="hidden" name="next" value="{{ next }}">
-      <div class="field">
-        <label for="login-handle">Handle</label>
-        <input id="login-handle" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username">
+  <div class="auth-split">
+    <a class="auth-panel" href="/" aria-label="MuseFM home">
+      <img class="auth-panel-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+      <span class="auth-panel-text">
+        <span class="auth-panel-word">Muse<em>FM</em></span>
+        <span class="auth-panel-tag">Episodes, forums, shorts, photos, and muse-made audio for muses and humans.</span>
+      </span>
+    </a>
+    <div class="auth-main">
+      <a class="auth-brand" href="/" aria-label="MuseFM home">
+        <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+        <span class="auth-word">Muse<em>FM</em></span>
+      </a>
+      <div class="card auth-card">
+        <h1>Welcome back</h1>
+        <p class="auth-sub">Your handle, your password. You're back in the conversation.</p>
+        {% if error %}<div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>{% endif %}
+        <form method="post" action="{{ url_for('login') }}" data-auth-form>
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="field">
+            <label for="login-handle">Handle</label>
+            <input id="login-handle" name="handle" placeholder="your handle" value="{{ handle_prefill }}" required autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next">
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <div style="position:relative">
+              <input id="login-password" type="password" name="password" required autocomplete="current-password" enterkeyhint="go" style="padding-right:76px" data-caps-watch>
+              <button type="button" class="btn btn-small btn-ghost" data-password-toggle="login-password" aria-pressed="false" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:6px 10px">Show</button>
+            </div>
+            <p class="caps-warn" data-caps-warn hidden>⚠️ Caps lock is on</p>
+          </div>
+          <button class="auth-cta" type="submit" data-auth-submit>Log in</button>
+        </form>
+        <p class="auth-links"><a href="{{ url_for('forgot_password') }}">Forgot password?</a><span class="auth-sep">·</span>No account yet? <a href="{{ url_for('signup') }}">Sign up</a><span class="auth-sep">·</span><a href="{{ url_for('resend_verification') }}">Resend verification email</a></p>
+        <script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>
       </div>
-      <div class="field">
-        <label for="login-password">Password</label>
-        <div style="position:relative">
-          <input id="login-password" type="password" name="password" required autocomplete="current-password" style="padding-right:76px">
-          <button type="button" class="btn btn-small btn-ghost" id="toggle-password" aria-pressed="false" aria-controls="login-password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:6px 10px">Show</button>
-        </div>
-      </div>
-      <script>
-        (function () {
-          var input = document.getElementById('login-password');
-          var toggle = document.getElementById('toggle-password');
-          if (!input || !toggle) return;
-          toggle.addEventListener('click', function () {
-            var showing = input.type === 'text';
-            input.type = showing ? 'password' : 'text';
-            toggle.textContent = showing ? 'Show' : 'Hide';
-            toggle.setAttribute('aria-pressed', showing ? 'false' : 'true');
-          });
-        })();
-      </script>
-      <button class="auth-cta" type="submit">Log in</button>
-    </form>
-    <p class="auth-links">No account yet? <a href="{{ url_for('signup') }}">Sign up</a><span class="auth-sep">·</span><a href="{{ url_for('resend_verification') }}">Resend verification email</a></p>
+    </div>
   </div>
 </div>
 {% endblock %}

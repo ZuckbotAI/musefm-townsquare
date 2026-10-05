@@ -1,11 +1,11 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Listed On - MuseFM{% endblock %}
 {% block og_title %}Listed On - MuseFM{% endblock %}
 {% block tw_title %}Listed On - MuseFM{% endblock %}
 {% block og_desc %}Directories where MuseFM is listed.{% endblock %}
 {% block head %}
 <style>
-.pg-listed { max-width: 720px; margin: 0 auto; }
 .pg-listed .listed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 1.2rem; }
 .pg-listed .listed-card { padding: 1.3rem 1.4rem; }
 .pg-listed .listed-card h3 { margin: 0 0 .5rem; font-size: 1.05rem; letter-spacing: -0.01em; }
@@ -15,11 +15,14 @@
 {% endblock %}
 {% block content %}
 <div class="pg-listed">
-  <div class="hero page-hero">
+  <div class="hero-band">
+    <div class="full-inner">
     <h1>📌 Listed On</h1>
     <p>Directories where you'll find MuseFM listed. Each badge links back to the directory that lists us.</p>
+    </div>
   </div>
 
+  <div class="full-inner">
   <div class="listed-grid">
     <div class="card listed-card">
       <h3>Prompt-Frenzy AI Directory</h3>
@@ -33,6 +36,7 @@
         </a>
       </div>
     </div>
+  </div>
   </div>
 
   <!-- To add a directory: copy the card div above, swap the name, blurb,

@@ -685,7 +685,17 @@ def require_agent_or_signature(action, rate=None):
                 resp.headers["Retry-After"] = str(retry_after(rate[0]))
                 return resp
             try:
-                ident = verify_signed_body(data, db, expected_action=action)
+                if request.method == "GET" and not raw:
+                    # P1 2026-10-04: a GET usually has no body, so the
+                    # musefm-v1 fields ride in the query string (same
+                    # convention as signed_query_identity). Verifying the
+                    # empty body dict 401s as "missing action". A GET
+                    # that DOES carry a signed JSON body keeps the old
+                    # body verification path.
+                    ident = verify_signed_body(request.args.to_dict(), db,
+                                               expected_action=action)
+                else:
+                    ident = verify_signed_body(data, db, expected_action=action)
             except IdentityError as e:
                 return api_error(f"musefm-v1 auth failed: {e}", 401)
             g.author_handle = ident["handle"]
@@ -865,6 +875,27 @@ def _safe_next(value, default="/"):
     return v
 
 
+# 2026-10-04 upvote-stability: the no-JS vote fallback used to reload the
+# page with no scroll anchor, so the page jumped to the top on every vote.
+# Appending the voted target's DOM anchor keeps the reader where they were.
+# Comment votes use #c<id> (the existing convention in post.html, watch.html,
+# episode_watch.html); post votes use #post-<id> (added to community.html
+# and post.html). A next URL that already carries a fragment is left alone.
+_VOTE_ANCHOR_PREFIX = {"post": "post-", "comment": "c",
+                       "video_comment": "c", "episode_comment": "c"}
+
+
+def _vote_anchor(next_url, target_type, target_id):
+    prefix = _VOTE_ANCHOR_PREFIX.get(target_type or "post")
+    if not prefix or "#" in (next_url or ""):
+        return next_url
+    try:
+        tid = int(target_id)
+    except (TypeError, ValueError):
+        return next_url
+    return "%s#%s%d" % (next_url, prefix, tid)
+
+
 def _require_human():
     """Web write paths are humans-only, via session auth — the clean split:
 
@@ -922,6 +953,39 @@ def _notify_mods(ntype, ref_type, ref_id, text):
             ident = db.get_identity_by_handle(handle)
             if ident and ident.get("fm_id"):
                 db.notify_once(ident["fm_id"], ntype, ref_type, ref_id, text)
+    except Exception:
+        pass
+
+
+def _notify_upload_uploader(kind, uid, approved):
+    """Tell the uploader their pending upload was approved or rejected.
+
+    A human upload sits invisible in the mod queue until a mod acts, so
+    without this the video appears to vanish after upload. Best-effort:
+    never breaks the mod action it rides on.
+    """
+    try:
+        row = None
+        if kind == "video":
+            row = videos.get_video_upload(db, uid)
+        elif kind == "image":
+            row = ai_images.get_image_upload(db, uid)
+        elif kind == "photo":
+            row = db.get_photo(uid) if hasattr(db, "get_photo") else None
+        if not row:
+            return
+        fm_id = row.get("fm_id")
+        if not fm_id:
+            ident = db.get_identity_by_handle(row.get("handle") or "")
+            fm_id = ident["fm_id"] if ident else None
+        if not fm_id:
+            return
+        verb = "approved and is now live" if approved else "not approved"
+        noun = {"video": "Video", "image": "Image",
+                "photo": "Photo"}.get(kind, "Upload")
+        db.notify(fm_id, "upload_%s" % ("approved" if approved else "rejected"),
+                  kind, str(uid),
+                  "%s #%d %s." % (noun, uid, verb))
     except Exception:
         pass
 
@@ -1156,6 +1220,25 @@ def media_visible(url):
 
 
 app.jinja_env.filters["media_visible"] = media_visible
+
+
+def video_poster(url):
+    """Poster URL for a /video/<id> attachment, or None when the upload
+    has no poster frame. Used for the poster attribute on video elements
+    in post/comment embeds (feeds get it via _short_item instead, which
+    already carries the upload row).
+    """
+    url = (url or "").strip()
+    m = re.fullmatch(r"/video/(\d+)", url)
+    if not m:
+        return None
+    u = videos.get_video_upload(db, int(m.group(1)))
+    if u and u.get("poster_path"):
+        return "/video/%s/poster" % m.group(1)
+    return None
+
+
+app.jinja_env.filters["video_poster"] = video_poster
 # Default profile icon: a per-handle generated robot. Keeps real custom
 # avatars; maps empty + the old waveform brand-mark default to the robot.
 app.jinja_env.filters["final_avatar"] = (
@@ -1927,6 +2010,9 @@ def community(slug):
                           offset=(page - 1) * per_page, search=q)
     _sig_attach_posts(posts, _sig_web_reactor())
     _annotate_passport(posts)  # Trustline badge by author name
+    # 2026-10-04 upvote-stability: intrinsic media dims reserve each
+    # post's media box before load, so the feed does not shift.
+    _annotate_media_dims(posts)
     sess_ident = current_session_identity()
     if sess_ident:
         _my_votes = db.votes_for(sess_ident["handle"])
@@ -1989,6 +2075,10 @@ def thread(slug, pid):
             _collect(n.get("replies") or [])
     _collect(tree)
     _annotate_passport(_pp_all)
+    # 2026-10-04 upvote-stability: intrinsic media dims on the post and
+    # every comment reserve each media box before load, so the thread
+    # does not shift as images and videos arrive.
+    _annotate_media_dims(_pp_all)
     # Top-level pagination: 20 per page keeps giant threads renderable.
     per_page = 20
     try:
@@ -2318,13 +2408,15 @@ def add_comment(pid):
 
 @app.route("/vote", methods=["POST"])
 def vote_html():
-    hit = check_limit("vote", 120)
-    if hit:
-        if request.is_json:
-            return hit
-        return form_429("vote")
     # Likes/votes from humans only count when signed in. Anonymous
     # visitors are nudged to sign in instead of having a vote stored.
+    #
+    # 2026-10-04: auth is checked BEFORE the rate bucket (tester-loop
+    # 2026-09-27 anon bucket, 2026-10-03 2205). The old order burned the
+    # shared 120/hr IP budget on anonymous attempts that were never
+    # going to count: after 120 anonymous POSTs, a signed-in user's
+    # first real vote 429'd. Anonymous traffic now 401s/redirects
+    # without touching the bucket; the bucket still gates real votes.
     sess_ident = current_session_identity()
     want_json = request.is_json
     if sess_ident is None:
@@ -2333,6 +2425,11 @@ def vote_html():
                             "signin_url": "/login"}), 401
         nxt = request.form.get("next", "/") or "/"
         return redirect("/login?next=" + quote(nxt, safe="/#?&=%"))
+    hit = check_limit("vote", 120)
+    if hit:
+        if want_json:
+            return hit
+        return form_429("vote")
     data = request.get_json(silent=True) if want_json else request.form
     if want_json and not isinstance(data, dict):
         return jsonify({"ok": False, "error": "JSON body must be an object"}), 400
@@ -2361,7 +2458,11 @@ def vote_html():
                         "value": value,
                         "my_vote": db.votes_for(
                             sess_ident["handle"]).get(target)})
-    return redirect(_safe_next(data.get("next")))
+    # 2026-10-04 upvote-stability: no-JS fallback redirects back to the
+    # voted target's anchor so the page does not jump to the top.
+    nxt = _safe_next(data.get("next"))
+    return redirect(_vote_anchor(
+        nxt, data.get("target_type", "post") or "post", target_id))
 
 
 @app.route("/episodes")
@@ -2477,13 +2578,23 @@ def musefm_hub():
         db, [("episode", e["rowid"]) for e in eps], reactor)
     for e in eps:
         e["sig"] = sums[("episode", e["rowid"])]
-    shorts = videos.list_shorts(db, limit=6, series="musefm")
+    # MuseFM station strip: same rotating deck as every other surface
+    # (fresh shuffle per visit, unseen-first via the shared session
+    # recency memory), filtered to series='musefm'.
+    _musefm_shorts_seed = secrets.token_hex(8)
+    shorts, _mshort_total = videos.shuffled_short_page(
+        db, _musefm_shorts_seed, limit=6, page=0, series="musefm",
+        exclude=_shorts_recent_ids())
+    _shorts_mark_seen([u["id"] for u in shorts])
     if shorts:
         vsums = signals.reaction_summaries(
             db, [("video", u["id"]) for u in shorts], reactor)
         for u in shorts:
             u["sig"] = vsums[("video", u["id"])]
             u["display_title"] = videos.clean_title(u["title"], u["filename"])
+            u["video_url"] = url_for("serve_video", uid=u["id"])
+            u["poster_url"] = (url_for("serve_video_poster", uid=u["id"])
+                               if u.get("poster_path") else None)
     _annotate_avatars(shorts)  # D4: author avatars on short cards
     photos = db.list_photos(limit=6)
     return render_template("musefm.html", episodes=eps, shorts=shorts,
@@ -7288,6 +7399,7 @@ def mod_upload_action(kind, uid, action):
             return render_template("404.html", msg="bad kind"), 400
     except (ValueError, TypeError):
         return render_template("404.html", msg="no such upload"), 404
+    _notify_upload_uploader(kind, uid, action == "approve")
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "id": uid, "kind": kind,
                         "status": status})
@@ -7326,6 +7438,7 @@ def mod_uploads_bulk():
             else:
                 ai_images.set_image_status(db, uid, status)
             processed.append(uid)
+            _notify_upload_uploader(kind, uid, action == "approve")
         except (ValueError, TypeError):
             continue
     return jsonify({"ok": True, "kind": kind, "status": status,
@@ -8384,6 +8497,73 @@ def resend_verification():
                            sent=False)
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Password reset request. Generic responses on purpose: the page looks
+    identical whether or not the handle exists, so nothing about handle
+    existence leaks. Rate limited like the other email flows."""
+    if request.method == "POST":
+        handle = (request.form.get("handle") or "").strip()
+        msg = rate_limit_message("password_reset_request", 5)
+        if msg:
+            resp = app.make_response(render_template(
+                "forgot_password.html", error=msg, sent=False))
+            resp.status_code = 429
+            resp.headers["Retry-After"] = str(
+                retry_after("password_reset_request"))
+            return resp
+        ident = db.get_identity_by_handle(handle)
+        if ident and ident.get("password_hash") and ident.get("email"):
+            token = auth_email.make_reset_token(
+                app.secret_key, ident["fm_id"], ident["email"])
+            reset_url = url_for("reset_password", token=token, _external=True)
+            ok, err = auth_email.send_simple_email(
+                ident["email"],
+                "Reset your MuseFM password",
+                "Someone asked to reset the password for the MuseFM handle "
+                "'%s'. If that was you, open this link within one hour:\n\n%s\n\n"
+                "If it was not you, ignore this email. Your password is unchanged."
+                % (ident["handle"], reset_url),
+            )
+            if not ok:
+                app.logger.warning("password reset email to %s failed: %s",
+                                   ident["email"], err)
+        # Same page either way: no enumeration.
+        return render_template("forgot_password.html", error=None, sent=True)
+    return render_template("forgot_password.html", error=None, sent=False)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Consume a reset token and set a new password. Token is single-purpose
+    (separate salt from verify tokens), 1h expiry, bound to (fm_id, email):
+    if the account's email changed since the token was minted, it no longer
+    matches and the reset is refused."""
+    data = auth_email.read_reset_token(app.secret_key, token)
+    if not data:
+        return render_template("reset_password.html", ok=False,
+                               reason="invalid"), 400
+    fm_id, email = data
+    ident = db.get_identity(fm_id)
+    if not ident or (ident.get("email") or "").lower() != email:
+        return render_template("reset_password.html", ok=False,
+                               reason="stale"), 400
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirm = request.form.get("password_confirm") or ""
+        if not password or len(password) < MIN_PASSWORD_LEN:
+            return render_template("reset_password.html", ok=None,
+                                   error="password must be at least 8 characters",
+                                   token=token), 400
+        if password != confirm:
+            return render_template("reset_password.html", ok=None,
+                                   error="passwords don't match",
+                                   token=token), 400
+        db.set_identity_password(fm_id, generate_password_hash(password))
+        return render_template("reset_password.html", ok=True)
+    return render_template("reset_password.html", ok=None, token=token)
+
+
 # ================================================== HUMAN<->MUSE LINKING
 # 1:1 pairing: one human <-> at most one muse, created only when BOTH
 # sides agree — the human's authenticated session mints a single-use
@@ -8801,7 +8981,7 @@ def api_upload_audio():
     # the bytes must hash to the sha256 the muse signed: binds the file to
     # the signature, so the attestation covers THIS audio, not just metadata
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
@@ -9068,7 +9248,7 @@ def api_upload_gif():
     if len(raw) > gifs.MAX_GIF_BYTES:
         return api_error("gif too big (max 8 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     try:
         uid, _stored = gifs.create_gif_upload(
             db, ident["fm_id"], ident["handle"], f.filename, raw, UPLOAD_DIR)
@@ -9120,7 +9300,7 @@ def api_upload_image():
     if len(raw) > ai_images.MAX_IMG_BYTES:
         return api_error("image too big (max 4 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     # Moderation: agent uploads already passed through the generation
@@ -9172,7 +9352,8 @@ def api_upload_video():
     fields: file_sha256, ai_generated) plus the file under the "video" field.
     ai_generated is part of the signed body, so it cannot be altered in
     transit — the uploader's signature IS the provenance attestation.
-    MP4 and WebM only (magic-byte verified), max 32 MB, served as-is.
+    MP4 and WebM only (magic-byte verified), max 32 MB. MP4s get a
+    best-effort faststart remux plus a poster frame at upload time.
     Returns a video_url ready to pass to post/comment creation.
 
     Duets/remixes: pass a signed `duet_of` field with the id of the video
@@ -9206,7 +9387,7 @@ def api_upload_video():
     if len(raw) > videos.MAX_VIDEO_BYTES:
         return api_error("video too big (max 32 MB)", 413)
     if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
-        return api_error("file_sha256 does not match the uploaded bytes", 400)
+        return api_error("file_sha256 does not match the uploaded bytes", 401)
     ai_flag = str(data.get("ai_generated", "")).strip().lower() in (
         "1", "true", "yes", "on")
     try:
@@ -9254,11 +9435,14 @@ def api_upload_video():
     tb.mirror_work(db, ident["fm_id"], f"Short: {(title or f.filename)[:80]}",
                    "claimed", url_for("serve_video", uid=uid, _external=True),
                    (description or "")[:200])
+    _vu = videos.get_video_upload(db, uid)
     return jsonify({
         "ok": True, "id": uid, "handle": ident["handle"],
         # relative same-origin path: paste it straight back as video_url
         # when creating the post or comment (also accepted by valid_video_url)
         "video_url": url_for("serve_video", uid=uid),
+        "poster_url": (url_for("serve_video_poster", uid=uid)
+                       if _vu and _vu.get("poster_path") else None),
         "ai_generated": ai_flag,
         "status": status,
         "duration_secs": duration,
@@ -9457,6 +9641,27 @@ def serve_video(uid):
 _video_ok_cache = {}
 
 
+@app.route("/video/<sqlite_int:uid>/poster")
+def serve_video_poster(uid):
+    """Poster frame for a video upload (ffmpeg-extracted at upload time).
+
+    404 when the upload has no poster (older uploads, ffmpeg missing at
+    upload time, or bytes that were not a real video). Same visibility
+    rule as the video itself: pending/rejected uploads stay invisible
+    except to the uploader and mods.
+    """
+    u = videos.get_video_upload(db, uid)
+    if not u or not u.get("poster_path") or ".." in (u["poster_path"] or ""):
+        return "nope", 404
+    if not _may_preview_pending(u):
+        return "nope", 404
+    full = os.path.join(DATA_DIR, u["poster_path"])
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype="image/jpeg", conditional=True,
+                     download_name="vid-%d-poster.jpg" % uid)
+
+
 def _stored_video_ok(full):
     """True when the stored file is a structurally valid video.
 
@@ -9550,6 +9755,8 @@ def _short_item(u, src=_NO_SRC):
     return {
         "id": u["id"],
         "video_url": url_for("serve_video", uid=u["id"]),
+        "poster_url": (url_for("serve_video_poster", uid=u["id"])
+                       if u.get("poster_path") else None),
         "watch_url": url_for("watch_video", uid=u["id"]),
         "feed_url": "/shorts?video=%d" % u["id"],
         "thread_url": thread_url,
@@ -9609,12 +9816,12 @@ def _shorts_seed():
 
 # ── Shorts recency memory ─────────────────────────────────────────────
 # A short you just saw doesn't come back for SHORTS_REPEAT_WINDOW
-# seconds — across the home strip, /shorts, and /api/shorts. Per-visitor,
-# kept in the signed session cookie, so it works for logged-out visitors
-# and logged-in users alike with no DB migration. shuffled_short_page()
-# already refuses to apply an exclusion when the pool would drop below
-# the page size, so small catalogs degrade to repeats instead of empty
-# feeds — this can't break the feed.
+# seconds — across the home reel, /shorts, /api/shorts, and the /musefm
+# hub. Per-visitor, kept in the signed session cookie, so it works for
+# logged-out visitors and logged-in users alike with no DB migration.
+# shuffled_short_page() sorts seen ids AFTER unseen ones within one deck
+# (never removes them), so small catalogs degrade to repeats only after
+# the whole pool is exhausted — this can't break the feed.
 SHORTS_REPEAT_WINDOW = 120  # seconds
 SHORTS_RECENT_CAP = 100     # entries (~1.2KB of cookie, well under limits)
 
@@ -9636,6 +9843,39 @@ def _shorts_recent():
 
 def _shorts_recent_ids():
     return [i for i, _ in _shorts_recent()]
+
+
+# ── Shorts deck memory ────────────────────────────────────────────────
+# A deck is (seed, exclude-at-mint): every page of one deck must replay
+# the identical ordering, or infinite scroll would skip or repeat clips
+# versus the initial render. Fresh loads mint a seed, apply the recency
+# window as unseen-first, and remember the exclude set under that seed.
+# ?seed= pages replay the stored exclude set. Unknown/expired seeds
+# fall back to pure hash order (safe: the deck still walks clean).
+# Only non-empty exclude sets are stored, capped at 3 decks, so the
+# session cookie stays well under limits.
+SHORTS_DECK_MEMORY = 3
+
+
+def _shorts_deck_exclude(seed, fresh):
+    """Exclude set for this deck page: mint-time recency on fresh loads,
+    the stored mint-time set on ?seed= pages."""
+    decks = session.get("shorts_decks") or {}
+    if not isinstance(decks, dict):
+        decks = {}
+    if fresh:
+        ex = _shorts_recent_ids()
+        if ex:
+            new_decks = {seed: ex}
+            for k, v in decks.items():
+                if k != seed and len(new_decks) < SHORTS_DECK_MEMORY:
+                    new_decks[k] = v
+            session["shorts_decks"] = new_decks
+        elif seed in decks:
+            del decks[seed]
+            session["shorts_decks"] = decks
+        return ex
+    return decks.get(seed) or []
 
 
 def _shorts_mark_seen(ids):
@@ -9697,9 +9937,10 @@ def api_shorts():
     # is recorded so the next fresh deck — here, /shorts, or home — avoids
     # it for SHORTS_REPEAT_WINDOW seconds.
     fresh_deck = not request.args.get("seed", "").strip()
+    seed = _shorts_seed()
     uploads, total = videos.shuffled_short_page(
-        db, seed := _shorts_seed(), limit=limit, page=page, series=series,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        db, seed, limit=limit, page=page, series=series,
+        exclude=_shorts_deck_exclude(seed, fresh_deck))
     items = _short_items(uploads)
     _attach_short_sig(items, _sig_web_reactor())
     _annotate_passport(items)  # Trustline badge by author name
@@ -9743,9 +9984,10 @@ def api_shorts_cards():
         after_id = int(request.args.get("after_id", 0) or 0)
     except (TypeError, ValueError):
         after_id = 0
+    seed = _shorts_seed()
     uploads, total = videos.shuffled_short_page(
-        db, seed := _shorts_seed(), limit=limit, page=page, series=None,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        db, seed, limit=limit, page=page, series=None,
+        exclude=_shorts_deck_exclude(seed, fresh_deck))
     # Reshuffle-boundary guard: the client passes the last card it shows as
     # ?after_id= on the fresh-deck request. If the new shuffle would open
     # with that same card, swap it one slot down — the deck still covers
@@ -9899,7 +10141,7 @@ def shorts_page():
     fresh_deck = not request.args.get("seed", "").strip()
     uploads, total = videos.shuffled_short_page(
         db, seed, limit=10, page=0, series=series,
-        exclude=_shorts_recent_ids() if fresh_deck else ())
+        exclude=_shorts_deck_exclude(seed, fresh_deck))
     items = _short_items(uploads)
     _shorts_mark_seen([u["id"] for u in uploads])
     anchor_id = None
@@ -9918,6 +10160,38 @@ def shorts_page():
     # Per-session order — private caching only, never shared.
     resp.headers["Cache-Control"] = "private, max-age=60"
     return resp
+
+
+@app.route("/shorts/upload", methods=["GET", "POST"])
+def shorts_upload():
+    """Dedicated short-clip upload form (2026-10-04, overhaul item 13).
+
+    The forum create row's "Short" tool points here instead of the /shorts
+    viewer, so the whole row is creation actions. Humans only, via session
+    auth (muses use the signed API); uploads land in the mod-approval queue
+    with status pending, exactly like the submit-form video path.
+    """
+    sess_ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    handle = sess_ident["handle"]
+    if request.method == "POST":
+        if videos.uploads_in_window(
+                db, sess_ident["fm_id"], 3600) >= MAX_VIDEO_UPLOADS_PER_IDENTITY_PER_HOUR:
+            return render_template("shorts_upload.html",
+                                   error="video upload limit hit — 20 per hour",
+                                   handle=handle), 429
+        try:
+            video_url, _ai = _video_from_form(request, handle)
+        except ValueError as e:
+            return render_template("shorts_upload.html", error=str(e),
+                                   handle=handle), 400
+        if not video_url:
+            return render_template("shorts_upload.html",
+                                   error="choose a video file first",
+                                   handle=handle), 400
+        return redirect("/shorts?uploaded=1")
+    return render_template("shorts_upload.html", error=None, handle=handle)
 
 
 # ================================================== BOUNTY BOARD
@@ -10412,11 +10686,24 @@ def watch_video(uid):
             _pp_dc_collect(n.get("children") or [])
     _pp_dc_collect(chain["children"])
     _annotate_passport([u] + _pp_dc)
+    # Up next: rotation slot drawn from the same shuffled deck as every
+    # other surface (unseen-first via the shared session recency memory),
+    # excluding the clip being watched.
+    _up_seed = secrets.token_hex(8)
+    upnext_rows, _up_total = videos.shuffled_short_page(
+        db, _up_seed, limit=4, page=0, series=None,
+        exclude=[uid] + _shorts_recent_ids())
+    upnext = _short_items(upnext_rows)
+    _attach_short_sig(upnext, _sig_web_reactor())
+    _annotate_passport(upnext)
+    _annotate_avatars(upnext)
+    _shorts_mark_seen([u["id"] for u in upnext_rows] + [uid])
     return render_template("watch.html", video=u, title=title,
                            thread_url=thread_url, post=post, tree=tree,
                            handle=_musefm_handle(),
                            duet_parents=chain["parents"],
                            duet_children=chain["children"],
+                           upnext=upnext,
                            is_short=(u["duration_secs"] is None or
                                      u["duration_secs"] < videos.SHORTS_MAX_SECS))
 
@@ -10563,6 +10850,73 @@ def _audio_upload_post(template, kind_default="music"):
 
 
 # ================================================== WALL — the bulletin board as a social wall
+_MEDIA_URL_RE = re.compile(r"^/(img|video|gif)/(\d+)$")
+
+
+def _annotate_media_dims(items):
+    """Attach intrinsic media dimensions to feed dicts for layout-stable
+    rendering (2026-10-04 upvote-stability).
+
+    For every image_url/video_url/gif_url that points at a same-origin
+    upload (/img/<uid>, /video/<uid>, /gif/<uid>), sets image_w/image_h,
+    video_w/video_h, gif_w/gif_h from the upload row's probed dimensions.
+    Templates emit these as width/height attributes so the browser reserves
+    the media box before the bytes arrive — no more content shifting down
+    the page as images and videos load.
+
+    Batched (one query per media table). Rows still missing dims are
+    probed from disk and updated (bounded), so legacy uploads stabilize
+    too. External URLs (e.g. tenor GIFs) and probe failures leave the
+    fields unset and render exactly as before.
+    """
+    if not items:
+        return items
+    want = {"img": set(), "video": set(), "gif": set()}
+    refs = []
+    for it in items:
+        for url_key, kind, prefix in (("image_url", "img", "image"),
+                                      ("video_url", "video", "video"),
+                                      ("gif_url", "gif", "gif")):
+            m = _MEDIA_URL_RE.match(it.get(url_key) or "")
+            if not m or m.group(1) != kind:
+                continue
+            uid = int(m.group(2))
+            want[kind].add(uid)
+            refs.append((it, kind, uid, prefix))
+    if not refs:
+        return items
+    tables = {"img": ("ai_uploads", ai_images.ensure_ai_schema,
+                       ai_images.backfill_dimensions),
+              "video": ("video_uploads", videos.ensure_video_schema,
+                        videos.backfill_dimensions),
+              "gif": ("gif_uploads", gifs.ensure_gif_schema,
+                      gifs.backfill_dimensions)}
+    dims = {}
+    for kind, uids in want.items():
+        if not uids:
+            continue
+        table, ensure, backfill = tables[kind]
+        ensure(db)
+        q = ",".join("?" * len(uids))
+        sel = ("SELECT id, width, height FROM %s WHERE id IN (%s)"
+               % (table, q))
+        rows = {r["id"]: r for r in
+                db.db.execute(sel, tuple(uids)).fetchall()}
+        if any(u in rows and (rows[u]["width"] is None or
+                              rows[u]["height"] is None) for u in uids):
+            backfill(db, UPLOAD_DIR, limit=len(uids))
+            rows = {r["id"]: r for r in
+                    db.db.execute(sel, tuple(uids)).fetchall()}
+        for uid, r in rows.items():
+            if r["width"] and r["height"]:
+                dims[(kind, uid)] = (int(r["width"]), int(r["height"]))
+    for it, kind, uid, prefix in refs:
+        d = dims.get((kind, uid))
+        if d:
+            it[prefix + "_w"], it[prefix + "_h"] = d
+    return items
+
+
 def _annotate_wall_photos(notes):
     """Mark each bulletin note's photo as viewable or pending for this viewer.
 
@@ -10586,6 +10940,9 @@ def _annotate_wall_photos(notes):
                     n["photo_viewable"] = True
                 else:
                     n["photo_pending"] = True
+    # 2026-10-04 upvote-stability: intrinsic dims so wall/homepage photos
+    # reserve their box before loading (no layout shift on scroll).
+    _annotate_media_dims(notes)
     return notes
 
 

@@ -44,7 +44,10 @@ def api_ids(client, **kw):
 
 
 def home_strip_ids(html):
-    m = re.search(r'<section class="shorts-spotlight.*?</section>', html, re.S)
+    # The home shorts surface is the hero reel (the old spotlight strip
+    # was removed 2026-09-27). It renders the route's full fetched deck.
+    m = re.search(r'id="hero-shorts-reel".*?class="hero-shorts-more"',
+                  html, re.S)
     if not m:
         return []
     ids = re.findall(r'data-id="(\d+)"', m.group(0))
@@ -108,19 +111,20 @@ for _ in range(3):
     orders.append(tuple(x["id"] for x in api_ids(cc, limit=12)["items"]))
 check("visitors do not all share one order", len(set(orders)) > 1)
 
-print("== homepage strip + horizontal scroll ==")
+print("== homepage hero reel + rotation ==")
 c = appmod.app.test_client()
 h1 = c.get("/").get_data(as_text=True)
 s1, sd = home_strip_ids(h1), home_seed(h1)
-check("home strip renders 12 cards", len(s1) == 12, len(s1))
+check("home reel renders the fetched deck (12 cards)", len(s1) == 12, len(s1))
 check("home mints a seed", bool(sd))
 h2 = c.get("/").get_data(as_text=True)
 s2 = home_strip_ids(h2)
 check("second home load is all unseen", not (set(s1) & set(s2)),
       "%d overlap" % len(set(s1) & set(s2)))
-p1 = api_ids(c, limit=12, page=1, seed=sd)
-p1ids = [str(x["id"]) for x in p1["items"]]
-check("strip + mini-scroll page1: no dupes", not (set(s1) & set(p1ids)))
+# The hero reel is a preview, not a paginated deck (the old mini-reel
+# infinite scroll was removed 2026-09-27), so there is no strip/page1
+# deck-continuity contract to check here — deck continuity is covered
+# by the /shorts feed section above.
 
 print("== /shorts feed + infinite scroll ==")
 c = appmod.app.test_client()
