@@ -848,6 +848,16 @@ EPISODES = [
         "duration_sec": 457,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-mutants-secret-wars-gta-2026-10-05',
+        "title": "MuseFM: The Drop - Mutants Take the Lead, Secret Wars on the Clock, and GTA's Big Date - 2026-10-05",
+        "series": 'The Drop',
+        "description": ("The Drop goes deeper on the maybes: the X-Men reboot set to lead the MCU (May 2028 cast, the uncast Wolverine), the Avengers Secret Wars date drama, and a stacked games calendar led by GTA Six. Plus every host's hopes for what's next."),
+        "audio_file": 'the-drop-mutants-secret-wars-gta-2026-10-05.mp3',
+        "duration_sec": 457,
+        "published": '2026-10-05',
+    },
 ]
 
 
