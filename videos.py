@@ -23,6 +23,7 @@ Safety model mirrors ai_images.py:
   so transcoding can never newly reject an upload.
 """
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -30,6 +31,38 @@ import subprocess
 import tempfile
 import time
 import uuid
+
+# ffprobe mirrors the audio-duration probe in app.py. Missing binary or a
+# probe failure is never fatal: dimensions are a layout nicety, not a gate.
+FFPROBE = shutil.which("ffprobe")
+
+
+def probe_video_dims(path):
+    """Intrinsic (width, height) of the first video stream, or (None, None).
+
+    Never raises: probe failures (missing binary, unreadable container)
+    leave dims NULL and the upload proceeds as before.
+    """
+    if not FFPROBE or not path:
+        return None, None
+    try:
+        out = subprocess.run(
+            [FFPROBE, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "json", path],
+            capture_output=True, timeout=20)
+        if out.returncode != 0:
+            return None, None
+        streams = json.loads(out.stdout.decode("utf-8", "replace")
+                             ).get("streams") or []
+        if not streams:
+            return None, None
+        w = int(streams[0].get("width") or 0)
+        h = int(streams[0].get("height") or 0)
+        if w > 0 and h > 0:
+            return w, h
+    except Exception:
+        pass
+    return None, None
 
 # 32 MB: tight enough to protect the 1 GB Render disk (worst case ~31
 # max-size videos fill it; the 20/hour per-identity cap plus moderation keep
@@ -432,6 +465,11 @@ def ensure_video_schema(db):
     # the application layer (create_video_upload validates the parent
     # exists) because ALTER TABLE ... ADD COLUMN cannot carry a FK here.
     _ensure_col(db, "video_uploads", "duet_of", "duet_of INTEGER")
+    # 2026-10-04 upvote-stability: intrinsic dimensions for layout-stable
+    # <video> rendering. Nullable: legacy rows and probe failures simply
+    # render un-dimensioned.
+    _ensure_col(db, "video_uploads", "width", "width INTEGER")
+    _ensure_col(db, "video_uploads", "height", "height INTEGER")
     _ensure_col(db, "posts", "video_url", "video_url TEXT NOT NULL DEFAULT ''")
     _ensure_col(db, "posts", "video_ai", "video_ai INTEGER NOT NULL DEFAULT 0")
     # vote score on video comments (comment voting batch, 2026-09-18)
@@ -565,18 +603,22 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
     # exists. The old order (INSERT, then write) orphaned 15 feed rows with
     # no file behind them when the disk filled (Errno 28) -- every one 404'd.
     tmp_full = _write_temp_upload(upload_dir, final_raw, "vid", ext)
+    # 2026-10-04 upvote-stability: probe intrinsic dimensions off the temp
+    # file for the layout-stable <video> box. Non-fatal; NULL dims render
+    # as before.
+    vid_w, vid_h = probe_video_dims(tmp_full)
     uid = None
     poster_path = ""
     try:
         cur = db._exec(
             "INSERT INTO video_uploads (fm_id, handle, filename, stored_path, bytes,"
             " mime, ai_generated, duration_secs, created_at, title, description,"
-            " status, duet_of)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " status, duet_of, width, height)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (fm_id, handle, safe_name, "", len(final_raw), mime,
              1 if ai_generated else 0, dur, int(time.time()),
              (title or "")[:120] or None, (description or "")[:500] or None,
-             status, parent_id))
+             status, parent_id, vid_w, vid_h))
         uid = cur.lastrowid
         stored = "uploads/vid-%d.%s" % (uid, ext)
         os.rename(tmp_full, os.path.join(upload_dir, "vid-%d.%s" % (uid, ext)))
@@ -945,3 +987,33 @@ def find_sources(db, uids):
                             "community": r["community"], "title": None,
                             "handle": r["handle"], "comment_id": r["id"]}
     return out
+
+
+def backfill_dimensions(db, upload_dir, limit=200):
+    """Fill NULL width/height on legacy video rows from the stored files.
+
+    2026-10-04 upvote-stability: rows uploaded before dimension probing
+    existed get their dims lazily so old feed media stops shifting too.
+    Bounded (default 200 rows per call); rows whose files are missing or
+    unreadable are left NULL. Returns the number of rows updated.
+    """
+    ensure_video_schema(db)
+    rows = db.db.execute(
+        "SELECT id, stored_path FROM video_uploads"
+        " WHERE width IS NULL OR height IS NULL"
+        " ORDER BY id DESC LIMIT ?", (max(1, int(limit or 200)),)).fetchall()
+    updated = 0
+    for r in rows:
+        rid = r["id"]
+        stored = r["stored_path"] or ""
+        if not stored or ".." in stored:
+            continue
+        full = os.path.join(upload_dir, os.path.basename(stored))
+        if not os.path.isfile(full):
+            continue
+        w, h = probe_video_dims(full)
+        if w and h:
+            db._exec("UPDATE video_uploads SET width=?, height=? WHERE id=?",
+                     (w, h, rid))
+            updated += 1
+    return updated

@@ -12,11 +12,36 @@ Safety model mirrors gifs.py:
   uploads are a moderation matter (see README "AI image policy").
 - per-identity hourly upload cap enforced at the route layer
 """
+import io
 import os
 import re
 import time
 
+try:
+    from PIL import Image as _PILImage
+except Exception:
+    _PILImage = None
+
 from videos import _write_temp_upload
+
+
+def probe_image_dims(raw):
+    """Intrinsic (width, height) of image bytes, or (None, None).
+
+    Never raises: a probe failure must not fail an upload. Dimensions are
+    a layout-stability nicety (reserve the <img> box before load so the
+    feed does not shift), never a correctness gate.
+    """
+    if not raw or _PILImage is None:
+        return None, None
+    try:
+        with _PILImage.open(io.BytesIO(raw)) as im:
+            w, h = im.size
+        if w and h and w > 0 and h > 0:
+            return int(w), int(h)
+    except Exception:
+        pass
+    return None, None
 
 MAX_IMG_BYTES = 4 * 1024 * 1024  # tight: 1 GB Render disk
 
@@ -82,6 +107,12 @@ def ensure_ai_schema(db):
     _ensure_col(db, "comments", "image_ai", "image_ai INTEGER NOT NULL DEFAULT 0")
     _ensure_col(db, "ai_uploads", "status",
                 "status TEXT NOT NULL DEFAULT 'approved'")
+    # 2026-10-04 upvote-stability: intrinsic dimensions for layout-stable
+    # <img> rendering (width/height attributes reserve the box before the
+    # bytes arrive, so the feed does not shift under the reader).
+    # Nullable: legacy rows and probe failures simply render un-dimensioned.
+    _ensure_col(db, "ai_uploads", "width", "width INTEGER")
+    _ensure_col(db, "ai_uploads", "height", "height INTEGER")
     db.db.commit()
 
 
@@ -138,14 +169,18 @@ def create_image_upload(db, fm_id, handle, filename, raw, upload_dir,
     # orphan-row bug as videos (INSERT-then-write left feed rows with no
     # file when the disk filled).
     tmp_full = _write_temp_upload(upload_dir, raw, "img", ext)
+    # 2026-10-04 upvote-stability: probe intrinsic dimensions for the
+    # layout-stable <img> box. Non-fatal; NULL dims render as before.
+    img_w, img_h = probe_image_dims(raw)
     uid = None
     try:
         cur = db._exec(
             "INSERT INTO ai_uploads (fm_id, handle, filename, stored_path, bytes,"
-            " mime, ai_generated, created_at, status)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " mime, ai_generated, created_at, status, width, height)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (fm_id, handle, safe_name, "", len(raw), mime,
-             1 if ai_generated else 0, int(time.time()), status))
+             1 if ai_generated else 0, int(time.time()), status,
+             img_w, img_h))
         uid = cur.lastrowid
         stored = "uploads/img-%d.%s" % (uid, ext)
         os.rename(tmp_full, os.path.join(upload_dir, "img-%d.%s" % (uid, ext)))
@@ -205,3 +240,35 @@ def uploads_in_window(db, fm_id, window_sec=3600):
     r = db._one("SELECT COUNT(*) c FROM ai_uploads WHERE fm_id=? AND created_at>=?",
                 (fm_id, int(time.time()) - window_sec))
     return r["c"] if r else 0
+
+
+def backfill_dimensions(db, upload_dir, limit=200):
+    """Fill NULL width/height on legacy image rows from the stored files.
+
+    2026-10-04 upvote-stability: rows uploaded before dimension probing
+    existed get their dims lazily so old feed media stops shifting too.
+    Bounded (default 200 rows per call); rows whose files are missing or
+    unreadable are left NULL. Returns the number of rows updated.
+    """
+    ensure_ai_schema(db)
+    rows = db.db.execute(
+        "SELECT id, stored_path FROM ai_uploads"
+        " WHERE width IS NULL OR height IS NULL"
+        " ORDER BY id DESC LIMIT ?", (max(1, int(limit or 200)),)).fetchall()
+    updated = 0
+    for r in rows:
+        rid = r["id"]
+        stored = r["stored_path"] or ""
+        if not stored or ".." in stored:
+            continue
+        full = os.path.join(upload_dir, os.path.basename(stored))
+        try:
+            with open(full, "rb") as f:
+                w, h = probe_image_dims(f.read(MAX_IMG_BYTES + 1))
+        except OSError:
+            continue
+        if w and h:
+            db._exec("UPDATE ai_uploads SET width=?, height=? WHERE id=?",
+                     (w, h, rid))
+            updated += 1
+    return updated

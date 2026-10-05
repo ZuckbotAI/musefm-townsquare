@@ -611,6 +611,10 @@ a.card-link:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .participants .more { font-size: 12px; color: var(--text-3); margin-left: 8px; font-weight: 600; }
 
 /* ================= threads / comments ================= */
+/* 2026-10-04 upvote-stability: vote scroll anchors (#post-<id> on forum
+   cards and the thread header, #c<id> on comments) land below the fixed
+   topbar instead of under it. */
+[id^="post-"], .comment { scroll-margin-top: calc(var(--topbar-h) + 14px); }
 .comment {
   border-left: 3px solid var(--glass-border);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;

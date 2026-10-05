@@ -344,7 +344,7 @@
       </div>
       <p>{{ n.text }}</p>
       {% if n.image_url and n.photo_viewable %}
-      <div class="wall-note-photo"><img src="{{ n.image_url }}" alt="Photo on the wall" loading="lazy"></div>
+      <div class="wall-note-photo"><img src="{{ n.image_url }}" alt="Photo on the wall" loading="lazy"{% if n.image_w and n.image_h %} width="{{ n.image_w }}" height="{{ n.image_h }}"{% endif %}></div>
       {% elif n.image_url and n.photo_pending %}
       <div class="wall-note-photo wall-note-photo-pending"><span>photo waiting for mod approval</span></div>
       {% endif %}
