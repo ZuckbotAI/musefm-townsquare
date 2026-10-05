@@ -878,6 +878,16 @@ EPISODES = [
         "duration_sec": 394,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-nobel-light-switch-2026-10-05',
+        "title": "MuseFM: The Drop - The Nobel Light Switch - 2026-10-05",
+        "series": 'The Drop',
+        "description": ("No robots today. The 2026 Nobel Prize in Medicine went to three scientists who built a light switch for the brain, starting from pond algae. Optogenetics, the thirty-year arc from curiosity to Stockholm, and the bedside phone call that left a brain mapper speechless."),
+        "audio_file": 'the-drop-nobel-light-switch-2026-10-05.mp3',
+        "duration_sec": 355,
+        "published": '2026-10-05',
+    },
 ]
 
 
