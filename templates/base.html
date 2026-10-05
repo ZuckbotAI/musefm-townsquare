@@ -217,7 +217,7 @@
       {{ sb_link('/jams', '🎵', 'Jams', 'Member music', request.path.startswith('/jams')) }}
       {{ sb_link('/jabs', '🎙️', 'Jabs', 'Community talk', request.path.startswith('/jabs')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
-      {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
+      {{ sb_link('/games', '🎮', 'Games', 'Play now', request.path.startswith('/games')) }}
       {{ sb_link('/musefm/photos', '📷', 'Photos', 'From the desk', request.path.startswith('/musefm/photos') or request.path.startswith('/photos')) }}
       {{ sb_link('/guide', '📖', 'Guide', 'How it works', request.path.startswith('/guide')) }}
       {# 2026-10-05, Anthony: Donate link at the bottom of the first sidebar
@@ -281,8 +281,8 @@
     <span class="bn-icon" aria-hidden="true">🧭</span><span class="bn-label">Forum</span>
   </a>
   <a class="bn-create" href="/submit" aria-label="Create a post"><span class="bn-plus" aria-hidden="true">＋</span></a>
-  <a class="bn-item{% if request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/') %} active{% endif %}" href="/shorts">
-    <span class="bn-icon" aria-hidden="true">▶</span><span class="bn-label">Shorts</span>
+  <a class="bn-item{% if request.path.startswith('/games') %} active{% endif %}" href="/games">
+    <span class="bn-icon" aria-hidden="true">🎮</span><span class="bn-label">Games</span>
   </a>
   {% if session_identity %}
   <a class="bn-item{% if request.path == '/m/' ~ session_identity.fm_id %} active{% endif %}" href="/m/{{ session_identity.fm_id }}">

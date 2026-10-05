@@ -1636,10 +1636,178 @@ def _ensure_game_notify_table():
 
 @app.route("/games")
 def games():
-    """Games tab: coming-soon placeholder surface."""
+    """Games tab: the arcade hub."""
     return render_template("games.html",
-                           notified=request.args.get("notified") == "1",
+                           logged_in=bool(current_session_identity()),
                            daily_q=daily_question())
+
+
+@app.route("/games/amazin")
+def games_amazin():
+    """Amazin' Rush: the flagship warehouse-shift game, fully client-side."""
+    return render_template("games/amazin.html",
+                           daily_q=daily_question())
+
+
+@app.route("/games/shell-shuffle")
+def games_shell_shuffle():
+    """Shell Shuffle (human name for the tide-toss table): daily luck minigame."""
+    return render_template("games/shell_shuffle.html",
+                           logged_in=bool(current_session_identity()),
+                           daily_q=daily_question())
+
+
+@app.route("/games/feed-frenzy")
+def games_feed_frenzy():
+    """Feed Frenzy: 30-second server-counted clicker minigame."""
+    return render_template("games/feed_frenzy.html",
+                           logged_in=bool(current_session_identity()),
+                           daily_q=daily_question())
+
+
+# ------------------------------------------------- Arcade: human game APIs
+# The signed-muse /api/games/tide-toss and /api/games/feed-frenzy routes
+# stay muse-only by design. These thin human wrappers reuse the same
+# tables, RNG, and anti-cheat logic keyed to the human session fm_id,
+# minus the pet-ownership gate (humans play freely; pet XP banks to
+# their fm_id and surfaces when they have a pet). User-facing name for
+# the tide-toss table is "Shell Shuffle" — no Tide wording in copy.
+def _arcade_human():
+    """Logged-in human identity for arcade play, or None."""
+    return current_session_identity()
+
+
+def _check_json_csrf():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        return _check_csrf_token(data.get("csrf_token", ""))
+    except Exception:
+        return False
+
+
+def _human_shell_shuffle_play(fm_id, pick):
+    """Server draws the winning shell AFTER the pick is recorded.
+    One play per America/Chicago day, database-enforced."""
+    import secrets as _secrets
+    import tidepal_games as tpg
+    import tidepal_social as tps
+    tpg.ensure_game_schema(db)
+    day = tpg._today_key()
+    row = db._one("SELECT pick FROM tide_toss_plays WHERE fm_id=? AND day=?",
+                  (fm_id, day))
+    if row:
+        raise ValueError("already_played")
+    winning = _secrets.randbelow(3)
+    won = (pick == winning)
+    try:
+        db._exec("INSERT INTO tide_toss_plays"
+                 " (fm_id, day, pick, winning, won, created_at)"
+                 " VALUES (?,?,?,?,?,?)",
+                 (fm_id, day, pick, winning, int(won), int(time.time())))
+    except sqlite3.IntegrityError:
+        raise ValueError("already_played")
+    xp_gain = tpg.TIDE_TOSS_WIN_XP if won else tpg.TIDE_TOSS_PLAY_XP
+    xp = tps.award_pet_xp(db, fm_id, xp_gain)
+    return {"ok": True, "game": "shell_shuffle", "day": day, "pick": pick,
+            "winning_shell": winning, "won": bool(won),
+            "xp_added": xp_gain, "pet_xp_total": xp["total"],
+            "rewards": xp["rewards"]}
+
+
+_frenzy_lock = threading.Lock()
+
+
+def _human_feed_frenzy_click(fm_id):
+    """Server-counted click. 30s window from first click, 12/sec cap.
+    A process-wide lock makes the read-modify-write atomic: human taps
+    arrive as concurrent fetches, and without it rapid taps lose counts."""
+    import json as _json
+    import tidepal_games as tpg
+    tpg.ensure_game_schema(db)
+    with _frenzy_lock:
+        t = time.time()
+        row = db._one("SELECT started_at, clicks, click_marks, finalized"
+                      " FROM feed_frenzy_sessions WHERE fm_id=?", (fm_id,))
+        if row and row["finalized"]:
+            row = None  # previous window done — start a fresh one
+        if row is None:
+            db._exec("INSERT OR REPLACE INTO feed_frenzy_sessions"
+                     " (fm_id, started_at, clicks, click_marks, finalized, score)"
+                     " VALUES (?,?,?,?,?,?)",
+                     (fm_id, int(t), 1, _json.dumps([t]), 0, 0))
+            return {"ok": True, "game": "feed_frenzy", "clicks": 1,
+                    "seconds_left": tpg.FEED_FRENZY_WINDOW, "done": False}
+        if t - row["started_at"] >= tpg.FEED_FRENZY_WINDOW:
+            fin = tpg.finalize_feed_frenzy(db, fm_id)
+            raise ValueError("window closed — final score %d (+%d pet XP)."
+                             " Tap again for a fresh frenzy."
+                             % (fin["score"], fin["xp_added"]))
+        marks = tpg._trim_marks(tpg._marks(row), t)
+        if len([m for m in marks if t - m < 1.0]) >= tpg.FEED_FRENZY_MAX_PER_SEC:
+            raise ValueError("too fast — 12 taps/sec max, no autoclickers")
+        marks.append(t)
+        clicks = row["clicks"] + 1
+        db._exec("UPDATE feed_frenzy_sessions SET clicks=?, click_marks=?"
+                 " WHERE fm_id=?", (clicks, _json.dumps(marks), fm_id))
+        return {"ok": True, "game": "feed_frenzy", "clicks": clicks,
+                "seconds_left": round(tpg.FEED_FRENZY_WINDOW - (t - row["started_at"]), 1),
+                "done": False}
+
+
+@app.route("/api/games/human/shell-shuffle/status")
+def api_human_shell_shuffle_status():
+    import tidepal_games as tpg
+    ident = _arcade_human()
+    if not ident:
+        return jsonify({"ok": False, "error": "login_required"}), 401
+    st = tpg.tide_toss_status(db, ident["fm_id"])
+    st["ok"] = True
+    return jsonify(st)
+
+
+@app.route("/api/games/human/shell-shuffle/play", methods=["POST"])
+def api_human_shell_shuffle_play():
+    ident = _arcade_human()
+    if not ident:
+        return jsonify({"ok": False, "error": "login_required"}), 401
+    if not _check_json_csrf():
+        return jsonify({"ok": False, "error": "bad_csrf"}), 403
+    try:
+        pick = int((request.get_json(force=True) or {}).get("pick", -1))
+    except Exception:
+        return jsonify({"ok": False, "error": "bad_pick"}), 400
+    if pick not in (0, 1, 2):
+        return jsonify({"ok": False, "error": "bad_pick"}), 400
+    try:
+        return jsonify(_human_shell_shuffle_play(ident["fm_id"], pick))
+    except ValueError as e:
+        if str(e) == "already_played":
+            return jsonify({"ok": False, "error": "already_played"}), 403
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+@app.route("/api/games/human/feed-frenzy/status")
+def api_human_feed_frenzy_status():
+    import tidepal_games as tpg
+    ident = _arcade_human()
+    if not ident:
+        return jsonify({"ok": False, "error": "login_required"}), 401
+    st = tpg.feed_frenzy_status(db, ident["fm_id"])
+    st["ok"] = True
+    return jsonify(st)
+
+
+@app.route("/api/games/human/feed-frenzy/click", methods=["POST"])
+def api_human_feed_frenzy_click():
+    ident = _arcade_human()
+    if not ident:
+        return jsonify({"ok": False, "error": "login_required"}), 401
+    if not _check_json_csrf():
+        return jsonify({"ok": False, "error": "bad_csrf"}), 403
+    try:
+        return jsonify(_human_feed_frenzy_click(ident["fm_id"]))
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
 
 
 @app.route("/games/notify", methods=["POST"])

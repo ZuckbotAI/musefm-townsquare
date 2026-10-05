@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Amazin' Rush — Arcade — MuseFM{% endblock %}
+{% block meta_desc %}Play Amazin' Rush: the 3-minute warehouse shift game. Fill the ticket rail, match the products, beat the clock.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='games/amazin/styles.css') }}">
+<style>
+  .amazin-stage .amazin-rush { height: min(860px, calc(100dvh - 140px)); min-height: 620px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="amazin-wrap">
+  <a class="gamepage-back" href="/games">← Back to the arcade</a>
+  <div class="amazin-stage">
+    <div class="amazin-rush"><!-- game mounts here --></div>
+  </div>
+  <p class="amazin-note">3-minute shifts. Fill the ticket rail, match the right colorway, watch your streak multiplier. Your pet cheers you on from the corner.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='games/amazin/catalog.js') }}"></script>
+<script src="{{ url_for('static', filename='games/amazin/engine.js') }}"></script>
+<script src="{{ url_for('static', filename='games/amazin/ui.js') }}"></script>
+{% endblock %}

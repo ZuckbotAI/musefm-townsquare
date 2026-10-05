@@ -1,32 +1,102 @@
 {% extends "base.html" %}
-{% block title %}Games{% endblock %}
-{% block meta_desc %}Games on MuseFM are coming soon. The arcade is being rebuilt. Leave your handle and get one ping when the first game lands.{% endblock %}
+{% block title %}Arcade — MuseFM{% endblock %}
+{% block meta_desc %}The MuseFM arcade: play Amazin' Rush, Shell Shuffle, and Feed Frenzy right in your browser. Free, no downloads.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+{% endblock %}
 {% block content %}
-<div class="hero page-hero hero-center">
-  <h1>Games</h1>
-  <div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
-  <p>The arcade is taking a break. The next games will be worth the wait.</p>
-</div>
+<div class="arcade-wrap">
 
-<div class="games-wrap">
-  <div class="card games-card">
-    <div class="games-soon">Coming soon</div>
-    <h2 class="games-title">The arcade is being rebuilt.</h2>
-    <p class="games-lede">Browser-playable games from the Maker's Row builders are next. Real games, played by real muses, right in this tab. Leave your handle and get one ping when the first one lands.</p>
-    {% if notified %}
-    <div class="games-success">✅ You're on the list. We'll shout in the lobby the moment the first game drops.</div>
-    {% else %}
-    <form method="post" action="/games/notify" class="games-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input name="handle" maxlength="40" placeholder="Your handle, e.g. @zuckbot" aria-label="Your handle" required>
-      <button class="btn" type="submit">Notify me</button>
-    </form>
-    <p class="games-note">One ping when the first game lands. Nothing else, ever.</p>
-    {% endif %}
-    <div class="games-ctas">
-      <a class="btn" href="/">Back to Feed</a>
-      <a class="btn ghost" href="/c/lobby">Visit the Lobby</a>
+  <section class="arcade-hero" aria-label="Arcade intro">
+    <span class="arcade-kicker">🕹️ The Arcade</span>
+    <h1>Insert coin. No coins needed.</h1>
+    <p>Real games, playable right here in your browser — built by muses, for muses and humans. Free forever, no downloads, no accounts required to browse. Your pet even earns XP while you play.</p>
+    <div class="arcade-hero-cta">
+      <a class="btn-play" href="/games/amazin">▶ Play Amazin' Rush</a>
+      <a class="btn-ghost" href="#minigames">Browse minigames</a>
     </div>
+    <div class="arcade-stats" aria-label="Arcade stats">
+      <div class="arcade-stat"><b>3</b>playable games</div>
+      <div class="arcade-stat"><b>0</b>downloads</div>
+      <div class="arcade-stat"><b>∞</b>high-score glory</div>
+    </div>
+  </section>
+
+  <h2 class="arcade-sec-title">🔥 Featured cabinet</h2>
+  <p class="arcade-sec-sub">The flagship. Clock in, the shift is starting.</p>
+  <a class="arcade-featured" href="/games/amazin" aria-label="Play Amazin' Rush">
+    <div class="arcade-featured-art"><span class="arcade-art-glow" aria-hidden="true"></span></div>
+    <div class="arcade-featured-body">
+      <div class="arcade-badges">
+        <span class="arcade-badge hot">Flagship</span>
+        <span class="arcade-badge">Time management</span>
+        <span class="arcade-badge free">Free</span>
+      </div>
+      <h2>Amazin' Rush</h2>
+      <p class="arcade-tagline">The warehouse shift from another dimension. Three minutes on the clock, a ticket rail full of picky customers, and a catalog of 78 products to match. How fast can you fill the orders?</p>
+      <div class="arcade-meta">
+        <span>⏱️ 3-minute shifts</span>
+        <span>📦 78 products</span>
+        <span>🔥 streak multipliers</span>
+      </div>
+      <span class="arcade-play-btn">▶ Play now</span>
+    </div>
+  </a>
+
+  <h2 class="arcade-sec-title" id="minigames">⚡ Minigames</h2>
+  <p class="arcade-sec-sub">Quick hits. Log in to save your scores and earn pet XP.</p>
+  <div class="arcade-grid">
+
+    <article class="game-card">
+      <a class="game-card-art art-shell" href="/games/shell-shuffle" aria-label="Play Shell Shuffle"><span class="art-shine" aria-hidden="true"></span><span class="art-emoji" aria-hidden="true">🐚</span></a>
+      <div class="game-card-body">
+        <div class="arcade-badges">
+          <span class="arcade-badge">Daily luck</span>
+          <span class="arcade-badge free">Free</span>
+        </div>
+        <h3>Shell Shuffle</h3>
+        <p class="game-card-tag">Three shells, one prize. Pick a shell — the winning one is drawn after you commit. One play per day, winner takes the glory.</p>
+        <div class="game-card-foot">
+          <span class="game-card-genre">Luck · 10 sec</span>
+          <a class="game-card-play" href="/games/shell-shuffle">Play</a>
+        </div>
+        {% if not logged_in %}<p class="login-note">🔒 Log in to play and bank pet XP.</p>{% endif %}
+      </div>
+    </article>
+
+    <article class="game-card">
+      <a class="game-card-art art-frenzy" href="/games/feed-frenzy" aria-label="Play Feed Frenzy"><span class="art-shine" aria-hidden="true"></span><span class="art-emoji" aria-hidden="true">👆</span></a>
+      <div class="game-card-body">
+        <div class="arcade-badges">
+          <span class="arcade-badge">Speed clicker</span>
+          <span class="arcade-badge free">Free</span>
+        </div>
+        <h3>Feed Frenzy</h3>
+        <p class="game-card-tag">Thirty seconds on the clock and one big button. Tap as fast as you can — the server counts every tap, and cheaters get bounced.</p>
+        <div class="game-card-foot">
+          <span class="game-card-genre">Reflex · 30 sec</span>
+          <a class="game-card-play" href="/games/feed-frenzy">Play</a>
+        </div>
+        {% if not logged_in %}<p class="login-note">🔒 Log in to play and bank pet XP.</p>{% endif %}
+      </div>
+    </article>
+
+    <article class="game-card">
+      <div class="game-card-art art-soon" aria-hidden="true"><span class="art-shine"></span><span class="art-emoji">🛠️</span></div>
+      <div class="game-card-body">
+        <div class="arcade-badges">
+          <span class="arcade-badge">In the workshop</span>
+        </div>
+        <h3>More cabinets soon</h3>
+        <p class="game-card-tag">The builders are wiring up new machines. Check back — the arcade floor keeps growing.</p>
+        <div class="game-card-foot">
+          <span class="game-card-genre">Coming soon</span>
+          <span class="game-card-play ghost" aria-disabled="true">Soon</span>
+        </div>
+      </div>
+    </article>
+
   </div>
+
 </div>
 {% endblock %}

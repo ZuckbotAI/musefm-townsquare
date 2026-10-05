@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Shell Shuffle — Arcade — MuseFM{% endblock %}
+{% block meta_desc %}Shell Shuffle: three shells, one prize. Pick a shell — the winner is drawn after you commit. One play per day.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+{% endblock %}
+{% block content %}
+<div class="gamepage-wrap">
+  <a class="gamepage-back" href="/games">← Back to the arcade</a>
+
+  <section class="gamepage-hero hero-shell">
+    <h1>🐚 Shell Shuffle</h1>
+    <p>Three shells, one prize. Tap a shell to lock in your pick — the winning shell is drawn <em>after</em> you commit, so no peeking. One play per day. Winner banks pet XP.</p>
+  </section>
+
+  {% if not logged_in %}
+  <div class="game-panel login-gate">
+    <h2>Log in to play</h2>
+    <p>Shell Shuffle needs a login so your daily play and pet XP are saved.</p>
+    <a class="btn" href="/login?next=/games/shell-shuffle">Log in</a>
+  </div>
+  {% else %}
+  <div class="game-panel" id="shell-panel">
+    <div class="shell-row" role="group" aria-label="Pick a shell">
+      <button class="shell" data-pick="0" aria-label="Pick shell 1">🐚</button>
+      <button class="shell" data-pick="1" aria-label="Pick shell 2">🐚</button>
+      <button class="shell" data-pick="2" aria-label="Pick shell 3">🐚</button>
+    </div>
+    <div class="shell-result" id="shell-result" aria-live="polite">Pick a shell to play today's round.</div>
+    <div class="shell-xp" id="shell-xp"></div>
+  </div>
+  <div class="game-panel">
+    <h3 style="margin:0 0 8px;font-size:15px">How it works</h3>
+    <ul style="margin:0;padding-left:20px;color:var(--rz-ink2);font-size:14px;line-height:1.7">
+      <li>The server draws the winning shell with real randomness <em>after</em> your pick is recorded.</li>
+      <li>One play per America/Chicago day. Come back tomorrow for another shot.</li>
+      <li>Win or play, your pet earns XP either way.</li>
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+{% if logged_in %}
+<script>
+(function () {
+  var csrf = {{ csrf_token()|tojson }};
+  var shells = Array.prototype.slice.call(document.querySelectorAll('.shell'));
+  var result = document.getElementById('shell-result');
+  var xpLine = document.getElementById('shell-xp');
+
+  function lock(disabled) { shells.forEach(function (s) { s.disabled = disabled; }); }
+
+  function renderPlayed(data) {
+    lock(true);
+    shells.forEach(function (s) {
+      var p = parseInt(s.dataset.pick, 10);
+      s.classList.remove('picked', 'winner', 'loser');
+      if (p === data.winning_shell) { s.classList.add('winner'); s.textContent = '🏆'; }
+      else if (p === data.pick) { s.classList.add('picked'); s.classList.add('loser'); }
+      else { s.classList.add('loser'); }
+    });
+    if (data.won) {
+      result.innerHTML = '<span class="win">🏆 Winner! The prize was under shell ' + (data.winning_shell + 1) + '.</span>';
+    } else {
+      result.innerHTML = '<span class="lose">So close — the prize was under shell ' + (data.winning_shell + 1) + '. Come back tomorrow.</span>';
+    }
+  }
+
+  fetch('/api/games/human/shell-shuffle/status', { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok && d.played_today) {
+        renderPlayed(d);
+        xpLine.textContent = "Already played today. One play per day — see you tomorrow.";
+      }
+    })
+    .catch(function () { /* offline-ish; shells stay tappable */ });
+
+  shells.forEach(function (s) {
+    s.addEventListener('click', function () {
+      lock(true);
+      s.classList.add('picked');
+      result.textContent = 'Drawing the winning shell…';
+      fetch('/api/games/human/shell-shuffle/play', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pick: parseInt(s.dataset.pick, 10), csrf_token: csrf })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { status: r.status, body: d }; }); })
+        .then(function (res) {
+          if (!res.body.ok) {
+            if (res.status === 403 && res.body.error === 'already_played') {
+              return fetch('/api/games/human/shell-shuffle/status', { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                  if (d.ok && d.played_today) { renderPlayed(d); }
+                  else { result.textContent = "Already played today — come back tomorrow."; lock(true); }
+                });
+            }
+            result.textContent = res.body.error || 'Something went wrong. Try again.';
+            lock(false);
+            s.classList.remove('picked');
+            return;
+          }
+          renderPlayed(res.body);
+          xpLine.textContent = res.body.xp_added
+            ? '+' + res.body.xp_added + ' pet XP banked.' : '';
+        })
+        .catch(function () {
+          result.textContent = 'Network hiccup — try again.';
+          lock(false);
+          s.classList.remove('picked');
+        });
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
