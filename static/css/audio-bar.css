@@ -1,8 +1,9 @@
-/* Member thin glass audio bar for Jams/Jabbers (2026-10-05, rev 2).
- * One slim row (~56px): artwork thumb, play button, name/title on a single
- * line, slim scrubber, compact engagement icons. Glass theme kept light:
- * glassy background, cyan accents, soft shadows. UI text uses hyphens,
- * never em dashes.
+/* Member audio rows for Jams/Jabbers — Spotify text pattern (2026-10-05,
+ * Anthony): square artwork left, REGULAR-weight title wrapping 3 lines,
+ * muted meta line (name, human date, duration), icon actions left + big
+ * play button right. No per-row scrubber, no floating 0:00, no pill
+ * cramming; generous spacing between rows. Glass theme kept light. UI
+ * text uses hyphens, never em dashes.
  */
 
 .glass-track {
@@ -27,20 +28,20 @@
     inset 0 -1px 0 rgba(255,255,255,0.28),
     0 6px 16px rgba(10, 90, 150, 0.16), 0 2px 6px rgba(10, 90, 150, 0.10);
   color: var(--glass-ink);
-  padding: 6px 10px;
+  padding: 12px 14px;
 }
 
-.glass-row {
+.glass-row2 {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 12px;
   min-width: 0;
 }
 
-.glass-art {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+.glass-art-sq {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
   flex-shrink: 0;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.7);
@@ -50,78 +51,74 @@
   align-items: center;
   justify-content: center;
 }
-.glass-art img {
+.glass-art-sq img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 .glass-art-fallback {
-  font-size: 17px;
+  font-size: 26px;
   color: rgba(255,255,255,0.92);
   text-shadow: 0 1px 4px rgba(10,60,110,0.5);
 }
 
-.glass-play {
-  width: 34px;
-  height: 34px;
+.glass-main2 { flex: 1; min-width: 0; }
+
+/* regular weight, wraps 3 full lines so the title is always readable
+   (2026-10-05, Anthony: no useless truncation). */
+.glass-title2 {
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--glass-ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+.glass-title2 a { color: inherit; text-decoration: none; }
+.glass-title2 a:hover { text-decoration: underline; }
+.glass-meta2 {
+  font-size: 12.5px;
+  color: var(--glass-ink-soft);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* icon actions left, big play button right (Spotify layout) */
+.glass-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 6px;
+}
+.glass-actions .ep-actions-sp { flex: 1; }
+.glass-actions .ep-icon { color: var(--glass-ink-soft); }
+.glass-actions .ep-icon:hover { background: rgba(255,255,255,0.55); color: var(--glass-ink); }
+.glass-play-lg {
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   flex-shrink: 0;
   border: 1px solid var(--glass-line);
   background: linear-gradient(180deg, #a5e7ff 0%, #4fc3f7 55%, #1d9bf0 100%);
   color: #fff;
-  font-size: 12px;
+  font-size: 16px;
+  padding-left: 3px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 8px rgba(0,140,220,0.40), inset 0 1px 0 rgba(255,255,255,0.7);
+  box-shadow: 0 4px 12px rgba(0,140,220,0.42), inset 0 1px 0 rgba(255,255,255,0.7);
   text-shadow: 0 1px 3px rgba(10,60,110,0.5);
+  transition: transform 0.15s ease;
 }
-.glass-play:active { transform: scale(0.94); }
-
-.glass-main { flex: 1; min-width: 0; }
-
-/* name and title share the row; the title wraps to two full readable
-   lines (Spotify/Apple-style) instead of one truncated line, so a human
-   can always read it on a phone. (2026-10-05, Anthony: no useless
-   truncation.) */
-.glass-lines {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  min-width: 0;
-  margin-bottom: 3px;
-}
-.glass-name {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #1d7fc1;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.glass-sep {
-  color: var(--glass-ink-soft);
-  flex-shrink: 0;
-}
-.glass-title {
-  font-size: 13.5px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 1.28;
-  color: var(--glass-ink);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  flex: 1 1 0%;
-  min-width: 0;
-}
-.glass-title a { color: inherit; text-decoration: none; }
-.glass-title a:hover { text-decoration: underline; }
+.glass-play-lg:hover { transform: scale(1.05); }
+.glass-play-lg:active { transform: scale(0.94); }
 
 .glass-scrubrow {
   display: flex;
@@ -224,7 +221,7 @@
 .jj-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 22px;
 }
 .jj-empty {
   padding: 18px;
@@ -236,16 +233,10 @@
   text-align: center;
 }
 
-/* engagement icons: inline at the row's right edge, compact */
-.glass-engage {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.glass-engage .rxn { margin-top: 0; }
-.glass-engage .rxn-compact .sig-rollout { padding: 4px 8px; font-size: 11px; }
-.glass-engage .rxn-compact .sig-rollout .sig-emoji { font-size: 13px; }
+/* engagement icons: icon actions left, big play right (Spotify layout) */
+.glass-actions .rxn { margin-top: 0; }
+.glass-actions .rxn-compact .sig-rollout { padding: 4px 8px; font-size: 11px; }
+.glass-actions .rxn-compact .sig-rollout .sig-emoji { font-size: 13px; }
 .glass-ctoggle {
   border: 1px solid var(--glass-line-deep);
   background: rgba(255,255,255,0.5);
@@ -268,23 +259,23 @@
 }
 
 @media (max-width: 480px) {
-  /* tight phones: hide the flag link so the bar never wraps;
-     let a long badge drop to its own line instead of overlapping */
-  .glass-engage .glass-flaglink { display: none; }
-  .glass-lines { flex-wrap: wrap; row-gap: 2px; }
+  /* tight phones: hide the flag link so the actions row never wraps */
+  .glass-actions .glass-flaglink { display: none; }
 }
 
-/* Featured episode card on /jabs (2026-10-05, Anthony): ONE latest
-   episode, Spotify/Apple-style. Artwork left, kicker, full readable
-   title (never truncated to garbage), show meta, description, player.
-   Same .glass-track data-* hooks as the slim rows, so audio-bar.js
+/* Featured episode card on /jabs — Spotify text pattern (2026-10-05,
+   Anthony): ONE latest episode. Square artwork left, REGULAR-weight title
+   wrapping 3 lines (topic first, prefix stripped), muted description,
+   human meta line, icon actions left + big play right. No kicker. The
+   scrubber stays: this is the now-playing control, not a list row.
+   Same .glass-track data-* hooks as the member rows, so audio-bar.js
    drives it unchanged. */
 .jab-featured {
   padding: 14px;
 }
 .jab-featured-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-width: 0;
 }
@@ -308,19 +299,11 @@
   flex: 1;
   min-width: 0;
 }
-.jab-featured-kicker {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #1d7fc1;
-  margin-bottom: 2px;
-}
 .jab-featured-title {
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.01em;
-  line-height: 1.3;
+  line-height: 1.32;
   color: var(--glass-ink);
   text-decoration: none;
   display: -webkit-box;
@@ -332,11 +315,20 @@
 .jab-featured-title:hover { text-decoration: underline; }
 .jab-featured-meta {
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--glass-ink-soft);
-  margin-top: 4px;
+  margin-top: 5px;
   font-variant-numeric: tabular-nums;
 }
+.jab-featured-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+}
+.jab-featured-actions .ep-actions-sp { flex: 1; }
+.jab-featured-actions .ep-icon { color: var(--glass-ink-soft); }
+.jab-featured-actions .ep-icon:hover { background: rgba(255,255,255,0.55); color: var(--glass-ink); }
 .jab-featured-play {
   width: 52px;
   height: 52px;
@@ -345,11 +337,11 @@
 }
 .jab-featured-desc {
   font-size: 13.5px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--glass-ink-soft);
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: break-word;

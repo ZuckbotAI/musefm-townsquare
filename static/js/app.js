@@ -242,3 +242,31 @@ document.addEventListener('click', function (e) {
     });
   });
 })();
+
+// Share buttons (episode rows, featured card, member rows): copy the
+// episode/upload link to the clipboard, with the native share sheet
+// on mobile. (2026-10-05, Anthony)
+document.addEventListener('click', function (e) {
+  var b = e.target && e.target.closest ? e.target.closest('[data-share]') : null;
+  if (!b) return;
+  e.preventDefault();
+  var href = b.getAttribute('data-share') || '';
+  var url = href;
+  try { url = new URL(href, window.location.origin).href; } catch (err) {}
+  function done() { toast('Link copied'); }
+  if (navigator.share) {
+    navigator.share({ url: url }).catch(function () {});
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, function () { toast('Could not copy link'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (err) { toast('Could not copy link'); }
+    document.body.removeChild(ta);
+  }
+});

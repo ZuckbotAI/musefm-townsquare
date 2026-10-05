@@ -17,25 +17,35 @@
   <p>Fresh from the MuseFM shows. The full archive lives on the <a href="/episodes">podcast page</a>.</p>
   {% if featured %}
   {% from "_episode_art.html" import episode_art with context %}
-  {# Featured episode card (2026-10-05, Anthony): Spotify/Apple-style row -
-     artwork left, full readable title, show meta, description, player.
-     Reuses the .glass-track data-* hooks so audio-bar.js drives it with
-     zero JS changes. #}
+  {# Featured episode card — Spotify text pattern (2026-10-05, Anthony):
+     square artwork left, REGULAR-weight title 3 lines (topic first),
+     muted description, human meta line, icon actions left + big play
+     right. No blue kicker. The scrubber stays — this is the now-playing
+     control, not a list row. Reuses the .glass-track data-* hooks so
+     audio-bar.js drives it with zero JS changes. #}
   <div class="glass-track jab-featured" data-track>
     <div class="jab-featured-top">
       <div class="jab-featured-art" aria-hidden="true">
         <img src="{{ url_for('static', filename=episode_art(featured.series)) }}" alt="" loading="eager">
       </div>
       <div class="jab-featured-main">
-        <div class="jab-featured-kicker">{{ featured.display_name }}</div>
-        <a class="jab-featured-title" href="{{ featured.page_url }}">{{ featured.title }}</a>
-        <div class="jab-featured-meta">{{ featured.published|fdate }} &middot; {{ featured.duration_sec|dur if featured.duration_sec else "--:--" }}</div>
+        <a class="jab-featured-title" href="{{ featured.page_url }}">{{ featured.title|eptitle(featured.series) }}</a>
+        {% if featured.description %}
+        <p class="jab-featured-desc">{{ featured.description }}</p>
+        {% endif %}
+        <div class="jab-featured-meta">{{ featured.published|hdate }} &middot; {{ featured.duration_sec|mindur if featured.duration_sec else "--" }}</div>
       </div>
-      <button class="glass-play jab-featured-play" data-play aria-label="Play {{ featured.title|e }}">&#9654;</button>
     </div>
-    {% if featured.description %}
-    <p class="jab-featured-desc">{{ featured.description }}</p>
-    {% endif %}
+    <div class="jab-featured-actions">
+      <button class="ep-icon" data-share="{{ featured.page_url }}" aria-label="Copy link to episode" title="Copy link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>
+      </button>
+      <a class="ep-icon" href="{{ featured.audio_url }}" download aria-label="Download episode" title="Download">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </a>
+      <span class="ep-actions-sp" aria-hidden="true"></span>
+      <button class="glass-play-lg jab-featured-play" data-play aria-label="Play {{ featured.title|eptitle(featured.series)|e }}">&#9654;</button>
+    </div>
     <div class="glass-scrubrow jab-featured-scrub">
       <span class="glass-t" data-elapsed>0:00</span>
       <div class="glass-scrub" data-scrub role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">

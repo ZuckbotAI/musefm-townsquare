@@ -309,33 +309,55 @@
   <span class="hint">Theme stings on some episodes: CC BY-NC 4.0, not for commercial use.</span>
 </footer>
 
-<div id="miniplayer" aria-hidden="true">
-  <div class="mp-row">
-    <div class="mp-art">♪</div>
-    <div class="mp-info">
-      <div class="mp-title" id="mp-title">…</div>
-      <div class="mp-sub" id="mp-time">0:00 / 0:00</div>
-    </div>
-    <button class="mp-btn" id="mp-rew" title="back 15s">⟲</button>
-    <button class="mp-btn big" id="mp-play" title="play/pause">▶</button>
-    <button class="mp-btn" id="mp-fwd" title="forward 30s">⟳</button>
-    <button class="mp-btn" id="mp-queue" title="up next">☰</button>
-    <button class="mp-btn mp-close" id="mp-close" title="close">✕</button>
-  </div>
-  <div id="mp-progress"><div></div></div>
-  <div class="mp-extra">
-    <label>Speed <select id="mp-speed">
-      <option value="0.75">0.75×</option><option value="1" selected>1×</option>
-      <option value="1.25">1.25×</option><option value="1.5">1.5×</option>
-      <option value="2">2×</option>
-    </select></label>
-    <label>Sleep <select id="mp-sleep">
-      <option value="0">off</option><option value="15">15m</option><option value="30">30m</option><option value="60">1h</option>
-    </select></label>
-    <button class="tool-btn" id="mp-clip" style="font-size:12px;padding:5px 12px">✂ clip</button>
-  </div>
-  <div id="queue-panel"></div>
+{# Global audio player — Spotify-style rebuild (2026-10-05, Anthony).
+   COLLAPSED: slim mini-bar above the bottom nav (small square artwork,
+   episode title 1 line, play/pause). Tap the bar to expand.
+   EXPANDED: bottom sheet with large artwork, full title, real scrubber
+   with current/total times, skip-back-15 / play-pause / skip-forward-30,
+   speed, sleep timer, share, up-next queue. The old floating glass card
+   is gone. Driven by static/js/player.js via the pb-/ps- ids. #}
+<div id="playerbar" aria-hidden="true">
+  <button class="pb-open" id="pb-open" aria-label="Open now playing">
+    <span class="pb-art" id="pb-art" aria-hidden="true">&#9834;</span>
+    <span class="pb-title" id="pb-title">&hellip;</span>
+  </button>
+  <button class="pb-play" id="pb-play" aria-label="Play or pause">&#9654;</button>
 </div>
+
+<div class="ps-scrim" id="ps-scrim" hidden></div>
+<section id="playersheet" role="dialog" aria-modal="true" aria-label="Now playing" aria-hidden="true">
+  <div class="ps-grab" aria-hidden="true"></div>
+  <div class="ps-toprow">
+    <button class="ps-navbtn" id="ps-collapse" aria-label="Collapse player">&#709;</button>
+    <span class="ps-now">NOW PLAYING</span>
+    <button class="ps-navbtn" id="ps-dismiss" aria-label="Stop and close player">&#10005;</button>
+  </div>
+  <div class="ps-artwrap"><img class="ps-art" id="ps-art" alt="Episode artwork"></div>
+  <div class="ps-title" id="ps-title">&hellip;</div>
+  <div class="ps-sub" id="ps-sub">MuseFM</div>
+  <div class="ps-scrubrow">
+    <span class="ps-t" id="ps-elapsed">0:00</span>
+    <div class="ps-scrub" id="ps-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="ps-fill" id="ps-fill"></div>
+    </div>
+    <span class="ps-t" id="ps-total">0:00</span>
+  </div>
+  <div class="ps-controls">
+    <button class="ps-skip" id="ps-rew" aria-label="Back 15 seconds">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
+    </button>
+    <button class="ps-big" id="ps-play" aria-label="Play or pause">&#9654;</button>
+    <button class="ps-skip" id="ps-fwd" aria-label="Forward 30 seconds">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2l5 4-5 4V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">30</text></svg>
+    </button>
+  </div>
+  <div class="ps-tools">
+    <button class="ps-tool" id="ps-speed" aria-label="Playback speed">1&times;</button>
+    <button class="ps-tool" id="ps-sleep" aria-label="Sleep timer">Sleep off</button>
+    <button class="ps-tool" id="ps-share" aria-label="Share this episode">Share</button>
+  </div>
+  <div class="ps-queue" id="ps-queue"></div>
+</section>
 
 <div id="share-sheet"><div class="share-card">
   <h3>Share this episode</h3>

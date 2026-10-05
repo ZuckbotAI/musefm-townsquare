@@ -1,53 +1,55 @@
 {% from "_reactions.html" import rxn_widget with context %}
-{# Member thin glass audio bar (Jams/Jabbers, 2026-10-05 rev 2).
-   One slim row (~56px): artwork thumb, play button, name/title on one
-   line, slim scrubber, compact engagement icons. Comments expand below.
+{# Member audio row — Spotify text pattern (2026-10-05, Anthony).
+   Square artwork left, regular-weight title (up to 3 lines), human meta
+   line, icon actions left + big play right. No per-row scrubber, no
+   floating 0:00. Keeps .glass-track + [data-audio] + [data-play] hooks
+   for audio-bar.js, and data-ctoggle/data-comments/data-ccount,
+   rxn_widget, and data-flag hooks for comments/reactions/mod.
    Expects `track`: uid, audio_url, title, display_name, artwork_url,
-   duration_sec, needs_listen, page_url (optional), sig, comment_count,
-   viewer_handle, next. #}
+   created_at, duration_sec, needs_listen, page_url (optional), sig,
+   comment_count, viewer_handle, next. #}
 <div class="glass-track" data-track data-uid="{{ track.uid or '' }}">
-  <div class="glass-row">
-    <div class="glass-art" aria-hidden="true">
+  <div class="glass-row2">
+    <div class="glass-art-sq" aria-hidden="true">
       {% if track.artwork_url %}
       <img src="{{ track.artwork_url }}" alt="" loading="lazy">
       {% else %}
       <span class="glass-art-fallback">&#9834;</span>
       {% endif %}
     </div>
-    <button class="glass-play" data-play aria-label="Play {{ track.title|e }}">&#9654;</button>
-    <div class="glass-main">
-      <div class="glass-lines">
-        <span class="glass-name">{{ track.display_name }}</span>
-        <span class="glass-sep" aria-hidden="true">&middot;</span>
-        <span class="glass-title">
-          {% if track.page_url %}<a href="{{ track.page_url }}">{{ track.title }}</a>
-          {% else %}{{ track.title }}{% endif %}
-        </span>
+    <div class="glass-main2">
+      <div class="glass-title2">
+        {% if track.page_url %}<a href="{{ track.page_url }}">{{ track.title }}</a>
+        {% else %}{{ track.title }}{% endif %}
         {% if track.needs_listen %}
         <span class="glass-badge" title="Our mods give every upload a listen">needs a listen</span>
         {% endif %}
       </div>
-      <div class="glass-scrubrow">
-        <span class="glass-t" data-elapsed>0:00</span>
-        <div class="glass-scrub" data-scrub role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-          <div class="glass-fill" data-fill></div>
-        </div>
-        <span class="glass-t total" data-total>{{ track.duration_sec|dur if track.duration_sec else "--:--" }}</span>
+      <div class="glass-meta2">{{ track.display_name }} &middot; {{ track.created_at|hdate }} &middot; {{ track.duration_sec|dur if track.duration_sec else "--:--" }}</div>
+      <div class="glass-actions">
+        {% if track.uid %}
+          {% if track.sig %}
+          {{ rxn_widget('audio', track.uid, track.sig, track.viewer_handle or '', track.next or '/jams', compact=true) }}
+          {% endif %}
+          <button class="glass-ctoggle" data-ctoggle="{{ track.uid }}" aria-expanded="false" aria-controls="glass-comments-{{ track.uid }}" aria-label="Comments">
+            &#128172; <span data-ccount>{{ track.comment_count or 0 }}</span>
+          </button>
+          {% if track.page_url %}
+          <button class="ep-icon" data-share="{{ track.page_url }}" aria-label="Copy link to upload" title="Copy link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>
+          </button>
+          {% endif %}
+          <a class="ep-icon" href="{{ track.audio_url }}" download aria-label="Download upload" title="Download">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </a>
+          {% if session_identity %}
+          <button class="glass-flaglink" data-flag="{{ track.uid }}">flag</button>
+          {% endif %}
+        {% endif %}
+        <span class="ep-actions-sp" aria-hidden="true"></span>
+        <button class="glass-play-lg" data-play aria-label="Play {{ track.title|e }}">&#9654;</button>
       </div>
     </div>
-    {% if track.uid %}
-    <div class="glass-engage">
-      {% if track.sig %}
-      {{ rxn_widget('audio', track.uid, track.sig, track.viewer_handle or '', track.next or '/jams', compact=true) }}
-      {% endif %}
-      <button class="glass-ctoggle" data-ctoggle="{{ track.uid }}" aria-expanded="false" aria-controls="glass-comments-{{ track.uid }}" aria-label="Comments">
-        &#128172; <span data-ccount>{{ track.comment_count or 0 }}</span>
-      </button>
-      {% if session_identity %}
-      <button class="glass-flaglink" data-flag="{{ track.uid }}">flag</button>
-      {% endif %}
-    </div>
-    {% endif %}
   </div>
   {% if track.uid %}
   <div class="glass-comments" id="glass-comments-{{ track.uid }}" data-comments="{{ track.uid }}" hidden></div>

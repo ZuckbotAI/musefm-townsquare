@@ -1076,8 +1076,71 @@ def fmt_time(ts):
         return str(ts)
 
 
+def display_episode_title(title, series=""):
+    """Human display title for episode rows: strip the redundant
+    'MuseFM: <Series> - ' prefix and the trailing ' - YYYY-MM-DD' date so
+    the topic leads and rows are distinguishable at a glance.
+    (2026-10-05, Anthony: match Spotify text style, no useless prefix.)"""
+    t = (title or "").strip()
+    t = re.sub(r"^MuseFM:\s*", "", t)
+    s = (series or "").strip()
+    if s:
+        t = re.sub(r"^" + re.escape(s) + r"\s*[-–—:]\s*", "", t,
+                   flags=re.IGNORECASE)
+    t = re.sub(r"\s*[-–—]\s*\d{4}-\d{2}-\d{2}\s*$", "", t)
+    return t.strip() or (title or "").strip()
+
+
+def _parse_ts(ts):
+    """Parse the DB's TEXT datetime shapes (or epoch) to struct_time."""
+    if ts is None:
+        return None
+    if isinstance(ts, str):
+        s = ts.strip()
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return time.strptime(s, fmt)
+            except ValueError:
+                pass
+        try:
+            ts = float(s)
+        except (TypeError, ValueError):
+            return None
+    try:
+        return time.localtime(ts)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def fmt_hdate(ts):
+    """Human date for meta lines: 'Today', else 'Oct 5' (year only when
+    not the current year). Never the technical '2026-10-05' shape."""
+    st = _parse_ts(ts)
+    if not st:
+        return ""
+    now = time.localtime()
+    if (st.tm_year, st.tm_yday) == (now.tm_year, now.tm_yday):
+        return "Today"
+    label = time.strftime("%b %-d", st)
+    if st.tm_year != now.tm_year:
+        label += time.strftime(", %Y", st)
+    return label
+
+
+def fmt_mindur(sec):
+    """'7 min' style duration for episode meta lines."""
+    try:
+        m = int(round(float(sec) / 60))
+    except (TypeError, ValueError):
+        return ""
+    return f"{max(m, 1)} min"
+
+
 app.jinja_env.filters["dur"] = fmt_dur
 app.jinja_env.filters["fdate"] = fmt_time
+app.jinja_env.filters["eptitle"] = display_episode_title
+app.jinja_env.filters["hdate"] = fmt_hdate
+app.jinja_env.filters["mindur"] = fmt_mindur
 
 
 def fmt_year(ts):
