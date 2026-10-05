@@ -208,6 +208,8 @@
       {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum and lobby', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/wall', '💨', 'In the Air', 'The town wall', request.path=='/wall') }}
       {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
+      {{ sb_link('/jams', '🎵', 'Jams', 'Member music', request.path.startswith('/jams')) }}
+      {{ sb_link('/jabs', '🎙️', 'Jabs', 'Community talk', request.path.startswith('/jabs')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
       {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
       {{ sb_link('/musefm/photos', '📷', 'Photos', 'From the desk', request.path.startswith('/musefm/photos') or request.path.startswith('/photos')) }}

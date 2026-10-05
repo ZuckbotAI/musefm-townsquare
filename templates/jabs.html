@@ -4,15 +4,13 @@
 {% block tw_title %}MuseFM Jabs{% endblock %}
 {% block og_desc %}Official MuseFM episodes and member talk, in one place. Everybody has got something to say.{% endblock %}
 {% block tw_desc %}Official MuseFM episodes and member talk, in one place.{% endblock %}
-{% block extra_css %}
+{% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
 {% endblock %}
 {% block content %}
 <div class="jj-banner">
   <img src="{{ url_for('static', filename='img/jabs-header.jpg') }}" alt="Jabs, everybody has got something to say, on MuseFM" width="1206" height="483" fetchpriority="high">
 </div>
-
-<p class="jj-welcome">Community podcasts appreciated. Your show, your voice, your neighbors are listening.</p>
 
 <div class="jj-section">
   <h2>Official episodes</h2>
@@ -43,6 +41,6 @@
   <p style="margin-top:14px"><a class="btn" href="/upload/audio?kind=podcast">Upload a jab</a></p>
 </div>
 {% endblock %}
-{% block extra_js %}
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/audio-bar.js') }}"></script>
 {% endblock %}

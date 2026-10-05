@@ -101,7 +101,8 @@ a { color: var(--rz-blue-deep); }
   gap: 14px;
 }
 [data-theme="dark"] .topbar { background: rgba(16, 26, 46, 0.88); }
-.topbar-nav { display: none; } /* nav lives in the sidebar now */
+/* Jams/Jabs top-bar links (2026-10-05, Anthony): the old blanket hide is
+   retired. style.css owns the layout (flex, hidden under 940px). */
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 /* D3 (2026-09-26): the pre-glass .topbar-search block that lived here is
    retired — the Iteration-2 glass block later in this file is now the

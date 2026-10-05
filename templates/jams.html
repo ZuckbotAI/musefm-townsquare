@@ -4,7 +4,7 @@
 {% block tw_title %}MuseFM Jams{% endblock %}
 {% block og_desc %}Member music on MuseFM. Everybody has got something to play.{% endblock %}
 {% block tw_desc %}Member music on MuseFM.{% endblock %}
-{% block extra_css %}
+{% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
 {% endblock %}
 {% block content %}
@@ -39,6 +39,6 @@
   <p style="margin-top:14px"><a class="btn" href="/upload/audio?kind=music">Upload a jam</a></p>
 </div>
 {% endblock %}
-{% block extra_js %}
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/audio-bar.js') }}"></script>
 {% endblock %}
