@@ -2849,3 +2849,45 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   .ep-hero { height: 170px; }
   .ep-bar { border-radius: 18px; }
 }
+/* ================= shorts upload bar (2026-10-04, overhaul item 13) ================= */
+/* Compact modern upload bar: one row, file pick + title + AI flag + upload.
+   Replaces the giant-upload-square approach where applicable. */
+.upload-bar-card { max-width: 720px; }
+.upload-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.upload-bar-pick {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px dashed var(--glass-border); border-radius: var(--radius-pill);
+  padding: 9px 16px; font-size: 13px; font-weight: 700; color: var(--text);
+  background: var(--glass-soft); max-width: 220px;
+}
+.upload-bar-pick span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.upload-bar-title { flex: 1; min-width: 160px; }
+.upload-bar-ai {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-2); white-space: nowrap;
+}
+.upload-bar-note { margin: 12px 0 0; }
+/* Slim upload button in the /shorts chrome for signed-in users. */
+.shorts-chrome-upload {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 16px; border-radius: 999px; flex-shrink: 0;
+  background: rgba(10, 30, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff; font-size: 13px; font-weight: 800; text-decoration: none;
+  font-family: var(--font);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.2s var(--spring), background 0.2s;
+}
+.shorts-chrome-upload:hover { background: rgba(0, 144, 231, 0.65); color: #fff; text-decoration: none; }
+.shorts-chrome-upload:active { transform: scale(0.92); }
+/* Post-upload notice: fixed overlay under the chrome, above the feed. */
+.shorts-notice {
+  position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); left: 0; right: 0; z-index: 140;
+  width: min(420px, calc(100% - 28px)); margin: 0 auto; padding: 10px 16px; text-align: center;
+  border-radius: 14px; font-size: 13px; font-weight: 600;
+  background: rgba(240, 253, 244, 0.95); border: 1px solid #bbf7d0; color: #15803d;
+}
+[data-theme="dark"] .shorts-notice { background: rgba(12, 36, 23, 0.95); border-color: #166534; color: #86efac; }
