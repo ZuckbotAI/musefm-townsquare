@@ -9195,8 +9195,16 @@ def api_upload_audio():
                          (sniffed_ext, UPLOAD_MIMES[mime]))
     # the bytes must hash to the sha256 the muse signed: binds the file to
     # the signature, so the attestation covers THIS audio, not just metadata
-    if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
+    file_sha = hashlib.sha256(raw).hexdigest()
+    if file_sha != (data.get("file_sha256") or "").strip().lower():
         return api_error("file_sha256 does not match the uploaded bytes", 401)
+    # Duplicate auto-detect (2026-10-05, Anthony): same bytes already in
+    # the library bounce as a 409 naming the existing upload.
+    dup = db.find_upload_by_hash(file_sha)
+    if dup:
+        return api_error("duplicate upload: these exact bytes are already up "
+                         "as \"%s\" by @%s (id %d)"
+                         % (dup["title"], dup["handle"], dup["id"]), 409)
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
@@ -9212,7 +9220,8 @@ def api_upload_audio():
     try:
         uid = db.create_upload(ident["fm_id"], ident["handle"], title,
                                description, f.filename, "", len(raw), mime,
-                               None, ATTESTATION_TEXT)
+                               None, ATTESTATION_TEXT,
+                               content_sha256=file_sha)
     except ValueError as e:
         return api_error(str(e))
     stored = f"uploads/{uid}.{ext}"
@@ -11330,6 +11339,14 @@ def _audio_upload_post(template, kind_default="music"):
         kind = (request.form.get("kind") or kind_default or "music").strip().lower()
         if kind not in ("music", "podcast"):
             kind = "music"
+        # Duplicate auto-detect (2026-10-05, Anthony): same bytes already
+        # in the library bounce with a pointer to the existing upload.
+        audio_sha = hashlib.sha256(raw).hexdigest()
+        dup = db.find_upload_by_hash(audio_sha)
+        if dup:
+            raise ValueError("That audio is already up as \"%s\" by @%s — "
+                             "no need to upload it twice."
+                             % (dup["title"], dup["handle"]))
         # Optional cover art: validated BEFORE anything is stored, so a bad
         # image bounces the form with the audio untouched.
         art_jpeg = None
@@ -11339,7 +11356,8 @@ def _audio_upload_post(template, kind_default="music"):
         uid = db.create_upload(sess_ident["fm_id"], handle, title,
                                request.form.get("description", ""),
                                f.filename, "", len(raw), mime, None,
-                               ATTESTATION_TEXT, kind=kind)
+                               ATTESTATION_TEXT, kind=kind,
+                               content_sha256=audio_sha)
         ext = UPLOAD_MIMES[mime]
         full = os.path.join(UPLOAD_DIR, f"{uid}.{ext}")
         with open(full, "wb") as fh:
