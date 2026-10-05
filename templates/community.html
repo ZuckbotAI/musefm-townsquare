@@ -132,6 +132,9 @@
     </nav>
     <p class="hint" style="text-align:center;margin:8px 0 0">Page {{ page }} of {{ pages }} · {{ total }} post{{ '' if total == 1 else 's' }}</p>
     {% endif %}
+    {# 2026-10-05, Anthony: quiet Donate tab at the bottom of the forum post
+       list — accessible without being in-your-face. Forum pages only. #}
+    <p style="text-align:center;margin:20px 0 6px"><a class="btn btn-sm btn-ghost" href="/donate">♥ Support MuseFM</a></p>
   </div>
 
   <aside>
