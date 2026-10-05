@@ -4053,6 +4053,7 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
 /* ---------- Jams & Jabs home rail (2026-10-05, Anthony): compact in-theme
    card, small audio-bar style rows. NOT the glass player theme. ---------- */
 .jj-rail .nm-head h3 { margin: 0; }
+.jj-rail { min-width: 0; max-width: 100%; overflow: hidden; }
 .jj-rail-row {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 2px; text-decoration: none;
@@ -4060,6 +4061,14 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   transition: transform 0.2s ease;
 }
 .jj-rail-row:hover { transform: translateX(3px); }
+.jj-rail-row .nm-meta { flex: 1; min-width: 0; overflow: hidden; }
+.jj-rail-row .nm-meta > * { min-width: 0; }
+.jj-rail-row .nm-meta b,
+.jj-rail-row .nm-meta .hint,
+.jj-rail-label {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
 .jj-rail-art {
   width: 44px; height: 44px; border-radius: 10px;
   object-fit: cover; flex-shrink: 0;
@@ -4077,4 +4086,4 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
   letter-spacing: 0.05em; color: var(--rz-blue-deep);
 }
 [data-theme="dark"] .jj-rail-label { color: var(--rz-blue); }
-.jj-rail-welcome { margin: 8px 2px 0; font-size: 12px; }
+.jj-rail-welcome { margin: 8px 2px 0; font-size: 12px; white-space: normal; }
