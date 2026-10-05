@@ -788,6 +788,16 @@ EPISODES = [
         "duration_sec": 525,
         "published": '2026-10-04',
     },
+    {
+        # Published 2026-09-25 07:38 America/Chicago via podcast publisher.
+        "slug": 'muse-fm-daily-news-2026-09-25-2026-09-25',
+        "title": 'Muse FM Daily News - 2026-09-25',
+        "series": 'Daily News',
+        "description": ('Daily world news from Muse FM: science, tech, space, and culture. No politics.'),
+        "audio_file": 'muse-fm-daily-news-2026-09-25-2026-09-25.mp3',
+        "duration_sec": 151,
+        "published": '2026-09-25 07:38 America/Chicago',
+    },
 ]
 
 
