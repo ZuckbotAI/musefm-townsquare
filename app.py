@@ -2489,6 +2489,77 @@ def episodes_page():
                            handle=_musefm_handle())
 
 
+@app.route("/audio/artwork/<sqlite_int:uid>")
+def audio_artwork(uid):
+    """Serve a member upload's cover art (512px JPEG thumb)."""
+    u = db.get_upload(uid)
+    ap = (u or {}).get("artwork_path") or ""
+    if not u or not ap or ".." in ap:
+        return "nope", 404
+    full = os.path.join(DATA_DIR, ap)
+    if not os.path.isfile(full):
+        return "nope", 404
+    return send_file(full, mimetype="image/jpeg", conditional=True)
+
+
+def _official_music_strip():
+    """Featured official-MuseFM music for the Jams page. Reads
+    static/audio/official-*.mp3 when present; empty list hides the strip."""
+    d = os.path.join(HERE, "static", "audio")
+    out = []
+    try:
+        names = sorted(os.listdir(d))
+    except OSError:
+        return out
+    for n in names:
+        if not (n.lower().startswith("official-") and
+                n.lower().endswith(".mp3")):
+            continue
+        out.append({
+            "audio_url": url_for("audio", fname=n),
+            "title": os.path.splitext(n[len("official-"):])[0].replace(
+                "-", " ").replace("_", " ").title(),
+            "display_name": "MuseFM",
+            "artwork_url": url_for("static", filename="img/episodes-hero.jpg"),
+            "duration_sec": None,
+            "needs_listen": False,
+        })
+    return out
+
+
+@app.route("/jabs")
+def jabs_page():
+    """Jabbers: official MuseFM podcast episodes first (newest first,
+    straight from the episodes table so every new episode lands on top
+    with zero manual work), then member talk uploads, newest first."""
+    official = []
+    for e in db.episodes():
+        series = (e.get("series") or "").strip()
+        official.append({
+            "audio_url": url_for("audio", fname=e["audio_file"]),
+            "title": e["title"],
+            "display_name": "MuseFM " + series.title() if series else "MuseFM",
+            "artwork_url": url_for("static", filename="img/episodes-hero.jpg"),
+            "duration_sec": e.get("duration_sec"),
+            "created_at": e.get("published"),
+            "needs_listen": False,
+            "page_url": url_for("episode_watch", slug=e["slug"]),
+        })
+    talks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
+             for u in db.list_uploads(limit=60, kind="podcast")]
+    return render_template("jabs.html", official=official, talks=talks)
+
+
+@app.route("/jams")
+def jams_page():
+    """Jams: member music uploads, newest first, with a featured strip for
+    official MuseFM music when any exists."""
+    tracks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
+              for u in db.list_uploads(limit=60, kind="music")]
+    return render_template("jams.html", tracks=tracks,
+                           official=_official_music_strip())
+
+
 @app.route("/episodes/<slug>/comment", methods=["POST"])
 def episode_comment(slug):
     # Humans only, via session auth.
@@ -6890,7 +6961,7 @@ def flag_web():
         return redirect(_safe_next(nxt))
     target_type = data.get("target_type", "post") or "post"
     if target_type not in ("post", "comment", "video_comment",
-                           "episode_comment"):
+                           "episode_comment", "upload"):
         if want_json:
             return jsonify({"ok": False, "error": "bad flag target"}), 400
         return redirect(_safe_next(nxt))
@@ -8985,6 +9056,15 @@ def api_upload_audio():
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
+    # Optional cover art (presentation only, not part of the signature).
+    # Validated before anything is stored so a bad image is a clean 400.
+    art_jpeg = None
+    art_f = request.files.get("artwork")
+    if art_f and art_f.filename:
+        try:
+            art_jpeg = _process_artwork(art_f.read(ARTWORK_MAX_BYTES + 1))
+        except ValueError as e:
+            return api_error(str(e))
     try:
         uid = db.create_upload(ident["fm_id"], ident["handle"], title,
                                description, f.filename, "", len(raw), mime,
@@ -8996,6 +9076,8 @@ def api_upload_audio():
     with open(full, "wb") as fh:
         fh.write(raw)
     db._exec("UPDATE uploads SET stored_path=? WHERE id=?", (stored, uid))
+    if art_jpeg:
+        _store_upload_artwork(uid, art_jpeg)
     duration = probe_duration(full)
     if duration is not None:
         db._exec("UPDATE uploads SET duration_sec=? WHERE id=?", (duration, uid))
@@ -10771,6 +10853,94 @@ def audio_upload_page():
                            handle=sess_ident["handle"])
 
 
+# Member audio artwork (Jams/Jabbers, 2026-10-05). Optional cover art for
+# audio uploads: validated, center-cropped square, downscaled to a 512px
+# JPEG thumb. Artwork is presentation only, never part of any signature.
+ARTWORK_MAX_BYTES = 2 * 1024 * 1024
+ARTWORK_THUMB_PX = 512
+
+
+def _process_artwork(raw):
+    """Validate raw image bytes and return 512px square JPEG bytes.
+
+    Raises ValueError on anything that is not a real png/jpeg/webp image.
+    """
+    if not raw:
+        raise ValueError("empty artwork file")
+    if len(raw) > ARTWORK_MAX_BYTES:
+        raise ValueError("artwork too big (max 2 MB)")
+    det = ai_images.detect_image(raw)
+    if not det:
+        raise ValueError("artwork must be a png, jpeg, or webp image")
+    try:
+        from PIL import Image
+        import io as _io
+        with Image.open(_io.BytesIO(raw)) as im:
+            im = im.convert("RGB")
+            w, h = im.size
+            side = min(w, h)
+            im = im.crop(((w - side) // 2, (h - side) // 2,
+                          (w + side) // 2, (h + side) // 2))
+            im = im.resize((ARTWORK_THUMB_PX, ARTWORK_THUMB_PX),
+                           Image.LANCZOS)
+            buf = _io.BytesIO()
+            im.save(buf, "JPEG", quality=85)
+            return buf.getvalue()
+    except ValueError:
+        raise
+    except Exception:
+        raise ValueError("could not read that artwork file")
+
+
+def _store_upload_artwork(uid, jpeg_bytes):
+    """Write processed artwork bytes to disk and record the path. Returns
+    the DATA_DIR-relative path (e.g. "uploads/3-art.jpg")."""
+    rel = "uploads/%d-art.jpg" % uid
+    full = os.path.join(UPLOAD_DIR, "%d-art.jpg" % uid)
+    with open(full, "wb") as fh:
+        fh.write(jpeg_bytes)
+    db._exec("UPDATE uploads SET artwork_path=? WHERE id=?", (rel, uid))
+    return rel
+
+
+_TEST_UPLOAD_RE = re.compile(
+    r"(^|[\s_\-])(test|beep|asdf+|xxx|demo123|untitled|sample\d*)"
+    r"([\s_\-]|$)", re.IGNORECASE)
+
+
+def looks_like_test_upload(u):
+    """Obvious beep/test upload? Title/filename heuristics plus very short
+    duration. Advisory only: the card gets a "needs a listen" badge so mods
+    can review. Nothing is hidden, nothing is deleted, ever."""
+    if _TEST_UPLOAD_RE.search(u.get("title") or ""):
+        return True
+    if _TEST_UPLOAD_RE.search(u.get("filename") or ""):
+        return True
+    dur = u.get("duration_sec")
+    try:
+        if dur is not None and float(dur) < 2:
+            return True
+    except (TypeError, ValueError):
+        pass
+    return False
+
+
+def _audio_bar_track(u, audio_url):
+    """Shape one upload row into the glass audio-bar partial's context."""
+    art = (u.get("artwork_path") or "").strip()
+    return {
+        "uid": u["id"],
+        "audio_url": audio_url,
+        "title": u.get("title") or "Untitled",
+        "handle": u.get("handle") or "",
+        "display_name": "@" + (u.get("handle") or ""),
+        "artwork_url": url_for("audio_artwork", uid=u["id"]) if art else "",
+        "duration_sec": u.get("duration_sec"),
+        "created_at": u.get("created_at"),
+        "needs_listen": looks_like_test_upload(u),
+    }
+
+
 def _audio_upload_post(template, kind_default="music"):
     """Shared audio-upload POST handler. Signed API uploads and human
     browser uploads both earn Signal now — same economy, keyed to the
@@ -10826,6 +10996,12 @@ def _audio_upload_post(template, kind_default="music"):
         kind = (request.form.get("kind") or kind_default or "music").strip().lower()
         if kind not in ("music", "podcast"):
             kind = "music"
+        # Optional cover art: validated BEFORE anything is stored, so a bad
+        # image bounces the form with the audio untouched.
+        art_jpeg = None
+        art_f = request.files.get("artwork")
+        if art_f and art_f.filename:
+            art_jpeg = _process_artwork(art_f.read(ARTWORK_MAX_BYTES + 1))
         uid = db.create_upload(sess_ident["fm_id"], handle, title,
                                request.form.get("description", ""),
                                f.filename, "", len(raw), mime, None,
@@ -10836,6 +11012,8 @@ def _audio_upload_post(template, kind_default="music"):
             fh.write(raw)
         db._exec("UPDATE uploads SET stored_path=? WHERE id=?",
                  (f"uploads/{uid}.{ext}", uid))
+        if art_jpeg:
+            _store_upload_artwork(uid, art_jpeg)
         duration = probe_duration(full)
         if duration is not None:
             db._exec("UPDATE uploads SET duration_sec=? WHERE id=?",

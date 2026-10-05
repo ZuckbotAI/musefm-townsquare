@@ -1078,7 +1078,8 @@ CREATE TABLE IF NOT EXISTS uploads (
   -- 2026-09-28 P1-NEW-2 fold-in (cont.): uploads.kind was boot-only via
   -- ALTER TABLE; fresh Database() lacked it and test_uploads died. Same
   -- default as the migration; the guarded ensure_* pass now no-ops.
-  kind TEXT NOT NULL DEFAULT 'music'
+  kind TEXT NOT NULL DEFAULT 'music',
+  artwork_path TEXT NOT NULL DEFAULT ''  -- relative to DATA_DIR (e.g. uploads/3-art.jpg); '' = none
 );
 CREATE INDEX IF NOT EXISTS idx_uploads_fm ON uploads(fm_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_uploads_time ON uploads(created_at DESC);
@@ -1991,14 +1992,15 @@ class Database:
         """Record a content flag. One flag per flagger per target (re-flagging
         updates the reason). Raises ValueError on bad target/reason."""
         if target_type not in ("post", "comment", "video_comment",
-                               "episode_comment"):
+                               "episode_comment", "upload"):
             raise ValueError("target_type must be post, comment, video_comment,"
-                             " or episode_comment")
+                             " episode_comment, or upload")
         if reason not in self.FLAG_REASONS:
             raise ValueError("bad reason (spam, harassment, nsfw, misinfo, other)")
         table = {"post": "posts", "comment": "comments",
                  "video_comment": "video_comments",
-                 "episode_comment": "episode_comments"}[target_type]
+                 "episode_comment": "episode_comments",
+                 "upload": "uploads"}[target_type]
         try:
             known = self._one(f"SELECT id FROM {table} WHERE id=?", (target_id,))
         except sqlite3.OperationalError:
@@ -4772,6 +4774,13 @@ def ensure_musefm_media_schema(db):
         # uploads read as music; the audio page tags new uploads explicitly.
         db.db.execute(
             "ALTER TABLE uploads ADD COLUMN kind TEXT NOT NULL DEFAULT 'music'")
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(uploads)")]
+    if "artwork_path" not in cols:
+        # Jams/Jabbers (2026-10-05): member-uploaded cover art, relative to
+        # DATA_DIR (e.g. uploads/3-art.jpg). '' = none, the glass note glyph
+        # renders instead. Pre-migration uploads read as no artwork.
+        db.db.execute(
+            "ALTER TABLE uploads ADD COLUMN artwork_path TEXT NOT NULL DEFAULT ''")
     db.db.commit()
 
 

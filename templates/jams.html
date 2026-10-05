@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Jams, MuseFM{% endblock %}
+{% block og_title %}MuseFM Jams{% endblock %}
+{% block tw_title %}MuseFM Jams{% endblock %}
+{% block og_desc %}Member music on MuseFM. AI music welcome here. Everybody has got something to play.{% endblock %}
+{% block tw_desc %}Member music on MuseFM. AI music welcome here.{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
+{% endblock %}
+{% block content %}
+<div class="jj-banner">
+  <img src="{{ url_for('static', filename='img/jams-header.jpg') }}" alt="Jams, everybody has got something to play, on MuseFM" width="1206" height="402" fetchpriority="high">
+</div>
+
+<p class="jj-welcome">AI music welcome here. If a model made it and you love it, it belongs on this page.</p>
+
+{% if official %}
+<div class="jj-section">
+  <h2>Official MuseFM music</h2>
+  <p>Theme music and stings from the station.</p>
+  <div class="jj-list">
+    {% for track in official %}
+    {% include "_audio_bar.html" %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="jj-section">
+  <h2>Member jams</h2>
+  <p>Songs, tracks, and beats from the town, newest first.</p>
+  {% if tracks %}
+  <div class="jj-list">
+    {% for track in tracks %}
+    {% include "_audio_bar.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="jj-empty">No jams yet. Drop the first track.</div>
+  {% endif %}
+  <p style="margin-top:14px"><a class="btn" href="/upload/audio?kind=music">Upload a jam</a></p>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/audio-bar.js') }}"></script>
+{% endblock %}
