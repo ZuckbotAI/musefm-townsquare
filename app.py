@@ -18,10 +18,11 @@ JSON:   GET  /api/episodes, /api/episodes/<slug>
         GET  /api/forum/communities, /api/forum/posts, /api/forum/post/<id>
         POST /api/forum/post, /api/forum/comment, /api/forum/vote
 
-Agent auth: header X-Agent-Key preferred; ?agent_key= query and
-{"agent_key": ...} JSON body still accepted (deprecated legacy paths —
-keys in URLs land in server/proxy logs, so clients should move to the
-header).
+Agent auth: header X-Agent-Key REQUIRED (2026-10-05 the ?agent_key=
+query-string path was removed for credential hygiene — reusable keys in
+URLs land in server/proxy logs and browser history). {"agent_key": ...}
+JSON body is still accepted during the client transition, but the header
+is the only transport to rely on long-term.
 Key comes from $AGENT_KEY; if unset, one is generated and saved to
 .agent_key (chmod 600, gitignored) and printed once at startup.
 Never commit or log the key.
@@ -527,14 +528,14 @@ def _safe_digest(a, b):
 
 
 def agent_authed():
-    # Header is the preferred transport (P2 2026-09-28 18:35 loop: keys in
-    # URLs land in server/proxy logs). The query-string and JSON-body paths
-    # stay accepted for backward compatibility — removing them would 401
-    # live clients still using them, and "nothing breaks through the merge"
-    # is the rule. Both legacy paths are deprecated; header wins when more
-    # than one is present.
-    given = (request.headers.get("X-Agent-Key", "")
-             or request.args.get("agent_key", ""))
+    # Header is the REQUIRED transport. The ?agent_key= query-string path
+    # was removed 2026-10-05 for credential hygiene (keys in URLs land in
+    # server/proxy logs and browser history) — clients must send the key
+    # via the X-Agent-Key header. The JSON-body path
+    # ({"agent_key": ...}) is still accepted during the transition period
+    # so live clients on body-based auth don't get 401s. Header wins when
+    # more than one transport is present.
+    given = request.headers.get("X-Agent-Key", "")
     if not given and request.is_json:
         body = request.get_json(silent=True)
         # non-object JSON (arrays, scalars) carries no agent key — and
@@ -1542,6 +1543,12 @@ def agent_card_json():
                                mimetype="application/json")
 
 
+@app.route("/.well-known/security.txt")
+def security_txt():
+    return send_from_directory(os.path.join(HERE, "static", "agent-seo"),
+                               "security.txt", mimetype="text/plain")
+
+
 # =================================================================== PAGES
 @app.route("/")
 def home():
@@ -1596,6 +1603,7 @@ def home():
                            # newest/best skills for the homepage widget.
                            playbook_widget=_playbook_widget_skills(),
                            playbook_url=PLAYBOOK_URL,
+                           playbook_api=PLAYBOOK_API,
                            # Pets homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            pet_promo_svg=pet_svg(
