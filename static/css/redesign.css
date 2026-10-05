@@ -873,10 +873,12 @@ footer a:hover { color: var(--rz-blue-deep); }
   .topbar-search { width: min(420px, 36vw); }
   .topbar-search kbd { display: none; }
 }
-@media (max-width: 940px) {
-  .topbar-search { position: static; transform: none; margin: 0; width: auto; flex: 1 1 auto; }
-  .topbar-right { margin-left: 0; }
-}
+/* (2026-10-04, overhaul item 3) The old @media (max-width: 940px) overrides
+   that lived here (`.topbar-search { margin: 0; ... }` and
+   `.topbar-right { margin-left: 0; }`) are retired: they lose the cascade to
+   the Iteration-2 glass block later in this file, so keeping them would be
+   a stale same-class trap. The iteration-2 rules carry the responsive
+   behavior. */
 @media (max-width: 860px) {
   .topbar-search { display: none; }
   #handle-chip { display: none; }
@@ -2219,7 +2221,11 @@ body::before {
 }
 [data-theme="dark"] .topbar-search svg { opacity: .8; color: #a8ccff; }
 [data-theme="dark"] .topbar-search input::placeholder { color: rgba(196,214,245,.55); }
-.topbar-right { margin-left: 0; flex: none; display: flex; align-items: center; gap: 8px; }
+/* topbar-right spans the bar (2026-10-04, overhaul item 3): the icon
+   cluster sits left, the glass search centers itself between the cluster
+   and log out via its own auto margins, and log out is the last item so
+   it lands in the far-right corner. */
+.topbar-right { margin-left: auto; flex: 1 1 auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* auth pair: identical geometry, no clipping */
 .auth-link {
   display: inline-flex; align-items: center; justify-content: center;
@@ -3735,6 +3741,9 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
    selector that wins the cascade. */
 @media (max-width: 860px) {
   .topbar .topbar-search { display: none; }
+  /* search is hidden on phones: pin log out to the far-right corner so
+     the bar stays uncluttered (2026-10-04, overhaul item 3). */
+  .topbar .logout-inline { margin-left: auto; }
 }
 /* 1b. Lobby/community search: dock the search button inside the input
    instead of a detached pill, matching the topbar's icon-inside-field
