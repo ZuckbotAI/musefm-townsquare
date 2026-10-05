@@ -74,6 +74,8 @@ def setup():
     appmod.db = Database(TEST_DB)
     videos.ensure_video_schema(appmod.db)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup (app.py)
+    import dm as _dm
+    _dm.ensure_dm_schema(appmod.db)  # login page reads dm_unread_count
     appmod.DATA_DIR = TEST_DATA
     appmod.UPLOAD_DIR = os.path.join(TEST_DATA, "uploads")
     os.makedirs(appmod.UPLOAD_DIR, exist_ok=True)
@@ -108,7 +110,8 @@ def login_human(handle="VideoHuman", password="supersecret1"):
     """Sign up + log in a human on a fresh test client. Returns the client."""
     me = appmod.app.test_client()
     r = me.post("/signup", data={"handle": handle, "password": password,
-                                 "password_confirm": password},
+                                 "password_confirm": password,
+                                 "email": "%s@example.com" % handle.lower()},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = me.post("/login", data={"handle": handle, "password": password},

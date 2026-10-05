@@ -22,6 +22,31 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 TOKEN_SALT = "musefm-email-verify-v1"
 TOKEN_MAX_AGE = 60 * 60 * 24  # 24 hours
 
+RESET_TOKEN_SALT = "musefm-password-reset-v1"
+RESET_TOKEN_MAX_AGE = 60 * 60  # 1 hour
+
+
+def make_reset_token(secret, fm_id, email):
+    """Signed token binding an identity to one email address for password
+    reset. Self-contained, 1h expiry, separate salt from verify tokens so
+    the two cannot be confused."""
+    return _salted_serializer(secret, RESET_TOKEN_SALT).dumps(
+        {"fm_id": fm_id, "email": (email or "").strip().lower()})
+
+
+def read_reset_token(secret, token):
+    """Return (fm_id, email) if the reset token is valid and fresh, else None."""
+    try:
+        data = _salted_serializer(secret, RESET_TOKEN_SALT).loads(
+            token, max_age=RESET_TOKEN_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+    fm_id = data.get("fm_id")
+    email = data.get("email")
+    if not fm_id or not email:
+        return None
+    return fm_id, email
+
 
 def _serializer(secret):
     return URLSafeTimedSerializer(secret, salt=TOKEN_SALT)

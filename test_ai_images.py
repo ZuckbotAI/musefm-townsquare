@@ -92,7 +92,8 @@ def login_human(handle="ArtFan", password="supersecret1"):
     """Sign up + log in a human on a fresh test client. Returns the client."""
     me = appmod.app.test_client()
     r = me.post("/signup", data={"handle": handle, "password": password,
-                                 "password_confirm": password},
+                                 "password_confirm": password,
+                                 "email": "%s@example.com" % handle.lower()},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = me.post("/login", data={"handle": handle, "password": password},
@@ -277,8 +278,12 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
     html = client.get("/c/lobby/post/%d" % pid).get_data(as_text=True)
     check("badge renders on full post",
           "AI-generated" in html and "/img/%d" % uid in html)
-    home = client.get("/").get_data(as_text=True)
-    check("badge renders on feed", "AI-generated" in home)
+    home = client.get("/?sort=new").get_data(as_text=True)
+    # The homepage "Recent discussions" rows are compact title/meta rows by
+    # design (no media, no badges), so the badge's feed surface is the
+    # full post page, covered above. This just pins the post itself onto
+    # the newest-sorted home feed.
+    check("post appears on the newest home feed", "muse art" in home)
 
     # unflagged image: no badge
     r = client.post("/api/forum/post", json=signed_body(

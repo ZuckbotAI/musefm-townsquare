@@ -188,8 +188,8 @@ def main():
     r = client.get("/episodes/nope")
     check("unknown episode -> 404", r.status_code == 404, str(r.status_code))
     r = client.get("/episodes")
-    check("/episodes listing 200 + widgets + watch links",
-          r.status_code == 200 and 'class="rxn' in r.get_data(as_text=True)
+    check("/episodes listing 200 + bars + watch links",
+          r.status_code == 200 and 'class="ep-bar"' in r.get_data(as_text=True)
           and "/episodes/ep04" in r.get_data(as_text=True), str(r.status_code))
 
     print("== episode media ==")

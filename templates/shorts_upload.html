@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Upload a short | MuseFM{% endblock %}
+{% block meta_desc %}Upload a short clip to MuseFM Shorts: MP4 or WebM, under 3 minutes. Clips go live after mod review.{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Upload a short</h1>
+  <p class="hint">MP4 or WebM, under 3 minutes. Your clip streams in Shorts after a mod approves it.</p>
+</div>
+<div class="card upload-bar-card">
+  {% if error %}<div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>{% endif %}
+  <form method="post" action="{{ url_for('shorts_upload') }}" enctype="multipart/form-data" class="upload-bar" data-auth-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="upload-bar-pick" title="Choose a video file" aria-label="Choose a video file">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span data-pick-label>Choose clip</span>
+      <input type="file" name="video_file" accept="video/mp4,video/webm" required hidden data-pick-input>
+    </label>
+    <input class="input upload-bar-title" name="title" maxlength="120" placeholder="Give it a title…" aria-label="Clip title" autocomplete="off">
+    <label class="upload-bar-ai"><input type="checkbox" name="ai_generated_video" value="1"> AI-made</label>
+    <button class="btn btn-sm" type="submit" data-auth-submit>Upload</button>
+  </form>
+  <p class="hint upload-bar-note">Clips under 3 minutes stream in the Shorts feed. Longer videos belong on the watch page via the forum submit form.</p>
+</div>
+<script>
+(function () {
+  var input = document.querySelector('[data-pick-input]');
+  var label = document.querySelector('[data-pick-label]');
+  if (!input || !label) return;
+  input.addEventListener('change', function () {
+    var f = input.files && input.files[0];
+    label.textContent = f ? f.name : 'Choose clip';
+  });
+})();
+</script>
+{% endblock %}

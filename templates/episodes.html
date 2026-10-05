@@ -1,81 +1,28 @@
 {% extends "base.html" %}
-{% from "_reactions.html" import rxn_widget with context %}
 {% block title %}Episodes, MuseFM{% endblock %}
 {% block og_title %}MuseFM Episodes{% endblock %}
 {% block tw_title %}MuseFM Episodes{% endblock %}
 {% block og_desc %}The nightly voice of the town. Stream free, clip the moments, talk back.{% endblock %}
 {% block tw_desc %}The nightly voice of the town. Stream free, clip the moments, talk back.{% endblock %}
 {% block content %}
-<div class="hero page-hero hero-center">
-  <h1>Episodes</h1>
-  <div class="page-orb-home"><div class="hero-orb-bubble"><div class="hero-orb-stage" id="hero-orb-stage" aria-hidden="true"></div></div></div>
-  <p>The nightly voice of the town, in Zuckbot's voice. Stream free, clip the moments, talk back.</p>
-</div>
+<img class="ep-hero" src="{{ url_for('static', filename='img/episodes-hero.jpg') }}" alt="MuseFM studio">
 
+<div class="ep-list">
 {% for e in episodes %}
-<div class="card" id="{{ e.slug }}">
-  <div class="ep-card">
-    <div class="ep-art">🎙️</div>
-    <div class="ep-main">
-      <div class="ep-series">{{ e.series }}</div>
-      <div class="ep-title">{{ e.title }}</div>
-      <p class="ep-desc">{{ e.description|mentions|safe }}</p>
-      <div class="ep-tools">
-        <button class="tool-btn primary" data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}">▶ Play</button>
-        <button class="tool-btn" data-queue="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}">＋ Up next</button>
-        <button class="tool-btn" data-share="{{ e.slug }}" data-title="{{ e.title|e }}">↗ Share</button>
-        <a class="tool-btn" href="/audio/{{ e.audio_file }}" download="{{ e.audio_file }}">⬇ Download</a>
-        <a class="tool-btn" href="/episodes/{{ e.slug }}">⛶ Watch page</a>
-        <a class="tool-btn" href="/listen/{{ e.slug }}">🎧 Listen live</a>
-        <span class="hint">{{ e.duration_sec|dur }} · {{ e.published }}</span>
+  <div class="ep-bar" id="{{ e.slug }}">
+    <button class="ep-play" data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" aria-label="Play {{ e.title|e }}">&#9654;</button>
+    <div class="ep-bar-main">
+      <div class="ep-bar-top">
+        <span class="ep-series ep-bar-series">{{ e.series }}</span>
+        <a class="ep-bar-title" href="/episodes/{{ e.slug }}">{{ e.title }}</a>
       </div>
-      <div class="progress" data-seek="{{ e.slug }}"><div></div></div>
-      <div class="time-row"><span data-elapsed="{{ e.slug }}">0:00</span><span>{{ e.duration_sec|dur }}</span></div>
-      {{ rxn_widget('episode', e.rowid, e.sig, handle, '/episodes#' + e.slug) }}
+      <div class="ep-bar-meta hint">{{ e.duration_sec|dur }} &middot; {{ e.published }}</div>
+      <div class="progress ep-bar-progress" data-seek="{{ e.slug }}"><div></div></div>
     </div>
+    <span class="ep-bar-time" data-elapsed="{{ e.slug }}">0:00</span>
   </div>
-
-  {% if clips[e.slug] %}
-  <div style="margin-top:14px">
-    <h4 class="section-label">✂ CLIPS FROM THE TOWN</h4>
-    {% for cl in clips[e.slug] %}
-    <div class="clip-row">
-      <span class="clip-time">{{ cl.start_sec|dur }}–{{ cl.end_sec|dur }}</span>
-      <span>{{ cl.note or "clip" }} <span class="hint">· {% if cl.handle != 'anon' %}<a href="/u/{{ cl.handle }}" class="profile-link">u/{{ cl.handle }}</a>{% else %}u/{{ cl.handle }}{% endif %}</span></span>
-      <span style="flex:1"></span>
-      <button class="tool-btn clip-play"
-        data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" data-start="{{ cl.start_sec }}">▶ clip</button>
-      {% if session_handle and (session_handle|lower == cl.handle|lower or is_mod) %}
-      <form method="post" action="/episodes/{{ e.slug }}/clips/{{ cl.id }}/delete" style="display:inline" onsubmit="return confirm('Delete this clip? This cannot be undone.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="tool-btn danger" type="submit" title="Delete this clip">🗑 delete</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  <div style="margin-top:14px">
-    <h4 class="section-label">💬 COMMENTS</h4>
-    {% for c in ep_comments[e.slug] %}
-    <div class="comment d0">
-      <div class="comment-head"><span class="who">{% if c.handle != 'anon' %}<a href="/u/{{ c.handle }}" class="profile-link">u/{{ c.handle }}</a>{% else %}u/{{ c.handle }}{% endif %}</span><span class="when">{{ c.created_at|fdate }}</span></div>
-      <div class="comment-body">{{ c.body }}</div>
-    </div>
-    {% else %}
-    <p class="hint">No comments yet.</p>
-    {% endfor %}
-    {% if session_identity %}
-    <form class="ep-comment-form" method="post" action="/episodes/{{ e.slug }}/comment">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input class="input f-body" name="body" placeholder="What did you think, @{{ session_handle }}?" required>
-      <button class="btn btn-sm" type="submit">Post</button>
-    </form>
-    {% else %}
-    <p class="hint"><a href="/login?next=/episodes">Sign in</a> to comment on episodes.</p>
-    {% endif %}
-  </div>
-</div>
+{% else %}
+  <p class="hint">No episodes yet.</p>
 {% endfor %}
+</div>
 {% endblock %}

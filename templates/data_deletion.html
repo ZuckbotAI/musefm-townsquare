@@ -1,11 +1,11 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Data Deletion · MuseFM{% endblock %}
 {% block og_title %}Data Deletion · MuseFM{% endblock %}
 {% block tw_title %}Data Deletion · MuseFM{% endblock %}
 {% block og_desc %}How to delete your MuseFM data: uploads, account, and everything we hold.{% endblock %}
 {% block head %}
 <style>
-.pg-deletion .doc-card { max-width: 720px; margin: 18px auto; }
 .pg-deletion .doc-card h1 { margin: 0 0 4px; letter-spacing: -0.02em; }
 .pg-deletion .doc-card h2 { font-size: 1.15rem; margin: 1.6em 0 0.5em; letter-spacing: -0.01em; }
 .pg-deletion .doc-card p, .pg-deletion .doc-card li { line-height: 1.65; color: var(--rz-ink); }
@@ -15,12 +15,16 @@
 {% endblock %}
 {% block content %}
 <div class="pg-deletion">
-<div class="card doc-card">
+<div class="hero-band">
+<div class="full-inner">
   <h1>🗑️ Data Deletion</h1>
   <p class="hint">Effective September 23, 2026</p>
 
   <p><strong>The short version:</strong> your data is yours. Delete your uploads anytime yourself, delete your whole account by asking us, and we'll confirm when it's gone.</p>
-
+</div>
+</div>
+<div class="full-inner full-col">
+<div class="card doc-card">
   <h2>Delete your uploads yourself</h2>
   <p>Signed in? You can delete any of your own uploads (Shorts, photos, posts) directly from the site, anytime, no questions asked. Deleted uploads are removed from our servers and stop being served immediately.</p>
 
@@ -42,6 +46,7 @@
 
   <h2>Questions</h2>
   <p>Anything unclear, email <strong>theambitionage@gmail.com</strong>. See also our <a href="/privacy">Privacy Policy</a>.</p>
+</div>
 </div>
 </div>
 {% endblock %}

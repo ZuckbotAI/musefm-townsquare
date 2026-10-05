@@ -55,9 +55,11 @@ def setup():
     import app as appmod
     from db import (Database, ensure_forum_flags_schema,
                     ensure_human_auth_schema)
+    from dm import ensure_dm_schema
     import videos
     import ai_images
     appmod.db = Database(TEST_DB)
+    ensure_dm_schema(appmod.db)  # session pages read dm_unread_count
     videos.ensure_video_schema(appmod.db)
     ai_images.ensure_ai_schema(appmod.db)
     ensure_human_auth_schema(appmod.db)
@@ -72,7 +74,8 @@ def setup():
 def signup_login(appmod, handle, password="supersecret1"):
     me = appmod.app.test_client()
     r = me.post("/signup", data={"handle": handle, "password": password,
-                                 "password_confirm": password},
+                                 "password_confirm": password,
+                                 "email": "%s@example.com" % handle.lower()},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = me.post("/login", data={"handle": handle, "password": password},

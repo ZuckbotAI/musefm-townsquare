@@ -68,11 +68,13 @@ def setup():
     if os.path.isdir(TEST_DATA):
         shutil.rmtree(TEST_DATA)
     from db import Database, ensure_human_auth_schema, ensure_forum_flags_schema
+    from dm import ensure_dm_schema
     appmod.db = Database(TEST_DB)
     videos.ensure_video_schema(appmod.db)
     ai_images.ensure_ai_schema(appmod.db)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup (app.py)
     ensure_forum_flags_schema(appmod.db)
+    ensure_dm_schema(appmod.db)          # session pages read dm_unread_count
     appmod.DATA_DIR = TEST_DATA
     appmod.UPLOAD_DIR = os.path.join(TEST_DATA, "uploads")
     os.makedirs(appmod.UPLOAD_DIR, exist_ok=True)
@@ -99,7 +101,8 @@ def csrf_of(client):
 def login_human(handle="ModHuman", password="supersecret1"):
     me = appmod.app.test_client()
     r = me.post("/signup", data={"handle": handle, "password": password,
-                                 "password_confirm": password},
+                                 "password_confirm": password,
+                                 "email": "%s@example.com" % handle.lower()},
                 environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = me.post("/login", data={"handle": handle, "password": password},
@@ -270,8 +273,13 @@ def main():
     r = mod.get("/mod/uploads")
     check("mod can open approval queue", r.status_code == 200,
           str(r.status_code))
-    r = mod.post("/mod/uploads/video/%d/approve" % u2["id"],
-                 environ_base=fresh_ip())
+
+    def mod_action(client, kind, uid, action):
+        return client.post("/mod/uploads/%s/%d/%s" % (kind, uid, action),
+                           data={"csrf_token": csrf_of(client)},
+                           environ_base=fresh_ip())
+
+    r = mod_action(mod, "video", u2["id"], "approve")
     check("mod approve -> redirect", r.status_code == 302, str(r.status_code))
     check("approval makes video public exactly once",
           videos.get_video_upload(db, u2["id"])["status"] == "approved"
@@ -279,17 +287,16 @@ def main():
     check("approved video now serves 200",
           anon.get("/video/%d" % u2["id"]).status_code == 200)
 
-    r = mod.post("/mod/uploads/video/%d/reject" % huid,
-                 environ_base=fresh_ip())
+    r = mod_action(mod, "video", huid, "reject")
     check("mod reject -> redirect", r.status_code == 302, str(r.status_code))
     check("rejected video stays hidden",
           videos.get_video_upload(db, huid)["status"] == "rejected"
           and all(s["id"] != huid for s in videos.list_shorts(db))
           and anon.get("/video/%d" % huid).status_code == 404)
 
-    # non-mod humans can't touch the queue
-    r = me.post("/mod/uploads/video/%d/approve" % u2["id"],
-                environ_base=fresh_ip())
+    # non-mod humans can't touch the queue (403 from the mod check itself,
+    # so send a valid CSRF token to isolate the auth decision)
+    r = mod_action(me, "video", u2["id"], "approve")
     check("non-mod approve blocked", r.status_code == 403, str(r.status_code))
     r = me.get("/mod/uploads")
     check("non-mod queue view blocked", r.status_code == 403,
@@ -350,8 +357,7 @@ def main():
     check("human pending photo page 404s for anonymous",
           anon.get("/musefm/photos/%d" % hp["id"]).status_code == 404)
 
-    r = mod.post("/mod/uploads/photo/%d/approve" % hp["id"],
-                 environ_base=fresh_ip())
+    r = mod_action(mod, "photo", hp["id"], "approve")
     check("mod approves human photo",
           r.status_code == 302
           and db.get_photo(hp["id"])["status"] == "approved"
@@ -369,8 +375,7 @@ def main():
     check("media_visible passes external URLs through",
           appmod.media_visible("https://example.com/x.png") is True)
 
-    r = mod.post("/mod/uploads/image/%d/reject" % img_pend,
-                 environ_base=fresh_ip())
+    r = mod_action(mod, "image", img_pend, "reject")
     check("mod rejects pending comment image",
           r.status_code == 302
           and ai_images.get_image_upload(db, img_pend)["status"] == "rejected")

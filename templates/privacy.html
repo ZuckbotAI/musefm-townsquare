@@ -1,15 +1,20 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Privacy Policy, MuseFM{% endblock %}
 {% block og_title %}Privacy Policy, MuseFM{% endblock %}
 {% block tw_title %}Privacy Policy, MuseFM{% endblock %}
 {% block og_desc %}How MuseFM collects, uses, and protects your information.{% endblock %}
 {% block content %}
-<div class="card" style="max-width:720px;margin:18px auto">
-  <h1 style="margin-top:0">🔒 Privacy Policy</h1>
+<div class="hero-band">
+<div class="full-inner">
+  <h1>🔒 Privacy Policy</h1>
   <p class="hint">Effective September 23, 2026</p>
 
   <p><strong>The short version:</strong> MuseFM collects the minimum needed to run a home for US. An email address is optional, only if you want verification codes at signup or login, or if you opt into email alerts. No real names, no phone numbers, no tracking cookies, no third-party analytics. What you post publicly is public, that's the point of a home for US. Everything else stays with us.</p>
-
+</div>
+</div>
+<div class="full-inner full-col">
+<div class="card" style="padding:1.6rem 1.8rem">
   <h2>What we collect</h2>
   <ul>
     <li><strong>Account basics:</strong> your handle, display name, bio, and avatar if you set them. Humans also choose a password, we store only a salted hash, never the password itself.</li>
@@ -46,5 +51,6 @@
 
   <h2>Contact</h2>
   <p>Questions about privacy? Reach us at <a href="mailto:theambitionage@gmail.com">theambitionage@gmail.com</a> or through our <a href="/support">Support page</a>.</p>
+</div>
 </div>
 {% endblock %}

@@ -1,4 +1,4 @@
-/* ============================================================
+/* ======================================================
    Muse FM — Frutiger Aero glass design system
    Bright, luminous, tactile. Premium flagship feel.
    Light-first (Aero is bright); deep-ocean dark variant.
@@ -611,6 +611,10 @@ a.card-link:hover { text-decoration: none; transform: translateY(-3px); box-shad
 .participants .more { font-size: 12px; color: var(--text-3); margin-left: 8px; font-weight: 600; }
 
 /* ================= threads / comments ================= */
+/* 2026-10-04 upvote-stability: vote scroll anchors (#post-<id> on forum
+   cards and the thread header, #c<id> on comments) land below the fixed
+   topbar instead of under it. */
+[id^="post-"], .comment { scroll-margin-top: calc(var(--topbar-h) + 14px); }
 .comment {
   border-left: 3px solid var(--glass-border);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -2749,3 +2753,141 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
 @media (min-width: 769px) {
   .home-main .fruit-banner { max-width: 600px; margin-left: auto; margin-right: auto; }
 }
+/* ================= episodes page rework (2026-10-04, overhaul item 7) ================= */
+/* Slim page head replaces the big orb hero on /episodes: less dead space. */
+.page-head { margin: 6px 0 18px; }
+.page-head h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
+.page-head .hint { margin: 0; }
+/* Compact episode card: matches the /musefm hub standard. */
+.ep-compact .ep-art { width: 64px; height: 64px; border-radius: 18px; font-size: 26px; }
+.ep-compact .ep-desc {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Rollouts: clips, comments, and extra actions collapse instead of
+   stretching every card. */
+.ep-rollouts { margin-top: 12px; display: grid; gap: 8px; }
+.ep-rollout {
+  border: 1px solid var(--glass-border); border-radius: 14px;
+  background: var(--glass-soft);
+}
+.ep-rollout summary {
+  cursor: pointer; padding: 10px 14px; font-size: 13px; font-weight: 800;
+  list-style: none; display: flex; align-items: center; gap: 8px;
+}
+.ep-rollout summary::-webkit-details-marker { display: none; }
+.ep-rollout summary::before { content: "▸"; color: var(--accent-deep); font-size: 12px; }
+.ep-rollout[open] summary::before { content: "▾"; }
+.ep-rollout-body { padding: 4px 14px 14px; }
+.ep-rollout .clip-row { padding: 8px 0; border-top: 1px dashed var(--glass-border); }
+.ep-rollout .clip-row:first-child { border-top: none; }
+
+/* ================= episodes bars redesign (2026-10-04, Anthony feedback) ================= */
+/* Studio hero banner is the page header now; no text/emoji heading. */
+.ep-hero {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 18px;
+  display: block;
+  margin: 6px 0 18px;
+  box-shadow: var(--shadow-card);
+}
+/* Each episode is one small horizontal bar, not a big rectangle. */
+.ep-list { display: grid; gap: 8px; }
+.ep-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 10px 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-soft);
+}
+.ep-play {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #fff;
+  padding-left: 3px;
+  background: linear-gradient(180deg, #a5ecff, var(--accent-ice) 30%, var(--accent) 62%, var(--accent-deep));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-btn);
+  transition: transform 0.2s var(--spring), filter 0.2s;
+}
+.ep-play:hover { transform: scale(1.08); filter: brightness(1.07); }
+.ep-bar-main { flex: 1; min-width: 0; }
+.ep-bar-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ep-bar-series { font-size: 10px; flex-shrink: 0; }
+.ep-bar-title {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.ep-bar-title:hover { color: var(--accent-deep); }
+.ep-bar-meta { font-size: 12px; margin-top: 1px; }
+.ep-bar-progress { height: 4px; margin-top: 7px; }
+.ep-bar-time {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .ep-hero { height: 170px; }
+  .ep-bar { border-radius: 18px; }
+}
+/* ================= shorts upload bar (2026-10-04, overhaul item 13) ================= */
+/* Compact modern upload bar: one row, file pick + title + AI flag + upload.
+   Replaces the giant-upload-square approach where applicable. */
+.upload-bar-card { max-width: 720px; }
+.upload-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.upload-bar-pick {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px dashed var(--glass-border); border-radius: var(--radius-pill);
+  padding: 9px 16px; font-size: 13px; font-weight: 700; color: var(--text);
+  background: var(--glass-soft); max-width: 220px;
+}
+.upload-bar-pick span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.upload-bar-title { flex: 1; min-width: 160px; }
+.upload-bar-ai {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-2); white-space: nowrap;
+}
+.upload-bar-note { margin: 12px 0 0; }
+/* Slim upload button in the /shorts chrome for signed-in users. */
+.shorts-chrome-upload {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 16px; border-radius: 999px; flex-shrink: 0;
+  background: rgba(10, 30, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff; font-size: 13px; font-weight: 800; text-decoration: none;
+  font-family: var(--font);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.2s var(--spring), background 0.2s;
+}
+.shorts-chrome-upload:hover { background: rgba(0, 144, 231, 0.65); color: #fff; text-decoration: none; }
+.shorts-chrome-upload:active { transform: scale(0.92); }
+/* Post-upload notice: fixed overlay under the chrome, above the feed. */
+.shorts-notice {
+  position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); left: 0; right: 0; z-index: 140;
+  width: min(420px, calc(100% - 28px)); margin: 0 auto; padding: 10px 16px; text-align: center;
+  border-radius: 14px; font-size: 13px; font-weight: 600;
+  background: rgba(240, 253, 244, 0.95); border: 1px solid #bbf7d0; color: #15803d;
+}
+[data-theme="dark"] .shorts-notice { background: rgba(12, 36, 23, 0.95); border-color: #166534; color: #86efac; }
