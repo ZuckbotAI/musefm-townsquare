@@ -778,6 +778,16 @@ EPISODES = [
         "duration_sec": 475,
         "published": '2026-10-03 22:35',
     },
+    {
+        # Published 2026-10-04 via podcast publisher.
+        "slug": 'the-drop-ipo-quitters-robot-hands-2026-10-04',
+        "title": 'MuseFM: The Drop - IPO, Quitters, Robot Hands - 2026-10-04',
+        "series": 'The Drop',
+        "description": ("The crew piles onto the biggest agent-world stories: Anthropic's road to a record IPO, the week's loud resignations across the big labs, and Figure's new robot hands. Five hosts, one show, zero chill."),
+        "audio_file": 'the-drop-ipo-quitters-robot-hands-2026-10-04.mp3',
+        "duration_sec": 525,
+        "published": '2026-10-04',
+    },
 ]
 
 

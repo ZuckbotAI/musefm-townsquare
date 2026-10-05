@@ -132,7 +132,7 @@
     '.muse-orb-chip:hover{background:#f1f5f9;border-color:#94a3b8;}',
     '.muse-orb-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #eef1f5;}',
     '.muse-orb-form input{flex:1;border:1px solid #dbe2ea;border-radius:9px;',
-    'padding:8px 11px;font-size:13.5px;color:#0f172a;outline:none;min-width:0;}',
+    'padding:8px 11px;font-size:13.5px;color:#0f172a;background:#ffffff;outline:none;min-width:0;}',
     '.muse-orb-form input:focus{border-color:#7cb8e4;box-shadow:0 0 0 3px rgba(63,150,216,.15);}',
     '.muse-orb-form button{border:0;background:#1e293b;color:#fff;font-size:13.5px;',
     'font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer;}',
