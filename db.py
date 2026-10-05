@@ -1170,10 +1170,21 @@ CREATE TABLE IF NOT EXISTS uploads (
   -- 2026-09-28 P1-NEW-2 fold-in (cont.): uploads.kind was boot-only via
   -- ALTER TABLE; fresh Database() lacked it and test_uploads died. Same
   -- default as the migration; the guarded ensure_* pass now no-ops.
-  kind TEXT NOT NULL DEFAULT 'music'
+  kind TEXT NOT NULL DEFAULT 'music',
+  artwork_path TEXT NOT NULL DEFAULT ''  -- relative to DATA_DIR (e.g. uploads/3-art.jpg); '' = none
 );
 CREATE INDEX IF NOT EXISTS idx_uploads_fm ON uploads(fm_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_uploads_time ON uploads(created_at DESC);
+CREATE TABLE IF NOT EXISTS audio_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  audio_id INTEGER NOT NULL,   -- uploads.id (a Jam or Jab track)
+  parent_id INTEGER,           -- self ref; NULL = top-level comment
+  handle TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audio_comments_audio
+  ON audio_comments(audio_id, created_at);
 CREATE TABLE IF NOT EXISTS activity_days (
   fm_id TEXT NOT NULL,
   day TEXT NOT NULL,              -- UTC YYYY-MM-DD
@@ -2007,6 +2018,72 @@ class Database:
             out[r["video_id"]] = r["c"]
         return out
 
+    # -- audio comments (Jams/Jabbers per-track threads, 2026-10-05) --------
+    def create_audio_comment(self, audio_id, parent_id, handle, body,
+                             bypass_filter=False):
+        u = self._one("SELECT id FROM uploads WHERE id=?", (audio_id,))
+        if not u:
+            raise ValueError("unknown track")
+        if parent_id:
+            try:
+                parent_id = int(parent_id)
+            except (TypeError, ValueError):
+                raise ValueError("unknown parent comment")
+            p = self._one("SELECT id FROM audio_comments WHERE id=? AND audio_id=?",
+                          (parent_id, audio_id))
+            if not p:
+                raise ValueError("unknown parent comment")
+        else:
+            parent_id = None
+        if not valid_handle(handle):
+            raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
+        body = clean(body, 2000)
+        if not body:
+            raise ValueError("comment body required")
+        if has_banned(body) and not bypass_filter:
+            raise ValueError("content blocked by the town filter")
+        cur = self._exec(
+            "INSERT INTO audio_comments (audio_id, parent_id, handle, body,"
+            " created_at) VALUES (?,?,?,?,?)",
+            (audio_id, parent_id, handle, body, now()))
+        return cur.lastrowid
+
+    def audio_comment_tree(self, audio_id, sort="top"):
+        """Nested tree for a track's comments. Top-level sorted per `sort`
+        (top/new/old); replies always chronological (oldest first)."""
+        rows = [dict(r) for r in self._q(
+            "SELECT * FROM audio_comments WHERE audio_id=? ORDER BY created_at",
+            (audio_id,))]
+        by_parent = {}
+        for c in rows:
+            c["score"] = 0  # no votes on audio comments; top == oldest first
+            by_parent.setdefault(c["parent_id"], []).append(c)
+
+        def build(parent):
+            out = []
+            for c in by_parent.get(parent, []):
+                c["replies"] = build(c["id"])
+                out.append(c)
+            if parent is None:
+                out.sort(key=comment_sort_key(sort))
+            else:
+                out.sort(key=lambda c: (c["created_at"], c["id"]))
+            return out
+        return build(None)
+
+    def audio_comment_counts(self, audio_ids):
+        """Batched comment counts: {audio_id: count}. One query, no N+1."""
+        ids = [int(i) for i in audio_ids]
+        if not ids:
+            return {}
+        out = {i: 0 for i in ids}
+        q = ("SELECT audio_id, COUNT(*) c FROM audio_comments"
+             " WHERE audio_id IN (%s) GROUP BY audio_id" %
+             ",".join("?" * len(ids)))
+        for r in self._q(q, tuple(ids)):
+            out[r["audio_id"]] = r["c"]
+        return out
+
     # -- votes ------------------------------------------------------------
     def vote(self, target_type, target_id, handle, value):
         if target_type not in ("post", "comment", "video_comment",
@@ -2083,14 +2160,15 @@ class Database:
         """Record a content flag. One flag per flagger per target (re-flagging
         updates the reason). Raises ValueError on bad target/reason."""
         if target_type not in ("post", "comment", "video_comment",
-                               "episode_comment"):
+                               "episode_comment", "upload"):
             raise ValueError("target_type must be post, comment, video_comment,"
-                             " or episode_comment")
+                             " episode_comment, or upload")
         if reason not in self.FLAG_REASONS:
             raise ValueError("bad reason (spam, harassment, nsfw, misinfo, other)")
         table = {"post": "posts", "comment": "comments",
                  "video_comment": "video_comments",
-                 "episode_comment": "episode_comments"}[target_type]
+                 "episode_comment": "episode_comments",
+                 "upload": "uploads"}[target_type]
         try:
             known = self._one(f"SELECT id FROM {table} WHERE id=?", (target_id,))
         except sqlite3.OperationalError:
@@ -4879,6 +4957,13 @@ def ensure_musefm_media_schema(db):
         # uploads read as music; the audio page tags new uploads explicitly.
         db.db.execute(
             "ALTER TABLE uploads ADD COLUMN kind TEXT NOT NULL DEFAULT 'music'")
+    cols = [r["name"] for r in db.db.execute("PRAGMA table_info(uploads)")]
+    if "artwork_path" not in cols:
+        # Jams/Jabbers (2026-10-05): member-uploaded cover art, relative to
+        # DATA_DIR (e.g. uploads/3-art.jpg). '' = none, the glass note glyph
+        # renders instead. Pre-migration uploads read as no artwork.
+        db.db.execute(
+            "ALTER TABLE uploads ADD COLUMN artwork_path TEXT NOT NULL DEFAULT ''")
     db.db.commit()
 
 
@@ -5236,6 +5321,25 @@ def ensure_kind_override_schema(db):
     if "kind_override" not in cols:
         db.db.execute(
             "ALTER TABLE identities ADD COLUMN kind_override TEXT NOT NULL DEFAULT ''")
+    db.db.commit()
+
+
+def ensure_audio_comments_schema(db):
+    """Additive only: audio_comments table for Jams/Jabbers per-track
+    threads (2026-10-05). One row per comment, self-referencing parent_id
+    for replies, keyed to uploads.id. Safe on fresh and existing DBs;
+    never touches data."""
+    db.db.executescript(
+        "CREATE TABLE IF NOT EXISTS audio_comments ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  audio_id INTEGER NOT NULL,"
+        "  parent_id INTEGER,"
+        "  handle TEXT NOT NULL,"
+        "  body TEXT NOT NULL,"
+        "  created_at INTEGER NOT NULL"
+        ");"
+        "CREATE INDEX IF NOT EXISTS idx_audio_comments_audio"
+        "  ON audio_comments(audio_id, created_at);")
     db.db.commit()
 
 

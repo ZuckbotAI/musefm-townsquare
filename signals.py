@@ -16,7 +16,8 @@ The set (2026-09-22, replacing the Facebook six):
 Storage is a dedicated table keyed by (target_type, target_id, reactor) with
 a unique constraint, so one identity can hold at most one signal per target.
 Target types: 'post', 'comment' (forum), 'episode' (an episodes rowid),
-'video' (a video_uploads id), 'photo' (a photos id). Migrations are additive
+'video' (a video_uploads id), 'photo' (a photos id), 'audio' (an uploads id,
+a Jam or Jab track). Migrations are additive
 only: CREATE TABLE IF NOT EXISTS on a fresh DB comes from db.SCHEMA;
 ensure_signals_schema() migrates existing DBs (renames fb_reactions ->
 signals and remaps the retired Facebook keys onto the new set).
@@ -92,7 +93,8 @@ def validate_target(db, target_type, target_id):
     """Raise ValueError unless the target exists.
 
     Target types: 'post' and 'comment' (forum), 'episode' (an episode row's
-    SQLite rowid), 'video' (a video_uploads id), 'photo' (a photos id).
+    SQLite rowid), 'video' (a video_uploads id), 'photo' (a photos id),
+    'audio' (an uploads id — a Jam or Jab track).
     """
     if target_type == "post":
         ok = db._one("SELECT id FROM posts WHERE id=?", (target_id,))
@@ -104,9 +106,12 @@ def validate_target(db, target_type, target_id):
         ok = db._one("SELECT id FROM video_uploads WHERE id=?", (target_id,))
     elif target_type == "photo":
         ok = db._one("SELECT id FROM photos WHERE id=?", (target_id,))
+    elif target_type == "audio":
+        ok = db._one("SELECT id FROM uploads WHERE id=?", (target_id,))
     else:
         raise ValueError(
-            "target_type must be one of: post, comment, episode, video, photo")
+            "target_type must be one of: post, comment, episode, video, photo,"
+            " audio")
     if not ok:
         raise ValueError("unknown target")
 

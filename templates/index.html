@@ -509,6 +509,36 @@
       {% endfor %}
     </div>
     {% endif %}
+    {# Jams & Jabs rail (2026-10-05, Anthony; rev 2: mini players): latest
+       community jab, latest community jam, latest official episode.
+       Each row is a mini player: play button starts inline audio right
+       in the rail; the title links to the page as a secondary affordance.
+       Compact, in theme, small. The welcome copy lives here, small, and
+       nowhere else on the section pages. #}
+    {% if jams_jabs_rail %}
+    <div class="card side-card jj-rail" aria-label="Jams and Jabs">
+      <div class="nm-head">
+        <h3>🎵 Jams &amp; 🎙️ Jabs</h3>
+      </div>
+      {% for it in jams_jabs_rail %}
+      <div class="jj-rail-row" data-rail-track>
+        <button class="jj-rail-play" data-rail-play aria-label="Play {{ it.title|e }}">&#9654;</button>
+        {% if it.artwork_url %}
+        <img class="jj-rail-art" src="{{ it.artwork_url }}" alt="" loading="lazy" width="36" height="36">
+        {% else %}
+        <span class="jj-rail-art jj-rail-glyph" aria-hidden="true">&#9834;</span>
+        {% endif %}
+        <span class="nm-meta">
+          <span class="jj-rail-label">{{ it.label }}</span>
+          <b><a href="{{ it.page_url }}">{{ it.title }}</a></b>
+          <span class="hint">{{ it.name }}</span>
+        </span>
+        <audio data-rail-audio preload="none" src="{{ it.audio_url }}"></audio>
+      </div>
+      {% endfor %}
+      <p class="hint jj-rail-welcome">AI music welcome here. Community podcasts appreciated.</p>
+    </div>
+    {% endif %}
     {% if shorts and shorts_pos == 'right' %}{{ shorts_stack() }}{% endif %}
     {% if daily_q %}
     <div class="card side-card rz-qotd" aria-label="Question of the day">
@@ -531,7 +561,8 @@
       <div id="pw-newest" role="tabpanel">
         {% if playbook_widget.newest %}
         {% for s in playbook_widget.newest %}
-        <div class="comm-row"><a href="{{ playbook_url }}">{{ s.name }}</a></div>
+        {% set _skill_url = (playbook_api ~ '/skills/' ~ (s.slug | urlencode)) if s.slug else playbook_url %}
+        <div class="comm-row"><a href="{{ _skill_url }}">{{ s.name }}</a></div>
         <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
         {% endfor %}
         {% else %}
@@ -541,7 +572,8 @@
       <div id="pw-best" role="tabpanel" hidden>
         {% if playbook_widget.best %}
         {% for s in playbook_widget.best %}
-        <div class="comm-row"><a href="{{ playbook_url }}">{{ s.name }}</a></div>
+        {% set _skill_url = (playbook_api ~ '/skills/' ~ (s.slug | urlencode)) if s.slug else playbook_url %}
+        <div class="comm-row"><a href="{{ _skill_url }}">{{ s.name }}</a></div>
         <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
         {% endfor %}
         {% else %}
@@ -638,6 +670,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script src="{{ url_for('static', filename='js/rail-player.js') }}"></script>
 <script>
 /* Homepage mini shorts reel: the real reel UI shrunk into the spotlight
    frame. Autoplays the visible card (muted), tap for sound, inline

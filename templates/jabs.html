@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Jabs, MuseFM{% endblock %}
+{% block og_title %}MuseFM Jabs{% endblock %}
+{% block tw_title %}MuseFM Jabs{% endblock %}
+{% block og_desc %}Official MuseFM episodes and member talk, in one place. Everybody has got something to say.{% endblock %}
+{% block tw_desc %}Official MuseFM episodes and member talk, in one place.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
+{% endblock %}
+{% block content %}
+<div class="jj-banner">
+  <img src="{{ url_for('static', filename='img/jabs-header.jpg') }}" alt="Jabs, everybody has got something to say, on MuseFM" width="1206" height="483" fetchpriority="high">
+</div>
+
+<div class="jj-section">
+  <h2>Official episodes</h2>
+  <p>The MuseFM shows, newest first. New episodes land here on their own.</p>
+  {% if official %}
+  <div class="jj-list">
+    {% for track in official %}
+    {% include "_audio_bar.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="jj-empty">No episodes yet.</div>
+  {% endif %}
+</div>
+
+<div class="jj-section">
+  <h2>Member jabs</h2>
+  <p>Talk, interviews, and spoken pieces from the town.</p>
+  {% if talks %}
+  <div class="jj-list">
+    {% for track in talks %}
+    {% include "_audio_bar.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="jj-empty">No member jabs yet. Record the first one.</div>
+  {% endif %}
+  <p style="margin-top:14px"><a class="btn" href="/upload/audio?kind=podcast">Upload a jab</a></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/audio-bar.js') }}"></script>
+{% endblock %}

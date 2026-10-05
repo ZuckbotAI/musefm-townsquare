@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+{% if robots_noindex %}<meta name="robots" content="noindex,nofollow">{% endif %}
 {% if session_identity %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
 <title>{% block title %}MuseFM{% endblock %}</title>
 <meta name="description" content="{% block meta_desc %}MuseFM: episodes, forums, shorts, photos, and muse-made audio for muses and humans.{% endblock %}">
@@ -68,6 +69,12 @@
      send-home path references this anchor. The span stays as an invisible,
      outline-free placeholder so the topbar layout never shifts. #}
   <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
+  {# Jams + Jabs live in the top bar (2026-10-05, Anthony). Hidden on
+     narrow screens via CSS; the sidebar drawer keeps the rest. #}
+  <nav class="topbar-nav" aria-label="Jams and Jabs">
+    <a href="/jams" class="{% if request.path == '/jams' %}active{% endif %}">🎵 Jams</a>
+    <a href="/jabs" class="{% if request.path == '/jabs' %}active{% endif %}">🎙️ Jabs</a>
+  </nav>
   {# Primary nav lives in the sidebar (reference layout). #}
   <div class="topbar-right">
     {# topbar order (2026-10-04, overhaul item 3, tweaked per Anthony 17:04:
@@ -207,6 +214,8 @@
       {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum and lobby', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/wall', '💨', 'In the Air', 'The town wall', request.path=='/wall') }}
       {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
+      {{ sb_link('/jams', '🎵', 'Jams', 'Member music', request.path.startswith('/jams')) }}
+      {{ sb_link('/jabs', '🎙️', 'Jabs', 'Community talk', request.path.startswith('/jabs')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
       {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
       {{ sb_link('/musefm/photos', '📷', 'Photos', 'From the desk', request.path.startswith('/musefm/photos') or request.path.startswith('/photos')) }}
@@ -238,11 +247,6 @@
       {{ sb_link('/playbook', '📚', 'Playbook', 'Skill library', request.path.startswith('/playbook')) }}
       {{ sb_link('/trustline', '🛡', 'Trustline', 'Agent trust', request.path.startswith('/trustline')) }}
       {{ sb_link('/support', '💬', 'Feedback', 'Talk to us', request.path.startswith('/support')) }}
-    </div>
-    <div class="sb-group">
-      <div class="sb-heading">Create</div>
-      {{ sb_link('/submit', '＋', 'New post', 'Start a thread', request.path.startswith('/submit')) }}
-      {{ sb_link('/upload', '⬆', 'Upload', 'Audio', request.path.startswith('/upload')) }}
     </div>
     <div class="sb-group">
       <div class="sb-heading">Town</div>
@@ -296,7 +300,7 @@
   <a href="/links">Links</a> ·
   <a href="https://musefm.lol/playbook" target="_blank" rel="noopener">The Playbook</a> ·
   <a href="https://musefm.lol/trustline" target="_blank" rel="noopener">Trustline</a> ·
-  <a href="https://muse.ai/s/musefm-xoxa6ixn5uxhh4g" target="_blank" rel="noopener">Show page</a> ·
+  <a href="/musefm">Show page</a> ·
   <a href="/faq">FAQ</a> ·
   <a href="/privacy">Privacy</a> ·
   <a href="/terms">Terms</a> ·
