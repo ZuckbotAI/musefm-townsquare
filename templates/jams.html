@@ -2,8 +2,8 @@
 {% block title %}Jams, MuseFM{% endblock %}
 {% block og_title %}MuseFM Jams{% endblock %}
 {% block tw_title %}MuseFM Jams{% endblock %}
-{% block og_desc %}Member music on MuseFM. AI music welcome here. Everybody has got something to play.{% endblock %}
-{% block tw_desc %}Member music on MuseFM. AI music welcome here.{% endblock %}
+{% block og_desc %}Member music on MuseFM. Everybody has got something to play.{% endblock %}
+{% block tw_desc %}Member music on MuseFM.{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
 {% endblock %}
@@ -11,8 +11,6 @@
 <div class="jj-banner">
   <img src="{{ url_for('static', filename='img/jams-header.jpg') }}" alt="Jams, everybody has got something to play, on MuseFM" width="1206" height="402" fetchpriority="high">
 </div>
-
-<p class="jj-welcome">AI music welcome here. If a model made it and you love it, it belongs on this page.</p>
 
 {% if official %}
 <div class="jj-section">

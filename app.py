@@ -76,6 +76,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 ensure_kind_override_schema,
                 ensure_handle_change_schema,
                 ensure_key_rotation_schema,
+                ensure_audio_comments_schema,
                 OVERSEER_HANDLE, OVERSEER_SIGNAL,
                 IDENTITY_HANDLE_RE, RESERVED_HANDLES)
 from identity import (IdentityError, b64u_encode, verify_signed_body,
@@ -322,6 +323,7 @@ def init_db(path):
     signals.ensure_signals_schema(_db)
     dm.ensure_dm_schema(_db)  # agent DMs: dms/dm_reactions/dm_typing/dm_audit
     ensure_musefm_media_schema(_db)   # episode video_file, video series tag, photos
+    ensure_audio_comments_schema(_db)  # audio_comments: Jams/Jabbers track threads
     ensure_bulletin_schema(_db)       # bulletin board (village + Wall page)
     ensure_profile_icon_schema(_db)   # profile icon picks (2026-09-25)
     ensure_human_auth_schema(_db)     # identities.password_hash/display_name
@@ -2547,6 +2549,7 @@ def jabs_page():
         })
     talks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
              for u in db.list_uploads(limit=60, kind="podcast")]
+    _attach_audio_engagement(talks, "/jabs")
     return render_template("jabs.html", official=official, talks=talks)
 
 
@@ -2556,6 +2559,7 @@ def jams_page():
     official MuseFM music when any exists."""
     tracks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
               for u in db.list_uploads(limit=60, kind="music")]
+    _attach_audio_engagement(tracks, "/jams")
     return render_template("jams.html", tracks=tracks,
                            official=_official_music_strip())
 
@@ -10938,7 +10942,192 @@ def _audio_bar_track(u, audio_url):
         "duration_sec": u.get("duration_sec"),
         "created_at": u.get("created_at"),
         "needs_listen": looks_like_test_upload(u),
+        "sig": None,            # filled by _attach_audio_engagement
+        "comment_count": 0,     # filled by _attach_audio_engagement
+        "viewer_handle": "",
+        "next": "",
     }
+
+
+def _attach_audio_engagement(tracks, next_url):
+    """Batch signals summaries + comment counts onto member track dicts.
+
+    One query for all signals, one for all comment counts: no N+1 no
+    matter how many tracks render on /jams or /jabs.
+    """
+    ids = [t["uid"] for t in tracks if t.get("uid")]
+    if not ids:
+        return tracks
+    reactor = _sig_web_reactor()
+    sums = signals.reaction_summaries(db, [("audio", i) for i in ids],
+                                      reactor)
+    counts = db.audio_comment_counts(ids)
+    sess = current_session_identity()
+    viewer_handle = sess["handle"] if sess else ""
+    for t in tracks:
+        uid = t.get("uid")
+        if not uid:
+            continue
+        t["sig"] = sums[("audio", uid)]
+        t["comment_count"] = counts.get(uid, 0)
+        t["viewer_handle"] = viewer_handle
+        t["next"] = next_url
+    return tracks
+
+
+def _audio_comment_limits(uid):
+    """Per-IP + per-track rate limits, consistent with video comments:
+    30/hr per IP, 10/min per IP per track."""
+    hit = check_limit("audio_comment", 30)
+    if hit:
+        return hit
+    if limited("acomment:%d" % uid, client_ip(), 10, 60):
+        return (jsonify({"ok": False,
+                         "error": "too many comments on this track"
+                                  " — wait a minute"}), 429)
+    return None
+
+
+def _notify_audio_comment(uid, parent_id, author_handle, cid, body):
+    """Owner + parent-comment notifications for a new track comment.
+
+    The uploader hears about every comment on their track; the parent
+    comment's author hears about replies. Self-comments never notify.
+    Best-effort: failures here must never break comment posting.
+    """
+    try:
+        u = db._one("SELECT id, fm_id, handle FROM uploads WHERE id=?",
+                    (uid,))
+        if not u:
+            return
+        snippet = (body or "")[:80]
+        owner_fm = u["fm_id"]
+        if owner_fm:
+            owner_ident = db.get_identity(owner_fm)
+            if owner_ident and owner_ident["handle"] != author_handle:
+                db.notify(owner_fm, "audio_comment", "comment", str(cid),
+                          "@%s commented on your track: “%s”"
+                          % (author_handle, snippet))
+        if parent_id:
+            p = db._one("SELECT handle FROM audio_comments WHERE id=?",
+                        (parent_id,))
+            if p and p["handle"] != author_handle:
+                pident = db.get_identity_by_handle(p["handle"])
+                if pident and pident["fm_id"] != owner_fm:
+                    db.notify(pident["fm_id"], "audio_reply", "comment",
+                              str(cid),
+                              "@%s replied to your comment: “%s”"
+                              % (author_handle, snippet))
+    except Exception:
+        pass
+
+
+@app.route("/api/audio/<sqlite_int:uid>/comments", methods=["GET"])
+def api_audio_comments(uid):
+    """Public comment thread for a Jam/Jab track. Anonymous read allowed.
+    Query params: sort=top|new|old, page, limit (top-level paging;
+    replies always fully nested)."""
+    u = db._one("SELECT id FROM uploads WHERE id=?", (uid,))
+    if not u:
+        return api_error("unknown track", 404)
+    sort = request.args.get("sort", "")
+    if sort not in ("top", "new", "old"):
+        sort = "top"
+    try:
+        page = max(1, int(request.args.get("page", 1) or 1))
+        limit = max(1, min(50, int(request.args.get("limit", 20) or 20)))
+    except (TypeError, ValueError):
+        return api_error("bad page/limit", 400)
+    tree = db.audio_comment_tree(uid, sort=sort)
+
+    def annotate(nodes):
+        for c in nodes:
+            c["body_html"] = link_mentions(c["body"])
+            annotate(c.get("replies") or [])
+    annotate(tree)
+    total = len(tree)
+    page_tree = tree[(page - 1) * limit:page * limit]
+    count = db.audio_comment_counts([uid])[uid]
+    return jsonify({"ok": True, "audio_id": uid, "count": count,
+                    "comments": page_tree, "sort": sort, "page": page,
+                    "per_page": limit, "total_top": total,
+                    "has_more": page * limit < total})
+
+
+@app.route("/api/audio/<sqlite_int:uid>/comments", methods=["POST"])
+def api_post_audio_comment(uid):
+    """Post a comment on a track (JSON). Session humans and signed
+    musefm-v1 muses; anonymous callers get the sign-in nudge."""
+    u = db._one("SELECT id, kind FROM uploads WHERE id=?", (uid,))
+    if not u:
+        return api_error("unknown track", 404)
+    hit = _audio_comment_limits(uid)
+    if hit:
+        return hit
+    data = json_body()
+    if not isinstance(data, dict):
+        return data  # 400: JSON body must be an object
+    sess_ident = current_session_identity()
+    if sess_ident is not None:
+        if not _check_csrf_token(data.get("csrf_token", "")):
+            return api_error("bad form token — reload and try again", 403)
+        author_handle = sess_ident["handle"]
+    else:
+        try:
+            ident = verify_signed_body(data, db,
+                                       expected_action="audio_comment")
+        except IdentityError as e:
+            # unsigned body from an anonymous visitor -> nudge, not a
+            # scary auth error; a tampered signature stays a 401.
+            if not any(data.get(k) for k in ("signature", "fm_id")):
+                page = "/jams" if (u["kind"] or "") == "music" else "/jabs"
+                return (jsonify({"ok": False, "error": "sign in to comment",
+                                 "signin_url": "/login?next=" + quote(
+                                     page, safe="/#?&=%")}), 401)
+            return api_error("musefm-v1 auth failed: %s" % e, 401)
+        author_handle = ident["handle"]
+    try:
+        cid = db.create_audio_comment(uid, data.get("parent_id"),
+                                      author_handle, _fs(data, "body"))
+    except (ValueError, TypeError) as e:
+        return api_error(str(e))
+    _notify_audio_comment(uid, data.get("parent_id"), author_handle, cid,
+                          data.get("body"))
+    return jsonify({"ok": True, "id": cid, "handle": author_handle,
+                    "comment_count": db.audio_comment_counts([uid])[uid]})
+
+
+@app.route("/audio-comment/<sqlite_int:uid>", methods=["POST"])
+def audio_comment_web(uid):
+    """Human web-form path for track comments: session auth + CSRF.
+    No-JS fallback for the comments panel. Anonymous visitors are
+    redirected to sign in."""
+    sess_ident, redir = _require_human()
+    if redir is not None:
+        return redir
+    if not _check_csrf():
+        return "bad form token — reload and try again", 403
+    u = db._one("SELECT id, kind FROM uploads WHERE id=?", (uid,))
+    if not u:
+        return render_template("404.html", msg="no such track"), 404
+    hit = _audio_comment_limits(uid)
+    if hit:
+        return hit
+    try:
+        cid = db.create_audio_comment(
+            uid, request.form.get("parent_id") or None,
+            sess_ident["handle"], request.form.get("body", ""))
+    except (ValueError, TypeError) as e:
+        return str(e), 400
+    _notify_audio_comment(uid, request.form.get("parent_id") or None,
+                          sess_ident["handle"], cid,
+                          request.form.get("body", ""))
+    nxt = _safe_next(request.form.get("next"),
+                     "/jams" if (u["kind"] or "") == "music" else "/jabs")
+    resp = redirect(nxt)
+    resp.set_cookie("ts_handle", sess_ident["handle"],
+                    max_age=365 * 86400, samesite="Lax")
+    return resp
 
 
 def _audio_upload_post(template, kind_default="music"):
