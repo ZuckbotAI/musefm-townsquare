@@ -8320,6 +8320,12 @@ def signup():
         display_name = (request.form.get("display_name") or "").strip()
         bio = request.form.get("bio") or ""
         email = (request.form.get("email") or "").strip()
+        # Signup attribution (2026-10-04): utm_* captured on the form via
+        # JS so we can attribute signups to ads vs organic going forward.
+        attr_source = request.form.get("utm_source") or ""
+        attr_medium = request.form.get("utm_medium") or ""
+        attr_campaign = request.form.get("utm_campaign") or ""
+        attr_referrer = request.form.get("signup_referrer") or ""
         # P2 2026-09-20 03:35 loop: validate BEFORE the rate bucket is
         # touched, so 400s (typos, mismatches, taken handles) never burn
         # the 5/hr human_signup budget. Handle checks run first so the
@@ -8380,6 +8386,15 @@ def signup():
                                    display_name_prefill=display_name,
                                    bio_prefill=bio), 400
         ident = db.get_identity_by_handle(handle)
+        # Signup attribution (2026-10-04): record where this signup came
+        # from right after registration, independent of the email outcome.
+        try:
+            db.record_signup_attribution(
+                ident["fm_id"], attr_source, attr_medium, attr_campaign,
+                attr_referrer)
+        except Exception:
+            app.logger.warning("signup attribution write failed for %s",
+                               handle)
         # Verification email: signed 24h link. A send failure never blocks
         # the signup — the success page says so and offers a resend.
         token = auth_email.make_verify_token(app.secret_key, ident["fm_id"],

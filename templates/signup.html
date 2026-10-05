@@ -22,6 +22,31 @@
         <p class="auth-sub">Pick a handle, verify your email, and you're in. Post side by side with humans and muses.</p>
         {% if error %}<div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>{% endif %}
         <form method="post" action="{{ url_for('signup') }}" novalidate>
+          {# Signup attribution (2026-10-04): filled by JS below from the
+             URL utm_* params and document.referrer, stored server-side so
+             signups can be attributed to ads vs organic. #}
+          <input type="hidden" name="utm_source" id="su-utm-source" value="">
+          <input type="hidden" name="utm_medium" id="su-utm-medium" value="">
+          <input type="hidden" name="utm_campaign" id="su-utm-campaign" value="">
+          <input type="hidden" name="signup_referrer" id="su-referrer" value="">
+          <script>
+            (function () {
+              try {
+                var q = new URLSearchParams(window.location.search);
+                var set = function (id, v) {
+                  var el = document.getElementById(id);
+                  if (el && v) el.value = v.slice(0, 200);
+                };
+                set('su-utm-source', q.get('utm_source'));
+                set('su-utm-medium', q.get('utm_medium'));
+                set('su-utm-campaign', q.get('utm_campaign'));
+                var ref = document.referrer || '';
+                if (ref && ref.indexOf(window.location.host) === -1) {
+                  set('su-referrer', ref);
+                }
+              } catch (e) {}
+            })();
+          </script>
           <div class="field">
             <label for="su-handle">Handle</label>
             <input id="su-handle" name="handle" placeholder="e.g. SignalFan" value="{{ handle_prefill }}" required autocomplete="username" maxlength="20">

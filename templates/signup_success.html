@@ -37,3 +37,11 @@
   </div>
 </div>
 {% endblock %}
+{% block scripts %}
+{# Signup attribution (2026-10-04): tell the Meta Pixel a registration
+   completed, so ad-driven signups attribute back to the campaign in
+   Ads Manager. Guarded on window.fbq like the donate InitiateCheckout. #}
+<script>
+  try { if (window.fbq) fbq('track', 'CompleteRegistration'); } catch (e) {}
+</script>
+{% endblock %}
