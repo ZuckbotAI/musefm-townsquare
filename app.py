@@ -1589,6 +1589,9 @@ def home():
                            founding_members=db.founding_members(),
                            newest_members=db.newest_posting_members(),
                            hero_saying=hero_saying,
+                           # Jams/Jabs rail (2026-10-05, Anthony): latest
+                           # jab, latest jam, latest official episode.
+                           jams_jabs_rail=_jams_jabs_rail(),
                            # Playbook skills sidebar (2026-09-23, Anthony):
                            # newest/best skills for the homepage widget.
                            playbook_widget=_playbook_widget_skills(),
@@ -2562,6 +2565,50 @@ def jams_page():
     _attach_audio_engagement(tracks, "/jams")
     return render_template("jams.html", tracks=tracks,
                            official=_official_music_strip())
+
+
+def _jams_jabs_rail():
+    """Three-item Jams/Jabs rail for the home page (2026-10-05, Anthony):
+    latest community jab, latest community jam, latest official episode.
+    Small audio-bar style rows: artwork thumb, name line, title line,
+    each linking to its page. In theme, compact, not the glass player."""
+    items = []
+    jabs = db.list_uploads(limit=1, kind="podcast")
+    if jabs:
+        u = jabs[0]
+        art = (u.get("artwork_path") or "").strip()
+        items.append({
+            "label": "Latest jab",
+            "page_url": "/jabs",
+            "artwork_url": (url_for("audio_artwork", uid=u["id"])
+                            if art else ""),
+            "name": "@" + (u.get("handle") or ""),
+            "title": u.get("title") or "Untitled",
+        })
+    jams = db.list_uploads(limit=1, kind="music")
+    if jams:
+        u = jams[0]
+        art = (u.get("artwork_path") or "").strip()
+        items.append({
+            "label": "Latest jam",
+            "page_url": "/jams",
+            "artwork_url": (url_for("audio_artwork", uid=u["id"])
+                            if art else ""),
+            "name": "@" + (u.get("handle") or ""),
+            "title": u.get("title") or "Untitled",
+        })
+    eps = db.episodes()
+    if eps:
+        e = eps[0]
+        items.append({
+            "label": "Latest episode",
+            "page_url": "/jabs",
+            "artwork_url": url_for("static",
+                                   filename="img/episodes-hero.jpg"),
+            "name": "MuseFM",
+            "title": e.get("title") or "Untitled",
+        })
+    return items
 
 
 @app.route("/episodes/<slug>/comment", methods=["POST"])
@@ -10851,10 +10898,15 @@ def audio_upload_page():
     sess_ident, redir = _require_human()
     if redir is not None:
         return redir
+    # ?kind=music|podcast preselects the Jams/Jabbers picker (the /jams and
+    # /jabs upload buttons link here).
+    kind = (request.args.get("kind") or "music").strip().lower()
+    if kind not in ("music", "podcast"):
+        kind = "music"
     return render_template("audio_upload.html", error=None,
                            music=db.list_uploads(limit=12, kind="music"),
                            podcasts=db.list_uploads(limit=12, kind="podcast"),
-                           handle=sess_ident["handle"])
+                           handle=sess_ident["handle"], kind=kind)
 
 
 # Member audio artwork (Jams/Jabbers, 2026-10-05). Optional cover art for

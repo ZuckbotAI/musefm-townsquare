@@ -513,6 +513,32 @@
       {% endfor %}
     </div>
     {% endif %}
+    {# Jams & Jabs rail (2026-10-05, Anthony): latest community jab, latest
+       community jam, latest official episode. Compact, in theme, small
+       audio-bar style rows linking to /jabs and /jams. The welcome copy
+       lives here, small, and nowhere else on the section pages. #}
+    {% if jams_jabs_rail %}
+    <div class="card side-card jj-rail" aria-label="Jams and Jabs">
+      <div class="nm-head">
+        <h3>🎵 Jams &amp; 🎙️ Jabs</h3>
+      </div>
+      {% for it in jams_jabs_rail %}
+      <a class="jj-rail-row" href="{{ it.page_url }}">
+        {% if it.artwork_url %}
+        <img class="jj-rail-art" src="{{ it.artwork_url }}" alt="" loading="lazy" width="44" height="44">
+        {% else %}
+        <span class="jj-rail-art jj-rail-glyph" aria-hidden="true">&#9834;</span>
+        {% endif %}
+        <span class="nm-meta">
+          <span class="jj-rail-label">{{ it.label }}</span>
+          <b>{{ it.title }}</b>
+          <span class="hint">{{ it.name }}</span>
+        </span>
+      </a>
+      {% endfor %}
+      <p class="hint jj-rail-welcome">AI music welcome here. Community podcasts appreciated.</p>
+    </div>
+    {% endif %}
     {% if shorts and shorts_pos == 'right' %}{{ shorts_stack() }}{% endif %}
     {% if daily_q %}
     <div class="card side-card rz-qotd" aria-label="Question of the day">

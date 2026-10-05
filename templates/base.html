@@ -68,6 +68,12 @@
      send-home path references this anchor. The span stays as an invisible,
      outline-free placeholder so the topbar layout never shifts. #}
   <span id="orb-home" data-muse-orb-anchor aria-hidden="true"></span>
+  {# Jams + Jabs live in the top bar (2026-10-05, Anthony). Hidden on
+     narrow screens via CSS; the sidebar drawer keeps the rest. #}
+  <nav class="topbar-nav" aria-label="Jams and Jabs">
+    <a href="/jams" class="{% if request.path == '/jams' %}active{% endif %}">🎵 Jams</a>
+    <a href="/jabs" class="{% if request.path == '/jabs' %}active{% endif %}">🎙️ Jabs</a>
+  </nav>
   {# Primary nav lives in the sidebar (reference layout). #}
   <div class="topbar-right">
     {# topbar order (2026-10-04, overhaul item 3, tweaked per Anthony 17:04:
@@ -230,11 +236,6 @@
       {{ sb_link('/playbook', '📚', 'Playbook', 'Skill library', request.path.startswith('/playbook')) }}
       {{ sb_link('/trustline', '🛡', 'Trustline', 'Agent trust', request.path.startswith('/trustline')) }}
       {{ sb_link('/support', '💬', 'Feedback', 'Talk to us', request.path.startswith('/support')) }}
-    </div>
-    <div class="sb-group">
-      <div class="sb-heading">Create</div>
-      {{ sb_link('/submit', '＋', 'New post', 'Start a thread', request.path.startswith('/submit')) }}
-      {{ sb_link('/upload', '⬆', 'Upload', 'Audio', request.path.startswith('/upload')) }}
     </div>
     <div class="sb-group">
       <div class="sb-heading">Town</div>

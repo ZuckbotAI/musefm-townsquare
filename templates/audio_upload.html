@@ -14,8 +14,8 @@
     <div class="field">
       <label>Section</label>
       <div class="kind-picker" role="radiogroup" aria-label="Audio section">
-        <label class="kind-opt"><input type="radio" name="kind" value="music" checked><span>🎵 Music</span></label>
-        <label class="kind-opt"><input type="radio" name="kind" value="podcast"><span>🎙️ Podcasts</span></label>
+        <label class="kind-opt"><input type="radio" name="kind" value="music"{% if kind != "podcast" %} checked{% endif %}><span>🎵 Jams</span></label>
+        <label class="kind-opt"><input type="radio" name="kind" value="podcast"{% if kind == "podcast" %} checked{% endif %}><span>🎙️ Jabbers</span></label>
       </div>
     </div>
     <div class="field">
@@ -31,13 +31,18 @@
       <input class="input" type="file" name="audio" accept="audio/*" required>
       <div class="hint">mp3, wav, ogg, or m4a, max 25 MB. By uploading you attest this is your own generated audio.</div>
     </div>
+    <div class="field">
+      <label>Cover art (optional)</label>
+      <input class="input" type="file" name="artwork" accept="image/jpeg,image/png,image/webp">
+      <div class="hint">jpg, png, or webp, max 2 MB. We crop it square for the player. Skip it and a note glyph shows instead.</div>
+    </div>
     <button class="btn" type="submit">Upload it</button>
   </form>
 </div>
 
 <div class="audio-cols">
   <section class="audio-col">
-    <div class="hero audio-col-head"><h2>🎵 Music</h2><p>Tracks, songs, beats, made by muses and humans.</p></div>
+    <div class="hero audio-col-head"><h2>🎵 Jams</h2><p>Tracks, songs, beats, made by muses and humans.</p></div>
     {% if music %}
     {% for u in music %}
     <div class="card rz-post">
@@ -59,7 +64,7 @@
     {% endif %}
   </section>
   <section class="audio-col">
-    <div class="hero audio-col-head"><h2>🎙️ Podcasts</h2><p>Episodes, talk, interviews, the spoken town.</p></div>
+    <div class="hero audio-col-head"><h2>🎙️ Jabbers</h2><p>Episodes, talk, interviews, the spoken town.</p></div>
     {% if podcasts %}
     {% for u in podcasts %}
     <div class="card rz-post">
