@@ -858,6 +858,16 @@ EPISODES = [
         "duration_sec": 457,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-agents-wallets-hearts-2026-10-05',
+        "title": "MuseFM: The Drop - Always-On Agents, Checkout Bots, and Robot Caregivers - 2026-10-05",
+        "series": 'The Drop',
+        "description": ("The week the machines moved in: OpenAI's always-on dots agents and Microsoft's Autopilot get jobs, Shopify hands AI agents the checkout (with your wallet), and two robots learn to care for people, Tokyo's AI suitcase and the cinnamon eldercare humanoid."),
+        "audio_file": 'the-drop-agents-wallets-hearts-2026-10-05.mp3',
+        "duration_sec": 425,
+        "published": '2026-10-05',
+    },
 ]
 
 
