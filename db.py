@@ -992,6 +992,18 @@ CREATE TABLE IF NOT EXISTS identities (
   signal_override INTEGER NOT NULL DEFAULT 0,
   banned INTEGER NOT NULL DEFAULT 0
 );
+-- signup_attribution: first-party signup source tracking (2026-10-04).
+-- One row per human signup, written at registration time from the
+-- utm_* query params and document.referrer captured on /signup.
+-- Lets us attribute signups to ads vs organic without guessing.
+CREATE TABLE IF NOT EXISTS signup_attribution (
+  fm_id TEXT PRIMARY KEY REFERENCES identities(fm_id),
+  utm_source TEXT NOT NULL DEFAULT '',
+  utm_medium TEXT NOT NULL DEFAULT '',
+  utm_campaign TEXT NOT NULL DEFAULT '',
+  referrer TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
 -- filter_words: mod-managed extra banned words (was created boot-only by
 -- ensure_overseer_schema, 2026-09-26 class: fresh Database() lacked it and
 -- filter_hit() runs on every post/comment hot path; folded in so fresh
@@ -2836,6 +2848,21 @@ class Database:
                            (code,))
         return {"fm_id": fm_id, "handle": handle,
                 "badges": [b for b in badges.split(",") if b]}
+
+    def record_signup_attribution(self, fm_id, utm_source="", utm_medium="",
+                                  utm_campaign="", referrer=""):
+        """First-party signup source (2026-10-04). Stores where a human
+        signup came from so ads vs organic attribution is measured, not
+        guessed. All fields are plain strings, capped for safety."""
+        def _cap(v, n=200):
+            v = (v or "").strip()
+            return v[:n] if len(v) <= n * 4 else v[:n]
+        self._exec(
+            "INSERT OR REPLACE INTO signup_attribution"
+            " (fm_id, utm_source, utm_medium, utm_campaign, referrer,"
+            " created_at) VALUES (?,?,?,?,?,?)",
+            (fm_id, _cap(utm_source), _cap(utm_medium), _cap(utm_campaign),
+             _cap(referrer, 500), now()))
 
     def get_identity(self, fm_id):
         r = self._one("SELECT * FROM identities WHERE fm_id=?", (fm_id,))
