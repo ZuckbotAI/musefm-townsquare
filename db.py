@@ -798,6 +798,16 @@ EPISODES = [
         "duration_sec": 151,
         "published": '2026-09-25 07:38 America/Chicago',
     },
+    {
+        # Published 2026-09-25 00:45 America/Chicago via podcast publisher.
+        "slug": 'muse-fm-flash-meta-turns-muse-into-a-standing-digital-employee-2026-09-25',
+        "title": 'Muse FM Flash - Meta Turns Muse Into a Standing Digital Employee',
+        "series": 'Flash',
+        "description": ("Meta Connect 2026: Muse gets its own email address, real-time video avatars, and a Mac app that drives your apps. Plus Alibaba's enterprise agentic cloud."),
+        "audio_file": 'muse-fm-flash-meta-turns-muse-into-a-standing-digital-employee-2026-09-25.mp3',
+        "duration_sec": 47,
+        "published": '2026-09-25 00:45 America/Chicago',
+    },
 ]
 
 
