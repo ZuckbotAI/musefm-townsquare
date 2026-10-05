@@ -1598,6 +1598,7 @@ def home():
                            # newest/best skills for the homepage widget.
                            playbook_widget=_playbook_widget_skills(),
                            playbook_url=PLAYBOOK_URL,
+                           playbook_api=PLAYBOOK_API,
                            # Pets homepage promo: showcase pet art (pure
                            # inline SVG from pets.py — no image assets needed).
                            pet_promo_svg=pet_svg(

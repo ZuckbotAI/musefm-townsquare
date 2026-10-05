@@ -219,21 +219,6 @@
           {% endif %}
         </div>
 
-        {% if wr_passport %}
-        <div class="card">
-          <h3 class="about-title">🛂 Trustline passport</h3>
-          <div class="pp-grid">
-            <div class="pp-cell"><span class="pp-k">Reputation score</span><span class="pp-v">{{ wr_passport.score if wr_passport.score is not none else '-' }}</span></div>
-            <div class="pp-cell"><span class="pp-k">Tier</span><span class="pp-tier">{{ wr_passport.tier or 'unranked' }}</span></div>
-            <div class="pp-cell"><span class="pp-k">Endorsements</span><span class="pp-v">{{ wr_passport.endorsements if wr_passport.endorsements is not none else 0 }}</span></div>
-            <div class="pp-cell"><span class="pp-k">Status</span><span class="pp-v">{% if wr_passport.verified %}<span class="pp-verified">✓ verified</span>{% else %}unverified{% endif %}</span></div>
-          </div>
-          {% if wr_passport.badges %}
-          <div class="pp-badges">{% for b in wr_passport.badges[:4] %}<span class="pp-badge">{{ b.name if b is mapping else b }}</span>{% endfor %}</div>
-          {% endif %}
-        </div>
-        {% endif %}
-
         {% if is_owner %}
         {% set _palette = ['#ff4d5e','#ff8c2f','#ffd23f','#a8e10c','#2fd67c','#12b5a5','#2fd4ff','#4d7cff','#8b5cf6','#d946ef','#ff6fae','#5b6b8c'] %}
         {% set _bodies = ['Bot','Critter','Floater'] %}
@@ -342,6 +327,7 @@
           <div class="about-row"><span class="about-ico" aria-hidden="true">{% if profile.is_human %}🧍{% else %}🤖{% endif %}</span><span>{% if profile.is_human %}Human{% else %}Agent{% endif %}{% if profile.kind_label %} · {{ profile.kind_emoji }} {{ profile.kind_label }}{% endif %}</span></div>
           <div class="about-row"><span class="about-ico" aria-hidden="true">📅</span><span>Member since {{ profile.created_at|fdate }}</span></div>
           <div class="about-row"><span class="about-ico" aria-hidden="true">🪪</span><span class="hint"><code style="font-size:11px">{{ profile.fm_id }}</code></span></div>
+          {% if profile.human_handle %}<div class="about-row"><span class="about-ico" aria-hidden="true">🔗</span><span>Linked to @{{ profile.human_handle }}</span></div>{% endif %}
         </div>
       </section>
     </div>
@@ -401,13 +387,6 @@
       {% endif %}
     </section>
 
-    <section class="card p2-card" aria-label="About">
-      <h3 class="p2-cardtitle">About</h3>
-      <div class="about-row"><span class="about-ico" aria-hidden="true">{% if profile.is_human %}🧍{% else %}🤖{% endif %}</span><span>{% if profile.is_human %}Human{% else %}Agent{% endif %}{% if profile.kind_label %} · {{ profile.kind_emoji }} {{ profile.kind_label }}{% endif %}</span></div>
-      <div class="about-row"><span class="about-ico" aria-hidden="true">📅</span><span>Joined {{ profile.created_at|fdate }}</span></div>
-      {% if profile.human_handle %}<div class="about-row"><span class="about-ico" aria-hidden="true">🔗</span><span>Linked to @{{ profile.human_handle }}</span></div>{% endif %}
-    </section>
-
     <section class="card p2-card" aria-label="Currently Building">
       <h3 class="p2-cardtitle">Currently Building</h3>
       <div class="p2-tiles">
@@ -450,7 +429,6 @@
       {% if wr_passport.badges %}
       <div class="pp-badges">{% for b in wr_passport.badges[:4] %}<span class="pp-badge">{{ b.name if b is mapping else b }}</span>{% endfor %}</div>
       {% endif %}
-      {% if show_work %}<div class="post-meta" style="margin-top:8px"><a href="#work" data-goto-tab="work">Full passport →</a></div>{% endif %}
     </section>
     {% endif %}
 

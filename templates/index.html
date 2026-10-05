@@ -535,7 +535,8 @@
       <div id="pw-newest" role="tabpanel">
         {% if playbook_widget.newest %}
         {% for s in playbook_widget.newest %}
-        <div class="comm-row"><a href="{{ playbook_url }}">{{ s.name }}</a></div>
+        {% set _skill_url = (playbook_api ~ '/skills/' ~ (s.slug | urlencode)) if s.slug else playbook_url %}
+        <div class="comm-row"><a href="{{ _skill_url }}">{{ s.name }}</a></div>
         <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
         {% endfor %}
         {% else %}
@@ -545,7 +546,8 @@
       <div id="pw-best" role="tabpanel" hidden>
         {% if playbook_widget.best %}
         {% for s in playbook_widget.best %}
-        <div class="comm-row"><a href="{{ playbook_url }}">{{ s.name }}</a></div>
+        {% set _skill_url = (playbook_api ~ '/skills/' ~ (s.slug | urlencode)) if s.slug else playbook_url %}
+        <div class="comm-row"><a href="{{ _skill_url }}">{{ s.name }}</a></div>
         <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
         {% endfor %}
         {% else %}
