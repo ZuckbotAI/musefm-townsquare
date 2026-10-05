@@ -2,8 +2,8 @@
 {% block title %}Jabs, MuseFM{% endblock %}
 {% block og_title %}MuseFM Jabs{% endblock %}
 {% block tw_title %}MuseFM Jabs{% endblock %}
-{% block og_desc %}Official MuseFM episodes and member talk, in one place. Everybody has got something to say.{% endblock %}
-{% block tw_desc %}Official MuseFM episodes and member talk, in one place.{% endblock %}
+{% block og_desc %}The latest MuseFM episode and member talk, in one place. Everybody has got something to say.{% endblock %}
+{% block tw_desc %}The latest MuseFM episode and member talk, in one place.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
 {% endblock %}
@@ -13,13 +13,37 @@
 </div>
 
 <div class="jj-section">
-  <h2>Official episodes</h2>
-  <p>The MuseFM shows, newest first. New episodes land here on their own.</p>
-  {% if official %}
-  <div class="jj-list">
-    {% for track in official %}
-    {% include "_audio_bar.html" %}
-    {% endfor %}
+  <h2>Latest episode</h2>
+  <p>Fresh from the MuseFM shows. The full archive lives on the <a href="/episodes">podcast page</a>.</p>
+  {% if featured %}
+  {% from "_episode_art.html" import episode_art with context %}
+  {# Featured episode card (2026-10-05, Anthony): Spotify/Apple-style row -
+     artwork left, full readable title, show meta, description, player.
+     Reuses the .glass-track data-* hooks so audio-bar.js drives it with
+     zero JS changes. #}
+  <div class="glass-track jab-featured" data-track>
+    <div class="jab-featured-top">
+      <div class="jab-featured-art" aria-hidden="true">
+        <img src="{{ url_for('static', filename=episode_art(featured.series)) }}" alt="" loading="eager">
+      </div>
+      <div class="jab-featured-main">
+        <div class="jab-featured-kicker">{{ featured.display_name }}</div>
+        <a class="jab-featured-title" href="{{ featured.page_url }}">{{ featured.title }}</a>
+        <div class="jab-featured-meta">{{ featured.published|fdate }} &middot; {{ featured.duration_sec|dur if featured.duration_sec else "--:--" }}</div>
+      </div>
+      <button class="glass-play jab-featured-play" data-play aria-label="Play {{ featured.title|e }}">&#9654;</button>
+    </div>
+    {% if featured.description %}
+    <p class="jab-featured-desc">{{ featured.description }}</p>
+    {% endif %}
+    <div class="glass-scrubrow jab-featured-scrub">
+      <span class="glass-t" data-elapsed>0:00</span>
+      <div class="glass-scrub" data-scrub role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+        <div class="glass-fill" data-fill></div>
+      </div>
+      <span class="glass-t total" data-total>{{ featured.duration_sec|dur if featured.duration_sec else "--:--" }}</span>
+    </div>
+    <audio data-audio preload="none" src="{{ featured.audio_url }}"></audio>
   </div>
   {% else %}
   <div class="jj-empty">No episodes yet.</div>

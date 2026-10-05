@@ -2542,26 +2542,29 @@ def _official_music_strip():
 
 @app.route("/jabs")
 def jabs_page():
-    """Jabbers: official MuseFM podcast episodes first (newest first,
-    straight from the episodes table so every new episode lands on top
-    with zero manual work), then member talk uploads, newest first."""
-    official = []
-    for e in db.episodes():
+    """Jabbers: ONE featured official episode (the latest), then member
+    talk uploads, newest first. The full official episode list lives on
+    /episodes (the podcast page), not here. (2026-10-05, Anthony's
+    verdict: Jabs features one episode, never the whole list.)"""
+    featured = None
+    eps = db.episodes()
+    if eps:
+        e = eps[0]
         series = (e.get("series") or "").strip()
-        official.append({
+        featured = {
             "audio_url": url_for("audio", fname=e["audio_file"]),
             "title": e["title"],
             "display_name": "MuseFM " + series.title() if series else "MuseFM",
-            "artwork_url": url_for("static", filename="img/episodes-hero.jpg"),
+            "series": series,
+            "description": (e.get("description") or "").strip(),
             "duration_sec": e.get("duration_sec"),
-            "created_at": e.get("published"),
-            "needs_listen": False,
+            "published": e.get("published"),
             "page_url": url_for("episode_watch", slug=e["slug"]),
-        })
+        }
     talks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
              for u in db.list_uploads(limit=60, kind="podcast")]
     _attach_audio_engagement(talks, "/jabs")
-    return render_template("jabs.html", official=official, talks=talks)
+    return render_template("jabs.html", featured=featured, talks=talks)
 
 
 @app.route("/jams")

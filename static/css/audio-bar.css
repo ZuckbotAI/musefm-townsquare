@@ -82,7 +82,10 @@
 
 .glass-main { flex: 1; min-width: 0; }
 
-/* name and title share ONE line, truncated */
+/* name and title share the row; the title wraps to two full readable
+   lines (Spotify/Apple-style) instead of one truncated line, so a human
+   can always read it on a phone. (2026-10-05, Anthony: no useless
+   truncation.) */
 .glass-lines {
   display: flex;
   align-items: baseline;
@@ -107,10 +110,13 @@
   font-size: 13.5px;
   font-weight: 800;
   letter-spacing: -0.01em;
+  line-height: 1.28;
   color: var(--glass-ink);
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
   flex: 1 1 0%;
   min-width: 0;
 }
@@ -266,6 +272,95 @@
      let a long badge drop to its own line instead of overlapping */
   .glass-engage .glass-flaglink { display: none; }
   .glass-lines { flex-wrap: wrap; row-gap: 2px; }
+}
+
+/* Featured episode card on /jabs (2026-10-05, Anthony): ONE latest
+   episode, Spotify/Apple-style. Artwork left, kicker, full readable
+   title (never truncated to garbage), show meta, description, player.
+   Same .glass-track data-* hooks as the slim rows, so audio-bar.js
+   drives it unchanged. */
+.jab-featured {
+  padding: 14px;
+}
+.jab-featured-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.jab-featured-art {
+  width: 88px;
+  height: 88px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 4px 14px rgba(0,110,180,0.30), inset 0 1px 2px rgba(255,255,255,0.5);
+  background: linear-gradient(135deg, #5fd4ff, #0090e7 60%, #7d2ae8);
+}
+.jab-featured-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.jab-featured-main {
+  flex: 1;
+  min-width: 0;
+}
+.jab-featured-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1d7fc1;
+  margin-bottom: 2px;
+}
+.jab-featured-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--glass-ink);
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+.jab-featured-title:hover { text-decoration: underline; }
+.jab-featured-meta {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--glass-ink-soft);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.jab-featured-play {
+  width: 52px;
+  height: 52px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.jab-featured-desc {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--glass-ink-soft);
+  margin: 10px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+.jab-featured-scrub {
+  margin-top: 10px;
+}
+@media (max-width: 480px) {
+  .jab-featured { padding: 12px; }
+  .jab-featured-art { width: 72px; height: 72px; border-radius: 12px; }
+  .jab-featured-title { font-size: 16px; }
 }
 
 /* comments thread panel */
