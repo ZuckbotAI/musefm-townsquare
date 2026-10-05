@@ -2570,8 +2570,9 @@ def jams_page():
 def _jams_jabs_rail():
     """Three-item Jams/Jabs rail for the home page (2026-10-05, Anthony):
     latest community jab, latest community jam, latest official episode.
-    Small audio-bar style rows: artwork thumb, name line, title line,
-    each linking to its page. In theme, compact, not the glass player."""
+    Mini players: each row has a play button for inline playback right in
+    the rail; the title links to the page as a secondary affordance.
+    Compact, in theme, not the glass player."""
     items = []
     jabs = db.list_uploads(limit=1, kind="podcast")
     if jabs:
@@ -2580,6 +2581,7 @@ def _jams_jabs_rail():
         items.append({
             "label": "Latest jab",
             "page_url": "/jabs",
+            "audio_url": url_for("audio_upload", uid=u["id"]),
             "artwork_url": (url_for("audio_artwork", uid=u["id"])
                             if art else ""),
             "name": "@" + (u.get("handle") or ""),
@@ -2592,6 +2594,7 @@ def _jams_jabs_rail():
         items.append({
             "label": "Latest jam",
             "page_url": "/jams",
+            "audio_url": url_for("audio_upload", uid=u["id"]),
             "artwork_url": (url_for("audio_artwork", uid=u["id"])
                             if art else ""),
             "name": "@" + (u.get("handle") or ""),
@@ -2603,6 +2606,7 @@ def _jams_jabs_rail():
         items.append({
             "label": "Latest episode",
             "page_url": "/jabs",
+            "audio_url": url_for("audio", fname=e["audio_file"]),
             "artwork_url": url_for("static",
                                    filename="img/episodes-hero.jpg"),
             "name": "MuseFM",

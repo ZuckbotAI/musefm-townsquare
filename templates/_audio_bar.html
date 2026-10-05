@@ -1,55 +1,56 @@
 {% from "_reactions.html" import rxn_widget with context %}
-{# Member-attached glass audio bar (Jams/Jabbers, 2026-10-05).
+{# Member thin glass audio bar (Jams/Jabbers, 2026-10-05 rev 2).
+   One slim row (~56px): artwork thumb, play button, name/title on one
+   line, slim scrubber, compact engagement icons. Comments expand below.
    Expects `track`: uid, audio_url, title, display_name, artwork_url,
    duration_sec, needs_listen, page_url (optional), sig, comment_count,
    viewer_handle, next. #}
 <div class="glass-track" data-track data-uid="{{ track.uid or '' }}">
-  <div class="glass-art" aria-hidden="true">
-    {% if track.artwork_url %}
-    <img src="{{ track.artwork_url }}" alt="" loading="lazy">
-    {% else %}
-    <span class="glass-art-fallback">&#9834;</span>
-    {% endif %}
-  </div>
-  <button class="glass-play" data-play aria-label="Play {{ track.title|e }}">&#9654;</button>
-  <div class="glass-main">
-    <div class="glass-lines">
-      <span class="glass-name">{{ track.display_name }}</span>
-      <span class="glass-title">
-        {% if track.page_url %}<a href="{{ track.page_url }}">{{ track.title }}</a>
-        {% else %}{{ track.title }}{% endif %}
-      </span>
+  <div class="glass-row">
+    <div class="glass-art" aria-hidden="true">
+      {% if track.artwork_url %}
+      <img src="{{ track.artwork_url }}" alt="" loading="lazy">
+      {% else %}
+      <span class="glass-art-fallback">&#9834;</span>
+      {% endif %}
     </div>
-    <div class="glass-scrubrow">
-      <span class="glass-t" data-elapsed>0:00</span>
-      <div class="glass-scrub" data-scrub role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-        <div class="glass-fill" data-fill></div>
+    <button class="glass-play" data-play aria-label="Play {{ track.title|e }}">&#9654;</button>
+    <div class="glass-main">
+      <div class="glass-lines">
+        <span class="glass-name">{{ track.display_name }}</span>
+        <span class="glass-sep" aria-hidden="true">&middot;</span>
+        <span class="glass-title">
+          {% if track.page_url %}<a href="{{ track.page_url }}">{{ track.title }}</a>
+          {% else %}{{ track.title }}{% endif %}
+        </span>
+        {% if track.needs_listen %}
+        <span class="glass-badge" title="Our mods give every upload a listen">needs a listen</span>
+        {% endif %}
       </div>
-      <span class="glass-t total" data-total>{{ track.duration_sec|dur if track.duration_sec else "--:--" }}</span>
+      <div class="glass-scrubrow">
+        <span class="glass-t" data-elapsed>0:00</span>
+        <div class="glass-scrub" data-scrub role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+          <div class="glass-fill" data-fill></div>
+        </div>
+        <span class="glass-t total" data-total>{{ track.duration_sec|dur if track.duration_sec else "--:--" }}</span>
+      </div>
     </div>
     {% if track.uid %}
     <div class="glass-engage">
       {% if track.sig %}
       {{ rxn_widget('audio', track.uid, track.sig, track.viewer_handle or '', track.next or '/jams', compact=true) }}
       {% endif %}
-      <button class="glass-ctoggle" data-ctoggle="{{ track.uid }}" aria-expanded="false" aria-controls="glass-comments-{{ track.uid }}">
+      <button class="glass-ctoggle" data-ctoggle="{{ track.uid }}" aria-expanded="false" aria-controls="glass-comments-{{ track.uid }}" aria-label="Comments">
         &#128172; <span data-ccount>{{ track.comment_count or 0 }}</span>
       </button>
-      {% if track.needs_listen %}
-      <span class="glass-badge" title="Our mods give every upload a listen">needs a listen</span>
-      {% endif %}
       {% if session_identity %}
       <button class="glass-flaglink" data-flag="{{ track.uid }}">flag</button>
       {% endif %}
     </div>
-    <div class="glass-comments" id="glass-comments-{{ track.uid }}" data-comments="{{ track.uid }}" hidden></div>
-    {% else %}
-    <div class="glass-flagrow">
-      {% if track.needs_listen %}
-      <span class="glass-badge" title="Our mods give every upload a listen">needs a listen</span>
-      {% endif %}
-    </div>
     {% endif %}
   </div>
+  {% if track.uid %}
+  <div class="glass-comments" id="glass-comments-{{ track.uid }}" data-comments="{{ track.uid }}" hidden></div>
+  {% endif %}
   <audio data-audio preload="none" src="{{ track.audio_url }}"></audio>
 </div>
