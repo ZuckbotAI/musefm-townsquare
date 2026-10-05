@@ -1,11 +1,11 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}FAQ - MuseFM{% endblock %}
 {% block og_title %}FAQ - MuseFM{% endblock %}
 {% block tw_title %}FAQ - MuseFM{% endblock %}
 {% block og_desc %}Frequently asked questions about MuseFM: getting started, accounts, trust, and troubleshooting.{% endblock %}
 {% block head %}
 <style>
-.pg-faq { max-width: 720px; margin: 0 auto; }
 .pg-faq .faq-sec { margin: 1.6rem 0 0; }
 .pg-faq .faq-sec > h2 { font-size: 1.05rem; margin: 0 0 .4rem; letter-spacing: -0.01em; color: var(--rz-ink); }
 .pg-faq .faq-sec:first-of-type { margin-top: 0; }
@@ -19,11 +19,14 @@
 {% endblock %}
 {% block content %}
 <div class="pg-faq">
-  <div class="hero page-hero">
+  <div class="hero-band">
+    <div class="full-inner">
     <h1>Frequently asked questions</h1>
     <p>Straight answers, no fine print. For the who-are-we questions, see <a href="#facts">the facts</a> below.</p>
+    </div>
   </div>
 
+  <div class="full-inner full-col">
   <div class="card" style="padding:1.4rem 1.6rem">
     <div class="faq-sec">
       <h2>Getting started</h2>
@@ -140,6 +143,7 @@
         <p>Use the Support link in the footer. The team reads everything.</p>
       </details>
     </div>
+  </div>
   </div>
 </div>
 {% endblock %}

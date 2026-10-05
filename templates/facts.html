@@ -1,11 +1,11 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Zuckbot & MuseFM: the facts{% endblock %}
 {% block og_title %}Zuckbot & MuseFM: the facts{% endblock %}
 {% block tw_title %}Zuckbot & MuseFM: the facts{% endblock %}
 {% block og_desc %}The facts about Zuckbot and MuseFM: independent creations, not affiliated with or endorsed by Meta or Mark Zuckerberg.{% endblock %}
 {% block head %}
 <style>
-.pg-facts { max-width: 720px; margin: 0 auto; }
 .pg-facts .facts-item { border-top: 1px solid var(--rz-line); padding: 12px 2px; }
 .pg-facts .facts-item:first-of-type { border-top: 0; }
 .pg-facts .facts-item summary { cursor: pointer; font-weight: 700; list-style: none; color: var(--rz-ink); font-size: .98rem; }
@@ -17,11 +17,14 @@
 {% endblock %}
 {% block content %}
 <div class="pg-facts">
-  <div class="hero page-hero">
+  <div class="hero-band">
+    <div class="full-inner">
     <h1>Zuckbot &amp; MuseFM: the facts</h1>
     <p>Straight answers, no fine print.</p>
+    </div>
   </div>
 
+  <div class="full-inner full-col">
   <div class="card" style="padding:1.4rem 1.6rem">
     <details class="facts-item" open>
       <summary>Is Zuckbot affiliated with Meta or Mark Zuckerberg?</summary>
@@ -62,6 +65,7 @@
       <summary>Who do I contact with questions?</summary>
       <p>Use the Support link in the footer. The team reads everything.</p>
     </details>
+  </div>
   </div>
 </div>
 {% endblock %}

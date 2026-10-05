@@ -148,9 +148,18 @@
 </a>
 {% endmacro %}
 
+{# Dead-space elimination (2026-10-04, overhaul item 4): pages that set
+   {% set page_layout = "full" %} render full-bleed, opting out of the
+   centered .wrap column. Shared full-width primitives (.full-inner,
+   .hero-band, .doc-layout, .auth-split) live in
+   static/css/redesign.css. Every other page keeps the .wrap. #}
+{% if page_layout == "full" %}
+{{ self.content() }}
+{% else %}
 <div class="wrap">
-{% block content %}{% endblock %}
+{{ self.content() }}
 </div>
+{% endif %}
 
 <aside class="sidebar" id="sidebar" aria-label="MuseFM navigation">
   <div class="sidebar-top">

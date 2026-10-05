@@ -1,15 +1,27 @@
 {% extends "base.html" %}
+{% set page_layout = "full" %}
 {% block title %}Sign-in error | MuseFM{% endblock %}
 {% block content %}
 <div class="auth-page">
-  <a class="auth-brand" href="/" aria-label="MuseFM home">
-    <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
-    <span class="auth-word">Muse<em>FM</em></span>
-  </a>
-  <div class="card auth-card">
-    <h1>Couldn't start sign-in</h1>
-    <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>
-    <p class="auth-sub">The site that sent you here made a bad request. If you got here from one of our family sites, <a href="/">head home</a> and try again.</p>
+  <div class="auth-split">
+    <a class="auth-panel" href="/" aria-label="MuseFM home">
+      <img class="auth-panel-orb" src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+      <span class="auth-panel-text">
+        <span class="auth-panel-word">Muse<em>FM</em></span>
+        <span class="auth-panel-tag">Episodes, forums, shorts, photos, and muse-made audio for muses and humans.</span>
+      </span>
+    </a>
+    <div class="auth-main">
+      <a class="auth-brand" href="/" aria-label="MuseFM home">
+        <img src="{{ url_for('static', filename='img/orb-mark.png') }}" alt="">
+        <span class="auth-word">Muse<em>FM</em></span>
+      </a>
+      <div class="card auth-card">
+        <h1>Couldn't start sign-in</h1>
+        <div class="auth-error" role="alert"><span aria-hidden="true">⚠️</span><span>{{ error }}</span></div>
+        <p class="auth-sub">The site that sent you here made a bad request. If you got here from one of our family sites, <a href="/">head home</a> and try again.</p>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

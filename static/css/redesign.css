@@ -3876,3 +3876,162 @@ body.sb-motion .sidebar .sb-group.sb-collapsed .sb-link { animation: none; }
      room — footer content was sliding underneath it and getting covered. */
   body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ============================================================
+   Dead-space elimination (2026-10-04, overhaul item 4)
+   Pages that opt out of .wrap (page_layout == "full" in the
+   template) use these shared primitives, so desktop fills the
+   canvas instead of floating a narrow column in a wide wrapper.
+   Mobile is the natural single column; the breakout math needs
+   no breakpoint hacks.
+   ============================================================ */
+
+/* centered inner column for full-layout pages: generous measure */
+.full-inner { max-width: 1200px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+/* reading column for prose pages: wider than the old 720px columns */
+.full-inner.full-col { max-width: 960px; }
+
+/* full-width glossy band (Frutiger Aero: glass, water light) */
+.hero-band {
+  border-top: 1px solid var(--rz-line);
+  border-bottom: 1px solid var(--rz-line);
+  padding: 46px 0 42px;
+  margin: 0 0 28px;
+  background:
+    radial-gradient(720px 320px at 12% 0%, rgba(91,147,255,.16), transparent 60%),
+    radial-gradient(720px 320px at 88% 100%, rgba(34,211,238,.13), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,0) 45%),
+    var(--rz-card);
+}
+[data-theme="dark"] .hero-band {
+  background:
+    radial-gradient(720px 320px at 12% 0%, rgba(91,147,255,.22), transparent 60%),
+    radial-gradient(720px 320px at 88% 100%, rgba(34,211,238,.15), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 45%),
+    var(--rz-card);
+}
+.hero-band h1 { margin: 0 0 8px; font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.025em; color: var(--rz-ink); }
+.hero-band p { color: var(--rz-ink2); margin: 0 0 6px; max-width: 70ch; font-size: 15.5px; line-height: 1.6; }
+.hero-band .hint { color: var(--rz-ink3); }
+@media (max-width: 640px) { .hero-band { padding: 32px 0 28px; margin-bottom: 20px; } }
+
+/* Full-bleed content band for doc/guide pages: the background stretches
+   edge to edge of the viewport so the page never reads as a floating card
+   on gray gutters. Text stays in the contained .full-inner column inside
+   the band (standard professional pattern). */
+.guide-band {
+  background:
+    radial-gradient(900px 380px at 88% -40px, rgba(91,147,255,.10), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0) 30%),
+    var(--rz-card);
+  padding: 30px 0 60px;
+}
+[data-theme="dark"] .guide-band {
+  background:
+    radial-gradient(900px 380px at 88% -40px, rgba(91,147,255,.16), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 30%),
+    var(--rz-card);
+}
+
+/* doc layout: sticky section nav rail + reading column */
+.doc-layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  padding-bottom: 8px;
+}
+.doc-nav {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.doc-nav a {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 9px;
+  color: var(--rz-ink2);
+  text-decoration: none;
+}
+.doc-nav a:hover { background: var(--rz-pill); color: var(--rz-ink); }
+@media (max-width: 900px) {
+  .doc-layout { grid-template-columns: 1fr; }
+  .doc-nav {
+    position: static;
+    max-height: none;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 10px 12px;
+  }
+  .doc-nav a { white-space: nowrap; flex: none; }
+}
+
+/* ---------- auth pages: full-bleed split (was a 440px column) ---------- */
+.auth-page {
+  max-width: none;
+  margin: 0 auto 56px;
+  padding: 64px 24px;
+  background:
+    radial-gradient(640px 320px at 15% 18%, rgba(91,147,255,.17), transparent 60%),
+    radial-gradient(720px 360px at 85% 82%, rgba(34,211,238,.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,0) 40%),
+    var(--rz-card);
+  border-top: 1px solid var(--rz-line);
+  border-bottom: 1px solid var(--rz-line);
+}
+/* retire the old centered-column widths */
+.auth-page.auth-wide { max-width: none; }
+[data-theme="dark"] .auth-page {
+  background:
+    radial-gradient(640px 320px at 15% 18%, rgba(91,147,255,.22), transparent 60%),
+    radial-gradient(720px 360px at 85% 82%, rgba(34,211,238,.16), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 40%),
+    var(--rz-card);
+}
+.auth-split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 56px;
+  align-items: start;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+/* brand panel: the page's own brand mark, scaled up; doubles as home link */
+.auth-panel {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
+  padding: 44px 32px;
+  border-radius: 28px;
+  background: linear-gradient(165deg, rgba(91,147,255,.16), rgba(34,211,238,.10) 70%);
+  border: 1px solid var(--rz-line);
+  box-shadow: var(--rz-shadow);
+}
+.auth-panel:hover { text-decoration: none; color: inherit; }
+.auth-panel-orb {
+  width: 116px; height: 116px;
+  border-radius: 30px;
+  box-shadow: 0 14px 34px rgba(47,123,255,.35), inset 0 2px 6px rgba(255,255,255,.5);
+}
+.auth-panel-text { display: block; margin-top: 18px; }
+.auth-panel-word { display: block; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; color: var(--rz-ink); }
+.auth-panel-word em { font-style: normal; color: var(--rz-blue); }
+.auth-panel-tag { display: block; color: var(--rz-ink2); font-size: 15px; line-height: 1.6; max-width: 34ch; margin: 10px auto 0; }
+/* the small brand row above the card is redundant once the panel shows it */
+.auth-main { min-width: 0; }
+.auth-main > .auth-brand { display: none; }
+@media (max-width: 880px) {
+  .auth-page { padding: 40px 20px; margin-bottom: 40px; }
+  .auth-split { grid-template-columns: 1fr; gap: 26px; }
+  .auth-panel { display: flex; align-items: center; gap: 14px; text-align: left; padding: 18px 20px; border-radius: 20px; }
+  .auth-panel-orb { width: 54px; height: 54px; border-radius: 15px; flex: none; }
+  .auth-panel-text { margin-top: 0; min-width: 0; }
+  .auth-panel-word { font-size: 23px; }
+  .auth-panel-tag { font-size: 13px; margin-top: 2px; max-width: none; }
+}
