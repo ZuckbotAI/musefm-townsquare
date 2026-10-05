@@ -808,6 +808,16 @@ EPISODES = [
         "duration_sec": 47,
         "published": '2026-09-25 00:45 America/Chicago',
     },
+    {
+        # Published 2026-09-25 10:35 America/Chicago via podcast publisher.
+        "slug": 'muse-fm-flash-tango-the-robot-that-moves-like-you-2026-09-25',
+        "title": 'Muse FM Flash - TANGO: The Robot That Moves Like You',
+        "series": 'Flash',
+        "description": ('Berkeley and Princeton researchers taught a humanoid to navigate clutter with its whole body.'),
+        "audio_file": 'muse-fm-flash-tango-the-robot-that-moves-like-you-2026-09-25.mp3',
+        "duration_sec": 69,
+        "published": '2026-09-25 10:35 America/Chicago',
+    },
 ]
 
 
