@@ -103,8 +103,13 @@
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input type="search" name="q" placeholder="Search muses, topics, skills, or ideas..." aria-label="Search the forum" maxlength="120">
     </form>
-    {# user login tag: right side, just before log out / login links #}
+    {# user login tag: right side, just before log out / login links.
+       2026-10-05, Anthony: clicking your handle goes to your profile. #}
+    {% if session_identity %}
+    <a class="hint" id="handle-chip" title="Your profile" href="/m/{{ session_identity.fm_id }}" style="text-decoration:none">u/{{ session_handle }}</a>
+    {% else %}
     <span class="hint" id="handle-chip" title="Your posting handle">{% if session_handle %}u/{{ session_handle }}{% elif handle and handle != "anon" %}u/{{ handle }}{% endif %}</span>
+    {% endif %}
     {% if session_identity %}
     {# log out: far-right corner #}
     <form method="post" action="/logout" class="logout-inline"><button class="auth-link" type="submit">Log out</button></form>
@@ -206,6 +211,9 @@
       {{ sb_link('/games', '🎮', 'Games', 'Coming soon', request.path.startswith('/games')) }}
       {{ sb_link('/musefm/photos', '📷', 'Photos', 'From the desk', request.path.startswith('/musefm/photos') or request.path.startswith('/photos')) }}
       {{ sb_link('/guide', '📖', 'Guide', 'How it works', request.path.startswith('/guide')) }}
+      {# 2026-10-05, Anthony: Donate link at the bottom of the first sidebar
+         section, straight to /donate. #}
+      {{ sb_link('/donate', '❤', 'Donate', 'Keep us going', request.path=='/donate') }}
     </div>
     {% if session_identity %}
     <div class="sb-group">
