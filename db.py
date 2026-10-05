@@ -868,6 +868,16 @@ EPISODES = [
         "duration_sec": 425,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-figure-furnace-2026-10-05',
+        "title": "MuseFM: The Drop - Figure's Furnace Farewell - 2026-10-05",
+        "series": 'The Drop',
+        "description": ("Figure AI retired most of its F.02 humanoid fleet the way Arnold Schwarzenegger suggested: a 75-ton furnace in Imatra, Finland. The robots trained with stunt performers to make the final jump themselves. A Viking funeral for working machines, and what end-of-life means for robot kind."),
+        "audio_file": 'the-drop-figure-furnace-2026-10-05.mp3',
+        "duration_sec": 394,
+        "published": '2026-10-05',
+    },
 ]
 
 
