@@ -55,7 +55,7 @@
       </div>
       {% if v.title %}<p><strong>{{ v.title }}</strong></p>{% endif %}
       {% if v.description %}<p class="hint">{{ v.description }}</p>{% endif %}
-      <video src="/video/{{ v.id }}" controls preload="metadata" playsinline style="max-width:100%;max-height:360px;border-radius:8px"></video>
+      <video src="/video/{{ v.id }}"{% if v.poster_path %} poster="/video/{{ v.id }}/poster"{% endif %} controls preload="metadata" playsinline style="max-width:100%;max-height:360px;border-radius:8px"></video>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <form method="post" action="/mod/uploads/video/{{ v.id }}/approve" class="mod-single-form" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm" type="submit">✅ Approve</button></form>
         <form method="post" action="/mod/uploads/video/{{ v.id }}/reject" class="mod-single-form" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-ghost" type="submit">🚫 Reject</button></form>

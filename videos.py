@@ -15,12 +15,19 @@ Safety model mirrors ai_images.py:
   signature covers it, so it cannot be altered in transit. Mislabeled
   uploads are a moderation matter (see README "AI image policy").
 - per-identity hourly upload cap enforced at the route layer
-- no transcoding: bytes are served as-is with the detected content-type
+- best-effort ffmpeg pass: MP4s are remuxed with faststart (moov up front)
+  so playback starts before the whole file downloads, and a poster frame
+  is extracted for instant card rendering. When ffmpeg is missing or the
+  bytes are not a real video, the original bytes are stored as-is with no
+  poster -- the python structural validation above stays the only gate,
+  so transcoding can never newly reject an upload.
 """
 import hashlib
 import os
 import re
 import shutil
+import subprocess
+import tempfile
 import time
 import uuid
 
@@ -224,6 +231,100 @@ def is_video_bytes(raw):
     return detect_video(raw) is not None
 
 
+# ------------------------------------------------- FFMPEG (best-effort) ----
+# Upload-time media pass. MP4s straight off phones often carry the moov
+# box at the END of the file, forcing the browser to download the whole
+# clip (up to 32 MB) before the first frame. A stream-copy remux with
+# +faststart relocates moov up front with zero quality loss. A poster
+# frame gives every card an instant thumbnail instead of a black box.
+#
+# Best-effort by design: when ffmpeg is missing or the bytes are not a
+# real video (truncated tail, synthetic test bytes), these return None
+# and the original bytes are stored as-is. The python structural
+# validation stays the only rejection gate.
+
+
+def _ffmpeg():
+    return shutil.which("ffmpeg")
+
+
+def faststart_remux(raw, ext):
+    """MP4 -> faststart MP4 bytes, or None when the remux is impossible.
+
+    Stream copy only: no re-encode, no quality change, no codec opinions.
+    Returns None for WebM (already streams from the front) and on any
+    ffmpeg failure.
+    """
+    if ext != "mp4" or not _ffmpeg():
+        return None
+    tmp_in = tmp_out = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".mp4",
+                                         delete=False) as fh:
+            fh.write(bytes(raw))
+            tmp_in = fh.name
+        fd, tmp_out = tempfile.mkstemp(suffix=".mp4")
+        os.close(fd)
+        r = subprocess.run(
+            [_ffmpeg(), "-y", "-v", "error", "-i", tmp_in,
+             "-c", "copy", "-movflags", "+faststart", tmp_out],
+            capture_output=True, timeout=120)
+        if r.returncode != 0 or not os.path.isfile(tmp_out):
+            return None
+        with open(tmp_out, "rb") as fh:
+            out = fh.read()
+        if not validate_video_structure(out):
+            return None
+        return out
+    except Exception:
+        return None
+    finally:
+        for p in (tmp_in, tmp_out):
+            if p:
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+
+
+def extract_poster(raw, ext):
+    """First-frame JPEG poster bytes, or None when extraction fails."""
+    if not _ffmpeg():
+        return None
+    detected = detect_video(raw)
+    if not detected:
+        return None
+    tmp_in = tmp_out = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix="." + detected[0],
+                                         delete=False) as fh:
+            fh.write(bytes(raw))
+            tmp_in = fh.name
+        fd, tmp_out = tempfile.mkstemp(suffix=".jpg")
+        os.close(fd)
+        for seek in ("0", "1"):
+            r = subprocess.run(
+                [_ffmpeg(), "-y", "-v", "error", "-ss", seek, "-i", tmp_in,
+                 "-vframes", "1", "-q:v", "4", tmp_out],
+                capture_output=True, timeout=60)
+            if r.returncode == 0 and os.path.getsize(tmp_out) > 100:
+                with open(tmp_out, "rb") as fh:
+                    head = fh.read(3)
+                if head[:2] == b"\xff\xd8":
+                    with open(tmp_out, "rb") as fh:
+                        return fh.read()
+        return None
+    except Exception:
+        return None
+    finally:
+        for p in (tmp_in, tmp_out):
+            if p:
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+
+
 def _mp4_has_moov(buf):
     """True when the buffer's top-level MP4 boxes include a 'moov' box.
 
@@ -322,6 +423,9 @@ def ensure_video_schema(db):
                 "comment_count INTEGER NOT NULL DEFAULT 0")
     _ensure_col(db, "video_uploads", "status",
                 "status TEXT NOT NULL DEFAULT 'approved'")
+    # Poster frame (ffmpeg-extracted JPEG alongside the upload). Empty
+    # string = none extracted (ffmpeg missing, or bytes not a real video).
+    _ensure_col(db, "video_uploads", "poster_path", "poster_path TEXT")
     # duet/remix pointer: which upload this one remixes (NULL = original).
     # Nullable by default in SQLite, so legacy rows migrate untouched.
     # Intended constraint is REFERENCES video_uploads(id); enforced at
@@ -433,6 +537,12 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
         # play. Reject now instead of storing a broken file.
         raise ValueError("corrupt or truncated video file -- please re-upload")
     dur = validate_duration_secs(duration_secs)
+    # Best-effort media pass (never a rejection gate): faststart remux so
+    # playback starts before the whole file downloads, plus a poster frame
+    # for instant card rendering. Falls back to the original bytes when
+    # ffmpeg is missing or the bytes are not a real video.
+    final_raw = faststart_remux(raw, ext) or bytes(raw)
+    poster_raw = extract_poster(final_raw, ext)
     parent_id = None
     if duet_of is not None and str(duet_of).strip() != "":
         try:
@@ -454,15 +564,16 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
     # P0 2026-09-23: the file MUST be durably on disk before the DB row
     # exists. The old order (INSERT, then write) orphaned 15 feed rows with
     # no file behind them when the disk filled (Errno 28) -- every one 404'd.
-    tmp_full = _write_temp_upload(upload_dir, raw, "vid", ext)
+    tmp_full = _write_temp_upload(upload_dir, final_raw, "vid", ext)
     uid = None
+    poster_path = ""
     try:
         cur = db._exec(
             "INSERT INTO video_uploads (fm_id, handle, filename, stored_path, bytes,"
             " mime, ai_generated, duration_secs, created_at, title, description,"
             " status, duet_of)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (fm_id, handle, safe_name, "", len(raw), mime,
+            (fm_id, handle, safe_name, "", len(final_raw), mime,
              1 if ai_generated else 0, dur, int(time.time()),
              (title or "")[:120] or None, (description or "")[:500] or None,
              status, parent_id))
@@ -470,6 +581,13 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
         stored = "uploads/vid-%d.%s" % (uid, ext)
         os.rename(tmp_full, os.path.join(upload_dir, "vid-%d.%s" % (uid, ext)))
         db._exec("UPDATE video_uploads SET stored_path=? WHERE id=?", (stored, uid))
+        if poster_raw:
+            poster_path = "uploads/vid-%d-poster.jpg" % uid
+            with open(os.path.join(upload_dir, "vid-%d-poster.jpg" % uid),
+                      "wb") as fh:
+                fh.write(poster_raw)
+            db._exec("UPDATE video_uploads SET poster_path=? WHERE id=?",
+                     (poster_path, uid))
     except Exception:
         # Never leave an orphan row or temp file behind.
         if uid is not None:
@@ -477,6 +595,11 @@ def create_video_upload(db, fm_id, handle, filename, raw, upload_dir,
                 db._exec("DELETE FROM video_uploads WHERE id=?", (uid,))
             except Exception:
                 pass
+            for name in ("vid-%d.%s" % (uid, ext), "vid-%d-poster.jpg" % uid):
+                try:
+                    os.remove(os.path.join(upload_dir, name))
+                except OSError:
+                    pass
         try:
             os.remove(tmp_full)
         except OSError:
@@ -492,7 +615,7 @@ def get_video_upload(db, uid):
 
 
 def delete_video_upload(db, uid, upload_dir):
-    """Delete a video upload: DB row, stored file, and its reactions.
+    """Delete a video upload: DB row, stored file, poster, and reactions.
 
     Returns True when a row was removed, False when there was nothing.
     """
@@ -512,8 +635,9 @@ def delete_video_upload(db, uid, upload_dir):
     # standalone clips rather than dangling off a dead duet_of pointer.
     db._exec("UPDATE video_uploads SET duet_of=NULL WHERE duet_of=?", (uid,))
     db._exec("DELETE FROM video_uploads WHERE id=?", (uid,))
-    stored = u.get("stored_path") or ""
-    if stored:
+    for stored in (u.get("stored_path") or "", u.get("poster_path") or ""):
+        if not stored:
+            continue
         full = os.path.join(upload_dir, os.path.basename(stored))
         try:
             if os.path.isfile(full):
@@ -692,22 +816,21 @@ def shuffled_short_page(db, seed, limit=10, page=0, series=None, exclude=()):
     Position of clip <i> is sha256(seed:i) — so the order is stable for
     the whole session, and newly uploaded clips slot into the shuffled
     deck without reshuffling everything the visitor already scrolled past.
-    exclude: ids to leave out of the pool (e.g. the homepage strip's last
-    load, so back-to-back visits show zero repeats). Only applied when
-    the pool stays comfortably larger than the requested page.
+    exclude: ids the visitor has already seen (the session recency
+    window). Seen ids SORT AFTER unseen ones within the same deck instead
+    of being removed from the pool, so a fresh deck always leads with
+    unseen clips and only repeats seen ones after the whole pool is
+    exhausted. Pagination walks the full deck: no skips, no dupes.
     Returns (uploads, total). uploads keep _short_item order.
     """
     ids = list_short_ids(db, series=series)
-    if exclude:
-        ex = set(int(i) for i in exclude)
-        if len(ids) - len(ex) >= max(limit or 10, 10):
-            ids = [i for i in ids if i not in ex]
     total = len(ids)
     if not ids:
         return [], 0
     key = "%s:" % seed
-    ids.sort(key=lambda i: hashlib.sha256(
-        (key + str(i)).encode()).hexdigest())
+    ex = set(int(i) for i in (exclude or ()))
+    ids.sort(key=lambda i: (i in ex, hashlib.sha256(
+        (key + str(i)).encode()).hexdigest()))
     limit = max(1, min(int(limit or 10), 50))
     page = max(0, int(page or 0))
     start = page * limit

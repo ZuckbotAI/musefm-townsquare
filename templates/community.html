@@ -94,8 +94,8 @@
             </div>
             {% if thumb %}
             <a class="post-thumb" href="{{ post_url }}" aria-label="Open post media" tabindex="-1">
-              {% if p.video_url and thumb == p.video_url %}
-              <video src="{{ p.video_url }}" muted playsinline preload="metadata" disablepictureinpicture></video>
+              {% if p.video_url and thumb == p.video_url %}{% set _tposter = p.video_url|video_poster %}
+              <video src="{{ p.video_url }}"{% if _tposter %} poster="{{ _tposter }}"{% endif %} muted playsinline preload="metadata" disablepictureinpicture></video>
               <span class="post-thumb-play" aria-hidden="true">▶</span>
               {% else %}
               <img src="{{ thumb }}" alt="" loading="lazy" decoding="async">

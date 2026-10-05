@@ -74,9 +74,11 @@ def setup():
     if os.path.isdir(TEST_DATA):
         shutil.rmtree(TEST_DATA)
     from db import Database, ensure_human_auth_schema, ensure_linking_schema
+    from dm import ensure_dm_schema
     appmod.db = Database(TEST_DB)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup
     ensure_linking_schema(appmod.db)     # mirrors app startup (/settings needs it)
+    ensure_dm_schema(appmod.db)          # session pages read dm_unread_count
     videos.ensure_video_schema(appmod.db)
     appmod.DATA_DIR = TEST_DATA
     appmod.UPLOAD_DIR = os.path.join(TEST_DATA, "uploads")
@@ -96,7 +98,8 @@ def register(client, handle):
 
 def signup_human(client, handle, password="supersecret1"):
     r = client.post("/signup", data={"handle": handle, "password": password,
-                                     "password_confirm": password},
+                                     "password_confirm": password,
+                                     "email": "%s@example.com" % handle.lower()},
                     environ_base=fresh_ip())
     assert r.status_code == 200, r.get_data(as_text=True)
     r = client.post("/login", data={"handle": handle, "password": password},

@@ -66,7 +66,7 @@
 <section class="shorts-slimbar" aria-label="Fresh shorts">
   <span class="slim-label">⚡ Fresh shorts</span>
   <div class="slim-thumbs">
-    {% for s in shorts[:6] %}<a href="{{ s.watch_url }}" title="{{ s.title }}"><video src="{{ s.video_url }}" muted playsinline preload="metadata"></video></a>{% endfor %}
+    {% for s in shorts[:6] %}<a href="{{ s.watch_url }}" title="{{ s.title }}"><video src="{{ s.video_url }}"{% if s.poster_url %} poster="{{ s.poster_url }}"{% endif %} muted playsinline preload="metadata"></video></a>{% endfor %}
   </div>
   <a class="btn btn-sm btn-ghost" href="/shorts">Open feed →</a>
 </section>
@@ -182,7 +182,9 @@
   <div class="rz-hero-shorts" aria-label="Featured shorts">
     <div class="hero-phone">
       <div class="hero-shorts-reel" id="hero-shorts-reel" tabindex="0" role="region" aria-label="Shorts, scroll up and down">
-        {% for s in shorts[:5] %}{{ short_card(s) }}{% endfor %}
+        {# The full fetched deck renders here so the reel and the route's
+           deck never diverge. #}
+        {% for s in shorts %}{{ short_card(s) }}{% endfor %}
       </div>
     </div>
     <a class="hero-shorts-more" href="/shorts">⚡ More shorts →</a>
@@ -193,6 +195,8 @@
 /* Hero Shorts reel: vertical up/down scroller. Autoplay muted while a card
    is mostly visible, tap a video toggles its sound. */
 (function(){
+  /* Deck seed minted by the home route for this reel's shuffle. */
+  var miniSeed = {{ shorts_seed|tojson }};
   var reel = document.getElementById('hero-shorts-reel');
   if (!reel) return;
   var cards = Array.prototype.slice.call(reel.querySelectorAll('.short-item'));

@@ -49,6 +49,8 @@ def setup():
     from db import Database, ensure_human_auth_schema
     appmod.db = Database(TEST_DB)
     ensure_human_auth_schema(appmod.db)  # mirrors app startup
+    import dm as _dm
+    _dm.ensure_dm_schema(appmod.db)  # session pages read dm_unread_count
     appmod.DATA_DIR = TEST_DATA
     appmod.UPLOAD_DIR = os.path.join(TEST_DATA, "uploads")
     os.makedirs(appmod.UPLOAD_DIR, exist_ok=True)
@@ -78,7 +80,8 @@ def main():
     c = setup()
     r = c.post("/signup", data={"handle": "mimetesthuman",
                                 "password": "s3cretpw!!",
-                                "password_confirm": "s3cretpw!!"})
+                                "password_confirm": "s3cretpw!!",
+                                "email": "mimetesthuman@example.com"})
     assert r.status_code == 200, r.status_code
     r = c.post("/login", data={"handle": "mimetesthuman",
                                "password": "s3cretpw!!"})

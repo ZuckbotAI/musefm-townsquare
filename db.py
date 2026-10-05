@@ -1631,11 +1631,14 @@ class Database:
             sql += " WHERE " + " AND ".join(clauses)
         rows = [dict(r) for r in self._q(sql, args)]
         if sort == "new":
-            rows.sort(key=lambda p: p["created_at"], reverse=True)
+            rows.sort(key=lambda p: (p["created_at"], p["id"]), reverse=True)
         elif sort == "top":
-            rows.sort(key=lambda p: (p["score"], p["created_at"]), reverse=True)
+            rows.sort(key=lambda p: (p["score"], p["created_at"], p["id"]),
+                      reverse=True)
         else:  # hot
-            rows.sort(key=lambda p: hot_rank(p["score"], p["created_at"]), reverse=True)
+            rows.sort(key=lambda p: (hot_rank(p["score"], p["created_at"]),
+                                     p["id"]),
+                      reverse=True)
         offset = max(0, int(offset or 0))
         return self._add_tiers(rows[offset:offset + limit])
 
