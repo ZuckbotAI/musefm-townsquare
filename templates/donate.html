@@ -106,26 +106,14 @@
   .pg-donate .don-contact .thanks { width: 100%; text-align: right; }
 }
 </style>
-{# ---- META PIXEL ---------------------------------------------------------------
-   Pixel: "MuseFM Donate Pixel", ID 1837739357673635 (created 2026-10-04,
-   portfolio "Sentient Ambition Projects"). PageView fires on page load;
-   InitiateCheckout fires when a visitor clicks any donate button. --------- #}
+{# ---- META PIXEL: donate-specific event ------------------------------------------
+   Base pixel (PageView) loads site-wide from base.html via _meta_pixel.html.
+   This only adds InitiateCheckout when a visitor clicks a donate button. -- #}
 <script>
-(function(){
-  var PIXEL_ID = "1837739357673635";
-  if (!/^\d+$/.test(PIXEL_ID)) { return; } /* placeholder: pixel disabled */
-  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
-  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
-  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
-  document,'script','https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init', PIXEL_ID);
-  fbq('track', 'PageView');
-  window.museDonateClick = function(amount){
-    try { fbq('track', 'InitiateCheckout', {value: amount, currency: 'USD',
-      content_name: 'MuseFM donation'}); } catch(e){}
-  };
-})();
+window.museDonateClick = function(amount){
+  try { fbq('track', 'InitiateCheckout', {value: amount, currency: 'USD',
+    content_name: 'MuseFM donation'}); } catch(e){}
+};
 </script>
 {% endblock %}
 {% block content %}
