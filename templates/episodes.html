@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_episode_art.html" import episode_art %}
 {% block title %}Episodes, MuseFM{% endblock %}
 {% block og_title %}MuseFM Episodes{% endblock %}
 {% block tw_title %}MuseFM Episodes{% endblock %}
@@ -11,6 +12,7 @@
 {% for e in episodes %}
   <div class="ep-bar" id="{{ e.slug }}">
     <button class="ep-play" data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" aria-label="Play {{ e.title|e }}">&#9654;</button>
+    <img class="ep-bar-thumb" src="{{ url_for('static', filename=episode_art(e.series)) }}" alt="{{ e.series }} artwork" loading="lazy">
     <div class="ep-bar-main">
       <div class="ep-bar-top">
         <span class="ep-series ep-bar-series">{{ e.series }}</span>

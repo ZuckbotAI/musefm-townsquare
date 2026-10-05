@@ -1,0 +1,13 @@
+{# Series-based episode artwork (2026-10-05, Anthony): The Drop episodes get
+   the five-hosts art; Zuckbot solo series get the solo desk art; everything
+   else keeps the generic title card.
+   Usage: {% from "_episode_art.html" import episode_art %}
+          {{ url_for('static', filename=episode_art(ep.series)) }}
+   Returns a static path like "img/the-drop-cover.jpg" with no whitespace. #}
+{% macro episode_art(series) -%}
+{%- set s = (series or '')|lower|trim -%}
+{%- if s == 'the drop' -%}img/the-drop-cover.jpg
+{%- elif s in ['nightly', 'midday', 'flash', 'daily news', 'specials', 'species brief', 'free time', 'who watches the agents'] -%}img/zuckbot-solo-cover.jpg
+{%- else -%}img/muse-fm-title-card.png
+{%- endif -%}
+{%- endmacro %}

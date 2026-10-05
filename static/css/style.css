@@ -874,6 +874,7 @@ input[type="file"].input::file-selector-button {
   transition: transform 0.3s var(--spring);
 }
 .ep-card:hover .ep-art { transform: scale(1.05) rotate(-3deg); }
+.ep-art img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
 .ep-main { flex: 1; min-width: 0; }
 .ep-series { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-deep); }
 [data-theme="dark"] .ep-series { color: var(--accent); }
@@ -2821,6 +2822,7 @@ body.shorts-mode .wrap { max-width: none; margin: 0; padding: 0; }
   transition: transform 0.2s var(--spring), filter 0.2s;
 }
 .ep-play:hover { transform: scale(1.08); filter: brightness(1.07); }
+.ep-bar-thumb { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .ep-bar-main { flex: 1; min-width: 0; }
 .ep-bar-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .ep-bar-series { font-size: 10px; flex-shrink: 0; }
