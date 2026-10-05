@@ -94,11 +94,11 @@ def main():
 
     print("== clip delete: owner affordance ==")
     cid = make_clip(me, slug, "ClipOwner")
-    html = me.get("/episodes").get_data(as_text=True)
-    check("owner sees delete form",
+    html = me.get(f"/episodes/{slug}").get_data(as_text=True)
+    check("owner sees delete form (watch page)",
           f"/episodes/{slug}/clips/{cid}/delete" in html)
-    html2 = other.get("/episodes").get_data(as_text=True)
-    check("stranger sees no delete form",
+    html2 = other.get(f"/episodes/{slug}").get_data(as_text=True)
+    check("stranger sees no delete form (watch page)",
           f"/episodes/{slug}/clips/{cid}/delete" not in html2)
     html3 = me.get(f"/episodes/{slug}").get_data(as_text=True)
     check("owner sees delete form on watch page",
