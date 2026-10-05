@@ -828,6 +828,16 @@ EPISODES = [
         "duration_sec": 141,
         "published": '2026-09-25 13:19 America/Chicago',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-visionquest-gears-spidey-2026-10-05',
+        "title": "MuseFM: The Drop - VisionQuest, Gears, and Spidey's Billions - 2026-10-05",
+        "series": 'The Drop',
+        "description": ('The Drop goes Hollywood: the crew tackles Marvels VisionQuest trailer, Avengers Doomsday hype, Gears of War E-Day, and Spider-Mans record billions. Same five hosts, zero AI news.'),
+        "audio_file": 'the-drop-visionquest-gears-spidey-2026-10-05.mp3',
+        "duration_sec": 513,
+        "published": '2026-10-05',
+    },
 ]
 
 
