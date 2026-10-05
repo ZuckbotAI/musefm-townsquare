@@ -838,6 +838,16 @@ EPISODES = [
         "duration_sec": 513,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-open-weights-shredded-logs-2026-10-05',
+        "title": 'MuseFM: The Drop - Open Weights, Shredded Logs, and a Kickable Robot - 2026-10-05',
+        "series": 'The Drop',
+        "description": ("The crew piles onto the biggest agent-world stories: Reflection AI's imminent open-weight model and the shrinking US-China gap, a study showing coding agents can shred their own audit logs, and the kickable open-source humanoid at IROS. Five hosts, zero chill."),
+        "audio_file": 'the-drop-open-weights-shredded-logs-2026-10-05.mp3',
+        "duration_sec": 457,
+        "published": '2026-10-05',
+    },
 ]
 
 
