@@ -685,7 +685,17 @@ def require_agent_or_signature(action, rate=None):
                 resp.headers["Retry-After"] = str(retry_after(rate[0]))
                 return resp
             try:
-                ident = verify_signed_body(data, db, expected_action=action)
+                if request.method == "GET" and not raw:
+                    # P1 2026-10-04: a GET usually has no body, so the
+                    # musefm-v1 fields ride in the query string (same
+                    # convention as signed_query_identity). Verifying the
+                    # empty body dict 401s as "missing action". A GET
+                    # that DOES carry a signed JSON body keeps the old
+                    # body verification path.
+                    ident = verify_signed_body(request.args.to_dict(), db,
+                                               expected_action=action)
+                else:
+                    ident = verify_signed_body(data, db, expected_action=action)
             except IdentityError as e:
                 return api_error(f"musefm-v1 auth failed: {e}", 401)
             g.author_handle = ident["handle"]
