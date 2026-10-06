@@ -316,7 +316,10 @@
    centered controls bottom. No truncation, controls close not far away.
    Appears above the bottom nav when audio plays. Driven by
    static/js/player.js via the gp- ids. #}
-<div id="playerbar" class="glass-player" aria-hidden="true">
+{# Glass player DISABLED 2026-10-05 per Anthony ("turn off the mini player for now").
+   The markup below is commented out; player.js is not loaded.
+   To re-enable, uncomment the div and the script tag. #}
+{# <div id="playerbar" class="glass-player" aria-hidden="true"> #}
   <div class="gp-toprow">
     <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
     <div class="gp-titles">
@@ -342,7 +345,7 @@
     </button>
   </div>
   <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
-</div>
+{# </div> <!-- end playerbar (disabled) --> #}
 
 <div id="share-sheet"><div class="share-card">
   <h3>Share this episode</h3>
@@ -364,7 +367,7 @@ document.addEventListener('keydown', function (e) {
 </script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/votes.js') }}"></script>
-<script src="{{ url_for('static', filename='js/player.js') }}"></script>
+{# <script src="{{ url_for('static', filename='js/player.js') }}"></script> <!-- disabled with player --> #}
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back.
    The floating orb is the classic glass orb again (2026-09-27, Anthony:
    old design back — the face swap was a mistake). It follows down the
