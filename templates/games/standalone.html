@@ -9,7 +9,7 @@
 /* Inject the member's real pet before the game iframe loads, so
    MusePet.get() picks it up from localStorage instead of the default. */
 try {
-  localStorage.setItem('muse_pet_v1', {{ pet_json | safe }});
+  localStorage.setItem('muse_pet_v1', JSON.stringify({{ pet_json | safe }}));
 } catch (e) {}
 </script>
 {% endif %}
