@@ -330,20 +330,31 @@
   body.game-launch .gamepage-back { display: none; }
   body.game-launch .gamepage-hero { display: none; }
   body.game-launch .game-panel { margin: 12px; }
+  /* Definite dvh-based heights (2026-10-06): the games' internal layouts
+     (.ar-screen height:100%, canvas max-height:100vh) only resolve against a
+     real height. Flex-basis percentages collapse on mobile WebKit and squash
+     / overlap the game UI, so set the height directly from the viewport. */
   body.game-launch .amazin-stage {
-    margin: 12px;
-    flex: 1; min-height: 0;
+    margin: 12px 12px 0;
+    flex: none;
+    height: calc(100dvh - 96px);
+    min-height: 0;
+    max-height: none;
     display: flex; flex-direction: column;
   }
   body.game-launch .standalone-stage {
-    margin: 12px;
-    flex: 1; min-height: 0;
-    height: auto !important;
+    margin: 12px 12px 0;
+    flex: none;
+    height: calc(100dvh - 96px);
+    min-height: 0;
+    max-height: none;
     position: relative;
   }
   body.game-launch .amazin-stage .amazin-rush {
-    flex: 1; min-height: 0;
-    height: auto !important;
+    flex: none !important;
+    height: calc(100dvh - 96px) !important;
+    min-height: 0 !important;
+    max-height: none !important;
   }
   body.game-launch .amazin-note,
   body.game-launch .standalone-note { display: none; }
