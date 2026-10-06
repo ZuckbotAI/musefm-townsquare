@@ -62,7 +62,7 @@ function defaultPet(){
 function normalize(p){
   var d = defaultPet();
   if (!p || typeof p !== 'object') return d;
-  return {
+  var n = {
     name: (typeof p.name === 'string' && p.name) || d.name,
     species: (typeof p.species === 'string' && p.species) || d.species,
     colorHi: p.colorHi || d.colorHi,
@@ -70,6 +70,11 @@ function normalize(p){
     colorLo: p.colorLo || d.colorLo,
     cheek: p.cheek || d.cheek
   };
+  // Real pet SVG from the site (injected via localStorage or ?pet=).
+  // When present, games render the member's actual pet art.
+  if (typeof p.svg === 'string' && p.svg.indexOf('<svg') !== -1) n.svg = p.svg;
+  if (typeof p.mood === 'string' && p.mood) n.mood = p.mood;
+  return n;
 }
 
 function get(){
@@ -124,8 +129,15 @@ function faceFor(mood, dark){
   }
 }
 
+function getSVG(pet, mood){
+  pet = normalize(pet);
+  if (pet.svg) return pet.svg;  // member's real pet art, as-is
+  return renderSVG(pet, mood);
+}
+
 function renderSVG(pet, mood){
   pet = normalize(pet);
+  if (pet.svg) return pet.svg;  // real pet art wins over generated blob
   var dark = '#06343b';
   var face = faceFor(mood || 'idle', dark);
   return '' +
@@ -154,6 +166,7 @@ function renderSVG(pet, mood){
 window.MusePet = {
   get: get,
   renderSVG: renderSVG,
+  getSVG: getSVG,
   defaultPet: defaultPet,
   LS_KEY: LS_KEY
 };

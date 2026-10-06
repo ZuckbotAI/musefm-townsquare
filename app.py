@@ -1710,12 +1710,29 @@ def games_standalone(slug):
     if slug not in _STANDALONE_GAMES:
         abort(404)
     title, blurb = _STANDALONE_GAMES[slug]
+    # Inject the signed-in member's real pet so games render THEIR pet,
+    # not the default blob. JSON-serializable subset for localStorage.
+    pet_json = None
+    sess = current_session_identity()
+    if sess:
+        try:
+            ps = pet_status(db, sess["fm_id"])
+            if ps and ps.get("adopted") and not ps.get("in_pond") and ps.get("svg"):
+                import json as _json
+                pet_json = _json.dumps({
+                    "name": ps["name"],
+                    "svg": ps["svg"],
+                    "mood": ps.get("mood"),
+                })
+        except Exception:
+            pass
     return render_template("games/standalone.html",
                            game_slug=slug,
                            game_title=title,
                            game_blurb=blurb,
                            game_cover=url_for("static", filename="games/%s/cover.jpg" % slug),
-                           daily_q=daily_question())
+                           daily_q=daily_question(),
+                           pet_json=pet_json)
 
 
 # ------------------------------------------------- Arcade: human game APIs

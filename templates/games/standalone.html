@@ -4,6 +4,15 @@
 {% block meta_desc %}Play {{ game_title }} in your browser on MuseFM. Free, no downloads.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+{% if pet_json %}
+<script>
+/* Inject the member's real pet before the game iframe loads, so
+   MusePet.get() picks it up from localStorage instead of the default. */
+try {
+  localStorage.setItem('muse_pet_v1', {{ pet_json | safe }});
+} catch (e) {}
+</script>
+{% endif %}
 <style>
   .standalone-stage { position: relative; width: 100%; height: min(860px, calc(100dvh - 140px)); min-height: 620px; border-radius: 12px; overflow: hidden; background: #04121a; }
   .standalone-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
