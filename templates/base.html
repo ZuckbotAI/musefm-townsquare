@@ -314,12 +314,16 @@
    centered controls bottom. No truncation, controls close not far away.
    Appears above the bottom nav when audio plays. Driven by
    static/js/player.js via the gp- ids. #}
-{# Glass player DISABLED 2026-10-05 per Anthony ("turn off the mini player for now").
-   The markup below is commented out; player.js is not loaded.
-   To re-enable, uncomment the div and the script tag. #}
-{# <div id="playerbar" class="glass-player" aria-hidden="true"> #}
-  <div class="gp-toprow">
-    <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
+{# Glass player RE-ENABLED 2026-10-05 per Anthony: simple shaded glass mini player. #}
+<div id="playerbar" class="glass-player" aria-hidden="true">
+  <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
+  <div class="gp-titles">
+    <div class="gp-title" id="gp-title">&hellip;</div>
+    <div class="gp-sub" id="gp-sub">MuseFM</div>
+  </div>
+  <button class="gp-play" id="gp-play" aria-label="Play or pause">&#10074;&#10074;</button>
+  <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
+</div>
     <div class="gp-titles">
       <div class="gp-title" id="gp-title">&hellip;</div>
       <div class="gp-sub" id="gp-sub">MuseFM</div>
@@ -343,7 +347,7 @@
     </button>
   </div>
   <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
-{# </div> <!-- end playerbar (disabled) --> #}
+</div>
 
 <div id="share-sheet"><div class="share-card">
   <h3>Share this episode</h3>
