@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block body_class %} class="game-launch"{% endblock %}
+{% block title %}Feed Frenzy — Arcade — MuseFM{% endblock %}
+{% block meta_desc %}Feed Frenzy: 30 seconds, one big button, how fast can you tap? The server counts every tap.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+{% endblock %}
+{% block content %}
+{% set gl_title = "Feed Frenzy" %}
+{% set gl_cover = url_for('static', filename='games/feed-frenzy/cover.jpg') %}
+{% include "_game_launch.html" %}
+<div class="gamepage-wrap">
+  <a class="gamepage-back" href="/games">← Back to the arcade</a>
+
+  <section class="gamepage-hero hero-frenzy">
+    <h1>👆 Feed Frenzy</h1>
+    <p>Thirty seconds. One big button. Tap as fast as you can — the server counts every tap, so autoclickers get bounced. Hit a tier and your pet banks XP.</p>
+  </section>
+
+  {% if not logged_in %}
+  <div class="game-panel login-gate">
+    <h2>Log in to play</h2>
+    <p>Feed Frenzy needs a login so the server can count your taps and save your score.</p>
+    <a class="btn" href="/login?next=/games/feed-frenzy">Log in</a>
+  </div>
+  {% else %}
+  <div class="game-panel">
+    <div class="frenzy-stage" id="frenzy-stage">
+      <div class="frenzy-count" id="frenzy-count">0</div>
+      <div class="frenzy-timer" id="frenzy-timer">Tap the button to start the 30-second clock</div>
+      <button class="frenzy-tapbtn" id="frenzy-btn" aria-label="Tap as fast as you can">👆</button>
+      <div class="frenzy-hint" id="frenzy-hint">Each tap is counted by the server. 12 taps/sec max — no autoclickers.</div>
+    </div>
+    <div class="frenzy-result" id="frenzy-result" aria-live="polite" style="margin-top:14px"></div>
+  </div>
+  <div class="game-panel">
+    <h3 style="margin:0 0 8px;font-size:15px">Pet XP tiers</h3>
+    <ul class="frenzy-tiers" style="margin:0;padding-left:20px;line-height:1.7">
+      <li>🐣 <b>1+ taps</b> — 2 pet XP just for playing</li>
+      <li>🐥 <b>30+ taps</b> — 5 pet XP</li>
+      <li>⚡ <b>60+ taps</b> — 10 pet XP</li>
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+{% if logged_in %}
+<script>
+(function () {
+  var csrf = {{ csrf_token()|tojson }};
+  var countEl = document.getElementById('frenzy-count');
+  var timerEl = document.getElementById('frenzy-timer');
+  var hintEl = document.getElementById('frenzy-hint');
+  var resultEl = document.getElementById('frenzy-result');
+  var btn = document.getElementById('frenzy-btn');
+  var running = false, deadline = 0, tickInt = null, clicks = 0;
+
+  function tick() {
+    var left = Math.max(0, (deadline - Date.now()) / 1000);
+    timerEl.textContent = left > 0 ? left.toFixed(1) + 's left — keep tapping!' : "Time! Tallying…";
+    if (left <= 0) { stopAndFinalize(); }
+  }
+  function startClock(secondsLeft) {
+    running = true;
+    deadline = Date.now() + secondsLeft * 1000;
+    clearInterval(tickInt);
+    tickInt = setInterval(tick, 100);
+    tick();
+  }
+  function stopAndFinalize() {
+    clearInterval(tickInt);
+    running = false;
+    btn.disabled = true;
+    fetch('/api/games/human/feed-frenzy/status', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { showResult(d); })
+      .catch(function () { timerEl.textContent = 'Network hiccup — refresh to see your score.'; });
+  }
+  function showResult(d) {
+    btn.disabled = true;
+    clearInterval(tickInt);
+    running = false;
+    countEl.textContent = d.clicks;
+    timerEl.textContent = 'Frenzy over';
+    hintEl.textContent = 'Tap again any time for a fresh 30-second run.';
+    var xp = d.xp_added ? ' · +' + d.xp_added + ' pet XP banked' : '';
+    resultEl.innerHTML = '<div class="score-big">' + d.clicks + ' taps</div>' +
+      '<div style="color:var(--rz-ink2);font-size:14px;margin-top:4px">Final score' + xp + '. Nice tapping.</div>';
+    btn.disabled = false;
+    btn.textContent = '🔁';
+    btn.setAttribute('aria-label', 'Start a new frenzy');
+  }
+
+  btn.addEventListener('click', function () {
+    if (!running) {
+      // fresh run: first click starts the server window
+      btn.textContent = '👆';
+    }
+    fetch('/api/games/human/feed-frenzy/click', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csrf_token: csrf })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { status: r.status, body: d }; }); })
+      .then(function (res) {
+        var d = res.body;
+        if (!d.ok) {
+          if (d.error && d.error.indexOf('window closed') === 0) { stopAndFinalize(); return; }
+          if (d.error && d.error.indexOf('too fast') !== -1) {
+            hintEl.textContent = 'Whoa — too fast! The server caps at 12 taps/sec.';
+            return;
+          }
+          hintEl.textContent = d.error || 'Something went wrong.';
+          return;
+        }
+        clicks = d.clicks;
+        countEl.textContent = clicks;
+        resultEl.innerHTML = '';
+        if (!running) { startClock(d.seconds_left); }
+      })
+      .catch(function () { hintEl.textContent = 'Network hiccup — tap again.'; });
+  });
+
+  // resume an in-progress window after reload
+  fetch('/api/games/human/feed-frenzy/status', { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.ok) return;
+      if (d.done) { countEl.textContent = d.clicks; showResult(d); }
+      else if (d.active) {
+        clicks = d.clicks;
+        countEl.textContent = clicks;
+        startClock(d.seconds_left);
+        hintEl.textContent = 'Window resumed — keep tapping!';
+      }
+    })
+    .catch(function () {});
+})();
+</script>
+{% endif %}
+{% endblock %}

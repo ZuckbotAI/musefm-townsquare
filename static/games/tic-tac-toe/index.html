@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Aqua Tic-Tac-Toe</title>
+<style>
+  :root {
+    --aqua: #7fe7ff;
+    --teal: #1b9aaa;
+    --deep: #06283d;
+    --ink: #eafcff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: linear-gradient(180deg, #04283f 0%, #0a4a6b 42%, #157f9e 78%, #1b9aaa 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: rgba(127,231,255,0.35);
+    color: var(--ink);
+  }
+  #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  #stage { position: relative; }
+  canvas { display: block; border-radius: 18px; }
+
+  #hud {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+    padding: 0 12px; z-index: 5;
+  }
+  .chip {
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-top-color: rgba(255,255,255,0.75);
+    border-radius: 999px;
+    padding: 7px 14px; font-size: 14px; font-weight: 600; letter-spacing: 0.3px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 10px rgba(0,30,50,0.25);
+    text-shadow: 0 1px 3px rgba(0,40,70,0.6);
+    white-space: nowrap;
+  }
+  #turn-chip { background: rgba(127,231,255,0.22); }
+  .btn {
+    background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0.12));
+    border: 1px solid rgba(255,255,255,0.55);
+    border-top-color: rgba(255,255,255,0.9);
+    border-radius: 14px; color: #fff; font-size: 16px; font-weight: 700;
+    padding: 12px 22px; cursor: pointer; letter-spacing: 0.3px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 14px rgba(0,30,50,0.35);
+    text-shadow: 0 1px 4px rgba(0,40,70,0.6);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    min-height: 48px;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 6px 18px rgba(0,30,50,0.4); }
+  .btn:active { transform: scale(0.95); }
+  .btn.primary { background: linear-gradient(180deg, rgba(127,231,255,0.55), rgba(27,154,170,0.55)); }
+  .btn.ghost { font-size: 14px; padding: 9px 16px; min-height: 44px; }
+  #mute-btn { position: fixed; top: 12px; right: 12px; z-index: 40; }
+
+  .screen {
+    position: absolute; inset: 0; z-index: 30;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(6, 40, 61, 0.35);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  }
+  .screen.hidden { display: none; }
+  .panel {
+    position: relative;
+    width: min(420px, 92vw); max-height: 92vh; overflow-y: auto;
+    background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.10) 55%, rgba(120,200,235,0.12));
+    border: 1px solid rgba(255,255,255,0.55);
+    border-top: 2px solid rgba(255,255,255,0.85);
+    border-radius: 22px;
+    box-shadow: inset 0 2px 6px rgba(255,255,255,0.35), inset 0 -8px 18px rgba(20,90,130,0.25), 0 12px 40px rgba(0,25,45,0.5);
+    padding: 26px 24px 22px; text-align: center;
+    transform-origin: center;
+  }
+  .panel::before {
+    content: ""; position: absolute; left: 4%; right: 4%; top: 3px; height: 46%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+    border-radius: 0 0 50% 50% / 0 0 26px 26px;
+    pointer-events: none;
+  }
+  .panel h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,50,90,0.55); }
+  .panel h2 { margin: 0 0 8px; font-size: 26px; text-shadow: 0 2px 8px rgba(0,50,90,0.55); }
+  .panel p { margin: 8px 0; font-size: 15px; line-height: 1.45; text-shadow: 0 1px 3px rgba(0,40,70,0.5); }
+  .panel .sub { font-size: 13px; opacity: 0.9; }
+  .mode-row { display: flex; gap: 12px; justify-content: center; margin: 16px 0 6px; flex-wrap: wrap; }
+  .diff-row { margin-top: 2px; }
+  .btn.diff { font-size: 14px; padding: 8px 18px; opacity: 0.75; }
+  .btn.diff.sel { opacity: 1; border-color: #fff; box-shadow: 0 0 0 2px var(--aqua); }
+  .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .howto {
+    margin: 14px auto 0; padding: 12px 14px; max-width: 340px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 14px; font-size: 13.5px; line-height: 1.5; text-align: left;
+  }
+  .howto b { color: var(--aqua); }
+  #inky-wrap { margin: 6px auto 2px; width: 110px; height: 110px; }
+  #inky-wrap svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 10px rgba(0,40,70,0.45)); }
+  .score-line { font-size: 14px; margin-top: 10px; opacity: 0.95; }
+
+  #errbox {
+    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 99; display: none;
+    background: rgba(120, 10, 20, 0.92); color: #fff; font: 12px/1.4 monospace;
+    padding: 10px 12px; border-radius: 10px; white-space: pre-wrap; max-height: 30vh; overflow: auto;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <span class="chip" id="score-x">X: 0</span>
+    <span class="chip" id="score-o">O: 0</span>
+    <span class="chip" id="score-d">Draws: 0</span>
+    <span class="chip" id="turn-chip">Welcome</span>
+  </div>
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <div class="screen" id="screen-title">
+      <div class="panel" id="title-panel">
+        <h1>Aqua Tic-Tac-Toe</h1>
+        <p class="sub">Crystal X meets droplet O. Three in a row takes the round.</p>
+        <div class="mode-row">
+          <button class="btn primary" id="btn-ai">Vs AI</button>
+          <button class="btn" id="btn-2p">2 Players</button>
+        </div>
+        <div class="mode-row diff-row" id="diff-row">
+          <button class="btn diff" data-diff="easy">Easy</button>
+          <button class="btn diff sel" data-diff="normal">Normal</button>
+          <button class="btn diff" data-diff="hard">Hard</button>
+        </div>
+        <div class="howto">
+          <b>How to play</b><br>
+          - Tap a square to place your mark. X always moves first.<br>
+          - Vs AI: you are X, the computer is O. Pick a difficulty above.<br>
+          - 2 Players: pass the device, X and O take turns.<br>
+          - First to three in a row wins the round.
+        </div>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="screen-end">
+      <div class="panel" id="end-panel">
+        <div id="inky-wrap" aria-hidden="true"></div>
+        <h2 id="end-title">X wins!</h2>
+        <p class="sub" id="end-sub"></p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-again">Play again</button>
+          <button class="btn ghost" id="btn-modes">Change mode</button>
+        </div>
+        <div class="score-line" id="end-score"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<button class="btn ghost" id="mute-btn">Sound: On</button>
+<div id="errbox"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Aqua Tic-Tac-Toe - single-file game
+   Sections: Config | ErrorBoundary | Logic (node-testable) | Audio |
+   Sprites | Entities/Inky | Render | Input | Screens | Main loop
+   ===================================================================== */
+
+/* ---------------- Error boundary ---------------- */
+(function () {
+  var box = document.getElementById("errbox");
+  window.addEventListener("error", function (e) {
+    box.style.display = "block";
+    box.textContent += "[error] " + (e.message || e.error) + " @ " +
+      (e.filename || "?") + ":" + (e.lineno || "?") + "\n";
+  });
+})();
+
+/* ---------------- Config (integrity-checked at init) ---------------- */
+var CFG = {
+  cell: 118,          // logical px per cell
+  gap: 10,            // logical px between board edge and cells
+  markPopMs: 320,     // mark pop-in duration
+  strikeMs: 520,      // win-line strike duration
+  aiDelayMs: 380,     // AI "thinking" pause
+  hitStopMs: 60,      // freeze on win impact
+  bubbles: 34,
+  particlesMax: 150
+};
+(function checkConfig() {
+  var keys = ["cell", "gap", "markPopMs", "strikeMs", "aiDelayMs", "hitStopMs", "bubbles", "particlesMax"];
+  for (var i = 0; i < keys.length; i++) {
+    var v = CFG[keys[i]];
+    if (typeof v !== "number" || !(v > 0)) throw new Error("Bad CFG." + keys[i]);
+  }
+})();
+
+//__LOGIC_START__
+/* ---------------- Pure game logic (no DOM; extracted for node tests) ---------------- */
+var LINES = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8],   // rows
+  [0, 3, 6], [1, 4, 7], [2, 5, 8],   // cols
+  [0, 4, 8], [2, 4, 6]               // diagonals
+];
+
+function checkWinner(b) {
+  for (var i = 0; i < LINES.length; i++) {
+    var L = LINES[i];
+    var a = b[L[0]];
+    if (a && a === b[L[1]] && a === b[L[2]]) return { mark: a, line: L };
+  }
+  return null;
+}
+function isFull(b) {
+  for (var i = 0; i < 9; i++) if (!b[i]) return false;
+  return true;
+}
+function openCells(b) {
+  var out = [];
+  for (var i = 0; i < 9; i++) if (!b[i]) out.push(i);
+  return out;
+}
+/* Minimax: AI is O (maximizer), human is X (minimizer). Perfect play. */
+function minimax(b, isMax, depth, alpha, beta) {
+  var w = checkWinner(b);
+  if (w) return w.mark === "O" ? 10 - depth : depth - 10;
+  if (isFull(b)) return 0;
+  var cells = openCells(b);
+  if (isMax) {
+    var best = -Infinity;
+    for (var i = 0; i < cells.length; i++) {
+      b[cells[i]] = "O";
+      var s = minimax(b, false, depth + 1, alpha, beta);
+      b[cells[i]] = null;
+      if (s > best) best = s;
+      if (best > alpha) alpha = best;
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+  var worst = Infinity;
+  for (var j = 0; j < cells.length; j++) {
+    b[cells[j]] = "X";
+    var t = minimax(b, true, depth + 1, alpha, beta);
+    b[cells[j]] = null;
+    if (t < worst) worst = t;
+    if (worst < beta) beta = worst;
+    if (beta <= alpha) break;
+  }
+  return worst;
+}
+function bestMove(b) {
+  var cells = openCells(b);
+  var bestScore = -Infinity, move = cells[0];
+  /* prefer center, then corners, then edges for snappier perfect play */
+  var order = [4, 0, 2, 6, 8, 1, 3, 5, 7];
+  for (var k = 0; k < order.length; k++) {
+    var c = order[k];
+    if (b[c]) continue;
+    b[c] = "O";
+    var s = minimax(b, false, 0, -Infinity, Infinity);
+    b[c] = null;
+    if (s > bestScore) { bestScore = s; move = c; }
+  }
+  return move;
+}
+//__LOGIC_END__
+
+/* ---------------- Audio: synthesized, one master gain, mute toggle ---------------- */
+var Audio2 = {
+  ctx: null, master: null, muted: false,
+  init: function () {
+    if (this.ctx) return;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.5;
+    this.master.connect(this.ctx.destination);
+  },
+  unlock: function () {
+    this.init();
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  },
+  setMuted: function (m) {
+    this.muted = m;
+    if (this.master) this.master.gain.value = m ? 0 : 0.5;
+  },
+  _env: function (t0, peak, decay) {
+    var g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+    g.connect(this.master);
+    return g;
+  },
+  /* water-drop pop: placement blip */
+  pop: function () {
+    if (!this.ctx || this.muted) return;
+    var t0 = this.ctx.currentTime;
+    var o = this.ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(320, t0);
+    o.frequency.exponentialRampToValueAtTime(1150, t0 + 0.08);
+    o.connect(this._env(t0, 0.5, 0.16));
+    o.start(t0); o.stop(t0 + 0.2);
+  },
+  /* glass chime: win fanfare */
+  chime: function () {
+    if (!this.ctx || this.muted) return;
+    var t0 = this.ctx.currentTime;
+    var partials = [523.25, 523.25 * 2.01, 523.25 * 2.98];
+    for (var i = 0; i < partials.length; i++) {
+      var o = this.ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = partials[i];
+      o.connect(this._env(t0, 0.28 / (i + 1), 0.7));
+      o.start(t0); o.stop(t0 + 0.75);
+    }
+  },
+  /* low slide: loss */
+  slide: function () {
+    if (!this.ctx || this.muted) return;
+    var t0 = this.ctx.currentTime;
+    var o = this.ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(420, t0);
+    o.frequency.exponentialRampToValueAtTime(140, t0 + 0.45);
+    o.connect(this._env(t0, 0.4, 0.5));
+    o.start(t0); o.stop(t0 + 0.55);
+  },
+  /* soft thud: draw */
+  thud: function () {
+    if (!this.ctx || this.muted) return;
+    var t0 = this.ctx.currentTime;
+    var o = this.ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(220, t0);
+    o.frequency.exponentialRampToValueAtTime(110, t0 + 0.18);
+    o.connect(this._env(t0, 0.35, 0.28));
+    o.start(t0); o.stop(t0 + 0.32);
+  },
+  click: function () {
+    if (!this.ctx || this.muted) return;
+    var t0 = this.ctx.currentTime;
+    var o = this.ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = 700;
+    o.connect(this._env(t0, 0.22, 0.08));
+    o.start(t0); o.stop(t0 + 0.1);
+  }
+};
+
+/* ---------------- Easing ---------------- */
+function easeOutBack(t) {
+  var c = 1.70158;
+  return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+}
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function clamp01(t) { return t < 0 ? 0 : t > 1 ? 1 : t; }
+
+/* ---------------- Canvas setup (DPR-correct) ---------------- */
+var canvas = document.getElementById("game");
+var ctx = canvas.getContext("2d");
+var DPR = 1, boardPx = 0, boardX0 = 0, boardY0 = 0;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var side = Math.min(window.innerWidth, window.innerHeight - 120);
+  side = Math.max(280, Math.min(side, 460));
+  boardPx = side;
+  canvas.width = Math.round(side * DPR);
+  canvas.height = Math.round(side * DPR);
+  canvas.style.width = side + "px";
+  canvas.style.height = side + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  boardX0 = 0; boardY0 = 0;
+}
+window.addEventListener("resize", resize);
+
+/* ---------------- Pre-baked sprites (no per-frame gradients/shadows) ---------------- */
+function makeSprite(size, drawFn) {
+  var c = document.createElement("canvas");
+  c.width = size * DPR; c.height = size * DPR;
+  var g = c.getContext("2d");
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawFn(g, size);
+  return c;
+}
+var glowSprite = makeSprite(64, function (g, s) {
+  var gr = g.createRadialGradient(s / 2, s / 2, 2, s / 2, s / 2, s / 2);
+  gr.addColorStop(0, "rgba(160,240,255,0.55)");
+  gr.addColorStop(0.5, "rgba(120,220,255,0.18)");
+  gr.addColorStop(1, "rgba(120,220,255,0)");
+  g.fillStyle = gr;
+  g.fillRect(0, 0, s, s);
+});
+var bubbleSprite = makeSprite(48, function (g, s) {
+  var r = s / 2 - 2;
+  var gr = g.createRadialGradient(s / 2 - r * 0.3, s / 2 - r * 0.3, r * 0.1, s / 2, s / 2, r);
+  gr.addColorStop(0, "rgba(255,255,255,0.10)");
+  gr.addColorStop(0.75, "rgba(180,235,255,0.14)");
+  gr.addColorStop(0.92, "rgba(220,250,255,0.5)");
+  gr.addColorStop(1, "rgba(220,250,255,0)");
+  g.fillStyle = gr;
+  g.beginPath(); g.arc(s / 2, s / 2, r, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "rgba(255,255,255,0.75)";
+  g.beginPath(); g.arc(s / 2 - r * 0.35, s / 2 - r * 0.38, r * 0.16, 0, Math.PI * 2); g.fill();
+});
+
+/* ---------------- Game state ---------------- */
+var S = {
+  phase: "title",          // title | play | over
+  mode: "ai",              // ai | 2p
+  board: new Array(9).fill(null),
+  turn: "X",
+  scores: { X: 0, O: 0, D: 0 },
+  marks: {},               // cellIndex -> { mark, born }
+  winner: null,
+  winLine: null,
+  winAt: 0,
+  hitStopUntil: 0,
+  aiToken: 0,
+  diff: "normal",          // easy | normal | hard
+  result: null             // { kind: 'win'|'draw', mark }
+};
+(function loadScores() {
+  try {
+    var raw = localStorage.getItem("aqua-ttt-scores");
+    if (raw) {
+      var p = JSON.parse(raw);
+      if (p && typeof p.X === "number") S.scores = p;
+    }
+  } catch (e) { /* fresh scores */ }
+})();
+function saveScores() {
+  try { localStorage.setItem("aqua-ttt-scores", JSON.stringify(S.scores)); } catch (e) {}
+}
+
+/* ---------------- DOM refs ---------------- */
+var el = {
+  title: document.getElementById("screen-title"),
+  end: document.getElementById("screen-end"),
+  titlePanel: document.getElementById("title-panel"),
+  endPanel: document.getElementById("end-panel"),
+  endTitle: document.getElementById("end-title"),
+  endSub: document.getElementById("end-sub"),
+  endScore: document.getElementById("end-score"),
+  inky: document.getElementById("inky-wrap"),
+  turn: document.getElementById("turn-chip"),
+  sx: document.getElementById("score-x"),
+  so: document.getElementById("score-o"),
+  sd: document.getElementById("score-d"),
+  mute: document.getElementById("mute-btn")
+};
+
+/* ---------------- Inky the squid (SVG cameo) ---------------- */
+function inkySVG(mood) {
+  var mouth, eyes, arms;
+  if (mood === "happy") {
+    eyes = '<circle cx="44" cy="46" r="7" fill="#fff"/><circle cx="46" cy="47" r="3" fill="#0a2a3d"/>' +
+           '<circle cx="76" cy="46" r="7" fill="#fff"/><circle cx="78" cy="47" r="3" fill="#0a2a3d"/>';
+    mouth = '<path d="M50 66 Q60 76 70 66" stroke="#0a2a3d" stroke-width="3" fill="none" stroke-linecap="round"/>';
+    arms = '<path d="M30 78 Q18 88 26 96" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M90 78 Q102 88 94 96" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M48 84 Q46 94 52 98" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M72 84 Q74 94 68 98" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>';
+  } else if (mood === "sad") {
+    eyes = '<circle cx="44" cy="50" r="7" fill="#fff"/><circle cx="44" cy="52" r="3" fill="#0a2a3d"/>' +
+           '<circle cx="76" cy="50" r="7" fill="#fff"/><circle cx="76" cy="52" r="3" fill="#0a2a3d"/>';
+    mouth = '<path d="M52 72 Q60 64 68 72" stroke="#0a2a3d" stroke-width="3" fill="none" stroke-linecap="round"/>';
+    arms = '<path d="M32 80 Q30 92 24 94" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M88 80 Q90 92 96 94" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M50 86 Q48 94 44 96" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M70 86 Q72 94 76 96" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>';
+  } else {
+    eyes = '<circle cx="44" cy="48" r="6" fill="#fff"/><circle cx="45" cy="49" r="2.6" fill="#0a2a3d"/>' +
+           '<circle cx="76" cy="48" r="6" fill="#fff"/><circle cx="77" cy="49" r="2.6" fill="#0a2a3d"/>';
+    mouth = '<path d="M52 68 L68 68" stroke="#0a2a3d" stroke-width="3" stroke-linecap="round"/>';
+    arms = '<path d="M32 80 Q26 90 32 94" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M88 80 Q94 90 88 94" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M50 86 Q48 94 52 97" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>' +
+           '<path d="M70 86 Q72 94 68 97" stroke="#7a4fd0" stroke-width="7" fill="none" stroke-linecap="round"/>';
+  }
+  return '<svg viewBox="0 0 120 110">' +
+    '<ellipse cx="60" cy="48" rx="34" ry="36" fill="#9a6fe8"/>' +
+    '<ellipse cx="60" cy="48" rx="34" ry="36" fill="url(#inkg)"/>' +
+    '<defs><radialGradient id="inkg" cx="0.35" cy="0.3" r="1">' +
+    '<stop offset="0" stop-color="#c9aef7"/><stop offset="1" stop-color="#6a3fc0"/></radialGradient></defs>' +
+    '<ellipse cx="48" cy="34" rx="10" ry="6" fill="#ffffff" opacity="0.35"/>' +
+    eyes + mouth + arms + '</svg>';
+}
+
+/* ---------------- Ambient bubbles + particles ---------------- */
+var bubbles = [];
+function seedBubbles() {
+  bubbles = [];
+  for (var i = 0; i < CFG.bubbles; i++) {
+    bubbles.push({
+      x: Math.random() * boardPx,
+      y: Math.random() * boardPx,
+      r: 4 + Math.random() * 14,
+      vy: 12 + Math.random() * 26,
+      drift: Math.random() * Math.PI * 2,
+      alpha: 0.25 + Math.random() * 0.4
+    });
+  }
+}
+var particles = [];
+function burst(x, y, n, hue) {
+  for (var i = 0; i < n; i++) {
+    if (particles.length >= CFG.particlesMax) particles.shift();
+    var a = Math.random() * Math.PI * 2;
+    var sp = 60 + Math.random() * 160;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 0, ttl: 0.5 + Math.random() * 0.5,
+      r: 2 + Math.random() * 4,
+      hue: hue
+    });
+  }
+}
+
+/* ---------------- Board geometry ---------------- */
+function cellRect(i) {
+  var c = CFG.cell;
+  var ox = (boardPx - c * 3) / 2;
+  var oy = (boardPx - c * 3) / 2;
+  var col = i % 3, row = Math.floor(i / 3);
+  return { x: ox + col * c, y: oy + row * c, w: c, h: c, cx: ox + col * c + c / 2, cy: oy + row * c + c / 2 };
+}
+function cellAt(px, py) {
+  for (var i = 0; i < 9; i++) {
+    var r = cellRect(i);
+    if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) return i;
+  }
+  return -1;
+}
+
+/* ---------------- Drawing: glass X (crystal) ---------------- */
+function rr(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function drawCrystalX(g, cx, cy, size, scale) {
+  var len = size * 0.72 * scale;
+  var w = size * 0.20 * scale;
+  g.save();
+  g.translate(cx, cy);
+  for (var k = 0; k < 2; k++) {
+    g.save();
+    g.rotate(k === 0 ? Math.PI / 4 : -Math.PI / 4);
+    /* glow underlay */
+    g.drawImage(glowSprite, -len * 0.7, -len * 0.7, len * 1.4, len * 1.4);
+    /* crystal bar: sharp gradient, no blur */
+    var grad = g.createLinearGradient(0, -w / 2, 0, w / 2);
+    grad.addColorStop(0, "#ffffff");
+    grad.addColorStop(0.45, "#bdf3ff");
+    grad.addColorStop(1, "#2e9fc4");
+    rr(g, -len / 2, -w / 2, len, w, w / 2);
+    g.fillStyle = grad;
+    g.fill();
+    /* facet edge */
+    g.strokeStyle = "rgba(255,255,255,0.85)";
+    g.lineWidth = 1.5;
+    g.stroke();
+    /* specular streak */
+    g.strokeStyle = "rgba(255,255,255,0.95)";
+    g.lineWidth = Math.max(1, w * 0.10);
+    g.beginPath();
+    g.moveTo(-len * 0.38, -w * 0.22);
+    g.lineTo(len * 0.38, -w * 0.22);
+    g.stroke();
+    g.restore();
+  }
+  g.restore();
+}
+
+/* ---------------- Drawing: water droplet ring O ---------------- */
+function drawDropletO(g, cx, cy, size, scale) {
+  var r = size * 0.36 * scale;
+  g.save();
+  g.translate(cx, cy);
+  g.drawImage(glowSprite, -r * 1.6, -r * 1.6, r * 3.2, r * 3.2);
+  g.beginPath();
+  g.moveTo(0, -r * 1.42);
+  g.bezierCurveTo(r * 0.98, -r * 0.55, r * 1.02, r * 0.38, 0, r * 1.02);
+  g.bezierCurveTo(-r * 1.02, r * 0.38, -r * 0.98, -r * 0.55, 0, -r * 1.42);
+  g.closePath();
+  var grad = g.createLinearGradient(-r, 0, r, 0);
+  grad.addColorStop(0, "#0f6f8f");
+  grad.addColorStop(0.5, "#7fe7ff");
+  grad.addColorStop(1, "#0f6f8f");
+  g.lineWidth = size * 0.13 * scale;
+  g.strokeStyle = grad;
+  g.stroke();
+  /* inner glass highlight arc */
+  g.beginPath();
+  g.arc(0, r * 0.08, r * 0.62, Math.PI * 1.15, Math.PI * 1.75);
+  g.strokeStyle = "rgba(255,255,255,0.8)";
+  g.lineWidth = Math.max(1.5, size * 0.035 * scale);
+  g.stroke();
+  /* droplet glint */
+  g.fillStyle = "rgba(255,255,255,0.9)";
+  g.beginPath();
+  g.arc(-r * 0.30, -r * 0.42, r * 0.11, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+}
+
+/* ---------------- Render ---------------- */
+function drawBoard(t) {
+  ctx.clearRect(0, 0, boardPx, boardPx);
+  /* bubbles behind */
+  var frozen = t < S.hitStopUntil;
+  for (var i = 0; i < bubbles.length; i++) {
+    var b = bubbles[i];
+    if (!frozen) {
+      b.y -= b.vy * 0.016;
+      b.drift += 0.02;
+      b.x += Math.sin(b.drift) * 0.3;
+      if (b.y < -30) { b.y = boardPx + 24; b.x = Math.random() * boardPx; }
+    }
+    ctx.globalAlpha = b.alpha;
+    var d = b.r * 2;
+    ctx.drawImage(bubbleSprite, Math.round(b.x - b.r), Math.round(b.y - b.r), d, d);
+  }
+  ctx.globalAlpha = 1;
+
+  /* glossy board panel */
+  var m = (boardPx - CFG.cell * 3) / 2 - CFG.gap;
+  var bs = CFG.cell * 3 + CFG.gap * 2;
+  var bg = ctx.createLinearGradient(0, m, 0, m + bs);
+  bg.addColorStop(0, "rgba(255,255,255,0.30)");
+  bg.addColorStop(0.5, "rgba(255,255,255,0.10)");
+  bg.addColorStop(1, "rgba(140,210,240,0.14)");
+  rr(ctx, m, m, bs, bs, 20);
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  /* top gloss */
+  rr(ctx, m + 6, m + 4, bs - 12, bs * 0.34, 14);
+  var gl = ctx.createLinearGradient(0, m, 0, m + bs * 0.4);
+  gl.addColorStop(0, "rgba(255,255,255,0.30)");
+  gl.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gl;
+  ctx.fill();
+
+  /* grid lines */
+  var ox = (boardPx - CFG.cell * 3) / 2;
+  var oy = ox;
+  ctx.strokeStyle = "rgba(255,255,255,0.65)";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  for (var k = 1; k < 3; k++) {
+    ctx.beginPath(); ctx.moveTo(ox + k * CFG.cell, oy + 8); ctx.lineTo(ox + k * CFG.cell, oy + CFG.cell * 3 - 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox + 8, oy + k * CFG.cell); ctx.lineTo(ox + CFG.cell * 3 - 8, oy + k * CFG.cell); ctx.stroke();
+  }
+
+  /* marks with pop-in */
+  for (var c = 0; c < 9; c++) {
+    var mk = S.marks[c];
+    if (!mk) continue;
+    var r = cellRect(c);
+    var sc = easeOutBack(clamp01((t - mk.born) / (CFG.markPopMs / 1000)));
+    if (mk.mark === "X") drawCrystalX(ctx, r.cx, r.cy, CFG.cell, sc);
+    else drawDropletO(ctx, r.cx, r.cy, CFG.cell, sc);
+  }
+
+  /* win strike */
+  if (S.winLine && S.phase === "over") {
+    var p = easeOutCubic(clamp01((t - S.winAt) / (CFG.strikeMs / 1000)));
+    var a = cellRect(S.winLine[0]), z = cellRect(S.winLine[2]);
+    var ex = a.cx + (z.cx - a.cx) * p, ey = a.cy + (z.cy - a.cy) * p;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(127,231,255,0.35)";
+    ctx.lineWidth = 16;
+    ctx.beginPath(); ctx.moveTo(a.cx, a.cy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(a.cx, a.cy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.restore();
+  }
+
+  /* particles */
+  if (!frozen) {
+    for (var q = particles.length - 1; q >= 0; q--) {
+      var pt = particles[q];
+      pt.life += 0.016;
+      if (pt.life >= pt.ttl) { particles.splice(q, 1); continue; }
+      pt.x += pt.vx * 0.016; pt.y += pt.vy * 0.016;
+      pt.vy += 220 * 0.016;
+    }
+  }
+  for (var wI = 0; wI < particles.length; wI++) {
+    var P = particles[wI];
+    var fade = 1 - P.life / P.ttl;
+    ctx.globalAlpha = fade;
+    var ds = P.r * 4 * fade + 2;
+    ctx.drawImage(glowSprite, Math.round(P.x - ds / 2), Math.round(P.y - ds / 2), ds, ds);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------------- Main loop (rAF, timestamp-guarded) ---------------- */
+function frame(ts) {
+  if (typeof ts !== "number" || isNaN(ts)) ts = performance.now();
+  drawBoard(ts / 1000);
+  requestAnimationFrame(frame);
+}
+
+/* ---------------- HUD ---------------- */
+function refreshHUD() {
+  el.sx.textContent = "X: " + S.scores.X;
+  el.so.textContent = "O: " + S.scores.O;
+  el.sd.textContent = "Draws: " + S.scores.D;
+  var label;
+  if (S.phase === "over") label = "Round over";
+  else if (S.mode === "ai") label = S.turn === "X" ? "Your turn (X)" : "AI thinking...";
+  else label = S.turn + " to move";
+  el.turn.textContent = label;
+}
+
+/* ---------------- Flow ---------------- */
+function newRound() {
+  S.board = new Array(9).fill(null);
+  S.marks = {};
+  S.turn = "X";
+  S.winner = null;
+  S.winLine = null;
+  S.result = null;
+  S.aiToken++;
+  S.phase = "play";
+  el.title.classList.add("hidden");
+  el.end.classList.add("hidden");
+  refreshHUD();
+}
+function placeMark(i, mark) {
+  S.board[i] = mark;
+  S.marks[i] = { mark: mark, born: performance.now() / 1000 };
+  Audio2.pop();
+  burst(cellRect(i).cx, cellRect(i).cy, 10, mark === "X" ? "cyan" : "teal");
+}
+function endRound(result) {
+  S.result = result;
+  S.phase = "over";
+  S.aiToken++;
+  if (result.kind === "draw") {
+    S.scores.D++;
+    Audio2.thud();
+  } else {
+    S.scores[result.mark]++;
+    S.winLine = result.line;
+    S.winAt = performance.now() / 1000;
+    S.hitStopUntil = S.winAt + CFG.hitStopMs / 1000;
+    for (var k = 0; k < 3; k++) {
+      var r = cellRect(result.line[k]);
+      burst(r.cx, r.cy, 16, "cyan");
+    }
+    if (S.mode === "ai") {
+      if (result.mark === "X") Audio2.chime(); else Audio2.slide();
+    } else {
+      Audio2.chime();
+    }
+  }
+  saveScores();
+  refreshHUD();
+  /* let the strike land before the panel pops */
+  setTimeout(showEndScreen, result.kind === "draw" ? 500 : CFG.strikeMs + 120);
+}
+function checkAfterMove() {
+  var w = checkWinner(S.board);
+  if (w) { endRound({ kind: "win", mark: w.mark, line: w.line }); return true; }
+  if (isFull(S.board)) { endRound({ kind: "draw" }); return true; }
+  return false;
+}
+function aiMove(token) {
+  if (token !== S.aiToken || S.phase !== "play") return;
+  var mv = pickAiMove(S.board.slice(), S.diff, token);
+  if (S.board[mv]) return; /* safety */
+  placeMark(mv, "O");
+  if (!checkAfterMove()) {
+    S.turn = "X";
+    refreshHUD();
+  }
+}
+/* difficulty: hard plays perfectly, normal takes wins and blocks but slips,
+   easy mostly wanders but grabs open wins */
+function pickAiMove(board, diff, token) {
+  var foe = token === "O" ? "X" : "O";
+  var win = findWinning(board, token);
+  if (win >= 0) return win;
+  if (diff === "hard") return bestMove(board);
+  var block = findWinning(board, foe);
+  if (diff === "normal") {
+    if (block >= 0) return block;
+    if (Math.random() < 0.65) return bestMove(board);
+    return randomOpen(board);
+  }
+  /* easy */
+  if (block >= 0 && Math.random() < 0.5) return block;
+  return randomOpen(board);
+}
+function findWinning(board, token) {
+  for (var i = 0; i < 9; i++) {
+    if (board[i]) continue;
+    board[i] = token;
+    var w = checkWinner(board);
+    board[i] = null;
+    if (w && w.mark === token) return i;
+  }
+  return -1;
+}
+function randomOpen(board) {
+  var open = [];
+  for (var i = 0; i < 9; i++) if (!board[i]) open.push(i);
+  return open[Math.floor(Math.random() * open.length)];
+}
+function humanTap(i) {
+  if (S.phase !== "play" || S.board[i]) return;
+  if (S.mode === "ai" && S.turn !== "X") return;
+  var mark = S.turn;
+  placeMark(i, mark);
+  if (checkAfterMove()) return;
+  S.turn = mark === "X" ? "O" : "X";
+  refreshHUD();
+  if (S.mode === "ai" && S.turn === "O") {
+    refreshHUD();
+    var token = S.aiToken;
+    setTimeout(function () { aiMove(token); }, CFG.aiDelayMs);
+  }
+}
+
+/* ---------------- Screens ---------------- */
+function panelPop(panel) {
+  panel.style.transform = "scale(0.7)";
+  panel.style.opacity = "0";
+  var t0 = performance.now();
+  (function anim() {
+    var t = clamp01((performance.now() - t0) / 320);
+    var s = easeOutBack(t);
+    panel.style.transform = "scale(" + s + ")";
+    panel.style.opacity = String(t);
+    if (t < 1) requestAnimationFrame(anim);
+    else { panel.style.transform = ""; panel.style.opacity = ""; }
+  })();
+}
+function showTitle() {
+  S.phase = "title";
+  S.aiToken++;
+  el.end.classList.add("hidden");
+  el.title.classList.remove("hidden");
+  el.turn.textContent = "Welcome";
+  panelPop(el.titlePanel);
+}
+function showEndScreen() {
+  var r = S.result;
+  var title, sub, mood;
+  if (r.kind === "draw") {
+    title = "Draw!";
+    sub = S.mode === "ai" ? "Nobody blinked. The AI respects that." : "Nobody blinked. Rematch?";
+    mood = "neutral";
+  } else if (S.mode === "ai") {
+    if (r.mark === "X") {
+      title = "You win!";
+      sub = "You cracked perfect play. Inky is impressed.";
+      mood = "happy";
+    } else {
+      title = "AI wins";
+      sub = "The AI played it perfectly. Run it back.";
+      mood = "sad";
+    }
+  } else {
+    title = r.mark + " wins!";
+    sub = "Clean three in a row. Inky applauds.";
+    mood = "happy";
+  }
+  el.endTitle.textContent = title;
+  el.endSub.textContent = sub;
+  el.inky.innerHTML = inkySVG(mood);
+  el.endScore.textContent = "X " + S.scores.X + "  -  O " + S.scores.O + "  -  Draws " + S.scores.D;
+  el.end.classList.remove("hidden");
+  panelPop(el.endPanel);
+}
+
+/* ---------------- Input: bound once ---------------- */
+canvas.addEventListener("pointerdown", function (e) {
+  Audio2.unlock();
+  if (S.phase !== "play") return;
+  var rect = canvas.getBoundingClientRect();
+  var i = cellAt(e.clientX - rect.left, e.clientY - rect.top);
+  if (i >= 0) humanTap(i);
+});
+document.getElementById("btn-ai").addEventListener("click", function () {
+  Audio2.unlock(); Audio2.click(); S.mode = "ai"; newRound();
+});
+Array.prototype.forEach.call(document.querySelectorAll("#diff-row .diff"), function (b) {
+  b.addEventListener("click", function () {
+    Audio2.unlock(); Audio2.click();
+    S.diff = b.getAttribute("data-diff");
+    Array.prototype.forEach.call(document.querySelectorAll("#diff-row .diff"), function (x) {
+      x.classList.toggle("sel", x === b);
+    });
+  });
+});
+document.getElementById("btn-2p").addEventListener("click", function () {
+  Audio2.unlock(); Audio2.click(); S.mode = "2p"; newRound();
+});
+document.getElementById("btn-again").addEventListener("click", function () {
+  Audio2.unlock(); Audio2.click(); newRound();
+});
+document.getElementById("btn-modes").addEventListener("click", function () {
+  Audio2.unlock(); Audio2.click(); showTitle();
+});
+el.mute.addEventListener("click", function () {
+  Audio2.unlock();
+  Audio2.setMuted(!Audio2.muted);
+  el.mute.textContent = Audio2.muted ? "Sound: Off" : "Sound: On";
+});
+
+/* ---------------- Boot ---------------- */
+resize();
+seedBubbles();
+refreshHUD();
+panelPop(el.titlePanel);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

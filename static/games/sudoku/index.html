@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Sudoku</title>
+<style>
+/* ============ sudoku : Frutiger Aero glass grid ============ */
+.sudoku-game { --aqua:#38e1ff; --teal:#14b8a6; --ink:#0b3346; --navy:#0e2a5c; --red:#ef4444;
+  font-family: "SF Pro Rounded","Hiragino Maru Gothic ProN","Nunito","Segoe UI",system-ui,sans-serif;
+  color: var(--ink); min-height:100vh; position:relative; overflow:hidden;
+  background: linear-gradient(180deg,#8df3ff 0%,#56d9f6 26%,#38c3ea 52%,#1fa7d8 76%,#1483c0 100%);
+  -webkit-tap-highlight-color: transparent; user-select:none; -webkit-user-select:none;
+  touch-action: manipulation;}
+.sudoku-game *{box-sizing:border-box; margin:0; padding:0;}
+.sudoku-game .sg-stage{position:relative; z-index:2; max-width:440px; margin:0 auto; min-height:100vh;
+  display:flex; flex-direction:column; padding:14px 14px 26px;}
+.sudoku-game .sg-screen{display:none; flex-direction:column; flex:1;}
+.sudoku-game .sg-screen.sg-on{display:flex; animation: sg-in .35s cubic-bezier(0.175,0.885,0.32,1.275);}
+@keyframes sg-in{ from{ opacity:0; transform: scale(.92) translateY(14px);} }
+/* background bubbles */
+.sudoku-game .sg-bg{position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none;}
+.sudoku-game .sg-bg i{position:absolute; bottom:-90px; border-radius:50%;
+  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.8), rgba(255,255,255,.06) 62%);
+  box-shadow: inset -3px -4px 8px rgba(255,255,255,.28), 0 0 14px rgba(255,255,255,.28);
+  animation: sg-float linear infinite;}
+@keyframes sg-float{ to{ transform: translateY(-125vh);} }
+.sudoku-game .sg-flare{position:absolute; z-index:1; top:-80px; left:-80px; width:280px; height:280px;
+  pointer-events:none;
+  background: radial-gradient(circle, rgba(255,255,255,.85) 0%, rgba(255,255,255,.3) 24%,
+    rgba(255,255,255,.07) 46%, transparent 70%);}
+/* glass panels */
+.sudoku-game .sg-panel{background: rgba(255,255,255,.30); backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px); border:1px solid rgba(255,255,255,.65);
+  border-radius:20px; box-shadow: 0 8px 24px rgba(8,80,110,.18), inset 0 1px 0 rgba(255,255,255,.7);
+  padding:20px;}
+.sudoku-game h1{font-size:34px; text-align:center; letter-spacing:2px;
+  text-shadow: 0 2px 0 rgba(255,255,255,.65);}
+.sudoku-game .sg-tag{text-align:center; font-size:13px; opacity:.85; margin:6px 0 4px;}
+.sudoku-game h2{font-size:23px; text-align:center; margin-bottom:8px;}
+/* buttons */
+.sudoku-game .sg-btn{display:block; width:100%; font:inherit; font-weight:800; font-size:17px;
+  color:#07384e; padding:13px; margin-top:12px; border:none; border-radius:16px; cursor:pointer;
+  background: linear-gradient(180deg,#eafffb 0%,#a5f3fc 40%,#67e8f9 75%,#38e1ff 100%);
+  box-shadow: 0 4px 0 #0ea5c9, 0 8px 18px rgba(8,80,110,.25), inset 0 1px 0 #fff;
+  transition: transform .08s ease;}
+.sudoku-game .sg-btn:active{transform: translateY(3px); box-shadow: 0 1px 0 #0ea5c9, 0 4px 10px rgba(8,80,110,.2);}
+.sudoku-game .sg-btn.sg-ghost{background: rgba(255,255,255,.38); box-shadow: inset 0 1px 0 rgba(255,255,255,.7);}
+.sudoku-game .sg-btn.sg-diff{font-size:19px; padding:15px;}
+.sudoku-game .sg-btn.sg-diff small{display:block; font-size:12px; font-weight:600; opacity:.75; margin-top:2px;}
+.sudoku-game .sg-btn:disabled{opacity:.5; cursor:default;}
+.sudoku-game .sg-howto{margin-top:16px; font-size:12.5px; line-height:1.65; opacity:.9;}
+.sudoku-game .sg-howto b{color:var(--navy);}
+/* HUD */
+.sudoku-game .sg-hud{display:flex; gap:8px; margin-bottom:10px; align-items:stretch;}
+.sudoku-game .sg-stat{flex:1; text-align:center; padding:7px 4px; border-radius:16px;
+  background: rgba(255,255,255,.30); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border:1px solid rgba(255,255,255,.6); box-shadow: inset 0 1px 0 rgba(255,255,255,.6);}
+.sudoku-game .sg-stat .sg-k{font-size:10px; font-weight:800; letter-spacing:1px; opacity:.7;}
+.sudoku-game .sg-stat .sg-v{font-size:20px; font-weight:900;}
+.sudoku-game .sg-mistakes{letter-spacing:3px;}
+.sudoku-game .sg-iconbtn{flex:0 0 46px; border-radius:16px; font-size:17px; cursor:pointer; color:var(--ink);
+  background: rgba(255,255,255,.38); border:1px solid rgba(255,255,255,.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);}
+/* board */
+.sudoku-game .sg-board-wrap{position:relative; padding:10px; border-radius:22px;
+  background: rgba(255,255,255,.20); border:1px solid rgba(255,255,255,.55);
+  box-shadow: inset 0 2px 14px rgba(8,60,90,.18);}
+.sudoku-game .sg-board{display:grid; grid-template-columns:repeat(9,1fr); aspect-ratio:1/1;
+  background: rgba(255,255,255,.55); border-radius:12px; overflow:hidden;
+  border:2px solid rgba(14,42,92,.55);}
+.sudoku-game .sg-cell{position:relative; display:flex; align-items:center; justify-content:center;
+  font-size:clamp(15px,5.4vw,24px); font-weight:700; cursor:pointer;
+  border-right:1px solid rgba(14,42,92,.18); border-bottom:1px solid rgba(14,42,92,.18);
+  background: rgba(255,255,255,.35); transition: background .12s ease;}
+.sudoku-game .sg-cell:nth-child(9n){border-right:none;}
+.sudoku-game .sg-cell:nth-child(n+73){border-bottom:none;}
+.sudoku-game .sg-cell.sg-bx{border-right:2px solid rgba(14,42,92,.55);}
+.sudoku-game .sg-cell.sg-by{border-bottom:2px solid rgba(14,42,92,.55);}
+.sudoku-game .sg-cell .sg-v{pointer-events:none; line-height:1;}
+.sudoku-game .sg-given{color:var(--navy); font-weight:900;}
+.sudoku-game .sg-user{color:#0d7d74;}
+.sudoku-game .sg-cell.sg-rel{background: rgba(56,225,255,.28);}
+.sudoku-game .sg-cell.sg-same{background: rgba(56,225,255,.52);}
+.sudoku-game .sg-cell.sg-sel{background: rgba(56,225,255,.78); box-shadow: inset 0 0 0 2px #0ea5c9;}
+.sudoku-game .sg-cell.sg-conflict .sg-v{color:var(--red);}
+.sudoku-game .sg-notes{position:absolute; inset:2px; display:grid; pointer-events:none;
+  grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  font-size:clamp(7px,2.4vw,10px); font-weight:700; color:#0e7490;}
+.sudoku-game .sg-notes span{display:flex; align-items:center; justify-content:center;}
+.sudoku-game .sg-cell.sg-pop .sg-v{animation: sg-pop .3s cubic-bezier(0.175,0.885,0.32,1.275);}
+@keyframes sg-pop{ 0%{ transform: scale(.4);} 100%{ transform: scale(1);} }
+.sudoku-game .sg-cell.sg-bad{animation: sg-shake .32s ease;}
+.sudoku-game .sg-cell.sg-bad .sg-v{color:var(--red);}
+@keyframes sg-shake{ 20%{transform: translateX(-5px);} 40%{transform: translateX(5px);}
+  60%{transform: translateX(-4px);} 80%{transform: translateX(3px);} }
+/* number pad */
+.sudoku-game .sg-pad{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px;}
+.sudoku-game .sg-key{position:relative; border:none; border-radius:14px; cursor:pointer; color:var(--navy);
+  font:inherit; font-weight:900; font-size:22px; padding:10px 0 8px; min-height:56px;
+  background: linear-gradient(180deg,#ffffff 0%,#d9f7ff 55%,#a5ecff 100%);
+  box-shadow: 0 3px 0 #0ea5c9, 0 6px 12px rgba(8,80,110,.2), inset 0 1px 0 #fff;}
+.sudoku-game .sg-key:active{transform: translateY(2px); box-shadow: 0 1px 0 #0ea5c9;}
+.sudoku-game .sg-key small{display:block; font-size:10px; font-weight:700; color:#0e7490; margin-top:1px;}
+.sudoku-game .sg-key.sg-done{opacity:.35;}
+.sudoku-game .sg-key.sg-wide{font-size:15px;}
+.sudoku-game .sg-key.sg-notes-on{background: linear-gradient(180deg,#fff7d6 0%,#fef08a 60%,#fde047 100%);
+  box-shadow: 0 3px 0 #a16207, 0 6px 12px rgba(8,80,110,.2), inset 0 1px 0 #fff;}
+/* results */
+.sudoku-game .sg-big{font-size:44px; font-weight:900; text-align:center; margin:4px 0;
+  text-shadow: 0 2px 0 rgba(255,255,255,.6);}
+.sudoku-game .sg-row{display:flex; justify-content:space-between; font-size:14px; padding:7px 2px;
+  border-bottom:1px dashed rgba(11,51,70,.25);}
+.sudoku-game .sg-row b{font-size:15px;}
+.sudoku-game .sg-inky{width:110px; height:110px; margin:6px auto; display:block;}
+.sudoku-game .sg-inky.sg-happy svg{animation: sg-jump .5s ease 3;}
+@keyframes sg-jump{ 40%{ transform: translateY(-14px) scale(1.08);} }
+.sudoku-game .sg-inky.sg-sad svg{animation: sg-droop 1.4s ease forwards;}
+@keyframes sg-droop{ to{ transform: translateY(8px) scale(.93);} }
+/* error boundary */
+.sudoku-game #sg-err{display:none; position:fixed; z-index:99; left:10px; right:10px; top:10px;
+  background:#7f1d1d; color:#fff; font-size:12px; padding:10px 12px; border-radius:12px;
+  font-family:monospace; white-space:pre-wrap; max-height:40vh; overflow:auto;}
+</style>
+</head>
+<body>
+<div class="sudoku-game">
+  <div class="sg-bg" id="sg-bg"></div>
+  <div class="sg-flare"></div>
+  <div id="sg-err"></div>
+
+  <div class="sg-stage">
+    <!-- ===== TITLE ===== -->
+    <section class="sg-screen sg-on" id="sg-title">
+      <div class="sg-panel" style="margin-top:8vh;">
+        <h1>SUDOKU</h1>
+        <p class="sg-tag">a glass-clear classic, one careful number at a time</p>
+        <button class="sg-btn sg-diff" data-diff="easy">Easy<small>about 40 clues, gentle warm-up</small></button>
+        <button class="sg-btn sg-diff" data-diff="medium">Medium<small>about 32 clues, real thinking</small></button>
+        <button class="sg-btn sg-diff" data-diff="hard">Hard<small>about 26 clues, bring focus</small></button>
+        <div class="sg-howto">
+          <b>How to play:</b> tap a cell, then tap a number. Fill every row, column, and 3x3 box
+          with 1-9, no repeats. Toggle the pencil to jot notes. Three mistakes and the round ends.
+          Matching numbers and the selected row, column, and box light up.
+        </div>
+        <button class="sg-btn sg-ghost" id="sg-mute-title" style="margin-top:14px;">Sound: on</button>
+      </div>
+    </section>
+
+    <!-- ===== GAME ===== -->
+    <section class="sg-screen" id="sg-game">
+      <div class="sg-hud">
+        <div class="sg-stat"><div class="sg-k">TIME</div><div class="sg-v" id="sg-time">0:00</div></div>
+        <div class="sg-stat"><div class="sg-k">MISTAKES</div><div class="sg-v sg-mistakes" id="sg-mistakes"></div></div>
+        <div class="sg-stat"><div class="sg-k">LEVEL</div><div class="sg-v" id="sg-level" style="font-size:15px; padding-top:3px;">Easy</div></div>
+        <button class="sg-iconbtn" id="sg-btn-menu" title="Menu">&#9776;</button>
+        <button class="sg-iconbtn" id="sg-btn-restart" title="Restart">&#8635;</button>
+        <button class="sg-iconbtn" id="sg-btn-mute" title="Sound">&#9836;</button>
+      </div>
+      <div class="sg-board-wrap">
+        <div class="sg-board" id="sg-board"></div>
+      </div>
+      <div class="sg-pad" id="sg-pad"></div>
+    </section>
+
+    <!-- ===== WIN ===== -->
+    <section class="sg-screen" id="sg-win">
+      <div class="sg-panel" style="margin-top:6vh;">
+        <h2>Solved it</h2>
+        <div class="sg-inky sg-happy" id="sg-inky-win"></div>
+        <p class="sg-tag">Inky is doing a happy wiggle. Clean grid, no smudges.</p>
+        <div class="sg-row"><span>Difficulty</span><b id="sg-win-diff">Easy</b></div>
+        <div class="sg-row"><span>Time</span><b id="sg-win-time">0:00</b></div>
+        <div class="sg-row"><span>Mistakes</span><b id="sg-win-mist">0</b></div>
+        <button class="sg-btn" id="sg-win-new">New puzzle</button>
+        <button class="sg-btn sg-ghost" id="sg-win-menu">Menu</button>
+      </div>
+    </section>
+
+    <!-- ===== GAME OVER ===== -->
+    <section class="sg-screen" id="sg-over">
+      <div class="sg-panel" style="margin-top:6vh;">
+        <h2>Out of bubbles</h2>
+        <div class="sg-inky sg-sad" id="sg-inky-over"></div>
+        <p class="sg-tag">Three mistakes. Inky believes in you for the next one.</p>
+        <div class="sg-row"><span>Difficulty</span><b id="sg-over-diff">Easy</b></div>
+        <button class="sg-btn" id="sg-over-retry">Try again</button>
+        <button class="sg-btn sg-ghost" id="sg-over-menu">Menu</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   SUDOKU - glass grid. Single file, zero dependencies.
+   Sections: Config | ErrorBoundary | AudioEngine | SudokuEngine
+   | State | Board UI | Input | Screens | Init
+   ================================================================ */
+
+/* ---------------- Config ---------------- */
+const CFG = {
+  givens: { easy: 40, medium: 32, hard: 26 },
+  maxMistakes: 3,
+  diffNames: { easy: "Easy", medium: "Medium", hard: "Hard" }
+};
+(function configCheck(){
+  for (const k of ["easy","medium","hard"]) {
+    const g = CFG.givens[k];
+    if (typeof g !== "number" || g < 17 || g > 81) throw new Error("CFG.givens."+k+" invalid: "+g);
+  }
+  if (CFG.maxMistakes < 1) throw new Error("CFG.maxMistakes invalid");
+})();
+
+/* ---------------- Error boundary overlay ---------------- */
+(function errorBoundary(){
+  const box = document.getElementById("sg-err");
+  function show(msg){
+    box.style.display = "block";
+    box.textContent += "[sudoku] " + msg + "\n";
+  }
+  window.addEventListener("error", e => show("Error: " + (e.message || e.error)));
+  window.addEventListener("unhandledrejection", e => show("Promise: " + (e.reason && e.reason.message || e.reason)));
+  window.__sgErr = show;
+})();
+
+/* ---------------- AudioEngine (all synthesized) ---------------- */
+const AudioEngine = {
+  ctx: null, master: null, muted: false,
+  unlock(){
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.muted ? 0 : 0.5;
+      this.master.connect(this.ctx.destination);
+    } catch(e){ /* audio unavailable, stay silent */ }
+  },
+  setMuted(m){
+    this.muted = m;
+    if (this.master) this.master.gain.value = m ? 0 : 0.5;
+    for (const id of ["sg-mute-title","sg-btn-mute"]) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = (id === "sg-mute-title") ? ("Sound: " + (m ? "off" : "on")) : (m ? "\u2715" : "\u266A");
+    }
+  },
+  // water-drop blip: sine sweep 300 -> 1200 Hz, short decay
+  blip(){
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(300, t);
+    o.frequency.exponentialRampToValueAtTime(1200, t + 0.08);
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 0.18);
+  },
+  // soft error buzz
+  err(){
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(170, t);
+    o.frequency.linearRampToValueAtTime(120, t + 0.18);
+    g.gain.setValueAtTime(0.25, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 0.22);
+  },
+  // glass chime arpeggio with inharmonic partials
+  win(){
+    if (!this.ctx || this.muted) return;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((f, i) => {
+      const t = this.ctx.currentTime + i * 0.12;
+      [1, 2.01, 2.98].forEach((p, j) => {
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        o.type = "sine"; o.frequency.value = f * p;
+        const amp = 0.35 / (j + 1);
+        g.gain.setValueAtTime(amp, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+        o.connect(g); g.connect(this.master);
+        o.start(t); o.stop(t + 0.65);
+      });
+    });
+  },
+  tick(){
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = "sine"; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.15, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 0.06);
+  }
+};
+
+/*__ENGINE_START__*/
+/* ---------------- SudokuEngine (pure, DOM-free) ---------------- */
+const SudokuEngine = {
+  shuffled(arr){
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--){
+      const j = (Math.random() * (i + 1)) | 0;
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  },
+  emptyGrid(){ return Array.from({length: 9}, () => Array(9).fill(0)); },
+  clone(g){ return g.map(r => r.slice()); },
+  findEmpty(g){
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++)
+      if (g[r][c] === 0) return [r, c];
+    return null;
+  },
+  valid(g, r, c, n){
+    for (let i = 0; i < 9; i++) if (g[r][i] === n || g[i][c] === n) return false;
+    const br = r - r % 3, bc = c - c % 3;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+      if (g[br+i][bc+j] === n) return false;
+    return true;
+  },
+  // randomized backtracking fill; returns a complete valid grid
+  fillGrid(g){
+    const e = this.findEmpty(g);
+    if (!e) return true;
+    const r = e[0], c = e[1];
+    const nums = this.shuffled([1,2,3,4,5,6,7,8,9]);
+    for (const n of nums){
+      if (this.valid(g, r, c, n)){
+        g[r][c] = n;
+        if (this.fillGrid(g)) return true;
+        g[r][c] = 0;
+      }
+    }
+    return false;
+  },
+  // count solutions up to `limit` (early exit); mutates and restores g
+  countSolutions(g, limit){
+    let count = 0;
+    const self = this;
+    (function rec(){
+      if (count >= limit) return;
+      const e = self.findEmpty(g);
+      if (!e){ count++; return; }
+      const r = e[0], c = e[1];
+      for (let n = 1; n <= 9; n++){
+        if (self.valid(g, r, c, n)){
+          g[r][c] = n; rec(); g[r][c] = 0;
+          if (count >= limit) return;
+        }
+      }
+    })();
+    return count;
+  },
+  givensCount(g){
+    let k = 0;
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (g[r][c] !== 0) k++;
+    return k;
+  },
+  // dig holes while the solution stays unique; stops at target givens
+  dig(puzzle, target){
+    const cells = this.shuffled(Array.from({length: 81}, (_, i) => [(i / 9) | 0, i % 9]));
+    for (const cell of cells){
+      if (this.givensCount(puzzle) <= target) break;
+      const r = cell[0], c = cell[1];
+      const backup = puzzle[r][c];
+      puzzle[r][c] = 0;
+      const probe = this.clone(puzzle);
+      if (this.countSolutions(probe, 2) !== 1) puzzle[r][c] = backup;
+    }
+    return puzzle;
+  },
+  generate(diffKey){
+    const target = CFG.givens[diffKey] || CFG.givens.easy;
+    const solution = this.emptyGrid();
+    this.fillGrid(solution);
+    const puzzle = this.dig(this.clone(solution), target);
+    return { puzzle, solution };
+  },
+  gridsEqual(a, b){
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++)
+      if (a[r][c] !== b[r][c]) return false;
+    return true;
+  }
+};
+/*__ENGINE_END__*/
+
+/* ---------------- State ---------------- */
+const S = {
+  screen: "title",
+  diff: "easy",
+  puzzle: null,      // givens grid
+  solution: null,    // full grid
+  grid: null,        // working grid (givens + entries)
+  notes: null,       // 9x9 of Set
+  given: null,       // 9x9 bool
+  sel: null,         // [r,c]
+  notesMode: false,
+  mistakes: 0,
+  startTime: 0,
+  elapsed: 0,
+  timerId: null,
+  over: false
+};
+
+/* ---------------- Inky the squid (cameo SVG) ---------------- */
+function inkySVG(){
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="inkb" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#7ce7ff"/><stop offset="1" stop-color="#14b8a6"/>
+  </linearGradient></defs>
+  <path d="M38,26 Q60,4 82,26 L74,44 L46,44 Z" fill="#0ea5c9" opacity=".7"/>
+  <path d="M60,10 C38,10 28,32 32,54 C35,70 45,78 60,78 C75,78 85,70 88,54 C92,32 82,10 60,10 Z" fill="url(#inkb)" stroke="#0e7490" stroke-width="2"/>
+  <ellipse cx="60" cy="58" rx="16" ry="12" fill="#e0fbff" opacity=".55"/>
+  <circle cx="47" cy="42" r="8" fill="#fff"/><circle cx="73" cy="42" r="8" fill="#fff"/>
+  <circle class="inky-p" cx="49" cy="44" r="3.6" fill="#0b3346"/><circle class="inky-p" cx="71" cy="44" r="3.6" fill="#0b3346"/>
+  <circle cx="50" cy="42.5" r="1.2" fill="#fff"/><circle cx="72" cy="42.5" r="1.2" fill="#fff"/>
+  <path class="inky-smile" d="M48,60 Q60,70 72,60" stroke="#0b3346" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path class="inky-frown" d="M48,66 Q60,58 72,66" stroke="#0b3346" stroke-width="2.5" fill="none" stroke-linecap="round" style="display:none"/>
+  <g stroke="#0d9488" stroke-width="5" stroke-linecap="round" fill="none">
+    <path d="M44,76 Q40,90 46,100"/><path d="M54,78 Q52,92 56,103"/>
+    <path d="M64,78 Q64,92 60,103"/><path d="M74,76 Q78,90 72,100"/>
+  </g></svg>`;
+}
+
+/* ---------------- Background bubbles ---------------- */
+function buildBubbles(){
+  const bg = document.getElementById("sg-bg");
+  let html = "";
+  for (let i = 0; i < 14; i++){
+    const s = 12 + Math.random() * 46;
+    html += `<i style="left:${(Math.random()*100).toFixed(1)}%;width:${s.toFixed(0)}px;height:${s.toFixed(0)}px;animation-duration:${(9+Math.random()*14).toFixed(1)}s;animation-delay:-${(Math.random()*14).toFixed(1)}s;"></i>`;
+  }
+  bg.innerHTML = html;
+}
+
+/* ---------------- Screens ---------------- */
+function showScreen(name){
+  S.screen = name;
+  for (const id of ["sg-title","sg-game","sg-win","sg-over"])
+    document.getElementById(id).classList.toggle("sg-on", id === "sg-" + name);
+}
+
+/* ---------------- Board UI ---------------- */
+const boardEl = () => document.getElementById("sg-board");
+const cellEls = []; // 81 divs, index r*9+c
+
+function buildBoard(){
+  const b = boardEl();
+  b.innerHTML = "";
+  cellEls.length = 0;
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++){
+    const d = document.createElement("div");
+    d.className = "sg-cell" + (c === 2 || c === 5 ? " sg-bx" : "") + (r === 2 || r === 5 ? " sg-by" : "");
+    d.innerHTML = `<span class="sg-v"></span><div class="sg-notes"></div>`;
+    d.dataset.r = r; d.dataset.c = c;
+    b.appendChild(d);
+    cellEls.push(d);
+  }
+}
+
+function cellAt(r, c){ return cellEls[r * 9 + c]; }
+
+function renderCell(r, c){
+  const el = cellAt(r, c);
+  const vEl = el.querySelector(".sg-v");
+  const nEl = el.querySelector(".sg-notes");
+  const v = S.grid[r][c];
+  vEl.textContent = v ? v : "";
+  vEl.className = "sg-v";
+  if (v) vEl.classList.add(S.given[r][c] ? "sg-given" : "sg-user");
+  if (!v && S.notes[r][c].size){
+    let h = "";
+    for (let n = 1; n <= 9; n++) h += `<span>${S.notes[r][c].has(n) ? n : ""}</span>`;
+    nEl.innerHTML = h;
+  } else nEl.innerHTML = "";
+}
+
+function renderAll(){
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) renderCell(r, c);
+  updatePadCounts();
+  updateHighlights();
+}
+
+function updatePadCounts(){
+  const placed = [0,0,0,0,0,0,0,0,0,0];
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++)
+    if (S.grid[r][c]) placed[S.grid[r][c]]++;
+  const pad = document.getElementById("sg-pad");
+  for (let n = 1; n <= 9; n++){
+    const btn = pad.querySelector(`[data-n="${n}"]`);
+    if (!btn) continue;
+    const left = 9 - placed[n];
+    btn.querySelector("small").textContent = left > 0 ? left + " left" : "done";
+    btn.classList.toggle("sg-done", left <= 0);
+  }
+}
+
+function related(r, c){
+  // value at selected cell for same-number highlight
+  const v = S.grid[r][c];
+  for (let i = 0; i < 81; i++) cellEls[i].classList.remove("sg-rel","sg-same","sg-sel","sg-conflict");
+  if (!S.sel) return;
+  for (let i = 0; i < 9; i++){
+    cellAt(r, i).classList.add("sg-rel");
+    cellAt(i, c).classList.add("sg-rel");
+  }
+  const br = r - r % 3, bc = c - c % 3;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+    cellAt(br+i, bc+j).classList.add("sg-rel");
+  cellAt(r, c).classList.add("sg-sel");
+  cellAt(r, c).classList.remove("sg-rel");
+  if (v){
+    // same-number + conflict highlight
+    for (let rr = 0; rr < 9; rr++) for (let cc = 0; cc < 9; cc++){
+      if (S.grid[rr][cc] === v){
+        cellAt(rr, cc).classList.add("sg-same");
+        if ((rr !== r || cc !== c) &&
+            (rr === r || cc === c || ((rr/3|0) === (br/3|0) && (cc/3|0) === (bc/3|0))))
+          cellAt(rr, cc).classList.add("sg-conflict");
+      }
+    }
+  }
+}
+function updateHighlights(){
+  if (S.sel) related(S.sel[0], S.sel[1]);
+  else for (let i = 0; i < 81; i++) cellEls[i].classList.remove("sg-rel","sg-same","sg-sel","sg-conflict");
+}
+
+/* ---------------- Number pad ---------------- */
+function buildPad(){
+  const pad = document.getElementById("sg-pad");
+  pad.innerHTML = "";
+  for (let n = 1; n <= 9; n++){
+    const b = document.createElement("button");
+    b.className = "sg-key"; b.dataset.n = n;
+    b.innerHTML = `${n}<small></small>`;
+    pad.appendChild(b);
+  }
+  const erase = document.createElement("button");
+  erase.className = "sg-key sg-wide"; erase.dataset.act = "erase"; erase.textContent = "Clear";
+  const notes = document.createElement("button");
+  notes.className = "sg-key sg-wide"; notes.dataset.act = "notes"; notes.id = "sg-notes-btn"; notes.textContent = "Pencil";
+  pad.appendChild(notes); pad.appendChild(erase);
+}
+
+/* ---------------- Game flow ---------------- */
+function newGame(diff){
+  S.diff = diff;
+  const gen = SudokuEngine.generate(diff);
+  S.puzzle = gen.puzzle;
+  S.solution = gen.solution;
+  S.grid = SudokuEngine.clone(S.puzzle);
+  S.given = S.puzzle.map(row => row.map(v => v !== 0));
+  S.notes = Array.from({length: 9}, () => Array.from({length: 9}, () => new Set()));
+  S.sel = null;
+  S.notesMode = false;
+  S.mistakes = 0;
+  S.over = false;
+  // select first empty cell
+  outer: for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++)
+    if (!S.given[r][c]){ S.sel = [r, c]; break outer; }
+  document.getElementById("sg-level").textContent = CFG.diffNames[diff];
+  document.getElementById("sg-notes-btn").classList.remove("sg-notes-on");
+  renderAll();
+  updateMistakes();
+  startTimer();
+  showScreen("game");
+}
+
+function startTimer(){
+  stopTimer();
+  S.startTime = Date.now();
+  S.elapsed = 0;
+  const el = document.getElementById("sg-time");
+  el.textContent = "0:00";
+  S.timerId = setInterval(() => {
+    S.elapsed = Math.floor((Date.now() - S.startTime) / 1000);
+    el.textContent = fmtTime(S.elapsed);
+  }, 500);
+}
+function stopTimer(){ if (S.timerId){ clearInterval(S.timerId); S.timerId = null; } }
+function fmtTime(s){
+  const m = (s / 60) | 0, ss = s % 60;
+  return m + ":" + (ss < 10 ? "0" : "") + ss;
+}
+
+function updateMistakes(){
+  const el = document.getElementById("sg-mistakes");
+  let dots = "";
+  for (let i = 0; i < CFG.maxMistakes; i++) dots += i < S.mistakes ? "\u25CF" : "\u25CB";
+  el.textContent = dots;
+}
+
+function selectCell(r, c){
+  S.sel = [r, c];
+  AudioEngine.tick();
+  updateHighlights();
+}
+
+function enterNumber(n){
+  if (S.over || !S.sel) return;
+  const [r, c] = S.sel;
+  if (S.given[r][c]) return;
+  if (S.notesMode){
+    if (S.grid[r][c]) return;
+    const s = S.notes[r][c];
+    if (s.has(n)) s.delete(n); else s.add(n);
+    renderCell(r, c);
+    AudioEngine.tick();
+    return;
+  }
+  if (S.grid[r][c] === n) return;
+  if (n === S.solution[r][c]){
+    S.grid[r][c] = n;
+    S.notes[r][c].clear();
+    clearNotesOf(n, r, c);
+    renderAll();
+    const el = cellAt(r, c);
+    el.classList.remove("sg-pop"); void el.offsetWidth; el.classList.add("sg-pop");
+    AudioEngine.blip();
+    checkWin();
+  } else {
+    S.mistakes++;
+    updateMistakes();
+    const el = cellAt(r, c);
+    el.querySelector(".sg-v").textContent = n;
+    el.classList.remove("sg-bad"); void el.offsetWidth; el.classList.add("sg-bad");
+    AudioEngine.err();
+    setTimeout(() => { if (!S.over) renderCell(r, c); }, 340);
+    if (S.mistakes >= CFG.maxMistakes) gameOver();
+  }
+}
+
+function clearNotesOf(n, r, c){
+  for (let i = 0; i < 9; i++){ S.notes[r][i].delete(n); S.notes[i][c].delete(n); }
+  const br = r - r % 3, bc = c - c % 3;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) S.notes[br+i][bc+j].delete(n);
+}
+
+function eraseCell(){
+  if (S.over || !S.sel) return;
+  const [r, c] = S.sel;
+  if (S.given[r][c]) return;
+  S.grid[r][c] = 0;
+  S.notes[r][c].clear();
+  renderAll();
+  AudioEngine.tick();
+}
+
+function toggleNotes(){
+  S.notesMode = !S.notesMode;
+  document.getElementById("sg-notes-btn").classList.toggle("sg-notes-on", S.notesMode);
+  AudioEngine.tick();
+}
+
+function checkWin(){
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++)
+    if (S.grid[r][c] === 0) return;
+  // wrong entries are never committed, so a full grid is a solved grid; verify anyway
+  if (!SudokuEngine.gridsEqual(S.grid, S.solution)) return;
+  win();
+}
+
+function win(){
+  S.over = true;
+  stopTimer();
+  AudioEngine.win();
+  document.getElementById("sg-win-diff").textContent = CFG.diffNames[S.diff];
+  document.getElementById("sg-win-time").textContent = fmtTime(S.elapsed);
+  document.getElementById("sg-win-mist").textContent = S.mistakes + " / " + CFG.maxMistakes;
+  const ink = document.getElementById("sg-inky-win");
+  ink.querySelector(".inky-smile").style.display = "";
+  ink.querySelector(".inky-frown").style.display = "none";
+  showScreen("win");
+}
+
+function gameOver(){
+  S.over = true;
+  stopTimer();
+  document.getElementById("sg-over-diff").textContent = CFG.diffNames[S.diff];
+  const ink = document.getElementById("sg-inky-over");
+  ink.querySelector(".inky-smile").style.display = "none";
+  ink.querySelector(".inky-frown").style.display = "";
+  showScreen("over");
+}
+
+/* ---------------- Input (bound once) ---------------- */
+function bindInput(){
+  boardEl().addEventListener("pointerdown", e => {
+    AudioEngine.unlock();
+    const t = e.target.closest(".sg-cell");
+    if (!t) return;
+    selectCell(+t.dataset.r, +t.dataset.c);
+  });
+  document.getElementById("sg-pad").addEventListener("pointerdown", e => {
+    AudioEngine.unlock();
+    const b = e.target.closest(".sg-key");
+    if (!b) return;
+    if (b.dataset.n) enterNumber(+b.dataset.n);
+    else if (b.dataset.act === "erase") eraseCell();
+    else if (b.dataset.act === "notes") toggleNotes();
+  });
+  document.querySelectorAll("[data-diff]").forEach(btn => {
+    btn.addEventListener("click", () => { AudioEngine.unlock(); AudioEngine.tick(); newGame(btn.dataset.diff); });
+  });
+  const muteAll = () => {
+    AudioEngine.unlock();
+    AudioEngine.setMuted(!AudioEngine.muted);
+  };
+  document.getElementById("sg-mute-title").addEventListener("click", muteAll);
+  document.getElementById("sg-btn-mute").addEventListener("click", muteAll);
+  document.getElementById("sg-btn-menu").addEventListener("click", () => { stopTimer(); showScreen("title"); });
+  document.getElementById("sg-btn-restart").addEventListener("click", () => newGame(S.diff));
+  document.getElementById("sg-win-new").addEventListener("click", () => newGame(S.diff));
+  document.getElementById("sg-win-menu").addEventListener("click", () => showScreen("title"));
+  document.getElementById("sg-over-retry").addEventListener("click", () => newGame(S.diff));
+  document.getElementById("sg-over-menu").addEventListener("click", () => showScreen("title"));
+  // keyboard
+  document.addEventListener("keydown", e => {
+    if (S.screen !== "game" || S.over) return;
+    if (e.key >= "1" && e.key <= "9") enterNumber(+e.key);
+    else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") eraseCell();
+    else if (e.key === "n" || e.key === "N") toggleNotes();
+    else if (e.key.startsWith("Arrow") && S.sel){
+      e.preventDefault();
+      let [r, c] = S.sel;
+      if (e.key === "ArrowUp") r = (r + 8) % 9;
+      if (e.key === "ArrowDown") r = (r + 1) % 9;
+      if (e.key === "ArrowLeft") c = (c + 8) % 9;
+      if (e.key === "ArrowRight") c = (c + 1) % 9;
+      selectCell(r, c);
+    }
+  });
+}
+
+/* ---------------- Init ---------------- */
+(function init(){
+  buildBubbles();
+  buildBoard();
+  buildPad();
+  document.getElementById("sg-inky-win").innerHTML = inkySVG();
+  document.getElementById("sg-inky-over").innerHTML = inkySVG();
+  bindInput();
+  AudioEngine.setMuted(false);
+})();
+</script>
+</body>
+</html>

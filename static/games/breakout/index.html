@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aqua Breakout</title>
+<style>
+  :root{
+    --bg-deep:#062a33;
+    --bg-shallow:#0b4f5c;
+    --aqua:#67e8f9;
+    --ink:#eafcff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg-shallow) 0%, var(--bg-deep) 70%, #03161b 100%);
+    display:flex;align-items:center;justify-content:center;
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink);
+    user-select:none;-webkit-user-select:none;
+  }
+  #wrap{position:relative;line-height:0}
+  canvas{
+    width:min(100vw, calc(100vh * 4 / 3));
+    height:auto;
+    border-radius:14px;
+    touch-action:none;
+    cursor:pointer;
+    box-shadow:0 0 60px rgba(103,232,249,.18), 0 18px 60px rgba(0,0,0,.45);
+  }
+  #errbox{
+    display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:50;
+    background:rgba(120,10,10,.92);color:#fff;font:13px/1.5 monospace;
+    padding:10px 14px;border-radius:8px;white-space:pre-wrap;line-height:1.5;
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="800" height="600"></canvas></div>
+<div id="errbox"></div>
+<script>
+'use strict';
+/* =====================================================================
+   AQUA BREAKOUT - a glassy little brick smasher
+   Sections: Config | Utils | Audio | Sprites | State | Physics | Juice |
+             Render | Input | Screens | Loop | Boot
+   ===================================================================== */
+
+/* ---------------- Config ---------------- */
+const CFG = {
+  W: 800, H: 600,
+  paddleW: 112, paddleH: 16, paddleY: 540, paddleSpeed: 560,
+  ballR: 9, baseSpeed: 340, levelSpeedGain: 0.12,
+  cols: 10, rows: 6, brickGap: 8, brickTop: 108, sideMargin: 36, brickH: 24,
+  lives: 3, hitStopMs: 45, maxParticles: 150, bgBubbles: 26,
+  bestKey: 'aquaBreakoutBest', muteKey: 'aquaBreakoutMute'
+};
+// Config integrity: fail loudly on a bad constant instead of weird behavior.
+(function checkConfig(){
+  const numKeys = ['W','H','paddleW','paddleH','paddleY','paddleSpeed','ballR','baseSpeed',
+    'levelSpeedGain','cols','rows','brickGap','brickTop','sideMargin','brickH',
+    'lives','hitStopMs','maxParticles','bgBubbles'];
+  for (const k of numKeys){
+    const v = CFG[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0)
+      throw new Error('Bad config: ' + k + ' = ' + v);
+  }
+})();
+
+// Brick rows, top to bottom. Amber on top is worth the most.
+const ROW_DEFS = [
+  { c1:'#ffd166', c2:'#fb8500', pts:50 },
+  { c1:'#ffcf5e', c2:'#ff9e2c', pts:40 },
+  { c1:'#2dd4bf', c2:'#0d9488', pts:30 },
+  { c1:'#5eead4', c2:'#14b8a6', pts:20 },
+  { c1:'#67e8f9', c2:'#0891b2', pts:15 },
+  { c1:'#a5f3fc', c2:'#22d3ee', pts:10 }
+];
+
+/* ---------------- Utils ---------------- */
+const ROOT = (typeof window !== 'undefined') ? window : globalThis;
+const clamp = (v,a,b) => v < a ? a : (v > b ? b : v);
+const rnd = (a,b) => a + Math.random()*(b-a);
+function easeOutBack(t){ const c=1.70158; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); }
+function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+/* Error boundary: surface runtime errors on screen while testing. */
+function showError(msg){
+  try{
+    const box = document.getElementById('errbox');
+    if (box){ box.style.display='block'; box.textContent = 'Error: ' + msg; }
+  }catch(e){ /* last resort: ignore */ }
+}
+if (typeof window !== 'undefined'){
+  window.addEventListener('error', e => showError(e.message || String(e.error)));
+  window.addEventListener('unhandledrejection', e => showError('promise: ' + (e.reason && e.reason.message || e.reason)));
+}
+
+/* ---------------- Audio: one master gain, mute toggles it ---------------- */
+const Sound = {
+  ctx:null, master:null, muted:false, unlocked:false,
+  init(){
+    if (this.unlocked) return;
+    try{
+      const AC = ROOT.AudioContext || ROOT.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.5;
+      this.master.connect(this.ctx.destination);
+      try { this.muted = window.localStorage.getItem(CFG.muteKey) === '1'; } catch (e) { this.muted = false; }
+      this.applyMute();
+      this.unlocked = true;
+    }catch(e){ /* audio stays off, game still runs */ }
+  },
+  applyMute(){ if (this.master) this.master.gain.value = this.muted ? 0 : 0.5; },
+  toggleMute(){
+    this.muted = !this.muted;
+    try{ localStorage.setItem(CFG.muteKey, this.muted ? '1' : '0'); }catch(e){}
+    this.applyMute();
+  },
+  tone(f0, f1, dur, type, vol, delay){
+    if (!this.unlocked || this.muted) return;
+    try{
+      const t0 = this.ctx.currentTime + (delay || 0);
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(Math.max(f0, 1), t0);
+      o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.3, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(this.master);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    }catch(e){}
+  },
+  brick(streak){ // water-drop blip, pitch climbs with the streak
+    const s = 1 + Math.min(streak, 12) * 0.07;
+    this.tone(320*s, 1250*s, 0.11, 'sine', 0.32);
+  },
+  paddle(){ // glass tick: fundamental plus inharmonic partials
+    this.tone(880, 840, 0.07, 'sine', 0.22);
+    this.tone(1769, 1700, 0.05, 'sine', 0.10);
+    this.tone(2622, 2540, 0.04, 'sine', 0.06);
+  },
+  lose(){ this.tone(220, 55, 0.35, 'sine', 0.4); },
+  launch(){ this.tone(500, 900, 0.09, 'sine', 0.2); },
+  clear(){ const n=[523,659,784,1047]; for(let i=0;i<n.length;i++) this.tone(n[i], n[i], 0.16, 'sine', 0.25, i*0.09); },
+  over(){ const n=[392,311,262,196]; for(let i=0;i<n.length;i++) this.tone(n[i], n[i]*0.97, 0.22, 'triangle', 0.22, i*0.13); },
+  ui(){ this.tone(700, 1100, 0.06, 'sine', 0.16); }
+};
+
+/* ---------------- Sprites: pre-baked once, blitted per frame ---------------- */
+const Sprites = {
+  bricks: [], ball: null, paddle: null, bubbles: [], dots: {},
+  make(w, h, draw){
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    return c;
+  },
+  glassRect(g, w, h, c1, c2){
+    const grad = g.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, c1); grad.addColorStop(0.55, c2); grad.addColorStop(1, c1);
+    g.fillStyle = grad;
+    g.beginPath();
+    const r = 6;
+    g.moveTo(r,0); g.lineTo(w-r,0); g.quadraticCurveTo(w,0,w,r);
+    g.lineTo(w,h-r); g.quadraticCurveTo(w,h,w-r,h);
+    g.lineTo(r,h); g.quadraticCurveTo(0,h,0,h-r);
+    g.lineTo(0,r); g.quadraticCurveTo(0,0,r,0); g.closePath(); g.fill();
+    // crisp top edge + gloss sweep
+    g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(2, 1, w-4, 2);
+    g.fillStyle = 'rgba(255,255,255,0.28)';
+    g.beginPath(); g.ellipse(w*0.5, h*0.30, w*0.42, h*0.16, 0, 0, Math.PI*2); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(r,1); g.lineTo(w-r,1); g.quadraticCurveTo(w-1,1,w-1,r);
+    g.stroke();
+  },
+  init(brickW, brickH){
+    for (const def of ROW_DEFS)
+      this.bricks.push(this.make(Math.ceil(brickW), brickH, (g,w,h) => this.glassRect(g,w,h,def.c1,def.c2)));
+    const br = CFG.ballR;
+    this.ball = this.make(br*4, br*4, (g,w,h) => {
+      const cx=w/2, cy=h/2;
+      let rg = g.createRadialGradient(cx,cy,0,cx,cy,w/2);
+      rg.addColorStop(0,'rgba(160,240,255,0)');
+      rg.addColorStop(0.55,'rgba(120,220,255,0.35)');
+      rg.addColorStop(1,'rgba(120,220,255,0)');
+      g.fillStyle = rg; g.fillRect(0,0,w,h);
+      rg = g.createRadialGradient(cx-br*0.3,cy-br*0.35,1,cx,cy,br);
+      rg.addColorStop(0,'#ffffff'); rg.addColorStop(0.45,'#c9f6ff');
+      rg.addColorStop(0.8,'#5ec8e8'); rg.addColorStop(1,'#2a9fc4');
+      g.fillStyle = rg; g.beginPath(); g.arc(cx,cy,br,0,Math.PI*2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.9)';
+      g.beginPath(); g.ellipse(cx-br*0.32, cy-br*0.38, br*0.28, br*0.16, -0.6, 0, Math.PI*2); g.fill();
+    });
+    this.paddle = this.make(Math.ceil(CFG.paddleW)+8, CFG.paddleH+8, (g,w,h) => {
+      g.translate(4,4);
+      this.glassRect(g, CFG.paddleW, CFG.paddleH, '#d9f7ff', '#7cc7de');
+    });
+    const sizes = [10, 18, 30];
+    for (const s of sizes)
+      this.bubbles.push(this.make(s*2+4, s*2+4, (g,w,h) => {
+        const cx=w/2, cy=h/2;
+        g.strokeStyle='rgba(200,245,255,0.55)'; g.lineWidth=2;
+        g.beginPath(); g.arc(cx,cy,s,0,Math.PI*2); g.stroke();
+        g.fillStyle='rgba(255,255,255,0.75)';
+        g.beginPath(); g.ellipse(cx-s*0.3,cy-s*0.35,s*0.22,s*0.12,-0.6,0,Math.PI*2); g.fill();
+      }));
+    const dotCols = ['#ffffff','#ffd166','#2dd4bf','#67e8f9'];
+    for (const c of dotCols)
+      this.dots[c] = this.make(8,8,(g)=>{ g.fillStyle=c; g.beginPath(); g.arc(4,4,3.4,0,Math.PI*2); g.fill(); });
+  }
+};
+
+/* ---------------- State ---------------- */
+const G = {
+  mode: 'title',           // title | serve | play | levelclear | gameover
+  level: 1, score: 0, lives: CFG.lives, streak: 0,
+  best: 0,
+  paddle: { x: CFG.W/2, targetX: CFG.W/2, dir: 0, sq: 1, sqV: 0 },
+  ball: { x: 0, y: 0, vx: 0, vy: 0, stuck: true, trail: [] },
+  bricks: [],
+  particles: [], rings: [], bubbles: [],
+  hitstop: 0, shakeAmp: 0, shakeT: 0,
+  buttons: [], time: 0,
+  newBest: false
+};
+try{ G.best = parseInt(localStorage.getItem(CFG.bestKey) || '0', 10) || 0; }catch(e){}
+
+function brickGeom(){
+  const w = (CFG.W - CFG.sideMargin*2 - CFG.brickGap*(CFG.cols-1)) / CFG.cols;
+  return { w, h: CFG.brickH, x0: CFG.sideMargin, y0: CFG.brickTop, gap: CFG.brickGap };
+}
+function buildBricks(){
+  const g = brickGeom();
+  G.bricks = [];
+  for (let r = 0; r < CFG.rows; r++)
+    for (let c = 0; c < CFG.cols; c++)
+      G.bricks.push({
+        col: c, row: r,
+        x: g.x0 + c*(g.w + g.gap), y: g.y0 + r*(g.h + g.gap),
+        w: g.w, h: g.h,
+        pts: ROW_DEFS[r].pts, colorIdx: r, alive: true
+      });
+}
+function ballSpeed(){ return CFG.baseSpeed * (1 + (G.level-1) * CFG.levelSpeedGain); }
+function serveBall(){
+  const b = G.ball, p = G.paddle;
+  b.stuck = true; b.x = p.x; b.y = CFG.paddleY - CFG.ballR - 2;
+  b.vx = 0; b.vy = 0; b.trail.length = 0;
+}
+function launchBall(){
+  if (!G.ball.stuck) return;
+  const sp = ballSpeed(), b = G.ball;
+  const ang = rnd(-0.5, 0.5);
+  b.vx = Math.sin(ang) * sp; b.vy = -Math.cos(ang) * sp;
+  b.stuck = false;
+  G.mode = 'play';
+  Sound.launch();
+}
+function startGame(){
+  G.level = 1; G.score = 0; G.lives = CFG.lives; G.streak = 0;
+  G.newBest = false; G.paddle.x = CFG.W/2; G.paddle.targetX = CFG.W/2;
+  buildBricks(); serveBall();
+  G.mode = 'serve';
+}
+function nextLevel(){
+  G.level++; G.streak = 0;
+  buildBricks(); serveBall();
+  G.mode = 'serve';
+}
+function loseBall(){
+  G.lives--; G.streak = 0;
+  G.hitstop = CFG.hitStopMs; G.shakeAmp = 10; G.shakeT = 0;
+  Sound.lose();
+  if (G.lives <= 0){
+    G.mode = 'gameover';
+    if (G.score > G.best){
+      G.best = G.score; G.newBest = true;
+      try{ localStorage.setItem(CFG.bestKey, String(G.best)); }catch(e){}
+    }
+    Sound.over();
+  } else {
+    serveBall();
+    G.mode = 'serve';
+  }
+}
+
+/* ---------------- Juice ---------------- */
+function burst(x, y, colorIdx){
+  const def = ROW_DEFS[colorIdx];
+  const cols = ['#ffffff', def.c1, def.c2];
+  for (let i = 0; i < 14; i++){
+    if (G.particles.length >= CFG.maxParticles) G.particles.shift();
+    const a = rnd(0, Math.PI*2), sp = rnd(60, 260);
+    G.particles.push({
+      x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 60,
+      life: rnd(0.35, 0.7), age: 0,
+      col: cols[(Math.random()*cols.length)|0], size: rnd(3, 6)
+    });
+  }
+  G.rings.push({ x, y, r: 4, maxR: 46, age: 0, life: 0.35, col: def.c1 });
+}
+function initBubbles(){
+  G.bubbles = [];
+  for (let i = 0; i < CFG.bgBubbles; i++)
+    G.bubbles.push({
+      x: rnd(0, CFG.W), y: rnd(0, CFG.H),
+      s: (Math.random()*Sprites.bubbles.length)|0,
+      vy: rnd(18, 55), ph: rnd(0, Math.PI*2), drift: rnd(6, 22)
+    });
+}
+
+/* ---------------- Physics (fixed 60Hz step) ---------------- */
+function fixedUpdate(dt){
+  G.time += dt;
+  const p = G.paddle, b = G.ball;
+
+  // Paddle: keyboard velocity plus pointer target with fast smoothing.
+  if (p.dir !== 0) p.targetX = p.x + p.dir * CFG.paddleSpeed * dt;
+  p.targetX = clamp(p.targetX, CFG.paddleW/2 + 6, CFG.W - CFG.paddleW/2 - 6);
+  const k = 1 - Math.pow(0.00005, dt);
+  p.x += (p.targetX - p.x) * k;
+  p.x = clamp(p.x, CFG.paddleW/2 + 6, CFG.W - CFG.paddleW/2 - 6);
+
+  // Paddle squash spring: damped harmonic oscillator back to 1.
+  const kk = 220, cc = 14;
+  p.sqV += (-kk*(p.sq - 1) - cc*p.sqV) * dt;
+  p.sq += p.sqV * dt;
+
+  if (G.mode === 'serve'){
+    b.x = p.x; b.y = CFG.paddleY - CFG.ballR - 2;
+  } else if (G.mode === 'play'){
+    // Integrate with substeps so fast balls never tunnel through bricks.
+    const sp = Math.hypot(b.vx, b.vy) || 1;
+    const steps = Math.max(1, Math.ceil(sp * dt / (CFG.ballR * 0.8)));
+    const sdt = dt / steps;
+    for (let s = 0; s < steps; s++) moveBall(sdt);
+  }
+
+  // Particles, rings, shake, bubbles always tick.
+  for (let i = G.particles.length-1; i >= 0; i--){
+    const q = G.particles[i];
+    q.age += dt;
+    if (q.age >= q.life){ G.particles.splice(i,1); continue; }
+    q.vy += 320 * dt;
+    q.x += q.vx * dt; q.y += q.vy * dt;
+  }
+  for (let i = G.rings.length-1; i >= 0; i--){
+    const r = G.rings[i];
+    r.age += dt;
+    if (r.age >= r.life){ G.rings.splice(i,1); continue; }
+    r.r = 4 + (r.maxR - 4) * easeOutCubic(r.age / r.life);
+  }
+  if (G.shakeAmp > 0.2){ G.shakeT += dt; G.shakeAmp *= Math.pow(0.02, dt); }
+  else G.shakeAmp = 0;
+  for (const bb of G.bubbles){
+    bb.y -= bb.vy * dt;
+    bb.ph += dt * 1.4;
+    if (bb.y < -40){ bb.y = CFG.H + 30; bb.x = rnd(0, CFG.W); }
+  }
+}
+
+function moveBall(dt){
+  const b = G.ball;
+  b.x += b.vx * dt; b.y += b.vy * dt;
+  const r = CFG.ballR;
+
+  // Trail for the glow.
+  b.trail.push({ x: b.x, y: b.y });
+  if (b.trail.length > 10) b.trail.shift();
+
+  // Walls.
+  if (b.x - r < 0){ b.x = r; b.vx = Math.abs(b.vx); }
+  else if (b.x + r > CFG.W){ b.x = CFG.W - r; b.vx = -Math.abs(b.vx); }
+  if (b.y - r < 0){ b.y = r; b.vy = Math.abs(b.vy); }
+
+  // Paddle.
+  const p = G.paddle;
+  if (b.vy > 0 &&
+      b.y + r >= CFG.paddleY && b.y + r <= CFG.paddleY + CFG.paddleH + 14 &&
+      Math.abs(b.x - p.x) <= CFG.paddleW/2 + r){
+    const off = clamp((b.x - p.x) / (CFG.paddleW/2), -1, 1);
+    const sp = Math.hypot(b.vx, b.vy);
+    b.vx = off * sp * 0.78;
+    b.vy = -Math.sqrt(Math.max(sp*sp - b.vx*b.vx, sp*sp*0.2));
+    b.y = CFG.paddleY - r - 0.5;
+    p.sq = 0.8; p.sqV = 0;
+    G.streak = 0;
+    Sound.paddle();
+  }
+
+  // Bricks.
+  for (const br of G.bricks){
+    if (!br.alive) continue;
+    const nx = clamp(b.x, br.x, br.x + br.w);
+    const ny = clamp(b.y, br.y, br.y + br.h);
+    const dx = b.x - nx, dy = b.y - ny;
+    if (dx*dx + dy*dy <= r*r){
+      // Reflect along the shallowest penetration axis.
+      const overL = (b.x + r) - br.x, overR = (br.x + br.w) - (b.x - r);
+      const overT = (b.y + r) - br.y, overB = (br.y + br.h) - (b.y - r);
+      const m = Math.min(overL, overR, overT, overB);
+      if (m === overL) b.vx = -Math.abs(b.vx);
+      else if (m === overR) b.vx = Math.abs(b.vx);
+      else if (m === overT) b.vy = -Math.abs(b.vy);
+      else b.vy = Math.abs(b.vy);
+      br.alive = false;
+      G.score += br.pts;
+      G.streak++;
+      burst(nx, ny, br.colorIdx);
+      G.hitstop = CFG.hitStopMs;
+      Sound.brick(G.streak);
+      break;
+    }
+  }
+
+  // Lost below the screen.
+  if (b.y - r > CFG.H){ loseBall(); return; }
+
+  // Cleared the board.
+  let anyAlive = false;
+  for (const br of G.bricks) if (br.alive){ anyAlive = true; break; }
+  if (!anyAlive && G.mode === 'play'){
+    G.mode = 'levelclear';
+    const bonus = 100 * G.level;
+    G.score += bonus;
+    Sound.clear();
+  }
+}
+
+/* ---------------- Render ---------------- */
+let canvas = null, ctx = null, DPR = 1;
+function resize(){
+  if (!canvas) return;
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1;
+  DPR = dpr;
+  canvas.width = Math.round(CFG.W * dpr);
+  canvas.height = Math.round(CFG.H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // never repeated scale: single source of truth
+}
+function roundRectPath(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x+r, y); g.lineTo(x+w-r, y); g.quadraticCurveTo(x+w, y, x+w, y+r);
+  g.lineTo(x+w, y+h-r); g.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  g.lineTo(x+r, y+h); g.quadraticCurveTo(x, y+h, x, y+h-r);
+  g.lineTo(x, y+r); g.quadraticCurveTo(x, y, x+r, y); g.closePath();
+}
+function drawPanel(x, y, w, h, pop){
+  const s = easeOutBack(clamp(pop, 0, 1));
+  ctx.save();
+  ctx.translate(x + w/2, y + h/2); ctx.scale(Math.max(s, 0.01), Math.max(s, 0.01)); ctx.translate(-(x + w/2), -(y + h/2));
+  const grad = ctx.createLinearGradient(0, y, 0, y+h);
+  grad.addColorStop(0, 'rgba(210,250,255,0.22)');
+  grad.addColorStop(1, 'rgba(120,200,225,0.10)');
+  roundRectPath(ctx, x, y, w, h, 18);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 2; ctx.stroke();
+  // gloss cap
+  ctx.save();
+  roundRectPath(ctx, x, y, w, h, 18); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.beginPath(); ctx.ellipse(x + w/2, y + 6, w*0.48, h*0.22, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+function drawButton(id, cx, y, w, h, label){
+  const x = cx - w/2;
+  G.buttons.push({ id, x, y, w, h });
+  const grad = ctx.createLinearGradient(0, y, 0, y+h);
+  grad.addColorStop(0, '#8fe8ff'); grad.addColorStop(1, '#2aa8cc');
+  roundRectPath(ctx, x, y, w, h, 12);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#04303c';
+  ctx.font = 'bold 22px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, y + h/2 + 1);
+}
+/* Inky the squid: canvas-drawn cameo, no emojis. mood: 'happy' | 'sad' */
+function drawInky(x, y, s, mood, t){
+  ctx.save();
+  ctx.translate(x, y + Math.sin(t*3)*3*s);
+  const up = mood === 'happy';
+  // tentacles
+  ctx.strokeStyle = 'rgba(216,170,235,0.95)'; ctx.lineWidth = 5*s; ctx.lineCap = 'round';
+  for (let i = -2; i <= 2; i++){
+    const bx = i * 13 * s, curl = up ? -14*s : 10*s;
+    ctx.beginPath();
+    ctx.moveTo(bx, 18*s);
+    ctx.quadraticCurveTo(bx + i*4*s, (34+curl*0.4)*s, bx + i*6*s, (44+curl)*s);
+    ctx.stroke();
+  }
+  // dome body
+  const grad = ctx.createLinearGradient(0, -30*s, 0, 22*s);
+  grad.addColorStop(0, '#e9c8f5'); grad.addColorStop(1, '#a86fd0');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(0, -4*s, 26*s, 28*s, 0, Math.PI, 0);
+  ctx.quadraticCurveTo(26*s, 20*s, 14*s, 20*s);
+  ctx.lineTo(-14*s, 20*s);
+  ctx.quadraticCurveTo(-26*s, 20*s, -26*s, -4*s);
+  ctx.closePath(); ctx.fill();
+  // gloss
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.ellipse(-9*s, -16*s, 6*s, 10*s, -0.4, 0, Math.PI*2); ctx.fill();
+  // eyes
+  const py = up ? -8*s : -2*s;
+  for (const ex of [-10*s, 10*s]){
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, py, 6.5*s, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1d1030'; ctx.beginPath(); ctx.arc(ex, py + (up ? -1.5*s : 2*s), 3*s, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+function render(){
+  ctx.clearRect(0, 0, CFG.W, CFG.H);
+  ctx.save();
+  if (G.shakeAmp > 0){
+    ctx.translate(Math.sin(G.shakeT*70) * G.shakeAmp, Math.cos(G.shakeT*55) * G.shakeAmp * 0.6);
+  }
+
+  // Water backdrop: layered soft bands (one static gradient each frame is fine, it is a fill not a blur).
+  let bg = ctx.createLinearGradient(0, 0, 0, CFG.H);
+  bg.addColorStop(0, '#0d5a6b'); bg.addColorStop(0.55, '#083f4c'); bg.addColorStop(1, '#04262e');
+  ctx.fillStyle = bg; ctx.fillRect(-20, -20, CFG.W+40, CFG.H+40);
+
+  // Rising bubbles.
+  for (const bb of G.bubbles){
+    const spr = Sprites.bubbles[bb.s];
+    const sway = Math.sin(bb.ph) * bb.drift;
+    ctx.drawImage(spr, Math.round(bb.x + sway - spr.width/2), Math.round(bb.y - spr.height/2));
+  }
+
+  // Bricks.
+  for (const br of G.bricks){
+    if (!br.alive) continue;
+    ctx.drawImage(Sprites.bricks[br.colorIdx], Math.round(br.x), Math.round(br.y));
+  }
+
+  // Paddle with squash and stretch (volume preserving).
+  const p = G.paddle;
+  const sqY = clamp(p.sq, 0.6, 1.4), sqX = 1 / sqY;
+  ctx.save();
+  ctx.translate(p.x, CFG.paddleY + CFG.paddleH/2);
+  ctx.scale(sqX, sqY);
+  ctx.drawImage(Sprites.paddle, Math.round(-CFG.paddleW/2 - 4), Math.round(-CFG.paddleH/2 - 4));
+  ctx.restore();
+
+  // Ball glow + orb + trail.
+  const b = G.ball;
+  for (let i = 0; i < b.trail.length; i++){
+    const tr = b.trail[i], a = (i+1)/b.trail.length * 0.35;
+    ctx.globalAlpha = a;
+    ctx.drawImage(Sprites.ball, Math.round(tr.x - CFG.ballR*2), Math.round(tr.y - CFG.ballR*2));
+  }
+  ctx.globalAlpha = 1;
+  ctx.drawImage(Sprites.ball, Math.round(b.x - CFG.ballR*2), Math.round(b.y - CFG.ballR*2));
+
+  // Particles (pre-baked dots).
+  for (const q of G.particles){
+    const spr = Sprites.dots[q.col];
+    if (!spr) continue;
+    ctx.globalAlpha = 1 - q.age/q.life;
+    ctx.drawImage(spr, Math.round(q.x - 4), Math.round(q.y - 4));
+  }
+  ctx.globalAlpha = 1;
+
+  // Expanding rings.
+  for (const r of G.rings){
+    ctx.globalAlpha = 0.8 * (1 - r.age/r.life);
+    ctx.strokeStyle = r.col; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  drawHUD();
+  drawScreens();
+}
+function drawHUD(){
+  ctx.textBaseline = 'top';
+  ctx.font = 'bold 20px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(234,252,255,0.95)';
+  ctx.fillText('SCORE ' + G.score, 20, 16);
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + G.level, CFG.W/2, 16);
+  ctx.textAlign = 'right';
+  ctx.fillText('BEST ' + Math.max(G.best, G.score), CFG.W - 20, 16);
+  // lives as little orbs
+  for (let i = 0; i < G.lives; i++){
+    const s = 0.55;
+    ctx.drawImage(Sprites.ball, Math.round(CFG.W - 30 - i*26 - CFG.ballR*2*s), Math.round(52 - CFG.ballR*2*s),
+      Sprites.ball.width*s, Sprites.ball.height*s);
+  }
+  ctx.textAlign = 'right';
+  ctx.font = '15px "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = Sound.muted ? 'rgba(234,252,255,0.45)' : 'rgba(234,252,255,0.8)';
+  ctx.fillText(Sound.muted ? 'M: sound off' : 'M: sound on', CFG.W - 20, CFG.H - 26);
+}
+function drawScreens(){
+  G.buttons = [];
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (G.mode === 'title'){
+    ctx.fillStyle = 'rgba(3,25,31,0.55)'; ctx.fillRect(0, 0, CFG.W, CFG.H);
+    drawPanel(150, 120, 500, 360, 1);
+    ctx.fillStyle = '#eafcff';
+    ctx.font = 'bold 64px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('AQUA', CFG.W/2, 190);
+    ctx.fillText('BREAKOUT', CFG.W/2, 252);
+    ctx.font = '19px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(234,252,255,0.85)';
+    ctx.fillText('a glassy little brick smasher', CFG.W/2, 300);
+    ctx.font = '17px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(234,252,255,0.75)';
+    ctx.fillText('Move: mouse, touch, or arrow keys', CFG.W/2, 340);
+    ctx.fillText('Click to launch the ball. Clear every brick.', CFG.W/2, 364);
+    ctx.fillText('Best score: ' + G.best, CFG.W/2, 392);
+    drawButton('start', CFG.W/2, 428, 220, 52, 'START');
+  } else if (G.mode === 'serve' && G.level === 1 && G.score === 0){
+    ctx.fillStyle = 'rgba(234,252,255,0.9)';
+    ctx.font = '20px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('Click, tap, or press Space to launch', CFG.W/2, 470);
+  } else if (G.mode === 'levelclear'){
+    ctx.fillStyle = 'rgba(3,25,31,0.55)'; ctx.fillRect(0, 0, CFG.W, CFG.H);
+    drawPanel(190, 140, 420, 330, 1);
+    drawInky(CFG.W/2, 210, 1.1, 'happy', G.time);
+    ctx.fillStyle = '#eafcff';
+    ctx.font = 'bold 44px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('LEVEL ' + G.level + ' CLEAR', CFG.W/2, 300);
+    ctx.font = '19px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(234,252,255,0.85)';
+    ctx.fillText('Bonus +' + (100*G.level) + '   Score ' + G.score, CFG.W/2, 340);
+    ctx.fillText('Next level is a little faster.', CFG.W/2, 368);
+    drawButton('next', CFG.W/2, 410, 240, 52, 'NEXT LEVEL');
+  } else if (G.mode === 'gameover'){
+    ctx.fillStyle = 'rgba(3,25,31,0.6)'; ctx.fillRect(0, 0, CFG.W, CFG.H);
+    drawPanel(190, 120, 420, 370, 1);
+    drawInky(CFG.W/2, 190, 1.1, 'sad', G.time);
+    ctx.fillStyle = '#eafcff';
+    ctx.font = 'bold 48px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('GAME OVER', CFG.W/2, 278);
+    ctx.font = '20px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(234,252,255,0.9)';
+    ctx.fillText('Score ' + G.score + '   Best ' + G.best, CFG.W/2, 322);
+    if (G.newBest){
+      ctx.fillStyle = '#ffd166';
+      ctx.font = 'bold 22px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText('NEW BEST', CFG.W/2, 352);
+    }
+    drawButton('restart', CFG.W/2 - 125, 412, 220, 52, 'RESTART');
+    drawButton('title', CFG.W/2 + 125, 412, 220, 52, 'TITLE');
+  }
+}
+
+/* ---------------- Input: bound once ---------------- */
+const Input = {
+  bound: false,
+  bind(){
+    if (this.bound || !canvas) return;
+    this.bound = true;
+    const toLogical = (clientX) => {
+      const r = canvas.getBoundingClientRect();
+      return (clientX - r.left) / r.width * CFG.W;
+    };
+    window.addEventListener('keydown', (e) => {
+      Sound.init();
+      if (e.key === 'ArrowLeft'){ G.paddle.dir = -1; e.preventDefault(); }
+      else if (e.key === 'ArrowRight'){ G.paddle.dir = 1; e.preventDefault(); }
+      else if (e.key === ' ' || e.key === 'Enter'){ pressAction(); e.preventDefault(); }
+      else if (e.key === 'm' || e.key === 'M'){ Sound.toggleMute(); }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' && G.paddle.dir === -1) G.paddle.dir = 0;
+      if (e.key === 'ArrowRight' && G.paddle.dir === 1) G.paddle.dir = 0;
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      G.paddle.targetX = toLogical(e.clientX);
+    });
+    canvas.addEventListener('mousedown', (e) => {
+      Sound.init();
+      const lx = toLogical(e.clientX);
+      const ly = (e.clientY - canvas.getBoundingClientRect().top) / canvas.getBoundingClientRect().height * CFG.H;
+      if (!clickButton(lx, ly)) pressAction();
+    });
+    canvas.addEventListener('touchstart', (e) => {
+      Sound.init();
+      const t = e.touches[0];
+      G.paddle.targetX = toLogical(t.clientX);
+      e.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      G.paddle.targetX = toLogical(t.clientX);
+      e.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+      // A quick tap (not a drag) counts as an action press.
+      pressAction();
+      e.preventDefault();
+    }, { passive: false });
+    window.addEventListener('resize', resize);
+  }
+};
+function clickButton(lx, ly){
+  for (const btn of G.buttons){
+    if (lx >= btn.x && lx <= btn.x + btn.w && ly >= btn.y && ly <= btn.y + btn.h){
+      Sound.ui();
+      if (btn.id === 'start'){ startGame(); }
+      else if (btn.id === 'restart'){ startGame(); }
+      else if (btn.id === 'next'){ nextLevel(); }
+      else if (btn.id === 'title'){ G.mode = 'title'; }
+      return true;
+    }
+  }
+  // mute corner
+  if (lx >= CFG.W - 140 && ly >= CFG.H - 34){ Sound.toggleMute(); return true; }
+  return false;
+}
+function pressAction(){
+  Sound.init();
+  if (G.mode === 'title') startGame();
+  else if (G.mode === 'serve') launchBall();
+  else if (G.mode === 'levelclear') nextLevel();
+  else if (G.mode === 'gameover') startGame();
+}
+
+/* ---------------- Loop: fixed timestep with NaN guard ---------------- */
+const STEP = 1/60;
+let lastTs = 0, acc = 0;
+function gameLoop(ts){
+  requestAnimationFrame(gameLoop);
+  if (typeof ts !== 'number' || Number.isNaN(ts)) return; // poisoned timestamp guard
+  if (!lastTs) lastTs = ts;
+  let dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+  if (dt > 0.1) dt = 0.1;
+  if (G.hitstop > 0){
+    G.hitstop -= dt * 1000;
+    render();
+    return;
+  }
+  acc += dt;
+  let n = 0;
+  while (acc >= STEP && n < 5){ fixedUpdate(STEP); acc -= STEP; n++; }
+  if (n === 5) acc = 0;
+  render();
+}
+
+/* ---------------- Boot ---------------- */
+function boot(){
+  canvas = document.getElementById('game');
+  ctx = canvas.getContext('2d');
+  resize();
+  const g = brickGeom();
+  Sprites.init(g.w, g.h);
+  initBubbles();
+  buildBricks();
+  serveBall();
+  Input.bind();
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(gameLoop);
+  else showError('requestAnimationFrame is not available');
+}
+if (typeof document !== 'undefined' && document.readyState === 'loading')
+  document.addEventListener('DOMContentLoaded', boot);
+else if (typeof document !== 'undefined')
+  boot();
+
+/* Test hooks: harmless in production, used by the automated tests. */
+ROOT.__test = {
+  G, CFG, ROW_DEFS, Sound,
+  fixedUpdate, startGame, launchBall, serveBall, loseBall, nextLevel, buildBricks,
+  version: '1.0.0'
+};
+</script>
+</body>
+</html>

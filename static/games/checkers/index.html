@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Checkers | MuseFM Games</title>
+<style>
+:root{
+  --aqua:#7fe7ff; --teal:#35c8de; --deep:#0b3b5c; --ink:#06283f;
+  --glass:rgba(255,255,255,0.14); --glass-brd:rgba(255,255,255,0.55);
+  --gold:#ffd75e; --danger:#ff7a6b;
+  --font:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:rgba(127,231,255,0.35)}
+html,body{height:100%}
+body{
+  font-family:var(--font); color:#eafcff; overflow-x:hidden;
+  background:
+    radial-gradient(1200px 700px at 20% -10%, rgba(127,231,255,0.25), transparent 60%),
+    radial-gradient(900px 600px at 85% 110%, rgba(53,200,222,0.20), transparent 60%),
+    linear-gradient(160deg,#0a4a6e 0%, #0b3b5c 45%, #06283f 100%);
+  min-height:100%; display:flex; justify-content:center; align-items:flex-start;
+  touch-action:manipulation;
+}
+#wrap{width:min(96vw,560px); margin:12px auto 24px; position:relative;}
+#hud{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 14px; margin-bottom:10px; border-radius:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07));
+  border:1px solid var(--glass-brd); position:relative; overflow:hidden;
+  box-shadow:0 8px 24px rgba(0,20,40,0.35), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+#hud::before{content:""; position:absolute; inset:0 0 50% 0; border-radius:18px 18px 60% 60%;
+  background:linear-gradient(180deg, rgba(255,255,255,0.30), rgba(255,255,255,0)); pointer-events:none;}
+#hud .title{font-weight:800; letter-spacing:2px; font-size:18px; color:#fff; text-shadow:0 1px 6px rgba(0,60,90,0.6); position:relative; z-index:1;}
+#hud .sub{font-size:11px; opacity:0.85; position:relative; z-index:1;}
+#turn-pill{position:relative; z-index:1; font-size:12px; font-weight:700; padding:6px 12px; border-radius:999px;
+  background:rgba(6,40,63,0.45); border:1px solid rgba(255,255,255,0.35); white-space:nowrap;}
+#turn-pill.yours{box-shadow:0 0 12px rgba(127,231,255,0.7); color:var(--aqua);}
+#counts{font-size:12px; opacity:0.9; position:relative; z-index:1; white-space:nowrap;}
+#mute-btn{position:relative; z-index:1;}
+.btn{
+  font-family:var(--font); cursor:pointer; border:1px solid var(--glass-brd); color:#06283f;
+  background:linear-gradient(180deg,#d8f7ff,#8fdcf5 60%,#5cc4e6);
+  font-weight:800; letter-spacing:1px; border-radius:14px; padding:12px 22px; font-size:15px;
+  box-shadow:0 4px 14px rgba(0,40,70,0.4), inset 0 1px 0 #fff;
+  transition:transform 0.08s ease;
+}
+.btn:active{transform:scale(0.96);}
+.btn.ghost{background:rgba(255,255,255,0.12); color:#eafcff; box-shadow:none; font-weight:600;}
+.btn.small{padding:8px 14px; font-size:12px; border-radius:10px;}
+#stage{position:relative; border-radius:22px; overflow:hidden;
+  border:1px solid var(--glass-brd);
+  box-shadow:0 18px 50px rgba(0,20,45,0.5), inset 0 1px 0 rgba(255,255,255,0.5);}
+#cv{display:block; width:100%; height:auto; touch-action:manipulation;}
+#overlay{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  padding:20px; pointer-events:none; z-index:5;}
+#overlay.hidden{display:none;}
+.glass-card{
+  pointer-events:auto; text-align:center; max-width:420px; width:100%;
+  padding:28px 26px; border-radius:24px; position:relative; overflow:hidden;
+  background:linear-gradient(180deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10) 55%, rgba(10,60,90,0.25));
+  border:1px solid var(--glass-brd);
+  box-shadow:0 18px 50px rgba(0,20,45,0.55), inset 0 1px 0 rgba(255,255,255,0.7);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  animation:cardIn 0.45s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+@keyframes cardIn{from{transform:scale(0.85) translateY(14px); opacity:0;} to{transform:scale(1) translateY(0); opacity:1;}}
+.glass-card::before{content:""; position:absolute; inset:0 0 55% 0; border-radius:24px 24px 50% 50%;
+  background:linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0)); pointer-events:none;}
+.glass-card h1{font-size:34px; letter-spacing:4px; color:#fff; text-shadow:0 2px 10px rgba(0,60,100,0.7); margin-bottom:6px; position:relative;}
+.glass-card h2{font-size:22px; color:#fff; margin-bottom:10px; position:relative;}
+.glass-card p{font-size:14px; line-height:1.55; color:#eafcff; margin-bottom:14px; position:relative;}
+.glass-card .btn-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; position:relative;}
+.rules{text-align:left; font-size:13.5px; line-height:1.7; color:#eafcff; margin:0 0 16px 0; position:relative;}
+.rules li{margin-left:20px; margin-bottom:4px;}
+#result-sub{font-size:13px; opacity:0.9;}
+#error-boundary{
+  display:none; position:fixed; left:8px; right:8px; bottom:8px; z-index:9999;
+  background:rgba(120,10,20,0.95); color:#fff; font:12px/1.5 monospace;
+  padding:10px 12px; border-radius:10px; border:1px solid #ff8a8a;
+  max-height:30vh; overflow:auto; white-space:pre-wrap;
+}
+.foot{margin-top:10px; text-align:center; font-size:11px; opacity:0.6;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div>
+      <div class="title">CHECKERS</div>
+      <div class="sub">MuseFM Games</div>
+    </div>
+    <div id="counts">You 12 · Rival 12</div>
+    <div id="turn-pill" class="yours">Your move</div>
+    <button id="mute-btn" class="btn ghost small">Sound On</button>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="overlay">
+      <div class="glass-card" id="card">
+        <h1 id="card-title">CHECKERS</h1>
+        <p id="card-msg">Classic 8x8 American checkers in glass and water. Jumps are forced. Kings rule both ways.</p>
+        <div class="btn-row">
+          <button id="start-btn" class="btn">Start Game</button>
+          <button id="how-btn" class="btn ghost">How to Play</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Tap a glowing piece, then tap where it goes. Captures are forced.</div>
+</div>
+<div id="error-boundary"></div>
+<script>
+'use strict';
+
+/* ================= PURE GAME LOGIC (no DOM) ================= */
+/* === LOGIC START === */
+const BOARD_N = 8;
+const HUMAN = 1, AI = -1;
+function newBoard(){ return Array.from({length: BOARD_N}, () => Array(BOARD_N).fill(0)); }
+function setupBoard(b){
+  for(let r=0;r<3;r++) for(let c=0;c<BOARD_N;c++) if((r+c)%2===1) b[r][c]=-1;
+  for(let r=5;r<8;r++) for(let c=0;c<BOARD_N;c++) if((r+c)%2===1) b[r][c]=1;
+}
+function inB(r,c){ return r>=0 && r<BOARD_N && c>=0 && c<BOARD_N; }
+function dirsOf(p){
+  if(Math.abs(p)===2) return [[-1,-1],[-1,1],[1,-1],[1,1]];
+  return p>0 ? [[-1,-1],[-1,1]] : [[1,-1],[1,1]];
+}
+function isEnemy(p,q){ return p!==0 && q!==0 && ((p>0)!==(q>0)); }
+function quietMoves(b,r,c){
+  const out=[]; const p=b[r][c]; if(p===0) return out;
+  for(const [dr,dc] of dirsOf(p)){
+    const tr=r+dr, tc=c+dc;
+    if(inB(tr,tc) && b[tr][tc]===0) out.push({to:[tr,tc]});
+  }
+  return out;
+}
+/* single capture jumps from (r,c): [{to:[r,c], via:[r,c]}] */
+function captureSteps(b,r,c){
+  const out=[]; const p=b[r][c]; if(p===0) return out;
+  for(const [dr,dc] of dirsOf(p)){
+    const mr=r+dr, mc=c+dc, tr=r+2*dr, tc=c+2*dc;
+    if(inB(tr,tc) && b[tr][tc]===0 && isEnemy(p,b[mr][mc]))
+      out.push({to:[tr,tc], via:[mr,mc]});
+  }
+  return out;
+}
+function cloneBoard(b){ return b.map(row=>row.slice()); }
+/* full multi-jump chains from (r,c). Each chain = array of steps.
+   Promotion ends the chain (standard American rule: the turn stops). */
+function findChains(b,r,c){
+  const p=b[r][c]; if(p===0) return [];
+  const steps=captureSteps(b,r,c);
+  if(steps.length===0) return [];
+  const chains=[];
+  for(const s of steps){
+    const b2=cloneBoard(b);
+    b2[s.to[0]][s.to[1]]=p; b2[r][c]=0; b2[s.via[0]][s.via[1]]=0;
+    const backRank = p>0 ? 0 : BOARD_N-1;
+    const promoted = Math.abs(p)===1 && s.to[0]===backRank;
+    if(promoted){ chains.push([s]); continue; }
+    const rest=findChains(b2, s.to[0], s.to[1]);
+    if(rest.length===0) chains.push([s]);
+    else for(const tail of rest) chains.push([s].concat(tail));
+  }
+  return chains;
+}
+/* All legal moves for a player. Captures are forced.
+   Returns {forced:boolean, moves:[{from:[r,c], chain:[steps] | null, to:[r,c]}]} */
+function allMovesFor(b, player){
+  const caps=[];
+  for(let r=0;r<BOARD_N;r++) for(let c=0;c<BOARD_N;c++){
+    if(b[r][c]!==0 && (b[r][c]>0)===(player>0)){
+      for(const ch of findChains(b,r,c)) caps.push({from:[r,c], chain:ch, to:ch[ch.length-1].to});
+    }
+  }
+  if(caps.length>0) return {forced:true, moves:caps};
+  const quiet=[];
+  for(let r=0;r<BOARD_N;r++) for(let c=0;c<BOARD_N;c++){
+    if(b[r][c]!==0 && (b[r][c]>0)===(player>0)){
+      for(const q of quietMoves(b,r,c)) quiet.push({from:[r,c], chain:null, to:q.to});
+    }
+  }
+  return {forced:false, moves:quiet};
+}
+/* chain jumps that continue from (r,c) only (for multi-jump UI) */
+function chainMovesFor(b,r,c,player){
+  return findChains(b,r,c).map(ch=>({from:[r,c], chain:ch, to:ch[0].to}));
+}
+/* apply one move (a single step for chains). Mutates b.
+   Returns {captured:[r,c]|null, promoted:boolean} */
+function applyStep(b, player, fr, fc, to, via){
+  const p=b[fr][fc];
+  b[to[0]][to[1]]=p; b[fr][fc]=0;
+  let captured=null;
+  if(via){ b[via[0]][via[1]]=0; captured=via; }
+  let promoted=false;
+  const backRank = player>0 ? 0 : BOARD_N-1;
+  if(Math.abs(p)===1 && to[0]===backRank){ b[to[0]][to[1]]=player*2; promoted=true; }
+  return {captured, promoted};
+}
+function pieceCount(b, player){
+  let n=0;
+  for(let r=0;r<BOARD_N;r++) for(let c=0;c<BOARD_N;c++)
+    if(b[r][c]!==0 && (b[r][c]>0)===(player>0)) n++;
+  return n;
+}
+/* does the enemy have any capture that lands on / passes through (tr,tc)? */
+function squareThreatened(b, player, tr, tc){
+  const enemy=-player;
+  for(let r=0;r<BOARD_N;r++) for(let c=0;c<BOARD_N;c++){
+    if(b[r][c]!==0 && (b[r][c]>0)===(enemy>0)){
+      for(const s of captureSteps(b,r,c)) if(s.via[0]===tr && s.via[1]===tc) return true;
+    }
+  }
+  return false;
+}
+/* AI: longest capture chain wins; otherwise greedy quiet move. */
+function aiChooseMove(b){
+  const info=allMovesFor(b, AI);
+  if(info.moves.length===0) return null;
+  if(info.forced){
+    let best=info.moves, bestLen=-1;
+    for(const m of info.moves){
+      if(m.chain.length>bestLen){ bestLen=m.chain.length; best=[m]; }
+      else if(m.chain.length===bestLen) best.push(m);
+    }
+    return best[(Math.random()*best.length)|0];
+  }
+  let best=null, bestScore=-1e9;
+  for(const m of info.moves){
+    const [fr,fc]=m.from, [tr,tc]=m.to;
+    const p=b[fr][fc];
+    const b2=cloneBoard(b);
+    applyStep(b2, AI, fr, fc, m.to, null);
+    let s=Math.random()*2;
+    const backRank=BOARD_N-1;
+    if(Math.abs(p)===1 && tr===backRank) s+=50;            // king me
+    s+=(tr-fr)*2;                                          // advance
+    const wasThreat=squareThreatened(b, AI, fr, fc);
+    const nowThreat=squareThreatened(b2, AI, tr, tc);
+    if(nowThreat) s-=12;                                   // avoid walking into a jump
+    if(wasThreat && !nowThreat) s+=6;                      // escape danger
+    if(Math.abs(p)===2) s+=1;                              // keep kings active
+    if(s>bestScore){ bestScore=s; best=m; }
+  }
+  return best;
+}
+/* === LOGIC END === */
+
+/* ================= CONFIG ================= */
+const CFG = {
+  boardN: 8, animMs: 200, aiDelayMs: 550, hitStopMs: 50,
+  maxParticles: 150, bubbleCount: 26
+};
+(function configCheck(){
+  for(const k of ['boardN','animMs','aiDelayMs','hitStopMs','maxParticles','bubbleCount']){
+    if(typeof CFG[k]!=='number' || !(CFG[k]>0)) throw new Error('Bad config: '+k);
+  }
+  if(CFG.boardN!==8) throw new Error('Bad config: boardN must be 8');
+})();
+
+/* ================= ERROR BOUNDARY ================= */
+const errBox = document.getElementById('error-boundary');
+function showError(msg){
+  errBox.style.display='block';
+  errBox.textContent += String(msg).slice(0,500) + '\n';
+}
+window.addEventListener('error', e=>showError('ERR: '+(e.message||e.error)));
+window.addEventListener('unhandledrejection', e=>showError('REJ: '+(e.reason&&e.reason.message||e.reason)));
+
+/* ================= AUDIO (synthesized, one master gain) ================= */
+const AudioSys = {
+  ctx:null, master:null, muted:false,
+  init(){
+    try{ this.muted = JSON.parse(localStorage.getItem('checkers_muted')||'false')===true; }
+    catch(e){ this.muted=false; }
+    this.updateBtn();
+  },
+  unlock(){
+    if(this.ctx) { if(this.ctx.state==='suspended') this.ctx.resume(); return; }
+    try{
+      const AC = window.AudioContext||window.webkitAudioContext;
+      if(!AC) return;
+      this.ctx=new AC();
+      this.master=this.ctx.createGain();
+      this.master.gain.value=this.muted?0:0.5;
+      this.master.connect(this.ctx.destination);
+    }catch(e){ /* audio unavailable, stay silent */ }
+  },
+  toggleMute(){
+    this.muted=!this.muted;
+    try{ localStorage.setItem('checkers_muted', JSON.stringify(this.muted)); }catch(e){}
+    if(this.master) this.master.gain.value=this.muted?0:0.5;
+    this.updateBtn();
+  },
+  updateBtn(){
+    const b=document.getElementById('mute-btn');
+    if(b) b.textContent=this.muted?'Sound Off':'Sound On';
+  },
+  tone(freq, dur, type, vol, slideTo){
+    if(!this.ctx||this.muted) return;
+    const t=this.ctx.currentTime;
+    const o=this.ctx.createOscillator(), g=this.ctx.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||0.25,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t+dur+0.05);
+  },
+  select(){ this.tone(300,0.08,'sine',0.18,1200); },            // droplet up
+  move(){ this.tone(520,0.10,'sine',0.20,340); },               // soft drop
+  capture(streak){                                               // glass chime, pitch rises with streak
+    const base=660*Math.pow(1.12,Math.min(streak,6));
+    this.tone(base,0.22,'sine',0.28);
+    this.tone(base*2.01,0.16,'sine',0.12);
+    this.tone(base*2.98,0.10,'sine',0.07);
+  },
+  king(){ [523,659,784].forEach((f,i)=>setTimeout(()=>this.tone(f,0.18,'triangle',0.22),i*90)); },
+  win(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>this.tone(f,0.25,'triangle',0.25),i*120)); },
+  lose(){ [392,330,262].forEach((f,i)=>setTimeout(()=>this.tone(f,0.3,'sine',0.2),i*160)); }
+};
+
+/* ================= DOM / CANVAS ================= */
+const canvas=document.getElementById('cv');
+const ctx=canvas.getContext('2d');
+const overlay=document.getElementById('overlay');
+const card=document.getElementById('card');
+const cardTitle=document.getElementById('card-title');
+const cardMsg=document.getElementById('card-msg');
+const turnPill=document.getElementById('turn-pill');
+const countsEl=document.getElementById('counts');
+const TAU=Math.PI*2;
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const easeOutBack=t=>{const c=1.70158;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
+const easeOutCubic=t=>1-Math.pow(1-t,3);
+
+let DPR=1, cssW=0, boardPx=0, boardX=0, boardY=0, tile=0;
+let bgSprite=null, pieceSprites={};
+
+function resize(){
+  const r=canvas.getBoundingClientRect();
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  cssW=Math.max(280,Math.floor(r.width));
+  canvas.width=Math.floor(cssW*DPR);
+  canvas.height=Math.floor(cssW*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  boardPx=cssW; boardX=0; boardY=0; tile=boardPx/8;
+  bakeBackground(); bakePieces();
+}
+function bakeBackground(){
+  bgSprite=document.createElement('canvas');
+  bgSprite.width=Math.floor(cssW*DPR); bgSprite.height=Math.floor(cssW*DPR);
+  const g=bgSprite.getContext('2d'); g.setTransform(DPR,0,0,DPR,0,0);
+  const wg=g.createLinearGradient(0,0,0,cssW);
+  wg.addColorStop(0,'rgba(190,245,255,0.30)'); wg.addColorStop(0.5,'rgba(120,220,245,0.14)');
+  wg.addColorStop(1,'rgba(10,60,95,0.30)');
+  g.fillStyle=wg; g.fillRect(0,0,cssW,cssW);
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+    const x=c*tile, y=r*tile;
+    if((r+c)%2===1){
+      g.fillStyle='rgba(8,55,90,0.42)';
+      g.fillRect(x,y,tile,tile);
+      const tg=g.createLinearGradient(x,y,x,y+tile);
+      tg.addColorStop(0,'rgba(255,255,255,0.10)'); tg.addColorStop(0.4,'rgba(255,255,255,0)');
+      tg.addColorStop(1,'rgba(0,20,40,0.18)');
+      g.fillStyle=tg; g.fillRect(x,y,tile,tile);
+    }else{
+      const lg=g.createLinearGradient(x,y,x,y+tile);
+      lg.addColorStop(0,'rgba(215,248,255,0.35)'); lg.addColorStop(1,'rgba(140,220,245,0.18)');
+      g.fillStyle=lg; g.fillRect(x,y,tile,tile);
+    }
+  }
+  g.strokeStyle='rgba(255,255,255,0.7)'; g.lineWidth=3;
+  g.strokeRect(1.5,1.5,cssW-3,cssW-3);
+  g.strokeStyle='rgba(255,255,255,0.25)'; g.lineWidth=8;
+  g.strokeRect(7,7,cssW-14,cssW-14);
+}
+/* glass disc sprite: radial gradient + specular crescent, baked once */
+function makePieceSprite(core, rim){
+  const S=128, s=document.createElement('canvas');
+  s.width=S; s.height=S;
+  const g=s.getContext('2d');
+  const rg=g.createRadialGradient(S*0.38,S*0.32,S*0.06, S*0.5,S*0.5,S*0.52);
+  rg.addColorStop(0,'#ffffff'); rg.addColorStop(0.28,core);
+  rg.addColorStop(0.78,rim); rg.addColorStop(1,'rgba(4,30,48,0.95)');
+  g.fillStyle=rg; g.beginPath(); g.arc(S/2,S/2,S*0.46,0,TAU); g.fill();
+  g.strokeStyle='rgba(255,255,255,0.85)'; g.lineWidth=3;
+  g.beginPath(); g.arc(S/2,S/2,S*0.46-2,0,TAU); g.stroke();
+  /* specular crescent */
+  g.save(); g.translate(S*0.36,S*0.28); g.rotate(-0.5);
+  g.fillStyle='rgba(255,255,255,0.75)';
+  g.beginPath(); g.ellipse(0,0,S*0.20,S*0.09,0,0,TAU); g.fill(); g.restore();
+  /* inner ring */
+  g.strokeStyle='rgba(255,255,255,0.35)'; g.lineWidth=2;
+  g.beginPath(); g.arc(S/2,S/2,S*0.34,0,TAU); g.stroke();
+  return s;
+}
+function bakePieces(){
+  pieceSprites={
+    human: makePieceSprite('#9df1ff','#1fa8d8'),
+    ai: makePieceSprite('#9db8ff','#2748c8')
+  };
+}
+function drawCrown(x,y,s,glow){
+  const w=s*0.42, h=s*0.30;
+  ctx.save(); ctx.translate(x,y-s*0.05);
+  if(glow){ ctx.strokeStyle='rgba(255,215,94,0.9)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,s*0.36,0,TAU); ctx.stroke(); }
+  ctx.fillStyle='#ffd75e';
+  ctx.strokeStyle='#a97e1f'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(-w/2,h/2); ctx.lineTo(-w/2,-h*0.1); ctx.lineTo(-w*0.25,h*0.08);
+  ctx.lineTo(0,-h/2); ctx.lineTo(w*0.25,h*0.08); ctx.lineTo(w/2,-h*0.1);
+  ctx.lineTo(w/2,h/2); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#fff2c4';
+  ctx.beginPath(); ctx.arc(-w*0.25,-h*0.12,2.2,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-h*0.34,2.2,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(w*0.25,-h*0.12,2.2,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* ================= GAME STATE ================= */
+const G={
+  screen:'title',            // title | playing | gameover
+  board:newBoard(),
+  turn:HUMAN,
+  selected:null,             // {r,c}
+  legalForSelected:[],       // moves for selected piece
+  forcedFrom:new Set(),       // "r,c" of pieces that must capture
+  chain:null,                // {r,c} mid multi-jump
+  anim:null,                 // active move animation
+  aiQueue:[],                // pending AI steps
+  aiTimer:0,
+  particles:[], rings:[],
+  hitStop:0,
+  bubbles:[],
+  over:null,                 // {winner} on gameover
+  capStreak:0,
+  time:0
+};
+function key(r,c){ return r+','+c; }
+function resetGame(){
+  G.board=newBoard(); setupBoard(G.board);
+  G.turn=HUMAN; G.selected=null; G.legalForSelected=[];
+  G.forcedFrom=new Set(); G.chain=null; G.anim=null;
+  G.aiQueue=[]; G.aiTimer=0; G.particles=[]; G.rings=[];
+  G.hitStop=0; G.over=null; G.capStreak=0;
+  refreshForced(); updateHud();
+}
+function refreshForced(){
+  G.forcedFrom=new Set();
+  const info=allMovesFor(G.board, G.turn);
+  if(info.forced) for(const m of info.moves) G.forcedFrom.add(key(m.from[0],m.from[1]));
+  return info;
+}
+function updateHud(){
+  countsEl.textContent='You '+pieceCount(G.board,HUMAN)+' · Rival '+pieceCount(G.board,AI);
+  if(G.screen==='playing'){
+    turnPill.textContent = G.turn===HUMAN ? (G.chain?'Keep jumping!':'Your move') : "Rival's move";
+    turnPill.classList.toggle('yours', G.turn===HUMAN);
+  }
+}
+/* current legal moves for the active side (respects chain lock) */
+function currentMoves(){
+  if(G.chain){
+    return {forced:true, moves:chainMovesFor(G.board,G.chain.r,G.chain.c,G.turn)};
+  }
+  return allMovesFor(G.board,G.turn);
+}
+
+/* ================= FX ================= */
+function spawnBurst(px,py,player,streak){
+  const n=Math.min(14+streak*3, CFG.maxParticles-G.particles.length);
+  const col = player===HUMAN ? '127,231,255' : '157,184,255';
+  for(let i=0;i<n;i++){
+    const a=rand(0,TAU), sp=rand(60,260);
+    G.particles.push({x:px,y:py,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,
+      life:rand(0.4,0.8), t:0, r:rand(2,5), col});
+  }
+  G.rings.push({x:px,y:py,r:6,t:0,life:0.35,col});
+}
+function spawnBubbles(){
+  G.bubbles=[];
+  for(let i=0;i<CFG.bubbleCount;i++){
+    G.bubbles.push({x:rand(0,cssW),y:rand(0,cssW),r:rand(2,9),
+      vy:rand(8,26), wob:rand(0,TAU), wobSp:rand(0.5,2)});
+  }
+}
+function updateFx(dt){
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i]; p.t+=dt;
+    if(p.t>=p.life){ G.particles.splice(i,1); continue; }
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=300*dt; p.vx*=0.98;
+  }
+  for(let i=G.rings.length-1;i>=0;i--){
+    const r=G.rings[i]; r.t+=dt; r.r+=260*dt;
+    if(r.t>=r.life) G.rings.splice(i,1);
+  }
+  for(const b of G.bubbles){
+    b.y-=b.vy*dt; b.wob+=b.wobSp*dt;
+    if(b.y<-12){ b.y=cssW+12; b.x=rand(0,cssW); }
+  }
+}
+function sqCenter(r,c){ return {x:c*tile+tile/2, y:r*tile+tile/2}; }
+
+/* ================= MOVE EXECUTION ================= */
+/* human or AI: perform one step (from -> to, via optional capture).
+   Returns info used for animation + chain logic. */
+function doStep(player, fr, fc, to, via){
+  const res=applyStep(G.board, player, fr, fc, to, via);
+  const fromP=sqCenter(fr,fc), toP=sqCenter(to[0],to[1]);
+  if(res.captured){
+    G.capStreak++;
+    G.hitStop=CFG.hitStopMs/1000;
+    const cp=sqCenter(res.captured[0],res.captured[1]);
+    spawnBurst(cp.x,cp.y,player,G.capStreak);
+    AudioSys.capture(G.capStreak);
+  }else{
+    G.capStreak=0;
+    AudioSys.move();
+  }
+  if(res.promoted) AudioSys.king();
+  G.anim={player, piece:G.board[to[0]][to[1]], fr,fc, tr:to[0],tc:to[1],
+    fromP, toP, t:0, dur:CFG.animMs/1000,
+    promoted:res.promoted, captured:res.captured,
+    onDone:null};
+  updateHud();
+  return res;
+}
+function animDone(){
+  const a=G.anim; G.anim=null;
+  if(a && a.onDone) a.onDone();
+}
+/* after a step, does the same piece keep jumping?
+   Chains continue ONLY after a capture step. A quiet move always ends the turn,
+   even if a capture is available from the landing square. */
+function checkChainOrEndTurn(player, r, c, promoted, wasCapture){
+  if(!wasCapture || promoted){ endTurn(); return; }
+  const cont=chainMovesFor(G.board,r,c,player);
+  if(cont.length>0 && player===HUMAN){
+    G.chain={r,c}; G.selected={r,c}; G.legalForSelected=cont;
+    updateHud();
+  }else if(cont.length>0 && player===AI){
+    const m=cont[(Math.random()*cont.length)|0];
+    const step=m.chain[0];
+    G.aiQueue.push({fr:r,fc:c,to:step.to,via:step.via});
+  }else{
+    G.chain=null; G.selected=null; G.legalForSelected=[];
+    endTurn();
+  }
+}
+function endTurn(){
+  G.turn=-G.turn; G.chain=null; G.selected=null; G.legalForSelected=[];
+  refreshForced(); updateHud();
+  const foeMoves=allMovesFor(G.board,G.turn);
+  if(pieceCount(G.board,G.turn)===0 || foeMoves.moves.length===0){
+    gameOver(-G.turn);
+    return;
+  }
+  if(G.turn===AI){ G.aiTimer=CFG.aiDelayMs/1000; }
+}
+/* ================= HUMAN INPUT ================= */
+function tryHumanStep(fr,fc,to,via){
+  const info=currentMoves();
+  const ok=info.moves.some(m=>m.from[0]===fr&&m.from[1]===fc&&m.to[0]===to[0]&&m.to[1]===to[1]);
+  if(!ok) return false;
+  const res=doStep(HUMAN,fr,fc,to,via);
+  G.anim.onDone=()=>checkChainOrEndTurn(HUMAN,to[0],to[1],res.promoted,!!via);
+  return true;
+}
+function onBoardTap(r,c){
+  if(G.screen!=='playing'||G.anim||G.turn!==HUMAN) return;
+  AudioSys.unlock();
+  const p=G.board[r][c];
+  const isMine=p!==0&&(p>0);
+  /* chain lock: only the jumping piece may move */
+  if(G.chain){
+    if(G.chain.r===r&&G.chain.c===c){ G.selected={r,c}; AudioSys.select(); return; }
+    const dest=G.legalForSelected.find(m=>m.to[0]===r&&m.to[1]===c);
+    if(dest){ const st=dest.chain[0]; tryHumanStep(G.chain.r,G.chain.c,dest.to,st.via); }
+    return;
+  }
+  if(isMine){
+    const info=currentMoves();
+    const mine=info.moves.filter(m=>m.from[0]===r&&m.from[1]===c);
+    if(mine.length>0){
+      G.selected={r,c}; G.legalForSelected=mine; AudioSys.select();
+    }else if(G.selected&&G.selected.r===r&&G.selected.c===c){
+      G.selected=null; G.legalForSelected=[];
+    }
+    return;
+  }
+  if(G.selected){
+    const dest=G.legalForSelected.find(m=>m.to[0]===r&&m.to[1]===c);
+    if(dest){
+      const st=dest.chain?dest.chain[0]:null;
+      tryHumanStep(G.selected.r,G.selected.c,dest.to,st?st.via:null);
+    }else{
+      G.selected=null; G.legalForSelected=[];
+    }
+  }
+}
+/* ================= AI ================= */
+function aiAct(){
+  if(G.screen!=='playing'||G.anim||G.turn!==AI) return;
+  if(G.aiQueue.length>0){
+    const s=G.aiQueue.shift();
+    const res=doStep(AI,s.fr,s.fc,s.to,s.via);
+    G.anim.onDone=()=>{
+      if(s.via) checkChainOrEndTurn(AI,s.to[0],s.to[1],res.promoted,true);
+      else endTurn();
+    };
+    return;
+  }
+  const m=aiChooseMove(G.board);
+  if(!m){ gameOver(HUMAN); return; }
+  if(m.chain){
+    const step=m.chain[0];
+    G.aiQueue.push({fr:m.from[0],fc:m.from[1],to:step.to,via:step.via});
+    for(let i=1;i<m.chain.length;i++){
+      const prev=m.chain[i-1].to, st=m.chain[i];
+      G.aiQueue.push({fr:prev[0],fc:prev[1],to:st.to,via:st.via});
+    }
+  }else{
+    G.aiQueue.push({fr:m.from[0],fc:m.from[1],to:m.to,via:null});
+  }
+}
+/* ================= SCREENS ================= */
+function showCard(title,msg,buttons){
+  cardTitle.textContent=title;
+  cardMsg.innerHTML=msg;
+  const row=card.querySelector('.btn-row');
+  row.innerHTML='';
+  const ids={'Start Game':'start-btn','Play Again':'start-btn','How to Play':'how-btn','Back':'back-btn'};
+  for(const b of buttons){
+    const el=document.createElement('button');
+    el.className='btn'+(b.ghost?' ghost':'');
+    if(ids[b.label]) el.id=ids[b.label];
+    el.textContent=b.label;
+    el.addEventListener('click',b.fn);
+    row.appendChild(el);
+  }
+  overlay.classList.remove('hidden');
+  /* replay the pop animation */
+  card.style.animation='none'; void card.offsetWidth; card.style.animation='';
+}
+function showTitle(){
+  G.screen='title';
+  showCard('CHECKERS',
+    'Classic 8x8 American checkers in glass and water. Jumps are forced. Reach the far side to crown a king.',
+    [{label:'Start Game',fn:startGame},{label:'How to Play',ghost:true,fn:showHow}]);
+}
+function showHow(){
+  cardTitle.textContent='HOW TO PLAY';
+  cardMsg.innerHTML='<ul class="rules">'+
+    '<li>Tap one of your aqua pieces, then tap a glowing square to move.</li>'+
+    '<li>Gold rings mark pieces that MUST capture. Captures are forced.</li>'+
+    '<li>After a jump, keep jumping while jumps remain.</li>'+
+    '<li>Reach the far row to crown a king. Kings move both ways.</li>'+
+    '<li>Win by capturing every rival piece or blocking all their moves.</li>'+
+    '</ul>';
+  const row=card.querySelector('.btn-row');
+  row.innerHTML='';
+  const back=document.createElement('button');
+  back.className='btn'; back.textContent='Back';
+  back.addEventListener('click',()=>{ G.screen==='gameover'?showEnd():showTitle(); });
+  row.appendChild(back);
+  overlay.classList.remove('hidden');
+}
+let endInfo=null;
+function showEnd(){
+  const won=endInfo.winner===HUMAN;
+  showCard(won?'YOU WIN':'RIVAL WINS',
+    won
+      ? '<span id="result-sub">Clean sweep. The water clears and the light comes through.</span>'
+      : '<span id="result-sub">The rival takes this one. Shake it off and run it back.</span>',
+    [{label:'Play Again',fn:startGame},{label:'How to Play',ghost:true,fn:showHow}]);
+}
+function startGame(){
+  AudioSys.unlock();
+  overlay.classList.add('hidden');
+  G.screen='playing';
+  resetGame();
+}
+function gameOver(winner){
+  G.screen='gameover'; G.over={winner};
+  endInfo={winner};
+  if(winner===HUMAN) AudioSys.win(); else AudioSys.lose();
+  turnPill.textContent='Game over';
+  turnPill.classList.toggle('yours', winner===HUMAN);
+  updateHud();
+  showEnd();
+}
+
+/* ================= INKY THE SQUID (cameo) ================= */
+function drawInky(x,y,s,mood,time){
+  /* mood: 'happy' | 'sad' */
+  const pale = mood==='sad';
+  const pop = 1 + (mood==='happy' ? 0.10+Math.sin(time*6)*0.04 : 0);
+  ctx.save(); ctx.translate(x,y+Math.sin(time*3.1)*3*s); ctx.scale(s*pop,s*pop);
+  if(pale) ctx.translate(rand(-1,1),rand(-0.7,0.7));
+  ctx.lineCap='round';
+  ctx.strokeStyle = pale ? 'rgba(205,228,242,0.9)' : 'rgba(140,220,245,0.95)';
+  ctx.lineWidth=3;
+  for(let i=0;i<5;i++){
+    const tx=(i-2)*4.2, w=Math.sin(time*7+i*1.3)*4;
+    ctx.beginPath(); ctx.moveTo(tx,8);
+    ctx.quadraticCurveTo(tx+w*0.5,14,tx+w,20+Math.sin(time*5+i)*2); ctx.stroke();
+  }
+  const hg=ctx.createLinearGradient(0,-15,0,10);
+  if(pale){ hg.addColorStop(0,'#e9f5fb'); hg.addColorStop(1,'#b7d3e2'); }
+  else{ hg.addColorStop(0,'#a5ecff'); hg.addColorStop(1,'#35aede'); }
+  ctx.fillStyle=hg;
+  ctx.beginPath(); ctx.moveTo(-9,8);
+  ctx.quadraticCurveTo(-10.5,-12,0,-15); ctx.quadraticCurveTo(10.5,-12,9,8);
+  ctx.quadraticCurveTo(0,12.5,-9,8); ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1.2; ctx.stroke();
+  ctx.fillStyle = pale ? 'rgba(140,170,190,0.5)' : 'rgba(20,110,160,0.35)';
+  ctx.beginPath(); ctx.arc(-3.5,-6,1.8,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(4,-9,1.4,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.5,-2,1.2,0,TAU); ctx.fill();
+  /* eyes: happy = bright arcs, sad = droopy dots */
+  if(pale){
+    ctx.fillStyle='#0e2c44';
+    ctx.beginPath(); ctx.arc(-3.6,2.5,2,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.6,2.5,2,0,TAU); ctx.fill();
+  }else{
+    ctx.fillStyle='#0e2c44';
+    ctx.beginPath(); ctx.arc(-3.6,1.5,2.3,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.6,1.5,2.3,0,TAU); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(-4.3,0.8,0.8,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(2.9,0.8,0.8,0,TAU); ctx.fill();
+    const ss=3+Math.sin(time*12)*1;
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.beginPath(); ctx.arc(-12,-12,ss*0.4,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(12,-14,ss*0.3,0,TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+/* ================= RENDER ================= */
+function drawPieceAt(p, x, y, r, scale, alpha){
+  const spr = p>0 ? pieceSprites.human : pieceSprites.ai;
+  const S=r*2*scale;
+  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.drawImage(spr, x-S/2, y-S/2, S, S);
+  if(Math.abs(p)===2) drawCrown(x, y, r*2*scale, true);
+  ctx.restore();
+}
+function render(){
+  ctx.clearRect(0,0,cssW,cssW);
+  if(bgSprite) ctx.drawImage(bgSprite,0,0,cssW,cssW);
+  /* ambient bubbles */
+  ctx.fillStyle='rgba(255,255,255,0.18)';
+  for(const b of G.bubbles){
+    const bx=b.x+Math.sin(b.wob)*8;
+    ctx.beginPath(); ctx.arc(bx,b.y,b.r,0,TAU); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.arc(bx-b.r*0.3,b.y-b.r*0.3,b.r*0.3,0,TAU); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+  }
+  const pulse=0.5+0.5*Math.sin(G.time*5);
+  /* forced-capture rings */
+  if(G.screen==='playing'&&G.turn===HUMAN&&!G.anim){
+    ctx.lineWidth=3;
+    for(const k of G.forcedFrom){
+      const [r,c]=k.split(',').map(Number);
+      const {x,y}=sqCenter(r,c);
+      ctx.strokeStyle='rgba(255,215,94,'+(0.55+0.4*pulse)+')';
+      ctx.beginPath(); ctx.arc(x,y,tile*0.44+2*pulse,0,TAU); ctx.stroke();
+    }
+  }
+  /* pieces (skip the one being animated) */
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+    const p=G.board[r][c]; if(p===0) continue;
+    if(G.anim&&G.anim.tr===r&&G.anim.tc===c) continue;
+    const {x,y}=sqCenter(r,c);
+    drawPieceAt(p,x,y,tile*0.40,1,1);
+  }
+  /* selection ring + legal destinations */
+  if(G.screen==='playing'&&G.selected&&!G.anim){
+    const {x,y}=sqCenter(G.selected.r,G.selected.c);
+    ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(x,y,tile*0.44,0,TAU); ctx.stroke();
+    for(const m of G.legalForSelected){
+      const d=sqCenter(m.to[0],m.to[1]);
+      if(m.chain){
+        ctx.strokeStyle='rgba(255,150,80,0.95)'; ctx.lineWidth=4;
+        ctx.beginPath(); ctx.arc(d.x,d.y,tile*0.30+3*pulse,0,TAU); ctx.stroke();
+      }else{
+        ctx.fillStyle='rgba(127,231,255,0.9)';
+        ctx.beginPath(); ctx.arc(d.x,d.y,tile*0.11+2*pulse,0,TAU); ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(d.x,d.y,tile*0.11+2*pulse,0,TAU); ctx.stroke();
+      }
+    }
+  }
+  /* moving piece */
+  if(G.anim){
+    const a=G.anim;
+    const t=easeOutCubic(clamp(a.t/a.dur,0,1));
+    const x=a.fromP.x+(a.toP.x-a.fromP.x)*t;
+    const y=a.fromP.y+(a.toP.y-a.fromP.y)*t;
+    const hop=a.captured?Math.sin(t*Math.PI)*tile*0.18:0;
+    drawPieceAt(a.piece,x,y-hop,tile*0.40,1,1);
+  }
+  /* particles + rings */
+  for(const p of G.particles){
+    const k=1-p.t/p.life;
+    ctx.fillStyle='rgba('+p.col+','+(0.85*k)+')';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*k,0,TAU); ctx.fill();
+  }
+  for(const rg of G.rings){
+    const k=1-rg.t/rg.life;
+    ctx.strokeStyle='rgba('+rg.col+','+(0.7*k)+')'; ctx.lineWidth=3*k+1;
+    ctx.beginPath(); ctx.arc(rg.x,rg.y,rg.r,0,TAU); ctx.stroke();
+  }
+  /* end screen: dim board + Inky cameo + banner */
+  if(G.screen==='gameover'&&G.over){
+    ctx.fillStyle='rgba(4,25,40,0.55)'; ctx.fillRect(0,0,cssW,cssW);
+    const won=G.over.winner===HUMAN;
+    drawInky(cssW/2, cssW*0.26, cssW/110, won?'happy':'sad', G.time);
+    ctx.textAlign='center';
+    ctx.fillStyle='#ffffff';
+    ctx.font='800 '+Math.floor(cssW/13)+'px "Avenir Next","Segoe UI",sans-serif';
+    ctx.shadowColor='rgba(0,60,100,0.8)'; ctx.shadowBlur=12;
+    ctx.fillText(won?'YOU WIN':'RIVAL WINS', cssW/2, cssW*0.44);
+    ctx.shadowBlur=0;
+    ctx.font='400 '+Math.floor(cssW/30)+'px "Avenir Next","Segoe UI",sans-serif';
+    ctx.fillStyle='rgba(234,252,255,0.9)';
+    ctx.fillText(won?'Inky is doing a happy swirl.':'Inky believes in the rematch.', cssW/2, cssW*0.50);
+  }
+}
+/* ================= MAIN LOOP ================= */
+let lastTs=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(typeof ts!=='number'||isNaN(ts)) ts=lastTs+16.7;
+  let dt=(ts-lastTs)/1000; lastTs=ts;
+  if(!(dt>0)||dt>0.25) dt=0.0167;
+  G.time+=dt;
+  updateFx(dt);
+  if(G.hitStop>0){ G.hitStop-=dt; }
+  else{
+    if(G.anim){
+      G.anim.t+=dt;
+      if(G.anim.t>=G.anim.dur) animDone();
+    }else if(G.screen==='playing'&&G.turn===AI){
+      if(G.aiTimer>0){ G.aiTimer-=dt; if(G.aiTimer<=0) aiAct(); }
+      else if(G.aiQueue.length>0) aiAct();
+    }
+  }
+  render();
+}
+/* ================= INPUT (bound once) ================= */
+const input={x:0,y:0,down:false};
+canvas.addEventListener('pointerdown', e=>{
+  AudioSys.unlock();
+  const r=canvas.getBoundingClientRect();
+  const x=(e.clientX-r.left), y=(e.clientY-r.top);
+  input.x=x; input.y=y; input.down=true;
+  const c=Math.floor(x/tile), rr=Math.floor(y/tile);
+  if(c>=0&&c<8&&rr>=0&&rr<8) onBoardTap(rr,c);
+});
+window.addEventListener('pointerup', ()=>{ input.down=false; });
+document.getElementById('mute-btn').addEventListener('click', ()=>{
+  AudioSys.unlock(); AudioSys.toggleMute();
+});
+window.addEventListener('resize', resize);
+/* ================= BOOT ================= */
+AudioSys.init();
+resize();
+spawnBubbles();
+resetGame();
+G.screen='title';
+showTitle();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

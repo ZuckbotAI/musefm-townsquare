@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Minesweeper</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: linear-gradient(180deg, #0b3550 0%, #12607f 45%, #1b87a8 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    color: #0b3b5c;
+  }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 10px 12px; gap: 8px; }
+  .glass {
+    background: linear-gradient(160deg, rgba(255,255,255,0.55), rgba(190,235,250,0.35));
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(0,50,90,0.25), inset 0 1px 0 rgba(255,255,255,0.8);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  #topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; }
+  #topbar .title { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: #083a5e; text-shadow: 0 1px 0 rgba(255,255,255,0.6); }
+  #mute-btn {
+    width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.35); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation;
+  }
+  #mute-btn:active { transform: scale(0.92); }
+  #hud { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; }
+  .meter { display: flex; flex-direction: column; align-items: center; min-width: 76px; }
+  .meter .label { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #14607f; }
+  .meter .value {
+    font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; color: #e8fbff;
+    background: linear-gradient(180deg, #0a2c44, #104b6b); border-radius: 8px; padding: 2px 10px; margin-top: 2px;
+    border: 1px solid rgba(255,255,255,0.35); text-shadow: 0 0 8px rgba(120,220,255,0.8); min-width: 76px; text-align: center;
+  }
+  #face-btn {
+    width: 56px; height: 56px; border-radius: 50%; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center; touch-action: manipulation;
+    background: linear-gradient(180deg, #d8f4ff, #8fd4f2);
+  }
+  #face-btn:active { transform: scale(0.93); }
+  #diffbar { display: flex; gap: 8px; justify-content: center; }
+  .diff {
+    flex: 1; max-width: 150px; padding: 10px 0; border-radius: 100px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.7); font-size: 14px; font-weight: 700; color: #0e5a85;
+    background: rgba(255,255,255,0.3); touch-action: manipulation;
+  }
+  .diff.active {
+    background: linear-gradient(180deg, #37c6f2, #0e93d1); color: #fff;
+    box-shadow: 0 4px 14px rgba(14,147,209,0.5), inset 0 1px 0 rgba(255,255,255,0.55);
+    text-shadow: 0 1px 3px rgba(0,60,100,0.4);
+  }
+  #best-line { text-align: center; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px rgba(0,40,70,0.5); min-height: 16px; }
+  #hint { text-align: center; font-size: 11px; color: rgba(255,255,255,0.7); text-shadow: 0 1px 3px rgba(0,40,70,0.5); }
+  #board-wrap { position: relative; flex: 1; min-height: 0; }
+  #board { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; border-radius: 14px; }
+  #overlay {
+    position: absolute; inset: 0; z-index: 20; display: flex; justify-content: center; align-items: center; padding: 20px;
+    background: rgba(10, 60, 90, 0.3); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  #overlay.hidden { display: none; }
+  .glass-card {
+    background: linear-gradient(160deg, rgba(255,255,255,0.85), rgba(205,242,255,0.7));
+    border: 1px solid rgba(255,255,255,0.85); border-radius: 26px;
+    padding: 26px 26px 22px; text-align: center; max-width: 330px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,60,100,0.3), inset 0 1px 0 rgba(255,255,255,0.9);
+    animation: cardpop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes cardpop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .glass-card h1 { margin: 6px 0 2px; font-size: 28px; font-weight: 800; color: #0b3b5c; }
+  #ov-sub { margin: 0 0 4px; color: #155e85; font-size: 15px; }
+  #ov-stats { margin: 8px 0 2px; color: #0e5a85; font-size: 15px; line-height: 1.6; font-weight: 600; }
+  #ov-best { font-size: 15px; font-weight: 800; color: #0a7a4e; min-height: 20px; }
+  .btn {
+    display: block; width: 100%; margin-top: 10px; padding: 13px 20px; border: none; border-radius: 100px; cursor: pointer;
+    font-size: 16px; font-weight: 700; color: #fff;
+    background: linear-gradient(180deg, #37c6f2, #0e93d1);
+    box-shadow: 0 6px 18px rgba(14,147,209,0.45), inset 0 1px 0 rgba(255,255,255,0.55);
+    text-shadow: 0 1px 3px rgba(0,60,100,0.4); touch-action: manipulation;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.ghost { background: rgba(255,255,255,0.4); color: #0e5a85; box-shadow: none; border: 1px solid rgba(14,147,209,0.4); text-shadow: none; }
+  #ov-diffs { display: flex; gap: 8px; margin-top: 10px; }
+  #ov-diffs .diff { font-size: 13px; padding: 9px 0; }
+  #inky-wrap { display: flex; justify-content: center; }
+  #errbox {
+    position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 99; max-height: 40vh; overflow: auto;
+    background: rgba(120, 10, 10, 0.92); color: #fff; font: 12px monospace; padding: 10px; border-radius: 10px;
+    white-space: pre-wrap;
+  }
+  #errbox.hidden { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar" class="glass">
+    <div class="title">MINESWEEPER</div>
+    <button id="mute-btn" title="Sound on/off" aria-label="Toggle sound"></button>
+  </header>
+  <div id="hud" class="glass">
+    <div class="meter"><span class="label">MINES</span><span class="value" id="mine-count">010</span></div>
+    <button id="face-btn" class="glass" title="Restart" aria-label="Restart game"></button>
+    <div class="meter"><span class="label">TIME</span><span class="value" id="timer">0:00</span></div>
+  </div>
+  <div id="diffbar">
+    <button class="diff active" data-diff="easy">Easy</button>
+    <button class="diff" data-diff="medium">Medium</button>
+    <button class="diff" data-diff="hard">Hard</button>
+  </div>
+  <div id="best-line"></div>
+  <div id="board-wrap"><canvas id="board"></canvas></div>
+  <div id="hint">Tap to reveal. Right click or press and hold to plant a flag. Your first tap is always safe.</div>
+  <div id="overlay" class="hidden">
+    <div class="glass-card">
+      <div id="inky-wrap"></div>
+      <h1 id="ov-title">You win</h1>
+      <p id="ov-sub"></p>
+      <div id="ov-stats"></div>
+      <div id="ov-best"></div>
+      <button class="btn" id="ov-again">Play again</button>
+      <div id="ov-diffs">
+        <button class="diff" data-diff="easy">Easy</button>
+        <button class="diff" data-diff="medium">Medium</button>
+        <button class="diff" data-diff="hard">Hard</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="errbox" class="hidden"></div>
+<script>
+'use strict';
+/* ============================================================
+   MINESWEEPER - Frutiger Aero edition
+   Single file, zero dependencies. Canvas board, DOM chrome.
+   ============================================================ */
+
+/* ---------------- Config ---------------- */
+const DIFFS = {
+  easy:   { rows: 9,  cols: 9,  mines: 10, label: 'Easy' },
+  medium: { rows: 16, cols: 16, mines: 40, label: 'Medium' },
+  hard:   { rows: 16, cols: 30, mines: 99, label: 'Hard' }
+};
+const NUM_COLORS = ['', '#1c6fe0', '#1d9a4c', '#e23b3b', '#2743b8', '#a11f1f', '#0b8f8f', '#333a44', '#6b7683'];
+const LONG_PRESS_MS = 450;
+const MAX_PARTICLES = 150;
+
+function assertConfig() {
+  for (const k of Object.keys(DIFFS)) {
+    const d = DIFFS[k];
+    if (!Number.isInteger(d.rows) || !Number.isInteger(d.cols) || !Number.isInteger(d.mines) ||
+        d.rows < 5 || d.cols < 5 || d.mines < 1 || d.mines > d.rows * d.cols - 9) {
+      throw new Error('Bad difficulty config: ' + k);
+    }
+  }
+}
+
+/* ============================================================
+   CORE LOGIC (pure, DOM-free, node-testable)
+   ============================================================ */
+/* CORE-LOGIC-START */
+function msNewGame(rows, cols, mineCount) {
+  const n = rows * cols;
+  return {
+    rows, cols, mineCount,
+    mines: null,                 // Uint8Array, placed on first reveal
+    adj: null,                   // Uint8Array neighbor mine counts
+    revealed: new Uint8Array(n),
+    flagged: new Uint8Array(n),
+    state: 'ready',              // ready | play | won | lost
+    flagsUsed: 0,
+    revealedSafe: 0
+  };
+}
+function msIdx(g, r, c) { return r * g.cols + c; }
+function msInBounds(g, r, c) { return r >= 0 && r < g.rows && c >= 0 && c < g.cols; }
+function msNeighbors(g, r, c) {
+  const out = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (msInBounds(g, nr, nc)) out.push([nr, nc]);
+    }
+  }
+  return out;
+}
+/* First-click safety: no mine on the clicked cell or its neighbors. */
+function msPlaceMines(g, safeR, safeC, randFn) {
+  const rand = randFn || Math.random;
+  const n = g.rows * g.cols;
+  const forbidden = new Set();
+  forbidden.add(msIdx(g, safeR, safeC));
+  for (const [nr, nc] of msNeighbors(g, safeR, safeC)) forbidden.add(msIdx(g, nr, nc));
+  const mines = new Uint8Array(n);
+  let placed = 0, guard = 0;
+  while (placed < g.mineCount && guard < n * 50) {
+    guard++;
+    const i = Math.floor(rand() * n);
+    if (mines[i] || forbidden.has(i)) continue;
+    mines[i] = 1;
+    placed++;
+  }
+  if (placed < g.mineCount) throw new Error('Could not place all mines');
+  const adj = new Uint8Array(n);
+  for (let r = 0; r < g.rows; r++) {
+    for (let c = 0; c < g.cols; c++) {
+      const i = msIdx(g, r, c);
+      if (mines[i]) continue;
+      let k = 0;
+      for (const [nr, nc] of msNeighbors(g, r, c)) if (mines[msIdx(g, nr, nc)]) k++;
+      adj[i] = k;
+    }
+  }
+  g.mines = mines;
+  g.adj = adj;
+}
+function msReveal(g, r, c) {
+  if (g.state === 'won' || g.state === 'lost') return { result: 'ignored', opened: [] };
+  if (!msInBounds(g, r, c)) return { result: 'ignored', opened: [] };
+  const i = msIdx(g, r, c);
+  if (g.revealed[i] || g.flagged[i]) return { result: 'ignored', opened: [] };
+  if (!g.mines) { msPlaceMines(g, r, c); g.state = 'play'; }
+  if (g.mines[i]) {
+    g.revealed[i] = 1;
+    g.state = 'lost';
+    return { result: 'mine', opened: [[r, c]] };
+  }
+  const opened = [];
+  const stack = [[r, c]];
+  while (stack.length) {
+    const [cr, cc] = stack.pop();
+    const ci = msIdx(g, cr, cc);
+    if (g.revealed[ci] || g.flagged[ci] || g.mines[ci]) continue;
+    g.revealed[ci] = 1;
+    g.revealedSafe++;
+    opened.push([cr, cc]);
+    if (g.adj[ci] === 0) {
+      for (const [nr, nc] of msNeighbors(g, cr, cc)) {
+        const ni = msIdx(g, nr, nc);
+        if (!g.revealed[ni] && !g.flagged[ni]) stack.push([nr, nc]);
+      }
+    }
+  }
+  if (g.revealedSafe === g.rows * g.cols - g.mineCount) g.state = 'won';
+  return { result: 'safe', opened };
+}
+/* Flag cap: flags can never exceed the mine count. */
+function msToggleFlag(g, r, c) {
+  if (g.state !== 'play') return false;
+  if (!msInBounds(g, r, c)) return false;
+  const i = msIdx(g, r, c);
+  if (g.revealed[i]) return false;
+  if (g.flagged[i]) { g.flagged[i] = 0; g.flagsUsed--; return true; }
+  if (g.flagsUsed >= g.mineCount) return false;
+  g.flagged[i] = 1; g.flagsUsed++;
+  return true;
+}
+/* CORE-LOGIC-END */
+
+/* ---------------- Error boundary ---------------- */
+const errbox = document.getElementById('errbox');
+window.addEventListener('error', (e) => {
+  errbox.classList.remove('hidden');
+  errbox.textContent = 'Error: ' + (e.message || e.error || 'unknown') + '\n' + (e.error && e.error.stack ? e.error.stack : '');
+});
+
+/* ---------------- Safe storage (in-app viewers may block localStorage) ---------------- */
+const store = {
+  get(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { window.localStorage.setItem(k, v); } catch (e) { /* storage blocked; game stays playable */ } }
+};
+
+/* ---------------- Audio (all synthesized) ---------------- */
+const Audio2 = {
+  ctx: null, master: null, noiseBuf: null,
+  muted: store.get('minesweeper_mute') === '1',
+  ensure() {
+    try {
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        this.ctx = new AC();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 0.45;
+        this.master.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    } catch (e) { /* audio unavailable on this device; game stays playable */ }
+  },
+  setMuted(m) {
+    this.muted = m;
+    store.set('minesweeper_mute', m ? '1' : '0');
+    if (this.master) this.master.gain.value = m ? 0 : 0.45;
+    drawMuteIcon();
+  },
+  tone(f0, f1, dur, type, vol, delay) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + (delay || 0);
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+    g.gain.setValueAtTime(vol || 0.4, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + dur + 0.02);
+  },
+  pop() { this.tone(320, 1150, 0.09, 'sine', 0.35); },                    // water-drop reveal
+  uiClick() { this.tone(620, 940, 0.06, 'sine', 0.22); },                 // droplet UI
+  flag() {                                                                // glass chime
+    this.tone(740, 740, 0.18, 'sine', 0.32);
+    this.tone(740 * 2.01, 740 * 2.01, 0.12, 'sine', 0.12);
+  },
+  unflag() { this.tone(520, 420, 0.12, 'sine', 0.25); },
+  win() {                                                                 // little arpeggio
+    const seq = [523, 659, 784, 1046];
+    for (let i = 0; i < seq.length; i++) this.tone(seq[i], seq[i], 0.22, 'sine', 0.32, i * 0.11);
+    this.tone(1046 * 2.01, 1046 * 2.01, 0.2, 'sine', 0.1, 0.33);
+  },
+  boom() {
+    if (!this.ctx || this.muted) return;
+    this.tone(170, 42, 0.45, 'sawtooth', 0.5);
+    if (!this.noiseBuf) {
+      const len = this.ctx.sampleRate * 0.4;
+      this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const d = this.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    }
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    const g = this.ctx.createGain();
+    src.buffer = this.noiseBuf;
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 900;
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t);
+  }
+};
+
+/* ---------------- DOM refs ---------------- */
+const canvas = document.getElementById('board');
+const wrap = document.getElementById('board-wrap');
+const ctx = canvas.getContext('2d');
+const mineCountEl = document.getElementById('mine-count');
+const timerEl = document.getElementById('timer');
+const bestLineEl = document.getElementById('best-line');
+const overlay = document.getElementById('overlay');
+const ovTitle = document.getElementById('ov-title');
+const ovSub = document.getElementById('ov-sub');
+const ovStats = document.getElementById('ov-stats');
+const ovBest = document.getElementById('ov-best');
+const inkyWrap = document.getElementById('inky-wrap');
+const faceBtn = document.getElementById('face-btn');
+const muteBtn = document.getElementById('mute-btn');
+
+/* ---------------- Game state (UI layer) ---------------- */
+let diffKey = 'easy';
+let game = null;
+let T = 30;                 // tile pitch in CSS px
+let bx = 0, by = 0;         // board origin in CSS px
+let boardPxW = 0, boardPxH = 0;
+let dpr = 1;
+let sprites = null;         // baked per T
+let panelSprite = null;
+let bgGrad = null;
+let startStamp = 0;         // performance.now of first reveal
+let finalElapsed = 0;       // frozen at win/lose
+let cellAnim = new Map();   // idx -> {t0, kind}
+let mineBlast = [];         // [{r,c,t0}] staggered mine reveal on loss
+let particles = [];
+let bubbles = [];
+let shakeT0 = -1e9;
+let freezeUntil = 0;        // hit-stop
+let lastShownSec = -1;
+let overlayTimer = 0;
+let blastHit = { r: -1, c: -1 };
+let winBursts = [];
+const nowMs = () => performance.now();
+
+function easeOutBack(x) {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+}
+
+/* ---------------- Inky the squid (cameo SVG) ---------------- */
+function inkySVG(mood) {
+  const happy = mood === 'win';
+  const eyeY = 46;
+  const eyes = happy
+    ? '<path d="M38 46 q7 -9 14 0" stroke="#0b3b5c" stroke-width="3.5" fill="none" stroke-linecap="round"/>' +
+      '<path d="M68 46 q7 -9 14 0" stroke="#0b3b5c" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+    : '<circle cx="45" cy="48" r="4.5" fill="#0b3b5c"/><circle cx="75" cy="48" r="4.5" fill="#0b3b5c"/>' +
+      '<path d="M38 36 l14 6 M82 36 l-14 6" stroke="#0b3b5c" stroke-width="2.5" stroke-linecap="round"/>';
+  const mouth = happy
+    ? '<path d="M48 62 q12 12 24 0" stroke="#0b3b5c" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+    : '<path d="M50 68 q10 -8 20 0" stroke="#0b3b5c" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  const blush = happy ? '<circle cx="34" cy="58" r="4" fill="rgba(255,120,150,0.55)"/><circle cx="86" cy="58" r="4" fill="rgba(255,120,150,0.55)"/>' : '';
+  const tent = [];
+  for (let i = 0; i < 5; i++) {
+    const x = 34 + i * 13;
+    const wob = happy ? -6 : 4;
+    tent.push('<path d="M' + x + ' 88 q' + wob + ' 10 ' + (wob * -0.5) + ' 18" stroke="#2fa8dc" stroke-width="5" fill="none" stroke-linecap="round"/>');
+  }
+  return '<svg width="120" height="112" viewBox="0 0 120 112">' +
+    '<defs><linearGradient id="inkyb" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#a5ecff"/><stop offset="1" stop-color="#2fa8dc"/></linearGradient></defs>' +
+    '<path d="M22 62 L10 52 L24 48 Z" fill="#2fa8dc"/><path d="M98 62 L110 52 L96 48 Z" fill="#2fa8dc"/>' +
+    tent.join('') +
+    '<path d="M60 6 C34 6 24 34 24 58 C24 76 38 88 60 88 C82 88 96 76 96 58 C96 34 86 6 60 6 Z" fill="url(#inkyb)" stroke="#1b7fae" stroke-width="2"/>' +
+    '<ellipse cx="46" cy="26" rx="14" ry="7" fill="rgba(255,255,255,0.5)" transform="rotate(-25 46 26)"/>' +
+    eyes + mouth + blush + '</svg>';
+}
+
+/* ---------------- Face + mute icons ---------------- */
+function faceSVG(kind) {
+  let eyes, mouth;
+  if (kind === 'dead') {
+    eyes = '<path d="M20 24 l10 10 M30 24 l-10 10 M44 24 l10 10 M54 24 l-10 10" stroke="#0b3b5c" stroke-width="3" stroke-linecap="round"/>';
+    mouth = '<path d="M26 46 q11 -8 22 0" stroke="#0b3b5c" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  } else if (kind === 'ooh') {
+    eyes = '<circle cx="25" cy="28" r="4" fill="#0b3b5c"/><circle cx="49" cy="28" r="4" fill="#0b3b5c"/>';
+    mouth = '<ellipse cx="37" cy="46" rx="6" ry="8" fill="#0b3b5c"/>';
+  } else if (kind === 'win') {
+    eyes = '<path d="M20 28 q5 -6 10 0 M44 28 q5 -6 10 0" stroke="#0b3b5c" stroke-width="3" fill="none" stroke-linecap="round"/>';
+    mouth = '<path d="M24 42 q13 12 26 0" stroke="#0b3b5c" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  } else {
+    eyes = '<circle cx="25" cy="28" r="4" fill="#0b3b5c"/><circle cx="49" cy="28" r="4" fill="#0b3b5c"/>';
+    mouth = '<path d="M24 42 q13 10 26 0" stroke="#0b3b5c" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  }
+  return '<svg width="40" height="40" viewBox="0 0 74 74">' +
+    '<circle cx="37" cy="37" r="32" fill="#ffe9a8" stroke="#d9a83c" stroke-width="2.5"/>' + eyes + mouth + '</svg>';
+}
+function setFace(kind) { faceBtn.innerHTML = faceSVG(kind); }
+function drawMuteIcon() {
+  const waves = Audio2.muted
+    ? '<path d="M42 26 l10 10 M52 26 l-10 10" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>'
+    : '<path d="M40 26 q8 6 0 12 M46 21 q12 9 0 22" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  muteBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 64 64">' +
+    '<path d="M14 26 h10 l12 -10 v32 l-12 -10 h-10 Z" fill="#fff"/>' + waves + '</svg>';
+}
+
+/* ---------------- Sprite baking ---------------- */
+function rr(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function makeSprite() {
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(T * dpr); c.height = Math.ceil(T * dpr);
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [c, g];
+}
+function bakeSprites() {
+  const G = 2; // visual gap between tiles
+  const s = {};
+  // covered glass tile
+  {
+    const [c, g] = makeSprite();
+    const grad = g.createLinearGradient(0, 0, 0, T);
+    grad.addColorStop(0, '#d3f1fd'); grad.addColorStop(0.55, '#a5ddf5'); grad.addColorStop(1, '#79c2e6');
+    rr(g, G / 2, G / 2, T - G, T - G, T * 0.16); g.fillStyle = grad; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 1.4; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.45)';
+    g.beginPath(); g.ellipse(T / 2, T * 0.26, T * 0.3, T * 0.13, 0, 0, Math.PI * 2); g.fill();
+    const sh = g.createLinearGradient(0, T * 0.6, 0, T);
+    sh.addColorStop(0, 'rgba(20,90,140,0)'); sh.addColorStop(1, 'rgba(20,90,140,0.22)');
+    rr(g, G / 2, G / 2, T - G, T - G, T * 0.16); g.fillStyle = sh; g.fill();
+    s.covered = c;
+  }
+  // revealed tile
+  {
+    const [c, g] = makeSprite();
+    rr(g, G / 2, G / 2, T - G, T - G, T * 0.14);
+    g.fillStyle = '#eaf7fd'; g.fill();
+    g.strokeStyle = '#b9dcea'; g.lineWidth = 1.2; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    g.fillRect(G / 2 + 2, G / 2 + 2, T - G - 4, 2);
+    s.revealed = c;
+  }
+  // numbers 1..8
+  for (let n = 1; n <= 8; n++) {
+    const [c, g] = makeSprite();
+    g.drawImage(s.revealed, 0, 0, T, T);
+    g.fillStyle = NUM_COLORS[n];
+    g.font = '800 ' + Math.round(T * 0.52) + 'px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(String(n), T / 2, T / 2 + 1);
+    s['num' + n] = c;
+  }
+  // flag on covered tile
+  {
+    const [c, g] = makeSprite();
+    g.drawImage(s.covered, 0, 0, T, T);
+    const cx = T / 2;
+    g.strokeStyle = '#4e6a7a'; g.lineWidth = Math.max(2, T * 0.06); g.lineCap = 'round';
+    g.beginPath(); g.moveTo(cx, T * 0.72); g.lineTo(cx, T * 0.26); g.stroke();
+    g.fillStyle = '#e23b3b';
+    g.beginPath(); g.moveTo(cx, T * 0.26); g.lineTo(cx + T * 0.3, T * 0.36); g.lineTo(cx, T * 0.47); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.5)';
+    g.beginPath(); g.moveTo(cx, T * 0.26); g.lineTo(cx + T * 0.3, T * 0.36); g.lineTo(cx, T * 0.38); g.closePath(); g.fill();
+    g.fillStyle = '#33505f';
+    g.beginPath(); g.ellipse(cx, T * 0.74, T * 0.14, T * 0.05, 0, 0, Math.PI * 2); g.fill();
+    s.flag = c;
+  }
+  // mine: dark glass orb with a glint
+  const orb = (c1, c2, c3) => {
+    const [c, g] = makeSprite();
+    g.drawImage(s.revealed, 0, 0, T, T);
+    const cx = T / 2, cy = T / 2, r = T * 0.3;
+    const grad = g.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+    grad.addColorStop(0, c1); grad.addColorStop(0.65, c2); grad.addColorStop(1, c3);
+    g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fillStyle = grad; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1.2;
+    g.beginPath(); g.arc(cx, cy, r, Math.PI * 1.1, Math.PI * 1.7); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.9)';
+    g.beginPath(); g.ellipse(cx - r * 0.35, cy - r * 0.42, r * 0.26, r * 0.16, -0.5, 0, Math.PI * 2); g.fill();
+    return c;
+  };
+  s.mine = orb('#2a6a94', '#123c5c', '#071c30');
+  s.mineHit = orb('#c05a5a', '#7a2222', '#3a0d0d');
+  // wrong flag: revealed tile with red X
+  {
+    const [c, g] = makeSprite();
+    g.drawImage(s.revealed, 0, 0, T, T);
+    g.strokeStyle = '#e23b3b'; g.lineWidth = Math.max(2.5, T * 0.08); g.lineCap = 'round';
+    const m = T * 0.28;
+    g.beginPath(); g.moveTo(m, m); g.lineTo(T - m, T - m); g.moveTo(T - m, m); g.lineTo(m, T - m); g.stroke();
+    s.wrongFlag = c;
+  }
+  sprites = s;
+  // backing glass panel
+  {
+    const pad = 12;
+    const c = document.createElement('canvas');
+    c.width = Math.ceil((boardPxW + pad * 2) * dpr); c.height = Math.ceil((boardPxH + pad * 2) * dpr);
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const grad = g.createLinearGradient(0, 0, 0, boardPxH + pad * 2);
+    grad.addColorStop(0, 'rgba(255,255,255,0.35)'); grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+    rr(g, 1, 1, boardPxW + pad * 2 - 2, boardPxH + pad * 2 - 2, 16);
+    g.fillStyle = grad; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.5; g.stroke();
+    panelSprite = { c, pad };
+  }
+}
+
+/* ---------------- Layout ---------------- */
+function layout() {
+  dpr = Math.min(3, window.devicePixelRatio || 1);
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (w < 10 || h < 10) return;
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+  bgGrad.addColorStop(0, 'rgba(11,53,80,0)'); bgGrad.addColorStop(1, 'rgba(4,26,42,0.35)');
+  const d = DIFFS[diffKey];
+  const pad = 16;
+  T = Math.max(20, Math.min(40, Math.floor(Math.min((w - pad * 2) / d.cols, (h - pad * 2) / d.rows))));
+  boardPxW = d.cols * T; boardPxH = d.rows * T;
+  bx = Math.round((w - boardPxW) / 2); by = Math.round((h - boardPxH) / 2);
+  bakeSprites();
+  initBubbles(w, h);
+}
+
+/* ---------------- Particles + bubbles ---------------- */
+function spawnBurst(x, y, color, n, speed) {
+  for (let i = 0; i < n; i++) {
+    if (particles.length >= MAX_PARTICLES) return;
+    const a = Math.random() * Math.PI * 2;
+    const v = (speed || 90) * (0.4 + Math.random() * 0.8);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40,
+      life: 0, max: 0.5 + Math.random() * 0.4,
+      r: 2 + Math.random() * 3.5, color
+    });
+  }
+}
+function initBubbles(w, h) {
+  bubbles = [];
+  for (let i = 0; i < 22; i++) {
+    bubbles.push({
+      x: Math.random() * w, y: Math.random() * h,
+      r: 3 + Math.random() * 12, v: 12 + Math.random() * 26,
+      a: 0.06 + Math.random() * 0.14, ph: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+/* ---------------- Game flow ---------------- */
+function newRound(key) {
+  diffKey = key;
+  const d = DIFFS[key];
+  game = msNewGame(d.rows, d.cols, d.mines);
+  cellAnim = new Map();
+  mineBlast = [];
+  particles = [];
+  startStamp = 0; finalElapsed = 0; lastShownSec = -1;
+  clearTimeout(overlayTimer);
+  overlayTimer = 0;
+  blastHit = { r: -1, c: -1 };
+  for (const id of winBursts) clearTimeout(id);
+  winBursts = [];
+  shakeT0 = -1e9; freezeUntil = 0;
+  document.querySelectorAll('#diffbar .diff').forEach(b => b.classList.toggle('active', b.dataset.diff === key));
+  document.querySelectorAll('#ov-diffs .diff').forEach(b => b.classList.toggle('active', b.dataset.diff === key));
+  overlay.classList.add('hidden');
+  setFace('smile');
+  updateHUD();
+  updateBestLine();
+  layout();
+}
+function elapsedSec() {
+  if (game.state === 'play') return Math.floor((nowMs() - startStamp) / 1000);
+  return finalElapsed;
+}
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+function bestKey() { return 'minesweeper_best_' + diffKey; }
+function getBest() {
+  const v = parseInt(store.get(bestKey()), 10);
+  return Number.isFinite(v) ? v : null;
+}
+function updateBestLine() {
+  const b = getBest();
+  bestLineEl.textContent = 'Best ' + DIFFS[diffKey].label + ': ' + (b === null ? '--' : fmtTime(b));
+}
+function updateHUD() {
+  const left = game.mineCount - game.flagsUsed;
+  mineCountEl.textContent = String(left).padStart(3, '0');
+  timerEl.textContent = fmtTime(elapsedSec());
+}
+function cellXY(r, c) { return [bx + c * T + T / 2, by + r * T + T / 2]; }
+
+function doReveal(r, c) {
+  if (!game || game.state === 'won' || game.state === 'lost') return;
+  const wasReady = game.state === 'ready';
+  const res = msReveal(game, r, c);
+  if (res.result === 'ignored') return;
+  Audio2.ensure();
+  if (wasReady) startStamp = nowMs();
+  const t0 = nowMs();
+  for (const [or, oc] of res.opened) cellAnim.set(msIdx(game, or, oc), { t0, kind: 'reveal' });
+  // bubble pops, sampled so big floods stay cheap
+  const sample = res.opened.length > 14
+    ? res.opened.filter((_, i) => i % Math.ceil(res.opened.length / 14) === 0)
+    : res.opened;
+  for (const [or, oc] of sample) {
+    const [x, y] = cellXY(or, oc);
+    spawnBurst(x, y, 'rgba(190,235,255,0.9)', 3, 70);
+  }
+  if (res.result === 'mine') {
+    onLose(r, c);
+  } else {
+    Audio2.pop();
+    if (game.state === 'won') onWin();
+  }
+  updateHUD();
+}
+function doFlag(r, c) {
+  if (!game || game.state !== 'play') return;
+  const i = msIdx(game, r, c);
+  const was = game.flagged[i];
+  if (!msToggleFlag(game, r, c)) return;
+  Audio2.ensure();
+  if (game.flagged[i]) { Audio2.flag(); cellAnim.set(i, { t0: nowMs(), kind: 'flag' }); }
+  else Audio2.unflag();
+  const [x, y] = cellXY(r, c);
+  spawnBurst(x, y, was ? 'rgba(160,200,220,0.8)' : 'rgba(255,150,150,0.85)', 5, 80);
+  if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
+  updateHUD();
+}
+function onLose(hr, hc) {
+  finalElapsed = elapsedSec();
+  Audio2.boom();
+  setFace('dead');
+  blastHit = { r: hr, c: hc };
+  // hit-stop: freeze updates briefly while rendering continues
+  freezeUntil = nowMs() + 140;
+  shakeT0 = nowMs();
+  const [x, y] = cellXY(hr, hc);
+  spawnBurst(x, y, 'rgba(255,120,120,0.95)', 40, 220);
+  spawnBurst(x, y, 'rgba(255,220,160,0.9)', 20, 160);
+  cellAnim.set(msIdx(game, hr, hc), { t0: nowMs(), kind: 'hit' });
+  // stagger the mine reveal for drama
+  let k = 0;
+  for (let r = 0; r < game.rows; r++) {
+    for (let c = 0; c < game.cols; c++) {
+      const i = msIdx(game, r, c);
+      if (game.mines[i] && !game.flagged[i] && !(r === hr && c === hc)) {
+        mineBlast.push({ r, c, t0: nowMs() + 200 + (k++) * 45 });
+      }
+    }
+  }
+  overlayTimer = setTimeout(() => showOverlay(false), 200 + k * 45 + 500);
+}
+function onWin() {
+  finalElapsed = elapsedSec();
+  Audio2.win();
+  setFace('win');
+  // auto-flag the remaining mines for a clean board
+  for (let r = 0; r < game.rows; r++) {
+    for (let c = 0; c < game.cols; c++) {
+      const i = msIdx(game, r, c);
+      if (game.mines[i] && !game.flagged[i]) { game.flagged[i] = 1; game.flagsUsed++; }
+    }
+  }
+  // celebration bursts
+  for (let k = 0; k < 6; k++) {
+    const r = Math.floor(Math.random() * game.rows), c = Math.floor(Math.random() * game.cols);
+    const [x, y] = cellXY(r, c);
+    winBursts.push(setTimeout(() => spawnBurst(x, y, 'rgba(190,240,255,0.95)', 8, 130), k * 90));
+  }
+  overlayTimer = setTimeout(() => showOverlay(true), 700);
+  updateHUD();
+}
+function showOverlay(won) {
+  const t = finalElapsed;
+  const prevBest = getBest();
+  let bestNote = '';
+  if (won && (prevBest === null || t < prevBest)) {
+    store.set(bestKey(), String(t));
+    bestNote = 'New best time!';
+    updateBestLine();
+  }
+  inkyWrap.innerHTML = inkySVG(won ? 'win' : 'lose');
+  ovTitle.textContent = won ? 'You cleared it!' : 'Boom! Mine hit.';
+  ovSub.textContent = won
+    ? 'Every safe tile revealed on ' + DIFFS[diffKey].label + '. Inky is doing a happy wiggle.'
+    : 'Inky felt that one. Shake it off and go again.';
+  ovStats.innerHTML = 'Difficulty: ' + DIFFS[diffKey].label + ' (' + DIFFS[diffKey].cols + 'x' + DIFFS[diffKey].rows + ', ' + DIFFS[diffKey].mines + ' mines)<br>Time: ' + fmtTime(t);
+  ovBest.textContent = bestNote;
+  overlay.classList.remove('hidden');
+}
+
+/* ---------------- Input (bound once) ---------------- */
+let pressInfo = null; // {r,c,x0,y0,timer,fired}
+function eventCell(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const c = Math.floor((x - bx) / T), r = Math.floor((y - by) / T);
+  if (r < 0 || r >= game.rows || c < 0 || c >= game.cols) return null;
+  return { r, c };
+}
+function bindInput() {
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return; // right/middle click: contextmenu handles it
+    Audio2.ensure();
+    const cell = eventCell(e);
+    if (!cell) return;
+    setFace('ooh');
+    pressInfo = {
+      r: cell.r, c: cell.c, x0: e.clientX, y0: e.clientY, fired: false,
+      timer: setTimeout(() => {
+        if (pressInfo) { pressInfo.fired = true; doFlag(pressInfo.r, pressInfo.c); }
+      }, LONG_PRESS_MS)
+    };
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pressInfo || pressInfo.fired) return;
+    if (Math.hypot(e.clientX - pressInfo.x0, e.clientY - pressInfo.y0) > 12) {
+      clearTimeout(pressInfo.timer); pressInfo = null; setFace(game.state === 'won' ? 'win' : game.state === 'lost' ? 'dead' : 'smile');
+    }
+  });
+  const endPress = (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (!pressInfo) return;
+    clearTimeout(pressInfo.timer);
+    const p = pressInfo; pressInfo = null;
+    setFace(game.state === 'won' ? 'win' : game.state === 'lost' ? 'dead' : 'smile');
+    if (!p.fired) doReveal(p.r, p.c);
+  };
+  canvas.addEventListener('pointerup', endPress);
+  canvas.addEventListener('pointercancel', () => {
+    if (pressInfo) { clearTimeout(pressInfo.timer); pressInfo = null; }
+    setFace(game.state === 'won' ? 'win' : game.state === 'lost' ? 'dead' : 'smile');
+  });
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const cell = eventCell(e);
+    if (cell) doFlag(cell.r, cell.c);
+  });
+  faceBtn.addEventListener('click', () => { Audio2.ensure(); Audio2.uiClick(); newRound(diffKey); });
+  muteBtn.addEventListener('click', () => { Audio2.ensure(); Audio2.setMuted(!Audio2.muted); });
+  document.getElementById('ov-again').addEventListener('click', () => { Audio2.uiClick(); newRound(diffKey); });
+  document.querySelectorAll('.diff').forEach(b => {
+    b.addEventListener('click', () => { Audio2.ensure(); Audio2.uiClick(); newRound(b.dataset.diff); });
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'r' || e.key === 'R') newRound(diffKey);
+    if (e.key === 'm' || e.key === 'M') { Audio2.ensure(); Audio2.setMuted(!Audio2.muted); }
+  });
+  window.addEventListener('resize', layout);
+}
+
+/* ---------------- Render loop ---------------- */
+function drawCellSprite(kind, dx, dy, scale) {
+  const img = sprites[kind];
+  if (scale >= 0.999) {
+    ctx.drawImage(img, dx, dy, T, T);
+  } else {
+    const cx = dx + T / 2, cy = dy + T / 2;
+    ctx.drawImage(img, cx - T * scale / 2, cy - T * scale / 2, T * scale, T * scale);
+  }
+}
+function render(t) {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  // shake (decaying sine, never raw random)
+  let sx = 0, sy = 0;
+  const shAge = t - shakeT0;
+  if (shAge < 600) {
+    const d = 1 - shAge / 600;
+    sx = Math.sin(shAge * 0.06) * 9 * d;
+    sy = Math.cos(shAge * 0.045) * 7 * d;
+  }
+  ctx.save();
+  ctx.clearRect(0, 0, w, h);
+  if (bgGrad) { ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, w, h); }
+  // ambient bubbles, screen space
+  for (const b of bubbles) {
+    ctx.strokeStyle = 'rgba(255,255,255,' + b.a.toFixed(3) + ')';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(b.x + sx * 0.3, b.y, b.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,' + (b.a * 0.8).toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(b.x + sx * 0.3 - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.22, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.translate(sx, sy);
+  // board backing panel
+  if (panelSprite) ctx.drawImage(panelSprite.c, bx - panelSprite.pad, by - panelSprite.pad, boardPxW + panelSprite.pad * 2, boardPxH + panelSprite.pad * 2);
+  // cells
+  const blastDone = new Set();
+  for (const m of mineBlast) if (t >= m.t0) blastDone.add(msIdx(game, m.r, m.c));
+  for (let r = 0; r < game.rows; r++) {
+    for (let c = 0; c < game.cols; c++) {
+      const i = msIdx(game, r, c);
+      const dx = bx + c * T, dy = by + r * T;
+      let kind = 'covered';
+      if (game.revealed[i]) {
+        if (game.mines && game.mines[i]) kind = (r === blastHit.r && c === blastHit.c) ? 'mineHit' : 'mine';
+        else { const n = game.adj[i]; kind = n === 0 ? 'revealed' : 'num' + n; }
+      } else if (game.flagged[i]) {
+        kind = (game.state === 'lost' && game.mines && !game.mines[i]) ? 'wrongFlag' : 'flag';
+      } else if (blastDone.has(i)) {
+        kind = 'mine';
+      }
+      let scale = 1;
+      const an = cellAnim.get(i);
+      if (an) {
+        const p = Math.min(1, (t - an.t0) / 170);
+        if (an.kind === 'hit') scale = 1 + 0.35 * Math.sin(Math.min(1, (t - an.t0) / 300) * Math.PI);
+        else scale = p < 1 ? Math.max(0.4, easeOutBack(p)) : 1;
+        if (p >= 1 && an.kind !== 'hit') cellAnim.delete(i);
+      }
+      drawCellSprite(kind, dx, dy, scale);
+    }
+  }
+  // particles
+  for (const p of particles) {
+    const a = 1 - p.life / p.max;
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, a);
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+function update(dt, t) {
+  if (t < freezeUntil) return; // hit-stop: freeze sim, keep rendering
+  for (const b of bubbles) {
+    b.y -= b.v * dt;
+    b.x += Math.sin(t * 0.001 + b.ph) * 8 * dt;
+    if (b.y + b.r < 0) { b.y = wrap.clientHeight + b.r; b.x = Math.random() * wrap.clientWidth; }
+  }
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life += dt;
+    if (p.life >= p.max) { particles.splice(i, 1); continue; }
+    p.vy += 160 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+}
+let lastT = 0;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  if (typeof ts !== 'number' || Number.isNaN(ts)) return; // rAF boot guard
+  const dt = Math.min(0.05, (ts - lastT) / 1000 || 0);
+  lastT = ts;
+  if (game) {
+    update(dt, ts);
+    render(ts);
+    const s = elapsedSec();
+    if (s !== lastShownSec && game.state !== 'ready') { lastShownSec = s; timerEl.textContent = fmtTime(s); }
+  }
+}
+
+/* ---------------- Boot ---------------- */
+function boot() {
+  assertConfig();
+  drawMuteIcon();
+  setFace('smile');
+  bindInput();      // listeners bound once
+  newRound('easy');
+  requestAnimationFrame(frame); // boot via rAF, never direct call
+  // debug hook for automated tests
+  window.__ms = {
+    get bx() { return bx; }, get by() { return by; }, get T() { return T; },
+    get game() { return game; }, get diffKey() { return diffKey; },
+    newRound, doReveal, doFlag
+  };
+}
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>

@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aqua Chess</title>
+<style>
+/* ============ aqua chess : Frutiger Aero ============ */
+.chess { --aqua:#38e1ff; --teal:#2dd4bf; --ink:#0b3346;
+  font-family: "SF Pro Rounded","Hiragino Maru Gothic ProN","Nunito","Segoe UI",system-ui,sans-serif;
+  color: var(--ink); min-height:100vh; position:relative; overflow:hidden;
+  background: linear-gradient(180deg,#8ff1ff 0%,#54dcf7 28%,#36c6ea 55%,#1faadb 78%,#1488c4 100%);
+  -webkit-tap-highlight-color: transparent; user-select:none; -webkit-user-select:none;
+  touch-action: manipulation;}
+.chess *{box-sizing:border-box; margin:0; padding:0;}
+.chess .ch-stage{position:relative; z-index:2; max-width:470px; margin:0 auto; min-height:100vh;
+  display:flex; flex-direction:column; padding:12px 12px 20px;}
+/* floating background bubbles */
+.chess .ch-bg{position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none;}
+.chess .ch-bg i{position:absolute; bottom:-80px; border-radius:50%;
+  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.75), rgba(255,255,255,.08) 60%);
+  box-shadow: inset -3px -4px 8px rgba(255,255,255,.25), 0 0 14px rgba(255,255,255,.25);
+  animation: ch-float linear infinite;}
+@keyframes ch-float{ to{ transform: translateY(-120vh);} }
+.chess .ch-flare{position:absolute; z-index:1; top:-70px; right:-70px; width:260px; height:260px;
+  pointer-events:none;
+  background: radial-gradient(circle, rgba(255,255,255,.9) 0%, rgba(255,255,255,.35) 22%,
+    rgba(255,255,255,.08) 45%, transparent 70%);}
+/* glass panels */
+.chess .ch-panel{background: rgba(255,255,255,.28); backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px); border:1px solid rgba(255,255,255,.65);
+  border-radius:20px; box-shadow: 0 8px 24px rgba(8,80,110,.18), inset 0 1px 0 rgba(255,255,255,.7);
+  padding:16px; position:relative; overflow:hidden;}
+.chess .ch-panel::before{content:""; position:absolute; top:0; left:0; right:0; height:50%;
+  background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
+  border-radius: 20px 20px 50% 50% / 20px 20px 12px 12px; pointer-events:none;}
+/* header */
+.chess .ch-head{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+.chess .ch-title{font-size:24px; font-weight:900; letter-spacing:1px; flex:1;
+  background: linear-gradient(180deg, #ffffff 20%, #a5f3fc 55%, #0ea5c9 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  -webkit-text-stroke: .5px rgba(7,56,78,.35);
+  filter: drop-shadow(0 2px 0 rgba(255,255,255,.55)) drop-shadow(0 4px 8px rgba(8,80,110,.18));}
+.chess .ch-iconbtn{border:1px solid rgba(255,255,255,.65); border-radius:14px; cursor:pointer;
+  background: rgba(255,255,255,.35); color:var(--ink); font:inherit; font-weight:800; font-size:16px;
+  min-width:46px; min-height:46px; padding:8px 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);}
+.chess .ch-iconbtn:active{transform: translateY(2px);}
+/* HUD */
+.chess .ch-hud{display:flex; gap:8px; margin-bottom:10px; align-items:stretch;}
+.chess .ch-turn{flex:1; text-align:center; padding:10px 6px; border-radius:16px; font-weight:900; font-size:15px;
+  letter-spacing:.5px;
+  background: rgba(255,255,255,.28); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border:1px solid rgba(255,255,255,.6); box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+  text-shadow: 0 1px 0 rgba(255,255,255,.55);}
+.chess .ch-turn .ch-dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px;
+  vertical-align:1px; animation: ch-pulse 1.2s ease-in-out infinite;}
+.chess .ch-turn.ch-yours .ch-dot{background:#10b981; box-shadow:0 0 8px #10b981;}
+.chess .ch-turn.ch-think .ch-dot{background:#f59e0b; box-shadow:0 0 8px #f59e0b;}
+@keyframes ch-pulse{0%,100%{transform:scale(1); opacity:1;} 50%{transform:scale(.7); opacity:.6;}}
+.chess .ch-turn.ch-yours{background: linear-gradient(180deg, rgba(234,255,251,.75), rgba(165,243,252,.55));
+  border-color:#fff;}
+.chess .ch-turn.ch-think{background: linear-gradient(180deg, rgba(255,244,214,.75), rgba(253,230,160,.55));}
+.chess .ch-tray{flex:1; border-radius:16px; padding:8px 10px; font-size:12px; font-weight:700;
+  background: rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5);}
+.chess .ch-tray .ch-k{font-size:10px; font-weight:900; letter-spacing:2px;
+  background: linear-gradient(180deg, #0e7490, #155e75);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow: 0 1px 0 rgba(255,255,255,.5);}
+.chess .ch-chips{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; min-height:22px;}
+.chess .ch-chip{width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:900; box-shadow: inset 0 1px 2px rgba(255,255,255,.7), 0 1px 3px rgba(8,80,110,.25);}
+.chess .ch-chip.ch-w{background: radial-gradient(circle at 32% 28%, #ffffff 0%, #d8f6ff 45%, #9be9f7 100%); color:#0b6f8a;}
+.chess .ch-chip.ch-b{background: radial-gradient(circle at 32% 28%, #4b7f96 0%, #1c4a63 55%, #0d2f45 100%); color:#eafffb;}
+/* board */
+.chess .ch-boardwrap{position:relative; border-radius:22px; overflow:hidden;
+  border:1px solid rgba(255,255,255,.7);
+  box-shadow: 0 12px 30px rgba(8,80,110,.30), inset 0 1px 0 rgba(255,255,255,.7);}
+.chess canvas.ch-board{display:block; width:100%; height:auto; cursor:pointer;}
+.chess .ch-coords{font-size:11px; font-weight:700; opacity:.75; text-align:center; margin-top:8px;}
+/* overlays */
+.chess .ch-overlay{position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
+  padding:22px; background: rgba(10,60,85,.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  opacity:1; transition: opacity .25s ease;}
+.chess .ch-overlay.ch-hidden{opacity:0; pointer-events:none;}
+.chess .ch-card{width:100%; max-width:340px; text-align:center; transform: scale(.7); opacity:0;
+  transition: transform .35s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity .2s ease;}
+.chess .ch-overlay:not(.ch-hidden) .ch-card{transform: scale(1); opacity:1;}
+.chess .ch-card h1{font-size:38px; letter-spacing:1px; text-shadow: 0 3px 0 rgba(255,255,255,.6); margin-bottom:4px;}
+.chess .ch-card h2{font-size:28px; margin-bottom:6px; text-shadow: 0 2px 0 rgba(255,255,255,.6);}
+.chess .ch-card p{font-size:14px; line-height:1.55; margin:8px 0;}
+.chess .ch-btn{display:block; width:100%; font:inherit; font-weight:800; font-size:17px;
+  color:#07384e; padding:13px; margin-top:14px; border:none; border-radius:16px; cursor:pointer;
+  background: linear-gradient(180deg,#eafffb 0%,#a5f3fc 40%,#67e8f9 75%,#38e1ff 100%);
+  box-shadow: 0 4px 0 #0ea5c9, 0 8px 18px rgba(8,80,110,.25), inset 0 1px 0 #fff;}
+.chess .ch-btn:active{transform: translateY(3px); box-shadow: 0 1px 0 #0ea5c9, 0 4px 10px rgba(8,80,110,.2);}
+.chess .ch-btn.ch-ghost{background: rgba(255,255,255,.35); box-shadow: inset 0 1px 0 rgba(255,255,255,.7);}
+.chess .ch-help{font-size:13px; line-height:1.7; text-align:left; margin:10px 0;}
+.chess .ch-help b{color:#0b5a74;}
+.chess .ch-inky{width:110px; height:110px; margin:6px auto;}
+.chess .ch-stats{font-size:13px; font-weight:700; opacity:.85; margin-top:6px;}
+/* promotion picker */
+.chess .ch-promo-row{display:flex; gap:10px; justify-content:center; margin-top:12px;}
+.chess .ch-promo{width:64px; height:64px; border-radius:50%; border:1px solid rgba(255,255,255,.8); cursor:pointer;
+  font:inherit; font-weight:900; font-size:28px; color:#07384e;
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #d8f6ff 45%, #9be9f7 100%);
+  box-shadow: inset 0 2px 4px rgba(255,255,255,.9), 0 4px 10px rgba(8,80,110,.25);}
+.chess .ch-promo:active{transform: scale(.92);}
+/* error boundary */
+.chess .ch-err{position:fixed; left:8px; right:8px; bottom:8px; z-index:99; display:none;
+  background:#7f1d1d; color:#fff; font-size:12px; padding:10px 12px; border-radius:12px;
+  font-family:monospace; white-space:pre-wrap; max-height:30vh; overflow:auto;}
+</style>
+</head>
+<body class="chess">
+<div class="ch-bg" id="chBg"></div>
+<div class="ch-flare"></div>
+<div class="ch-stage">
+  <div class="ch-head">
+    <div class="ch-title">Aqua Chess</div>
+    <button class="ch-iconbtn" id="btnMute" title="Sound on/off">&#9836;</button>
+    <button class="ch-iconbtn" id="btnHelp" title="How to play">?</button>
+    <button class="ch-iconbtn" id="btnNew" title="New game">&#8635;</button>
+  </div>
+  <div class="ch-hud">
+    <div class="ch-tray"><div class="ch-k">YOU CAPTURED</div><div class="ch-chips" id="trayW"></div></div>
+    <div class="ch-turn ch-yours" id="turnPill">Your move</div>
+    <div class="ch-tray"><div class="ch-k">AI CAPTURED</div><div class="ch-chips" id="trayB"></div></div>
+  </div>
+  <div class="ch-boardwrap" id="boardWrap">
+    <canvas class="ch-board" id="board"></canvas>
+    <div class="ch-overlay" id="ovTitle">
+      <div class="ch-panel ch-card">
+        <h1>Aqua Chess</h1>
+        <p>Classic chess in glass and water.<br>You play <b>White</b>, the AI plays <b>Black</b>.<br>Tap a piece, then tap where it goes.</p>
+        <button class="ch-btn" id="btnPlay">Play</button>
+        <button class="ch-btn ch-ghost" id="btnHow">How to play</button>
+      </div>
+    </div>
+    <div class="ch-overlay ch-hidden" id="ovHelp">
+      <div class="ch-panel ch-card">
+        <h2>How to play</h2>
+        <div class="ch-help">
+          <b>Move:</b> tap one of your white pieces, then tap a glowing dot to move there. Rings mean a capture.<br>
+          <b>Goal:</b> checkmate the black king. The red ring means a king is in check.<br>
+          <b>Special moves:</b> castling, en passant, and pawn promotion all work. Promoting shows a piece picker.<br>
+          <b>The AI</b> thinks one move ahead and loves material. Take its pieces and it will notice.
+        </div>
+        <button class="ch-btn" id="btnCloseHelp">Got it</button>
+      </div>
+    </div>
+    <div class="ch-overlay ch-hidden" id="ovPromo">
+      <div class="ch-panel ch-card">
+        <h2>Promote pawn</h2>
+        <p>Pick your new piece:</p>
+        <div class="ch-promo-row" id="promoRow">
+          <button class="ch-promo" data-p="q">Q</button>
+          <button class="ch-promo" data-p="r">R</button>
+          <button class="ch-promo" data-p="b">B</button>
+          <button class="ch-promo" data-p="n">N</button>
+        </div>
+      </div>
+    </div>
+    <div class="ch-overlay ch-hidden" id="ovEnd">
+      <div class="ch-panel ch-card">
+        <svg class="ch-inky" viewBox="0 0 120 120" id="inkySvg" aria-hidden="true">
+          <defs>
+            <radialGradient id="inkyG" cx="38%" cy="30%" r="75%">
+              <stop offset="0%" stop-color="#c9f7ff"/><stop offset="55%" stop-color="#6fd8f2"/>
+              <stop offset="100%" stop-color="#1e9cc4"/>
+            </radialGradient>
+          </defs>
+          <path d="M30 78 q4 12 -2 22 q10 -2 12 -12 q2 12 12 12 q-4 -10 -2 -22 Z" fill="#2bb3dd"/>
+          <path d="M50 78 q4 12 -2 22 q10 -2 12 -12 q2 12 12 12 q-4 -10 -2 -22 Z" fill="#2bb3dd"/>
+          <path d="M70 78 q4 12 -2 22 q10 -2 12 -12 q2 12 12 12 q-4 -10 -2 -22 Z" fill="#2bb3dd"/>
+          <ellipse cx="60" cy="52" rx="34" ry="36" fill="url(#inkyG)" stroke="rgba(255,255,255,.8)" stroke-width="2"/>
+          <ellipse cx="48" cy="38" rx="10" ry="7" fill="rgba(255,255,255,.55)"/>
+          <g id="inkyHappy">
+            <path d="M38 52 q8 -10 16 0" stroke="#07384e" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M66 52 q8 -10 16 0" stroke="#07384e" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M50 70 q10 8 20 0" stroke="#07384e" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          </g>
+          <g id="inkySad" style="display:none">
+            <circle cx="46" cy="54" r="5" fill="#07384e"/><circle cx="74" cy="54" r="5" fill="#07384e"/>
+            <circle cx="47.5" cy="52.5" r="1.6" fill="#fff"/><circle cx="75.5" cy="52.5" r="1.6" fill="#fff"/>
+            <path d="M50 74 q10 -8 20 0" stroke="#07384e" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          </g>
+          <g id="inkyMeh" style="display:none">
+            <circle cx="46" cy="54" r="5" fill="#07384e"/><circle cx="74" cy="54" r="5" fill="#07384e"/>
+            <circle cx="47.5" cy="52.5" r="1.6" fill="#fff"/><circle cx="75.5" cy="52.5" r="1.6" fill="#fff"/>
+            <path d="M52 72 h16" stroke="#07384e" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+        </svg>
+        <h2 id="endTitle">You win</h2>
+        <p id="endSub">Checkmate. Nice game.</p>
+        <div class="ch-stats" id="endStats"></div>
+        <button class="ch-btn" id="btnAgain">Play again</button>
+      </div>
+    </div>
+  </div>
+  <div class="ch-coords">a&ensp;b&ensp;c&ensp;d&ensp;e&ensp;f&ensp;g&ensp;h &middot; you are White, bottom</div>
+</div>
+<div class="ch-err" id="errBox"></div>
+<script>
+"use strict";
+/* error boundary: surface runtime errors on screen during testing */
+window.addEventListener("error", function(e){
+  var box = document.getElementById("errBox");
+  box.style.display = "block";
+  box.textContent += "[error] " + (e.message || e.error) + "\n";
+});
+</script>
+<script>
+"use strict";
+/* __LOGIC_START__ */
+const ChessLogic = (() => {
+  const VAL = { p:100, n:320, b:330, r:500, q:900, k:20000 };
+  const KN = [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]];
+  const KDIR = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  const ROOKDIR = KDIR.slice(0,4), BISHDIR = KDIR.slice(4);
+  /* piece-square tables, white perspective, r=0 is rank 1 */
+  const PST = {
+    p:[0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10, 5,5,10,25,25,10,5,5,
+       0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5, 5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
+    n:[-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40, -30,0,10,15,15,10,0,-30,
+       -30,5,15,20,20,15,5,-30, -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30,
+       -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+    b:[-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10,
+       -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10,
+       -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+    r:[0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5,
+       -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
+    q:[-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,5,5,5,0,-10,
+       -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5, -10,5,5,5,5,5,0,-10, -10,0,5,0,0,0,0,-10,
+       -20,-10,-10,-5,-5,-10,-10,-20],
+    k:[-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
+       -30,-40,-40,-50,-50,-40,-40,-30, -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10,
+       20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20]
+  };
+  function mirror(sq){ const f = sq % 8, r = (sq / 8) | 0; return (7 - r) * 8 + f; }
+  function newBoard(){
+    const bd = new Array(64).fill(null);
+    const back = ["r","n","b","q","k","b","n","r"];
+    for (let f = 0; f < 8; f++){
+      bd[f] = { t: back[f], c: "w" };
+      bd[8 + f] = { t: "p", c: "w" };
+      bd[48 + f] = { t: "p", c: "b" };
+      bd[56 + f] = { t: back[f], c: "b" };
+    }
+    return bd;
+  }
+  function newState(){ return { castling: { K:true, Q:true, k:true, q:true }, ep: -1 }; }
+  function cloneBoard(bd){ return bd.map(p => p ? { t:p.t, c:p.c } : null); }
+  function cloneState(st){ return { castling: { K:st.castling.K, Q:st.castling.Q, k:st.castling.k, q:st.castling.q }, ep: st.ep }; }
+  const opp = c => c === "w" ? "b" : "w";
+  const fOf = s => s % 8, rOf = s => (s / 8) | 0;
+  const on = (f, r) => f >= 0 && f < 8 && r >= 0 && r < 8;
+
+  function isAttacked(bd, sq, by){
+    const f = fOf(sq), r = rOf(sq);
+    const pr = by === "w" ? r - 1 : r + 1;
+    for (const df of [-1, 1]){
+      const pf = f + df;
+      if (on(pf, pr)){ const p = bd[pr * 8 + pf]; if (p && p.c === by && p.t === "p") return true; }
+    }
+    for (const d of KN){
+      const nf = f + d[0], nr = r + d[1];
+      if (on(nf, nr)){ const p = bd[nr * 8 + nf]; if (p && p.c === by && p.t === "n") return true; }
+    }
+    for (const d of KDIR){
+      const nf = f + d[0], nr = r + d[1];
+      if (on(nf, nr)){ const p = bd[nr * 8 + nf]; if (p && p.c === by && p.t === "k") return true; }
+    }
+    for (const d of ROOKDIR){
+      let nf = f + d[0], nr = r + d[1];
+      while (on(nf, nr)){
+        const p = bd[nr * 8 + nf];
+        if (p){ if (p.c === by && (p.t === "r" || p.t === "q")) return true; break; }
+        nf += d[0]; nr += d[1];
+      }
+    }
+    for (const d of BISHDIR){
+      let nf = f + d[0], nr = r + d[1];
+      while (on(nf, nr)){
+        const p = bd[nr * 8 + nf];
+        if (p){ if (p.c === by && (p.t === "b" || p.t === "q")) return true; break; }
+        nf += d[0]; nr += d[1];
+      }
+    }
+    return false;
+  }
+  function kingSq(bd, color){
+    for (let i = 0; i < 64; i++){ const p = bd[i]; if (p && p.c === color && p.t === "k") return i; }
+    return -1;
+  }
+  function pseudoMoves(bd, color, st){
+    const moves = [];
+    const add = (from, to, extra) => {
+      const m = { from, to, piece: bd[from].t };
+      if (extra) for (const k in extra) m[k] = extra[k];
+      moves.push(m);
+    };
+    for (let s = 0; s < 64; s++){
+      const p = bd[s];
+      if (!p || p.c !== color) continue;
+      const f = fOf(s), r = rOf(s);
+      if (p.t === "p"){
+        const dir = color === "w" ? 1 : -1;
+        const startR = color === "w" ? 1 : 6, promoR = color === "w" ? 7 : 0;
+        const r1 = r + dir;
+        if (on(f, r1) && !bd[r1 * 8 + f]){
+          if (r1 === promoR){ for (const pr of ["q","r","b","n"]) add(s, r1 * 8 + f, { promo: pr }); }
+          else {
+            add(s, r1 * 8 + f);
+            if (r === startR && !bd[(r + 2 * dir) * 8 + f]) add(s, (r + 2 * dir) * 8 + f, { doublePush: true });
+          }
+        }
+        for (const df of [-1, 1]){
+          const cf = f + df, cr = r + dir;
+          if (!on(cf, cr)) continue;
+          const to = cr * 8 + cf, t = bd[to];
+          if (t && t.c !== color){
+            if (cr === promoR){ for (const pr of ["q","r","b","n"]) add(s, to, { promo: pr, capture: true }); }
+            else add(s, to, { capture: true });
+          } else if (!t && to === st.ep){
+            add(s, to, { ep: true, capture: true });
+          }
+        }
+      } else if (p.t === "n"){
+        for (const d of KN){
+          const nf = f + d[0], nr = r + d[1];
+          if (!on(nf, nr)) continue;
+          const to = nr * 8 + nf, t = bd[to];
+          if (!t) add(s, to); else if (t.c !== color) add(s, to, { capture: true });
+        }
+      } else if (p.t === "k"){
+        for (const d of KDIR){
+          const nf = f + d[0], nr = r + d[1];
+          if (!on(nf, nr)) continue;
+          const to = nr * 8 + nf, t = bd[to];
+          if (!t) add(s, to); else if (t.c !== color) add(s, to, { capture: true });
+        }
+        const home = color === "w" ? 0 : 56;
+        if (s === home + 4 && !isAttacked(bd, home + 4, opp(color))){
+          const Ks = color === "w" ? "K" : "k", Qs = color === "w" ? "Q" : "q";
+          if (st.castling[Ks] && !bd[home+5] && !bd[home+6] &&
+              !isAttacked(bd, home + 5, opp(color)) && !isAttacked(bd, home + 6, opp(color)))
+            add(s, home + 6, { castle: "K" });
+          if (st.castling[Qs] && !bd[home+1] && !bd[home+2] && !bd[home+3] &&
+              !isAttacked(bd, home + 3, opp(color)) && !isAttacked(bd, home + 2, opp(color)))
+            add(s, home + 2, { castle: "Q" });
+        }
+      } else {
+        const dirs = p.t === "r" ? ROOKDIR : p.t === "b" ? BISHDIR : KDIR;
+        for (const d of dirs){
+          let nf = f + d[0], nr = r + d[1];
+          while (on(nf, nr)){
+            const to = nr * 8 + nf, t = bd[to];
+            if (!t) add(s, to);
+            else { if (t.c !== color) add(s, to, { capture: true }); break; }
+            nf += d[0]; nr += d[1];
+          }
+        }
+      }
+    }
+    return moves;
+  }
+  function applyMove(bd, st, m){
+    const nbd = cloneBoard(bd), nst = cloneState(st);
+    const pc = nbd[m.from];
+    nbd[m.from] = null;
+    if (m.ep) nbd[m.to + (pc.c === "w" ? -8 : 8)] = null;
+    if (m.castle){
+      const home = pc.c === "w" ? 0 : 56;
+      if (m.castle === "K"){ nbd[home+5] = nbd[home+7]; nbd[home+7] = null; }
+      else { nbd[home+3] = nbd[home]; nbd[home] = null; }
+    }
+    nbd[m.to] = m.promo ? { t: m.promo, c: pc.c } : pc;
+    if (pc.t === "k"){
+      if (pc.c === "w"){ nst.castling.K = false; nst.castling.Q = false; }
+      else { nst.castling.k = false; nst.castling.q = false; }
+    }
+    if (m.from === 7 || m.to === 7) nst.castling.K = false;
+    if (m.from === 0 || m.to === 0) nst.castling.Q = false;
+    if (m.from === 63 || m.to === 63) nst.castling.k = false;
+    if (m.from === 56 || m.to === 56) nst.castling.q = false;
+    nst.ep = m.doublePush ? (m.from + m.to) / 2 : -1;
+    return { bd: nbd, st: nst };
+  }
+  function legalMoves(bd, color, st){
+    const out = [];
+    for (const m of pseudoMoves(bd, color, st)){
+      const r = applyMove(bd, st, m);
+      if (!isAttacked(r.bd, kingSq(r.bd, color), opp(color))) out.push(m);
+    }
+    return out;
+  }
+  function status(bd, color, st){
+    const moves = legalMoves(bd, color, st);
+    const inChk = isAttacked(bd, kingSq(bd, color), opp(color));
+    if (moves.length === 0) return inChk ? "checkmate" : "stalemate";
+    return inChk ? "check" : "ok";
+  }
+  function evaluate(bd){
+    let s = 0;
+    for (let i = 0; i < 64; i++){
+      const p = bd[i];
+      if (!p) continue;
+      const v = VAL[p.t] + (p.c === "w" ? PST[p.t][i] : PST[p.t][mirror(i)]);
+      s += p.c === "w" ? v : -v;
+    }
+    return s;
+  }
+  /* Greedy depth-1 for Black: minimize white-perspective eval. Near-best pool keeps it beatable. */
+  function aiPick(bd, st){
+    const moves = legalMoves(bd, "b", st);
+    if (moves.length === 0) return null;
+    let best = Infinity;
+    const scored = moves.map(m => {
+      const r = applyMove(bd, st, m);
+      const s = evaluate(r.bd);
+      if (s < best) best = s;
+      return { m, s };
+    });
+    const pool = scored.filter(x => x.s <= best + 15);
+    return pool[(Math.random() * pool.length) | 0].m;
+  }
+  function sqName(sq){ return "abcdefgh"[sq % 8] + (((sq / 8) | 0) + 1); }
+  return { newBoard, newState, legalMoves, applyMove, status, isAttacked, evaluate, aiPick, kingSq, sqName, opp };
+})();
+/* __LOGIC_END__ */
+
+/* ================= AUDIO (synthesized, one master gain, mute toggle) ================= */
+const AudioEng = {
+  ctx: null, master: null, muted: false,
+  init(){
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.muted ? 0 : 0.5;
+      this.master.connect(this.ctx.destination);
+    } catch (e) { /* no audio, no problem */ }
+  },
+  toggleMute(){
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.5;
+    return this.muted;
+  },
+  tone(f0, f1, dur, type, vol, when){
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + (when || 0);
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+    g.gain.setValueAtTime(vol || 0.25, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + dur + 0.02);
+  },
+  select(){ this.tone(520, 940, 0.09, "sine", 0.18); },
+  move(){ this.tone(300, 520, 0.10, "sine", 0.22); },
+  capture(){
+    this.tone(700, 700, 0.18, "sine", 0.25);
+    this.tone(700 * 2.01, 700 * 2.01, 0.14, "sine", 0.10);
+    this.tone(180, 90, 0.12, "triangle", 0.20);
+  },
+  check(){ this.tone(880, 880, 0.12, "square", 0.10); this.tone(880, 880, 0.12, "square", 0.10, 0.16); },
+  promote(){ this.tone(500, 500, 0.10, "sine", 0.2); this.tone(650, 650, 0.10, "sine", 0.2, 0.1); this.tone(850, 850, 0.16, "sine", 0.22, 0.2); },
+  click(){ this.tone(600, 800, 0.06, "sine", 0.12); },
+  win(){ const n=[523,659,784,1047]; n.forEach((f,i)=>this.tone(f,f,0.16,"sine",0.22,i*0.13)); },
+  lose(){ const n=[392,330,262,196]; n.forEach((f,i)=>this.tone(f,f,0.2,"triangle",0.18,i*0.15)); },
+  draw(){ this.tone(440,440,0.14,"sine",0.18); this.tone(440,440,0.14,"sine",0.18,0.18); }
+};
+
+/* ================= GAME APP ================= */
+const App = {
+  bd: null, st: null, turn: "w",
+  selected: -1, selMoves: [], lastMove: null,
+  screen: "title", over: false, result: null,
+  capturedW: [], capturedB: [],
+  moveCount: 0,
+  anim: null, particles: [], hitStopUntil: 0, aiToken: 0, pendingPromo: null,
+  checkSq: -1,
+  /* canvas */
+  cv: null, ctx: null, size: 0, sq: 0, dpr: 1,
+  tileCache: null, orbCache: {}, bubbleSpr: null,
+  bubbles: [],
+  lastTs: 0,
+
+  init(){
+    this.bd = ChessLogic.newBoard();
+    this.st = ChessLogic.newState();
+    this.cv = document.getElementById("board");
+    this.ctx = this.cv.getContext("2d");
+    this.buildBg();
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+    this.bindInput();
+    this.makeBubbleSprite();
+    for (let i = 0; i < 14; i++) this.bubbles.push(this.newBubble(true));
+    requestAnimationFrame(ts => this.loop(ts));
+  },
+  newBubble(anyY){
+    return { x: Math.random(), y: anyY ? Math.random() : 1.05, r: 2 + Math.random() * 7,
+             v: 0.00012 + Math.random() * 0.00035, wob: Math.random() * Math.PI * 2 };
+  },
+  makeBubbleSprite(){
+    const s = 32, c = document.createElement("canvas");
+    c.width = c.height = s;
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(s*0.35, s*0.3, s*0.05, s*0.5, s*0.5, s*0.5);
+    grad.addColorStop(0, "rgba(255,255,255,.85)");
+    grad.addColorStop(0.55, "rgba(255,255,255,.12)");
+    grad.addColorStop(1, "rgba(255,255,255,.02)");
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(s/2, s/2, s/2 - 1, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(s/2, s/2, s/2 - 2, 0, Math.PI * 2); g.stroke();
+    this.bubbleSpr = c;
+  },
+  buildBg(){
+    const bg = document.getElementById("chBg");
+    let html = "";
+    for (let i = 0; i < 16; i++){
+      const sz = 14 + Math.random() * 46;
+      const left = Math.random() * 100;
+      const dur = 9 + Math.random() * 14;
+      const delay = -Math.random() * dur;
+      html += `<i style="width:${sz}px;height:${sz}px;left:${left}%;animation-duration:${dur}s;animation-delay:${delay}s"></i>`;
+    }
+    bg.innerHTML = html;
+  },
+  resize(){
+    const wrap = document.getElementById("boardWrap");
+    const w = wrap.clientWidth;
+    this.size = w; this.sq = w / 8;
+    this.dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    this.cv.width = Math.round(w * this.dpr);
+    this.cv.height = Math.round(w * this.dpr);
+    this.cv.style.height = w + "px";
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.bakeTiles(); this.bakeOrbs();
+  },
+  bakeTiles(){
+    const c = document.createElement("canvas");
+    c.width = c.height = Math.round(this.size * this.dpr);
+    const g = c.getContext("2d");
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const s = this.sq;
+    for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++){
+      const light = (r + f) % 2 === 1;
+      const x = f * s, y = (7 - r) * s;
+      let grad;
+      if (light){
+        grad = g.createLinearGradient(x, y, x, y + s);
+        grad.addColorStop(0, "#d8f8ff"); grad.addColorStop(0.5, "#b3ecfa"); grad.addColorStop(1, "#93dcf2");
+      } else {
+        grad = g.createLinearGradient(x, y, x, y + s);
+        grad.addColorStop(0, "#1b8aa8"); grad.addColorStop(0.5, "#12748f"); grad.addColorStop(1, "#0c5c74");
+      }
+      g.fillStyle = grad;
+      g.fillRect(x, y, s, s);
+      /* glass gloss: bright top strip */
+      g.fillStyle = light ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.14)";
+      g.fillRect(x, y, s, s * 0.12);
+    }
+    this.tileCache = c;
+  },
+  bakeOrbs(){
+    this.orbCache = {};
+    const s = Math.round(this.sq * this.dpr);
+    for (const color of ["w", "b"]) for (const t of ["k","q","r","b","n","p"]){
+      const c = document.createElement("canvas");
+      c.width = c.height = s;
+      const g = c.getContext("2d");
+      const cx = s / 2, rad = s * 0.44;
+      const grad = g.createRadialGradient(cx - rad*0.35, cx - rad*0.4, rad*0.1, cx, cx, rad);
+      if (color === "w"){
+        grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.45, "#e6fbff");
+        grad.addColorStop(0.8, "#a8e6f5"); grad.addColorStop(1, "#6fc7e2");
+      } else {
+        grad.addColorStop(0, "#5b93ad"); grad.addColorStop(0.45, "#2c617e");
+        grad.addColorStop(0.8, "#143d55"); grad.addColorStop(1, "#0a2536");
+      }
+      g.fillStyle = grad;
+      g.beginPath(); g.arc(cx, cx, rad, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = color === "w" ? "rgba(255,255,255,.9)" : "rgba(160,230,245,.55)";
+      g.lineWidth = Math.max(1.5, s * 0.02);
+      g.beginPath(); g.arc(cx, cx, rad - g.lineWidth, 0, Math.PI * 2); g.stroke();
+      /* specular crescent */
+      g.fillStyle = "rgba(255,255,255,.75)";
+      g.beginPath();
+      g.ellipse(cx - rad*0.34, cx - rad*0.42, rad*0.22, rad*0.13, -0.6, 0, Math.PI * 2);
+      g.fill();
+      /* glyph */
+      g.fillStyle = color === "w" ? "#0b6f8a" : "#f2feff";
+      g.font = `900 ${s * 0.44}px Georgia, "Times New Roman", serif`;
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(t.toUpperCase(), cx, cx + s * 0.03);
+      this.orbCache[t + color] = c;
+    }
+  },
+  bindInput(){
+    /* listeners bound once at init */
+    this.cv.addEventListener("pointerdown", e => {
+      AudioEng.init();
+      const r = this.cv.getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      this.onTap(x, y);
+    });
+    const on = (id, fn) => document.getElementById(id).addEventListener("click", () => { AudioEng.init(); AudioEng.click(); fn(); });
+    on("btnPlay", () => this.startGame());
+    on("btnHow", () => this.show("ovHelp"));
+    on("btnCloseHelp", () => this.hide("ovHelp"));
+    on("btnHelp", () => this.show("ovHelp"));
+    on("btnNew", () => this.newGame());
+    on("btnAgain", () => this.newGame());
+    on("btnMute", () => {
+      const m = AudioEng.toggleMute();
+      document.getElementById("btnMute").innerHTML = m ? "&#215;" : "&#9836;";
+    });
+    document.getElementById("promoRow").addEventListener("click", e => {
+      const b = e.target.closest(".ch-promo");
+      if (!b || !this.pendingPromo) return;
+      AudioEng.init();
+      const mv = this.pendingPromo.find(m => m.promo === b.dataset.p);
+      this.hide("ovPromo");
+      this.pendingPromo = null;
+      if (mv) this.commitMove(mv);
+    });
+  },
+  show(id){ document.getElementById(id).classList.remove("ch-hidden"); },
+  hide(id){ document.getElementById(id).classList.add("ch-hidden"); },
+  startGame(){
+    this.hide("ovTitle");
+    this.screen = "game";
+    this.newGame();
+  },
+  newGame(){
+    this.aiToken++;
+    this.bd = ChessLogic.newBoard();
+    this.st = ChessLogic.newState();
+    this.turn = "w"; this.selected = -1; this.selMoves = []; this.lastMove = null;
+    this.over = false; this.result = null; this.capturedW = []; this.capturedB = [];
+    this.moveCount = 0; this.anim = null; this.particles = []; this.checkSq = -1;
+    this.hide("ovEnd"); this.hide("ovPromo"); this.hide("ovTitle");
+    this.pendingPromo = null;
+    this.screen = "game";
+    this.renderTrays();
+    this.setTurn("Your move", "yours");
+  },
+  onTap(x, y){
+    if (this.screen !== "game" || this.over || this.anim || this.pendingPromo) return;
+    if (this.turn !== "w") return;
+    const f = Math.floor(x / this.sq), r = 7 - Math.floor(y / this.sq);
+    if (f < 0 || f > 7 || r < 0 || r > 7) return;
+    const sq = r * 8 + f;
+    const p = this.bd[sq];
+    if (this.selected >= 0){
+      const mv = this.selMoves.find(m => m.to === sq);
+      if (mv){
+        if (mv.promo && this.selMoves.some(m => m.to === sq && m.promo && m.promo !== mv.promo)){
+          this.pendingPromo = this.selMoves.filter(m => m.to === sq);
+          this.show("ovPromo");
+          return;
+        }
+        this.commitMove(mv);
+        return;
+      }
+    }
+    if (p && p.c === "w"){
+      if (this.selected === sq){ this.selected = -1; this.selMoves = []; return; }
+      this.selected = sq;
+      this.selMoves = ChessLogic.legalMoves(this.bd, "w", this.st).filter(m => m.from === sq);
+      AudioEng.select();
+    } else {
+      this.selected = -1; this.selMoves = [];
+    }
+  },
+  capturedPieceFor(m){
+    if (m.ep) return this.bd[m.to + (this.turn === "w" ? -8 : 8)];
+    return this.bd[m.to] || null;
+  },
+  commitMove(m){
+    const mover = this.turn;
+    const captured = this.capturedPieceFor(m);
+    const from = m.from, to = m.to;
+    const r = ChessLogic.applyMove(this.bd, this.st, m);
+    this.bd = r.bd; this.st = r.st;
+    this.moveCount++;
+    if (captured){
+      if (mover === "w") this.capturedW.push(captured.t); else this.capturedB.push(captured.t);
+      this.renderTrays();
+    }
+    this.lastMove = { from, to };
+    this.selected = -1; this.selMoves = [];
+    /* animation + juice */
+    const piece = this.bd[to];
+    this.anim = { from, to, piece, t: 0, dur: captured ? 200 : 150 };
+    if (captured){
+      this.hitStopUntil = performance.now() + 60;
+      this.spawnCaptureFx(to);
+      AudioEng.capture();
+    } else if (m.promo){ AudioEng.promote(); }
+    else { AudioEng.move(); }
+    this.afterMove(mover);
+  },
+  afterMove(mover){
+    const next = ChessLogic.opp(mover);
+    const st = ChessLogic.status(this.bd, next, this.st);
+    if (st === "checkmate" || st === "stalemate"){
+      this.animDone = () => this.endGame(st, mover);
+      this.checkSq = st === "checkmate" ? ChessLogic.kingSq(this.bd, next) : -1;
+      return;
+    }
+    if (st === "check"){
+      this.checkSq = ChessLogic.kingSq(this.bd, next);
+      AudioEng.check();
+    } else this.checkSq = -1;
+    this.turn = next;
+    if (next === "b"){
+      this.setTurn("Black is thinking", "think");
+      const tok = ++this.aiToken;
+      setTimeout(() => { if (tok === this.aiToken && !this.over) this.aiMove(); }, 450);
+    } else {
+      this.setTurn("Your move", "yours");
+    }
+  },
+  aiMove(){
+    const m = ChessLogic.aiPick(this.bd, this.st);
+    if (!m){ this.endGame("checkmate", "w"); return; }
+    this.turn = "b";
+    this.commitMove(m);
+  },
+  endGame(kind, winner){
+    this.over = true;
+    this.result = kind === "checkmate" ? (winner === "w" ? "win" : "lose") : "draw";
+    const title = document.getElementById("endTitle");
+    const sub = document.getElementById("endSub");
+    const inkyH = document.getElementById("inkyHappy"), inkyS = document.getElementById("inkySad"), inkyM = document.getElementById("inkyMeh");
+    inkyH.style.display = "none"; inkyS.style.display = "none"; inkyM.style.display = "none";
+    if (this.result === "win"){ title.textContent = "You win"; sub.textContent = "Checkmate. Inky is doing a happy swirl."; inkyH.style.display = ""; AudioEng.win(); }
+    else if (this.result === "lose"){ title.textContent = "Black wins"; sub.textContent = "Checkmate. Inky believes in the rematch."; inkyS.style.display = ""; AudioEng.lose(); }
+    else { title.textContent = "Draw"; sub.textContent = "Stalemate. Nobody blinks first."; inkyM.style.display = ""; AudioEng.draw(); }
+    document.getElementById("endStats").textContent =
+      this.moveCount + " moves played · you captured " + this.capturedW.length + " · AI captured " + this.capturedB.length;
+    this.setTurn(this.result === "win" ? "You won" : this.result === "lose" ? "Black won" : "Draw", "yours");
+    this.show("ovEnd");
+  },
+  setTurn(text, cls){
+    const el = document.getElementById("turnPill");
+    el.innerHTML = '<span class="ch-dot"></span>' + text.replace(/</g, "&lt;");
+    el.className = "ch-turn" + (cls === "yours" ? " ch-yours" : cls === "think" ? " ch-think" : "");
+  },
+  renderTrays(){
+    const mk = (arr, cls) => arr.map(t =>
+      `<span class="ch-chip ${cls}">${t.toUpperCase()}</span>`).join("");
+    document.getElementById("trayW").innerHTML = mk(this.capturedW, "ch-w");
+    document.getElementById("trayB").innerHTML = mk(this.capturedB, "ch-b");
+  },
+  spawnCaptureFx(to){
+    const f = to % 8, r = (to / 8) | 0;
+    const x = (f + 0.5) * this.sq, y = (7 - r + 0.5) * this.sq;
+    for (let i = 0; i < 14; i++){
+      const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 3;
+      this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1,
+        life: 1, kind: "spark", sz: 2 + Math.random() * 3 });
+    }
+    this.particles.push({ x, y, life: 1, kind: "ring", sz: this.sq * 0.3 });
+  },
+  sqXY(sq){
+    const f = sq % 8, r = (sq / 8) | 0;
+    return { x: (f + 0.5) * this.sq, y: (7 - r + 0.5) * this.sq };
+  },
+  loop(ts){
+    requestAnimationFrame(t => this.loop(t));
+    if (Number.isNaN(ts)) return;
+    const dt = Math.min(100, ts - (this.lastTs || ts));
+    this.lastTs = ts;
+    const now = performance.now();
+    this.update(dt, now);
+    this.draw(now);
+  },
+  update(dt, now){
+    const inHitStop = now < this.hitStopUntil;
+    if (this.anim && !inHitStop){
+      this.anim.t += dt;
+      if (this.anim.t >= this.anim.dur){
+        this.anim = null;
+        if (this.animDone){ const f = this.animDone; this.animDone = null; f(); }
+      }
+    }
+    for (let i = this.particles.length - 1; i >= 0; i--){
+      const p = this.particles[i];
+      p.life -= dt / 600;
+      if (p.kind === "spark"){ p.x += p.vx * dt / 16; p.y += p.vy * dt / 16; p.vy += 0.08 * dt / 16; }
+      if (p.kind === "ring"){ p.sz += dt / 16 * 3.2; }
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+    if (this.particles.length > 150) this.particles.splice(0, this.particles.length - 150);
+    for (const b of this.bubbles){
+      b.y -= b.v * dt; b.wob += dt * 0.002;
+      if (b.y < -0.05) Object.assign(b, this.newBubble(false));
+    }
+  },
+  draw(now){
+    const g = this.ctx, s = this.sq, W = this.size;
+    g.clearRect(0, 0, W, W);
+    g.drawImage(this.tileCache, 0, 0, W, W);
+    /* last move highlight */
+    if (this.lastMove){
+      g.fillStyle = "rgba(255,255,255,.30)";
+      for (const sq of [this.lastMove.from, this.lastMove.to]){
+        const f = sq % 8, r = (sq / 8) | 0;
+        g.fillRect(f * s, (7 - r) * s, s, s);
+      }
+    }
+    /* selected */
+    if (this.selected >= 0){
+      const f = this.selected % 8, r = (this.selected / 8) | 0;
+      g.strokeStyle = "#ffffff"; g.lineWidth = 4;
+      g.strokeRect(f * s + 3, (7 - r) * s + 3, s - 6, s - 6);
+      /* legal move dots */
+      for (const m of this.selMoves){
+        const p = this.sqXY(m.to);
+        if (m.capture || m.ep){
+          g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 4;
+          g.beginPath(); g.arc(p.x, p.y, s * 0.42, 0, Math.PI * 2); g.stroke();
+        } else {
+          g.fillStyle = "rgba(255,255,255,.85)";
+          g.beginPath(); g.arc(p.x, p.y, s * 0.14, 0, Math.PI * 2); g.fill();
+        }
+      }
+    }
+    /* check ring */
+    if (this.checkSq >= 0){
+      const p = this.sqXY(this.checkSq);
+      const pulse = 0.5 + 0.5 * Math.sin(now / 180);
+      g.strokeStyle = `rgba(220,38,38,${0.65 + 0.35 * pulse})`;
+      g.lineWidth = 5;
+      g.beginPath(); g.arc(p.x, p.y, s * 0.44, 0, Math.PI * 2); g.stroke();
+    }
+    /* pieces */
+    const skipSq = this.anim ? this.anim.from : -1;
+    const animSq = this.anim ? this.anim.to : -1;
+    for (let i = 0; i < 64; i++){
+      if (i === skipSq || i === animSq) continue;
+      const p = this.bd[i];
+      if (!p) continue;
+      const f = i % 8, r = (i / 8) | 0;
+      g.drawImage(this.orbCache[p.t + p.c], f * s, (7 - r) * s, s, s);
+    }
+    if (this.anim){
+      const a = this.anim, k = Math.min(1, a.t / a.dur);
+      const e = 1 - Math.pow(1 - k, 3);
+      const p0 = this.sqXY(a.from), p1 = this.sqXY(a.to);
+      const x = p0.x + (p1.x - p0.x) * e, y = p0.y + (p1.y - p0.y) * e - Math.sin(k * Math.PI) * s * 0.12;
+      const sc = 1 + Math.sin(k * Math.PI) * 0.08;
+      const ds = s * sc;
+      g.drawImage(this.orbCache[a.piece.t + a.piece.c], x - ds / 2, y - ds / 2, ds, ds);
+    }
+    /* particles */
+    for (const p of this.particles){
+      if (p.kind === "spark"){
+        g.globalAlpha = Math.max(0, p.life);
+        g.fillStyle = "#ffffff";
+        g.beginPath(); g.arc(p.x, p.y, p.sz * p.life, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1;
+      } else {
+        g.globalAlpha = Math.max(0, p.life) * 0.9;
+        g.strokeStyle = "#eafffb"; g.lineWidth = 3;
+        g.beginPath(); g.arc(p.x, p.y, p.sz, 0, Math.PI * 2); g.stroke();
+        g.globalAlpha = 1;
+      }
+    }
+    /* ambient bubbles (screen space) */
+    for (const b of this.bubbles){
+      const bx = (b.x + Math.sin(b.wob) * 0.01) * W, by = b.y * W;
+      const d = b.r * 2 * (this.dpr > 1.5 ? 1.4 : 1);
+      g.globalAlpha = 0.5;
+      g.drawImage(this.bubbleSpr, bx - d / 2, by - d / 2, d, d);
+    }
+    g.globalAlpha = 1;
+  }
+};
+document.addEventListener("DOMContentLoaded", () => App.init());
+</script>
+</body>
+</html>

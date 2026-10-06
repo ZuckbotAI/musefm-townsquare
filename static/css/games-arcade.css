@@ -1,0 +1,332 @@
+/* ============================================================
+   MuseFM Arcade — /games hub + game pages (2026-10-05)
+   itch.io card pattern: cover art -> tagline -> genre -> play.
+   Mobile-first: 390px is the bar. 44px+ touch targets.
+   ============================================================ */
+
+.arcade-wrap { max-width: 1060px; margin: 0 auto; padding: 0 16px 64px; }
+
+/* ---------- Hero ---------- */
+.arcade-hero {
+  position: relative; overflow: hidden; border-radius: 24px;
+  margin: 16px 0 28px; padding: 34px 26px;
+  background: linear-gradient(135deg, #1a1033 0%, #2b1a5e 45%, #0e2a4a 100%);
+  color: #fff; box-shadow: var(--rz-shadow);
+}
+.arcade-hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(closest-side at 85% 15%, rgba(43,212,255,.28), transparent 70%),
+    radial-gradient(closest-side at 12% 88%, rgba(124,92,255,.35), transparent 70%);
+}
+.arcade-hero > * { position: relative; }
+.arcade-kicker {
+  display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 2px;
+  text-transform: uppercase; color: #2bd4ff; margin-bottom: 10px;
+}
+.arcade-hero h1 { font-size: clamp(30px, 7vw, 48px); margin: 0 0 10px; letter-spacing: -.8px; }
+.arcade-hero p { font-size: 15.5px; line-height: 1.55; color: rgba(255,255,255,.82); max-width: 560px; margin: 0 0 20px; }
+.arcade-hero-cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.arcade-hero .btn-play {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 26px;
+  border-radius: 999px; font-weight: 800; font-size: 16px; color: #14102b; text-decoration: none;
+  background: linear-gradient(135deg, #ffd166, #ff8c42);
+  box-shadow: 0 8px 24px rgba(255,140,66,.4);
+}
+.arcade-hero .btn-ghost {
+  display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px;
+  border-radius: 999px; font-weight: 700; font-size: 15px; color: #fff; text-decoration: none;
+  border: 1.5px solid rgba(255,255,255,.35); background: rgba(255,255,255,.08);
+}
+.arcade-hero .btn-ghost:hover { background: rgba(255,255,255,.18); color: #fff; }
+.arcade-stats { display: flex; gap: 22px; margin-top: 22px; flex-wrap: wrap; }
+.arcade-stat { font-size: 13px; color: rgba(255,255,255,.65); }
+.arcade-stat b { display: block; font-size: 20px; color: #fff; }
+
+/* ---------- Section titles ---------- */
+.arcade-sec-title {
+  font-size: 20px; font-weight: 800; letter-spacing: -.3px; margin: 6px 0 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.arcade-sec-sub { color: var(--rz-ink2); font-size: 14px; margin: -8px 0 16px; }
+
+/* ---------- Featured card (Amazin' Rush spotlight) ---------- */
+.arcade-featured {
+  display: grid; grid-template-columns: 1fr; gap: 0; border-radius: 20px; overflow: hidden;
+  background: var(--rz-card); border: 1px solid var(--rz-line); box-shadow: var(--rz-shadow);
+  margin-bottom: 30px; text-decoration: none; color: inherit;
+}
+.arcade-featured-art {
+  min-height: 210px; position: relative; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #3b2314 0%, #7a4a1e 55%, #c98a2e 100%);
+  overflow: hidden;
+}
+.arcade-featured-art::after {
+  content: "📦"; font-size: 92px; filter: drop-shadow(0 10px 24px rgba(0,0,0,.45));
+}
+.arcade-featured-art .arcade-art-glow {
+  position: absolute; inset: 0;
+  background: radial-gradient(closest-side at 50% 60%, rgba(255,209,102,.35), transparent 75%);
+}
+.arcade-featured-body { padding: 22px 22px 24px; }
+.arcade-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.arcade-badge {
+  font-size: 11.5px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+  padding: 5px 12px; border-radius: 999px; background: var(--rz-pill); color: var(--rz-ink2);
+  border: 1px solid var(--rz-line);
+}
+.arcade-badge.hot { background: linear-gradient(135deg, #ff8c42, #ff5e62); color: #fff; border: 0; }
+.arcade-badge.free { background: rgba(34,197,94,.14); color: #15803d; border: 1px solid rgba(34,197,94,.35); }
+[data-theme="dark"] .arcade-badge.free { color: #4ade80; }
+.arcade-featured-body h2 { font-size: 24px; margin: 0 0 8px; letter-spacing: -.4px; }
+.arcade-tagline { color: var(--rz-ink2); font-size: 15px; line-height: 1.55; margin: 0 0 14px; }
+.arcade-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--rz-ink3); margin-bottom: 16px; }
+.arcade-play-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; padding: 0 30px; border-radius: 999px; font-weight: 800; font-size: 16px;
+  color: #fff; text-decoration: none; border: 0; cursor: pointer;
+  background: linear-gradient(135deg, #7c5cff, #2bd4ff);
+  box-shadow: 0 8px 22px rgba(124,92,255,.35);
+}
+@media (min-width: 720px) {
+  .arcade-featured { grid-template-columns: 1fr 1.15fr; }
+  .arcade-featured-art { min-height: 280px; }
+}
+
+/* ---------- Game card grid (itch.io pattern) ---------- */
+.arcade-grid { display: grid; grid-template-columns: 1fr; gap: 18px; margin-bottom: 34px; }
+@media (min-width: 640px) { .arcade-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 980px) { .arcade-grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+.game-card {
+  background: var(--rz-card); border: 1px solid var(--rz-line); border-radius: 18px;
+  overflow: hidden; box-shadow: var(--rz-shadow-sm); display: flex; flex-direction: column;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.game-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+.game-card-art {
+  height: 168px; position: relative; display: flex; align-items: center; justify-content: center;
+  font-size: 64px; overflow: hidden; text-decoration: none;
+}
+.game-card-art .art-emoji { filter: drop-shadow(0 8px 18px rgba(0,0,0,.4)); position: relative; }
+.game-card-art.art-shell { background: linear-gradient(135deg, #0b3b5e 0%, #14608f 55%, #2bd4ff 130%); }
+.game-card-art.art-frenzy { background: linear-gradient(135deg, #5e0b2e 0%, #a1174e 55%, #ff5e62 130%); }
+.game-card-art.art-soon { background: linear-gradient(135deg, #232a3a 0%, #3a4358 100%); }
+.game-card-art .art-shine {
+  position: absolute; inset: 0;
+  background: radial-gradient(closest-side at 50% 30%, rgba(255,255,255,.22), transparent 70%);
+}
+.game-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+.game-card-body h3 { font-size: 18px; margin: 0 0 6px; letter-spacing: -.2px; }
+.game-card-tag { color: var(--rz-ink2); font-size: 14px; line-height: 1.5; margin: 0 0 12px; flex: 1; }
+.game-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.game-card-genre { font-size: 12.5px; font-weight: 700; color: var(--rz-ink3); text-transform: uppercase; letter-spacing: .8px; }
+.game-card-play {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 22px;
+  border-radius: 999px; font-weight: 800; font-size: 14.5px; color: #fff; text-decoration: none; border: 0; cursor: pointer;
+  background: linear-gradient(135deg, #7c5cff, #2bd4ff);
+}
+.game-card-play.ghost { background: var(--rz-pill); color: var(--rz-ink2); box-shadow: none; }
+.game-card .login-note { font-size: 12.5px; color: var(--rz-ink3); margin-top: 10px; }
+
+/* ---------- Game page shell ---------- */
+.gamepage-wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 64px; }
+.gamepage-back { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 6px;
+  color: var(--rz-ink2); text-decoration: none; font-size: 14px; font-weight: 600; min-height: 44px; }
+.gamepage-hero {
+  border-radius: 20px; padding: 26px 22px; color: #fff; position: relative; overflow: hidden;
+  margin-bottom: 18px; box-shadow: var(--rz-shadow);
+}
+.gamepage-hero > * { position: relative; }
+.gamepage-hero h1 { font-size: 26px; margin: 0 0 8px; letter-spacing: -.4px; }
+.gamepage-hero p { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255,255,255,.85); }
+.gamepage-hero.hero-shell { background: linear-gradient(135deg, #0b3b5e, #14608f); }
+.gamepage-hero.hero-frenzy { background: linear-gradient(135deg, #5e0b2e, #c2265a); }
+.gamepage-hero.hero-shell::before, .gamepage-hero.hero-frenzy::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(closest-side at 85% 20%, rgba(255,255,255,.18), transparent 70%);
+}
+
+.game-panel {
+  background: var(--rz-card); border: 1px solid var(--rz-line); border-radius: 18px;
+  box-shadow: var(--rz-shadow-sm); padding: 22px 20px; margin-bottom: 16px;
+}
+
+/* Shell shuffle */
+.shell-row { display: flex; gap: 14px; justify-content: center; margin: 8px 0 18px; }
+.shell {
+  width: 96px; height: 96px; border-radius: 22px; border: 2px solid var(--rz-line);
+  background: var(--rz-pill); font-size: 52px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.shell:hover { transform: translateY(-3px); }
+.shell:active { transform: scale(.94); }
+.shell.picked { border-color: #7c5cff; box-shadow: 0 0 0 4px rgba(124,92,255,.25); }
+.shell.winner { border-color: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.3); background: rgba(34,197,94,.1); }
+.shell.loser { opacity: .45; }
+.shell:disabled { cursor: default; }
+.shell .shell-label { position: absolute; font-size: 11px; }
+.shell-result { text-align: center; min-height: 64px; font-size: 16px; font-weight: 700; }
+.shell-result .win { color: #15803d; }
+.shell-result .lose { color: var(--rz-ink2); }
+[data-theme="dark"] .shell-result .win { color: #4ade80; }
+.shell-xp { text-align: center; font-size: 13.5px; color: var(--rz-ink3); margin-top: 6px; }
+
+/* Feed frenzy */
+.frenzy-stage {
+  border-radius: 18px; background: linear-gradient(180deg, #1c0f24, #3a1530);
+  min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; color: #fff; padding: 24px 18px; user-select: none;
+  -webkit-user-select: none; touch-action: manipulation;
+}
+.frenzy-count { font-size: 64px; font-weight: 900; letter-spacing: -2px; line-height: 1; }
+.frenzy-timer { font-size: 15px; font-weight: 700; color: #ffd166; margin-top: 8px; min-height: 22px; }
+.frenzy-hint { font-size: 13.5px; color: rgba(255,255,255,.7); margin-top: 10px; text-align: center; }
+.frenzy-tapbtn {
+  margin-top: 18px; width: 150px; height: 150px; border-radius: 50%; border: 0; cursor: pointer;
+  font-size: 72px; background: radial-gradient(circle at 35% 30%, #ff8a5c, #e0447c);
+  box-shadow: 0 12px 34px rgba(224,68,124,.5), inset 0 -6px 0 rgba(0,0,0,.18);
+  transition: transform .06s ease;
+}
+.frenzy-tapbtn:active { transform: scale(.92); }
+.frenzy-tapbtn:disabled { opacity: .55; cursor: default; }
+.frenzy-result { text-align: center; }
+.frenzy-result .score-big { font-size: 44px; font-weight: 900; }
+.frenzy-tiers { width: 100%; margin-top: 14px; font-size: 13px; color: var(--rz-ink2); text-align: left; }
+.frenzy-tiers li { margin-bottom: 6px; }
+
+/* Amazin' Rush page */
+.amazin-wrap { max-width: 520px; margin: 0 auto; padding: 0 12px 64px; }
+.amazin-stage {
+  border-radius: 22px; overflow: hidden; background: #0f172a;
+  box-shadow: 0 24px 60px rgba(2,6,23,.35); border: 1px solid rgba(148,163,184,.15);
+}
+.amazin-note { font-size: 13px; color: var(--rz-ink3); text-align: center; margin: 12px 0 0; line-height: 1.5; }
+
+/* Login gate */
+.login-gate { text-align: center; padding: 30px 22px; }
+.login-gate h2 { font-size: 20px; margin: 0 0 8px; }
+.login-gate p { color: var(--rz-ink2); font-size: 14.5px; margin: 0 0 18px; }
+.login-gate .btn { min-height: 48px; padding: 0 28px; border-radius: 999px; font-weight: 800;
+  display: inline-flex; align-items: center; }
+
+@media (max-width: 480px) {
+  .arcade-hero { padding: 28px 20px; border-radius: 18px; }
+  .shell { width: 88px; height: 88px; font-size: 46px; }
+  .frenzy-tapbtn { width: 132px; height: 132px; font-size: 62px; }
+}
+
+/* ============================================================
+   Playables-style hub (2026-10-05, Anthony ref)
+   2-col mobile grid, big cover art, title + sub below.
+   Play counts omitted: none exist in the backend, and we don't fake them.
+   ============================================================ */
+.pb-hub { max-width: 1060px; margin: 0 auto; padding: 0 16px 64px; }
+.pb-hub-head { padding: 18px 4px 16px; }
+.pb-kicker {
+  display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--rz-ink3); margin-bottom: 6px;
+}
+.pb-hub-head h1 { font-size: clamp(28px, 6.5vw, 40px); margin: 0 0 6px; letter-spacing: -.8px; }
+.pb-hub-head p { color: var(--rz-ink2); font-size: 14.5px; margin: 0; }
+
+.pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
+.pb-card { text-decoration: none; color: inherit; display: block; }
+.pb-art {
+  display: block; border-radius: 18px; overflow: hidden; aspect-ratio: 2 / 3;
+  background: #101528; box-shadow: var(--rz-shadow-sm); position: relative;
+}
+.pb-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pb-meta { display: block; padding: 10px 4px 0; }
+.pb-meta b {
+  display: block; font-size: 17px; letter-spacing: -.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pb-sub { display: block; color: var(--rz-ink3); font-size: 13px; margin-top: 3px; }
+.pb-title-row { display: flex; align-items: center; gap: 8px; }
+.pb-title-row b { white-space: normal; }
+.pb-flag {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+  color: #fff; background: linear-gradient(135deg, #ff8c42, #ff5e62);
+  border-radius: 999px; padding: 4px 10px; flex: none;
+}
+.pb-play {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 0 30px; margin-top: 12px;
+  border-radius: 999px; font-weight: 800; font-size: 15.5px; color: #fff;
+  background: linear-gradient(135deg, #7c5cff, #2bd4ff);
+  box-shadow: 0 8px 22px rgba(124,92,255,.35);
+}
+.pb-featured { grid-column: auto; }
+.pb-featured .pb-art { aspect-ratio: 2 / 3; }
+.pb-more { text-align: center; color: var(--rz-ink3); font-size: 13.5px; margin: 26px 0 0; }
+
+@media (min-width: 980px) {
+  .pb-grid { grid-template-columns: repeat(3, 1fr); gap: 22px 18px; }
+  .pb-featured .pb-art { aspect-ratio: 21 / 9; }
+}
+
+/* ============================================================
+   Playables-style game launch (2026-10-05, Anthony ref)
+   Mobile: the game takes over the viewport, site chrome hidden,
+   X top-left exits back to the arcade. Desktop keeps page layout.
+   ============================================================ */
+.game-launch-bar, .gl-loading { display: none; }
+
+@media (max-width: 760px) {
+  body.game-launch {
+    background: linear-gradient(180deg, #0d0a1f 0%, #131a35 55%, #0a0d1a 100%);
+    min-height: 100dvh;
+  }
+  body.game-launch .topbar,
+  body.game-launch .fmf-bar,
+  body.game-launch .sidebar,
+  body.game-launch .bottomnav,
+  body.game-launch footer { display: none !important; }
+  body.game-launch .wrap { max-width: none; padding: 0; margin: 0; }
+  body.game-launch .gamepage-wrap,
+  body.game-launch .amazin-wrap { max-width: none; margin: 0; padding: 0 0 40px; }
+
+  .game-launch-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+    position: sticky; top: 0; z-index: 60;
+  }
+  .gl-close {
+    width: 44px; height: 44px; flex: none; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.12); color: #fff; font-size: 20px; text-decoration: none;
+  }
+  .gl-title { color: #fff; font-weight: 800; font-size: 17px; letter-spacing: -.2px; }
+
+  body.game-launch .gamepage-back { display: none; }
+  body.game-launch .gamepage-hero { display: none; }
+  body.game-launch .game-panel { margin: 4px 12px 12px; }
+  body.game-launch .amazin-stage { margin: 4px 12px 0; }
+  body.game-launch .amazin-stage .amazin-rush { height: calc(100dvh - 170px) !important; min-height: 480px; }
+  body.game-launch .amazin-note { color: rgba(255,255,255,.55); padding: 0 20px; }
+
+  /* loading splash */
+  body.game-launch .gl-loading {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; z-index: 100;
+    background: linear-gradient(180deg, #0d0a1f 0%, #131a35 55%, #0a0d1a 100%);
+    transition: opacity .45s ease;
+  }
+  body.game-launch .gl-loading.gl-done { opacity: 0; pointer-events: none; }
+  .gl-load-bg {
+    position: absolute; inset: 0; background-size: cover; background-position: center;
+    filter: blur(60px) brightness(.5); opacity: .8;
+  }
+  .gl-load-inner { position: relative; text-align: center; padding: 0 40px; width: 100%; max-width: 420px; }
+  .gl-load-title { color: #fff; font-size: 24px; font-weight: 800; letter-spacing: -.4px; }
+  .gl-load-sub { color: rgba(255,255,255,.65); font-size: 15px; margin-top: 6px; }
+  .gl-load-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.15); margin-top: 18px; overflow: hidden; }
+  .gl-load-bar span { display: block; height: 100%; width: 40%; border-radius: 999px; background: #fff; animation: gl-slide 1.1s ease-in-out infinite; }
+  @keyframes gl-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+}
+
+/* ---------- Arcade banner (2026-10-05, Anthony) ---------- */
+.pb-banner { margin: 0 0 20px; border-radius: 20px; overflow: hidden; }
+.pb-banner img { width: 100%; height: auto; display: block; border-radius: 20px; }
