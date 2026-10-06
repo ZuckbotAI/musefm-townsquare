@@ -605,7 +605,7 @@
 }
 .gp-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gp-main { flex: 1; min-width: 0; }
-.gp-title { font-size: 17px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgba(70,120,160,0.3); line-height: 1.3; }
+.gp-title { font-size: 17px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(70,120,160,0.3); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .gp-sub { font-size: 13px; color: rgba(255,255,255,0.85); margin: 3px 0 8px; line-height: 1.3; }
 .gp-progress { position: relative; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); cursor: pointer; }
 .gp-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); }
