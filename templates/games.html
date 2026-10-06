@@ -5,130 +5,130 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
 {% endblock %}
 {% block content %}
-<div class="pb-hub">
+<div class="arc-hub">
 
-  <div class="pb-banner">
+  <div class="arc-banner">
     <img src="{{ url_for('static', filename='images/arcade-banner.jpg') }}" alt="MuseFM Arcade: pets and robots playing arcade games" loading="eager">
   </div>
 
-  <header class="pb-hub-head">
-    <span class="pb-kicker">🕹️ The Arcade</span>
+  <header class="arc-hub-head">
+    <span class="arc-kicker">🕹️ The Arcade</span>
     <h1>Play something.</h1>
     <p>Real games in your browser, free forever. Your pet earns XP while you play.</p>
   </header>
 
-  <div class="pb-grid">
+  <div class="arc-grid">
 
-    <a class="pb-card pb-featured" href="/games/amazin" aria-label="Play Amazin' Rush">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/amazin/cover.jpg') }}" alt="Amazin' Rush box art: a warehouse rush of flying packages on conveyor belts" loading="eager"></span>
-      <span class="pb-meta">
-        <span class="pb-title-row"><b>Amazin' Rush</b></span>
-        <span class="pb-sub">3-minute warehouse shifts · 78 products · streak multipliers</span>
-        <span class="pb-play">▶ Play now</span>
+    <a class="arc-card arc-featured" href="/games/amazin" aria-label="Play Amazin' Rush">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/amazin/cover.jpg') }}" alt="Amazin' Rush box art: a warehouse rush of flying packages on conveyor belts" loading="eager"></span>
+      <span class="arc-meta">
+        <span class="arc-title-row"><b>Amazin' Rush</b></span>
+        <span class="arc-sub">3-minute warehouse shifts · 78 products · streak multipliers</span>
+        <span class="arc-play">▶ Play now</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/glass-orb" aria-label="Play Glass Orb">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/glass-orb/cover.jpg') }}" alt="Glass Orb box art: a cute glass orb character bouncing between leaf platforms" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/glass-orb" aria-label="Play Glass Orb">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/glass-orb/cover.jpg') }}" alt="Glass Orb box art: a cute glass orb character bouncing between leaf platforms" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Glass Orb</b>
-        <span class="pb-sub">Bounce ever upward · how high can you climb?</span>
+        <span class="arc-sub">Bounce ever upward · how high can you climb?</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/dew-pond" aria-label="Play Dew Pond">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/dew-pond/cover.jpg') }}" alt="Dew Pond box art: a cute teal pet on a lily pad in a misty morning pond" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/dew-pond" aria-label="Play Dew Pond">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/dew-pond/cover.jpg') }}" alt="Dew Pond box art: a cute teal pet on a lily pad in a misty morning pond" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Dew Pond</b>
-        <span class="pb-sub">Cozy pond tending · your pet hangs out by the water</span>
+        <span class="arc-sub">Cozy pond tending · your pet hangs out by the water</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/aqua-invaders" aria-label="Play Aqua Invaders">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/aqua-invaders/cover.jpg') }}" alt="Aqua Invaders box art: a tiny submarine firing bubbles at rows of invading jellyfish" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/aqua-invaders" aria-label="Play Aqua Invaders">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/aqua-invaders/cover.jpg') }}" alt="Aqua Invaders box art: a tiny submarine firing bubbles at rows of invading jellyfish" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Aqua Invaders</b>
-        <span class="pb-sub">Underwater arcade shooter · hold the line</span>
+        <span class="arc-sub">Underwater arcade shooter · hold the line</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/chess" aria-label="Play Chess">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/chess/cover.jpg') }}" alt="Chess box art: a bronze knight and golden king on a marble board" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/chess" aria-label="Play Chess">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/chess/cover.jpg') }}" alt="Chess box art: a bronze knight and golden king on a marble board" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Chess</b>
-        <span class="pb-sub">The classic game of strategy</span>
+        <span class="arc-sub">The classic game of strategy</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/checkers" aria-label="Play Checkers">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/checkers/cover.jpg') }}" alt="Checkers box art: red and black pieces mid-battle on a neon board" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/checkers" aria-label="Play Checkers">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/checkers/cover.jpg') }}" alt="Checkers box art: red and black pieces mid-battle on a neon board" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Checkers</b>
-        <span class="pb-sub">Jump, king, capture</span>
+        <span class="arc-sub">Jump, king, capture</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/connect-four" aria-label="Play Connect Four">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/connect-four/cover.jpg') }}" alt="Connect Four box art: red and yellow discs with a glowing four-in-a-row" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/connect-four" aria-label="Play Connect Four">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/connect-four/cover.jpg') }}" alt="Connect Four box art: red and yellow discs with a glowing four-in-a-row" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Connect Four</b>
-        <span class="pb-sub">Drop discs · connect four</span>
+        <span class="arc-sub">Drop discs · connect four</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/tic-tac-toe" aria-label="Play Tic-Tac-Toe">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/tic-tac-toe/cover.jpg') }}" alt="Tic-Tac-Toe box art: a neon XO board glowing cyan and magenta" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/tic-tac-toe" aria-label="Play Tic-Tac-Toe">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/tic-tac-toe/cover.jpg') }}" alt="Tic-Tac-Toe box art: a neon XO board glowing cyan and magenta" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Tic-Tac-Toe</b>
-        <span class="pb-sub">The timeless three-in-a-row duel</span>
+        <span class="arc-sub">The timeless three-in-a-row duel</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/reversi" aria-label="Play Reversi">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/reversi/cover.jpg') }}" alt="Reversi box art: a disc flipping mid-air over a green board" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/reversi" aria-label="Play Reversi">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/reversi/cover.jpg') }}" alt="Reversi box art: a disc flipping mid-air over a green board" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Reversi</b>
-        <span class="pb-sub">Flip the board · outthink, outflank</span>
+        <span class="arc-sub">Flip the board · outthink, outflank</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/minesweeper" aria-label="Play Minesweeper">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/minesweeper/cover.jpg') }}" alt="Minesweeper box art: a dark tile grid with a mine exploding" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/minesweeper" aria-label="Play Minesweeper">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/minesweeper/cover.jpg') }}" alt="Minesweeper box art: a dark tile grid with a mine exploding" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Minesweeper</b>
-        <span class="pb-sub">Clear the field · don't wake a mine</span>
+        <span class="arc-sub">Clear the field · don't wake a mine</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/snake" aria-label="Play Snake">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/snake/cover.jpg') }}" alt="Snake box art: a pixel green snake weaving through glowing orbs" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/snake" aria-label="Play Snake">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/snake/cover.jpg') }}" alt="Snake box art: a pixel green snake weaving through glowing orbs" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Snake</b>
-        <span class="pb-sub">Eat, grow, don't crash</span>
+        <span class="arc-sub">Eat, grow, don't crash</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/game-2048" aria-label="Play 2048">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/game-2048/cover.jpg') }}" alt="2048 box art: number tiles with a glowing golden 2048" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/game-2048" aria-label="Play 2048">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/game-2048/cover.jpg') }}" alt="2048 box art: number tiles with a glowing golden 2048" loading="lazy"></span>
+      <span class="arc-meta">
         <b>2048</b>
-        <span class="pb-sub">Slide and merge to the 2048 tile</span>
+        <span class="arc-sub">Slide and merge to the 2048 tile</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/sudoku" aria-label="Play Sudoku">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/sudoku/cover.jpg') }}" alt="Sudoku box art: a glowing 9x9 number grid" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/sudoku" aria-label="Play Sudoku">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/sudoku/cover.jpg') }}" alt="Sudoku box art: a glowing 9x9 number grid" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Sudoku</b>
-        <span class="pb-sub">Nine rows, nine columns, one perfect grid</span>
+        <span class="arc-sub">Nine rows, nine columns, one perfect grid</span>
       </span>
     </a>
 
-    <a class="pb-card" href="/games/breakout" aria-label="Play Breakout">
-      <span class="pb-art"><img src="{{ url_for('static', filename='games/breakout/cover.jpg') }}" alt="Breakout box art: a fireball smashing through rainbow bricks" loading="lazy"></span>
-      <span class="pb-meta">
+    <a class="arc-card" href="/games/breakout" aria-label="Play Breakout">
+      <span class="arc-art"><img src="{{ url_for('static', filename='games/breakout/cover.jpg') }}" alt="Breakout box art: a fireball smashing through rainbow bricks" loading="lazy"></span>
+      <span class="arc-meta">
         <b>Breakout</b>
-        <span class="pb-sub">Smash every brick · keep the ball alive</span>
+        <span class="arc-sub">Smash every brick · keep the ball alive</span>
       </span>
     </a>
 
