@@ -277,17 +277,28 @@
 @media (max-width: 760px) {
   body.game-launch {
     background: linear-gradient(180deg, #0d0a1f 0%, #131a35 55%, #0a0d1a 100%);
-    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   body.game-launch .topbar,
   body.game-launch .fmf-bar,
   body.game-launch .sidebar,
   body.game-launch .bottomnav,
   body.game-launch footer { display: none !important; }
-  body.game-launch .wrap { max-width: none; padding: 0; margin: 0; }
+  body.game-launch .wrap {
+    max-width: none; padding: 0; margin: 0;
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+  }
   body.game-launch .gamepage-wrap,
   body.game-launch .amazin-wrap,
-  body.game-launch .standalone-wrap { max-width: none; margin: 0; padding: 0 0 40px; }
+  body.game-launch .standalone-wrap {
+    max-width: none; margin: 0; padding: 0;
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+  }
 
   .game-launch-bar {
     display: flex; align-items: center; gap: 12px;
@@ -303,11 +314,24 @@
 
   body.game-launch .gamepage-back { display: none; }
   body.game-launch .gamepage-hero { display: none; }
-  body.game-launch .game-panel { margin: 16px 12px 12px; }
-  body.game-launch .amazin-stage { margin: 16px 12px 0; }
-  body.game-launch .standalone-stage { margin: 16px 12px 0; }
-  body.game-launch .amazin-stage .amazin-rush { height: calc(100dvh - 170px) !important; min-height: 480px; }
-  body.game-launch .amazin-note { color: rgba(255,255,255,.55); padding: 0 20px; }
+  body.game-launch .game-panel { margin: 12px; }
+  body.game-launch .amazin-stage {
+    margin: 12px;
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+  }
+  body.game-launch .standalone-stage {
+    margin: 12px;
+    flex: 1; min-height: 0;
+    height: auto !important;
+    position: relative;
+  }
+  body.game-launch .amazin-stage .amazin-rush {
+    flex: 1; min-height: 0;
+    height: auto !important;
+  }
+  body.game-launch .amazin-note,
+  body.game-launch .standalone-note { display: none; }
 
   /* loading splash */
   body.game-launch .gl-loading {
