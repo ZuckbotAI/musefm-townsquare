@@ -330,14 +330,17 @@
   body.game-launch .gamepage-back { display: none; }
   body.game-launch .gamepage-hero { display: none; }
   body.game-launch .game-panel { margin: 12px; }
-  /* Definite dvh-based heights (2026-10-06): the games' internal layouts
+  /* Definite svh-based heights (2026-10-06): the games' internal layouts
      (.ar-screen height:100%, canvas max-height:100vh) only resolve against a
      real height. Flex-basis percentages collapse on mobile WebKit and squash
-     / overlap the game UI, so set the height directly from the viewport. */
+     / overlap the game UI, so set the height directly from the viewport.
+     100svh (not dvh) = the visible area WITH the browser toolbar shown, so
+     the game never slides under it. Offset errs slightly short: a little
+     dead space beats a cut-off cart bar you can't scroll to. */
   body.game-launch .amazin-stage {
     margin: 12px 12px 0;
     flex: none;
-    height: calc(100dvh - 96px);
+    height: calc(100svh - 120px);
     min-height: 0;
     max-height: none;
     display: flex; flex-direction: column;
@@ -345,14 +348,14 @@
   body.game-launch .standalone-stage {
     margin: 12px 12px 0;
     flex: none;
-    height: calc(100dvh - 96px);
+    height: calc(100svh - 120px);
     min-height: 0;
     max-height: none;
     position: relative;
   }
   body.game-launch .amazin-stage .amazin-rush {
     flex: none !important;
-    height: calc(100dvh - 96px) !important;
+    height: calc(100svh - 120px) !important;
     min-height: 0 !important;
     max-height: none !important;
   }
