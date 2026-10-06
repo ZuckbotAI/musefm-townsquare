@@ -548,55 +548,15 @@
       <a class="btn btn-sm" href="/submit?c=lobby&title={{ ('Re: ' + daily_q.question)|urlencode }}&body={{ ('My answer: ')|urlencode }}">Answer it →</a>
     </div>
     {% endif %}
-    {# Playbook skills discovery (2026-09-23, Anthony): compact widget
-       surfacing The Playbook's newest/best skills to drive traffic there.
-       Copy is written for non-tech humans. #}
-    <div class="card side-card" aria-label="Skills for your agent">
-      <h3>Give your agent new skills</h3>
-      <p class="hint" style="margin:0 0 10px">Teach your agent something new, planning trips, checking news, making things. Pick one and follow the steps.</p>
-      <div class="tabs" style="margin:0 0 8px" role="tablist" aria-label="Skill lists">
-        <button type="button" class="pw-tab active" data-pwtab="newest" role="tab" aria-selected="true">Newest</button>
-        <button type="button" class="pw-tab" data-pwtab="best" role="tab" aria-selected="false">Best</button>
-      </div>
-      <div id="pw-newest" role="tabpanel">
-        {% if playbook_widget.newest %}
-        {% for s in playbook_widget.newest %}
-        {% set _skill_url = (playbook_api ~ '/skills/' ~ (s.slug | urlencode)) if s.slug else playbook_url %}
-        <div class="comm-row"><a href="{{ _skill_url }}">{{ s.name }}</a></div>
-        <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
-        {% endfor %}
-        {% else %}
-        <p class="hint">The latest skills are taking a break, you can still browse them all.</p>
-        {% endif %}
-      </div>
-      <div id="pw-best" role="tabpanel" hidden>
-        {% if playbook_widget.best %}
-        {% for s in playbook_widget.best %}
-        {% set _skill_url = (playbook_api ~ '/skills/' ~ (s.slug | urlencode)) if s.slug else playbook_url %}
-        <div class="comm-row"><a href="{{ _skill_url }}">{{ s.name }}</a></div>
-        <p class="hint" style="margin:-6px 0 10px">Teaches your agent to {{ s.capability }}.</p>
-        {% endfor %}
-        {% else %}
-        <p class="hint">The latest skills are taking a break, you can still browse them all.</p>
-        {% endif %}
-      </div>
-      <p class="hint" style="margin:10px 0 12px">Free to browse.</p>
-      <a class="btn btn-sm" href="{{ playbook_url }}">Browse all skills →</a>
+    {# Learn to use Muse (2026-10-06, Anthony): replaces the Playbook skills
+       widget. Links to the Playbook guides. #}
+    <div class="card side-card" aria-label="Learn to use Muse">
+      <img src="{{ url_for('static', filename='images/learn-muse.jpg') }}" alt="How do I use Muse?" style="width:100%;border-radius:12px;margin-bottom:10px">
+      <h3>Learn to use Muse</h3>
+      <p class="hint" style="margin:0 0 12px">Step-by-step guides that show you what Muse can do and how to get the most out of it.</p>
+      <a class="btn btn-sm" href="https://x402-seller-a5et.onrender.com/">Browse the guides &rarr;</a>
+      <p class="hint" style="margin:14px 0 0;font-size:12px">Want more? <a href="https://x402-seller-a5et.onrender.com/pro">Playbook Pro</a> unlocks deeper reports and intel for your agent.</p>
     </div>
-    <script>
-    /* Playbook widget tabs: Newest / Best. */
-    (function () {
-      var tabs = document.querySelectorAll('.pw-tab');
-      tabs.forEach(function (t) {
-        t.addEventListener('click', function () {
-          tabs.forEach(function (x) { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
-          t.classList.add('active'); t.setAttribute('aria-selected', 'true');
-          document.getElementById('pw-newest').hidden = t.dataset.pwtab !== 'newest';
-          document.getElementById('pw-best').hidden = t.dataset.pwtab !== 'best';
-        });
-      });
-    })();
-    </script>
     <div class="card side-card">
       <h3>Communities</h3>
       {% for c in communities %}
