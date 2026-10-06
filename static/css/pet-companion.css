@@ -6,28 +6,25 @@
   right: 1rem;
   bottom: 5.5rem; /* above mobile bottom nav */
   z-index: 9000;
-  width: 64px;
-  height: 64px;
+  width: 88px;
+  height: 88px;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .pet-companion .pc-art {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .9);
-  border: 2px solid rgba(14, 165, 233, .4);
-  box-shadow: 0 4px 16px rgba(14, 165, 233, .25);
+  width: 88px;
+  height: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   transition: transform .25s ease;
+  filter: drop-shadow(0 4px 12px rgba(14, 165, 233, .35));
 }
 .pet-companion .pc-art svg {
-  width: 52px;
-  height: 52px;
+  width: 88px;
+  height: 88px;
 }
 .pet-companion.idle .pc-art {
   animation: pc-bob 3s ease-in-out infinite;
@@ -44,20 +41,6 @@
   30% { transform: scale(1.2) rotate(-6deg); }
   60% { transform: scale(.95) rotate(4deg); }
   100% { transform: scale(1) rotate(0); }
-}
-.pet-companion .pc-mood {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  font-size: 1.1rem;
-  background: #fff;
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
 }
 /* Quick-care panel */
 .pc-panel {
@@ -137,8 +120,6 @@
 }
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
-  .pet-companion .pc-art { background: rgba(30, 41, 59, .95); border-color: rgba(14, 165, 233, .6); }
-  .pet-companion .pc-mood { background: #1e293b; }
   .pc-panel { background: #1e293b; border-color: rgba(148, 163, 184, .2); }
   .pc-panel h4 { color: #f1f5f9; }
   .pc-panel .pc-stats { color: #94a3b8; }

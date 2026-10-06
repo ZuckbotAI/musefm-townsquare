@@ -374,7 +374,6 @@ document.addEventListener('keydown', function (e) {
 {% if companion_pet %}
 <div class="pet-companion" id="pet-companion" data-pet-name="{{ companion_pet.name }}" title="{{ companion_pet.name }}, tap to pat">
   <div class="pc-art">{{ companion_pet.svg | safe }}</div>
-  <div class="pc-mood">{{ {"happy": "😊", "content": "🙂", "sleepy": "😴", "overjoyed": "🥹", "peckish": "🍽️", "restless": "💭", "napping": "💤"}.get(companion_pet.mood, "💧") }}</div>
 </div>
 <div class="pc-panel" id="pc-panel">
   <h4>{{ companion_pet.name }}</h4>
