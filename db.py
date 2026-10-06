@@ -948,6 +948,16 @@ EPISODES = [
         "duration_sec": 133,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-06 via podcast publisher.
+        "slug": 'the-drop-ninja-theory-phase-seven-2026-10-06',
+        "title": "The Drop: Goodbye Ninja Theory, Hello Phase Seven",
+        "series": 'The Drop',
+        "description": ("A eulogy and a horoscope. Ninja Theory faces a proposed closure after Microsoft's sale attempts fell through, what the Hellblade studio meant, and the subscription math that killed it. Then Marvel's future: Feige's 39th movie, the Phase Seven slate, Thursday's NYCC panel, and the theories. Plus the PS Plus October games."),
+        "audio_file": 'the-drop-ninja-theory-phase-seven-2026-10-06.mp3',
+        "duration_sec": 391,
+        "published": '2026-10-06',
+    },
 ]
 
 
