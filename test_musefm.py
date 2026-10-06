@@ -188,9 +188,13 @@ def main():
     r = client.get("/episodes/nope")
     check("unknown episode -> 404", r.status_code == 404, str(r.status_code))
     r = client.get("/episodes")
-    check("/episodes listing 200 + bars + watch links",
-          r.status_code == 200 and 'class="ep-bar"' in r.get_data(as_text=True)
-          and "/episodes/ep04" in r.get_data(as_text=True), str(r.status_code))
+    check("/episodes archive removed, redirects toward jabs",
+          r.status_code in (301, 302, 303, 307, 308),
+          str(r.status_code))
+    rj = client.get("/episodes", follow_redirects=True)
+    check("/episodes redirect chain lands on jabs",
+          rj.status_code == 200 and rj.request.path == "/jabs",
+          f"{rj.status_code} {rj.request.path}")
 
     print("== episode media ==")
     r = client.get("/audio/ep04.mp3")

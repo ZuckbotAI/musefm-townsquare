@@ -411,6 +411,68 @@
 .jab-featured-scrub {
   margin-top: 10px;
 }
+
+/* Series label: desktop-only richer info (2026-10-05, Anthony: the big
+   screen fits more). Hidden on mobile, which keeps the clean stacked
+   look. */
+.jab-featured-series { display: none; }
+
+/* Episode counter next to the next arrow. */
+.jj-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.jj-count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Desktop layout (2026-10-05, Anthony): use the bigger screen to fit more
+   on the same page with more intricate information. The featured card
+   gets a compact two-column body: headline spans the card, art is
+   constrained left, description/meta/actions/scrubber sit right. Member
+   lists go two-up so more rows show above the fold. Mobile is untouched
+   and keeps the big stacked art. */
+@media (min-width: 768px) {
+  .jab-featured-body {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 18px;
+    margin-top: 12px;
+    align-items: start;
+  }
+  .jab-featured-artwide {
+    margin-top: 0;
+    aspect-ratio: 1 / 1;
+  }
+  .jab-featured-series:not([hidden]) {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--glass-ink-soft);
+    margin-bottom: 6px;
+  }
+  .jab-featured .jab-featured-desc {
+    margin-top: 0;
+    -webkit-line-clamp: 6;
+  }
+  .jab-featured-actions { margin-top: 8px; }
+  .jab-featured-scrub { margin-top: 8px; }
+  .jj-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+}
+
 @media (max-width: 480px) {
   .jab-featured { padding: 14px; }
   .jab-featured-title { font-size: 18px; }
