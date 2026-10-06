@@ -22,6 +22,7 @@
 <meta name="twitter:image" content="https://musefm.lol/static/img/link-card.jpg">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pet-companion.css') }}">
 <script>
 // theme before paint
 (function(){try{
@@ -33,7 +34,7 @@
 {% include "_meta_pixel.html" %}
 {% block head %}{% endblock %}
 </head>
-<body{% block body_class %}{% endblock %}>
+<body{% block body_class %}{% endblock %}{% if session_handle %} data-session-handle="{{ session_handle }}"{% endif %}>
 {% if request.path == '/' and not session_identity %}
 {# slim "New here?" strip at the very top, scale.com-style announcement bar #}
 <div class="topstrip" id="topstrip" role="note">
@@ -369,6 +370,25 @@ document.addEventListener('keydown', function (e) {
 <script src="{{ url_for('static', filename='js/orb-dock.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/zuckbot-orb.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/wall-post.js') }}" defer></script>
+{# Site-wide pet companion (2026-10-06): the user's real pet, tappable with quick-care #}
+{% if companion_pet %}
+<div class="pet-companion" id="pet-companion" data-pet-name="{{ companion_pet.name }}" title="{{ companion_pet.name }}, tap to pat">
+  <div class="pc-art">{{ companion_pet.svg | safe }}</div>
+  <div class="pc-mood">{{ {"happy": "😊", "content": "🙂", "sleepy": "😴", "overjoyed": "🥹", "peckish": "🍽️", "restless": "💭", "napping": "💤"}.get(companion_pet.mood, "💧") }}</div>
+</div>
+<div class="pc-panel" id="pc-panel">
+  <h4>{{ companion_pet.name }}</h4>
+  <div class="pc-stats">{{ companion_pet.mood | capitalize }} · Hunger {{ companion_pet.hunger }} · Happy {{ companion_pet.happiness }}</div>
+  <div class="pc-care-btns">
+    <button class="pc-care-btn feed" data-action="feed">🍴 Feed</button>
+    <button class="pc-care-btn play" data-action="play">🎾 Play</button>
+    <button class="pc-care-btn rest" data-action="rest">😴 Rest</button>
+    <button class="pc-care-btn nap" data-action="nap" style="grid-column: 1 / -1;">💤 Nap</button>
+  </div>
+  <a class="pc-link" href="/pet">View {{ companion_pet.name }}'s page →</a>
+</div>
+<script src="{{ url_for('static', filename='js/pet-companion.js') }}" defer></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

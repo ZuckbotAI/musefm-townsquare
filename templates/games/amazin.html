@@ -17,6 +17,7 @@
   <a class="gamepage-back" href="/games">← Back to the arcade</a>
   <div class="amazin-stage">
     <div class="amazin-rush"><!-- game mounts here --></div>
+    <div id="pet-sidekick-mount" style="position:absolute; top:1rem; right:1rem; z-index:10;"></div>
   </div>
   <p class="amazin-note">3-minute shifts. Fill the ticket rail, match the right colorway, watch your streak multiplier. Your pet cheers you on from the corner.</p>
 </div>
@@ -27,4 +28,34 @@
 <script src="{{ url_for('static', filename='games/amazin/ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pet-anim.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pet-sidekick.js') }}"></script>
+<script>
+// Mount the player's real pet in the game corner
+(function() {
+  var mountEl = document.getElementById('pet-sidekick-mount');
+  if (!mountEl || !window.PetSidekick) return;
+  var sk = PetSidekick.mount(mountEl, { size: 72 });
+  // Expose to the game engine for win/loss reactions
+  window.AmazinPet = sk;
+
+  // Bridge game petMood events to the real PetSidekick
+  var lastMood = null;
+  setInterval(function() {
+    var gamePet = document.querySelector('#arPet');
+    if (!gamePet) return;
+    // Hide the in-game placeholder pet; the real PetSidekick is the pet presence
+    gamePet.style.display = 'none';
+    var mood = null;
+    if (gamePet.classList.contains('ar-happy')) mood = 'happy';
+    else if (gamePet.classList.contains('ar-sad')) mood = 'sad';
+    else if (gamePet.classList.contains('ar-sleepy')) mood = 'sleepy';
+    if (mood && mood !== lastMood) {
+      lastMood = mood;
+      if (mood === 'happy' && sk.cheer) sk.cheer();
+      else if (mood === 'sad' && sk.pout) sk.pout();
+      else if (mood === 'sleepy' && sk.sleepy) sk.sleepy();
+      setTimeout(function() { lastMood = null; }, 2000);
+    }
+  }, 500);
+})();
+</script>
 {% endblock %}

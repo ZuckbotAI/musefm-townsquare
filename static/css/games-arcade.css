@@ -234,7 +234,7 @@
 .pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
 .pb-card { text-decoration: none; color: inherit; display: block; }
 .pb-art {
-  display: block; border-radius: 18px; overflow: hidden; aspect-ratio: 1 / 1;
+  display: block; border-radius: 18px; overflow: hidden; aspect-ratio: 2 / 3;
   background: #101528; box-shadow: var(--rz-shadow-sm); position: relative;
 }
 .pb-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -258,8 +258,8 @@
   background: linear-gradient(135deg, #7c5cff, #2bd4ff);
   box-shadow: 0 8px 22px rgba(124,92,255,.35);
 }
-.pb-featured { grid-column: 1 / -1; }
-.pb-featured .pb-art { aspect-ratio: 16 / 9; }
+.pb-featured { grid-column: auto; }
+.pb-featured .pb-art { aspect-ratio: 2 / 3; }
 .pb-more { text-align: center; color: var(--rz-ink3); font-size: 13.5px; margin: 26px 0 0; }
 
 @media (min-width: 980px) {

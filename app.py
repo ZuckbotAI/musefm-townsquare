@@ -1264,6 +1264,23 @@ def signed_query_identity(expected_action):
 @app.context_processor
 def inject_globals():
     sess = current_session_identity()
+    # Site-wide pet companion (2026-10-06): logged-in users with an adopted
+    # pet get their pet's SVG and basic state on every page for the companion.
+    companion_pet = None
+    if sess:
+        try:
+            ps = pet_status(db, sess["fm_id"])
+            if ps and ps.get("adopted") and not ps.get("in_pond"):
+                companion_pet = {
+                    "name": ps["name"],
+                    "svg": ps["svg"],  # 64px version for the companion
+                    "mood": ps["mood"],
+                    "energy": ps["energy"],
+                    "hunger": ps["hunger"],
+                    "happiness": ps["happiness"],
+                }
+        except Exception:
+            pass
     return {
         "communities": db.communities(),
         "flairs": FLAIRS,
@@ -1292,6 +1309,8 @@ def inject_globals():
         # Trustline passport badge for post authors (2026-09-23, Anthony):
         # explicit "Passport verified" vs "Passport locked" labels.
         "pp_badge": _pp_badge,
+        # Site-wide pet companion data (None if no pet or not logged in).
+        "companion_pet": companion_pet,
     }
 
 
@@ -6242,18 +6261,28 @@ def api_pet_fusion_decline():
 
 def _pet_web_care(kind, label):
     ident = current_session_identity()
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     if not ident:
+        if is_ajax:
+            return jsonify({"ok": False, "error": "Log in to care for your Pet."}), 401
         session["_pet_flash"] = ("Log in to care for your Pet.", True)
         return redirect("/pet")
     if not _check_csrf():
+        if is_ajax:
+            return jsonify({"ok": False, "error": "bad form token — reload and try again"}), 403
         return "bad form token — reload and try again", 403
     try:
-        {"feed": feed_pet, "play": play_pet,
-         "rest": rest_pet, "nap": nap_pet}[kind](db, ident["fm_id"])
+        res = {"feed": feed_pet, "play": play_pet,
+               "rest": rest_pet, "nap": nap_pet}[kind](db, ident["fm_id"])
     except ValueError as e:
+        if is_ajax:
+            return jsonify({"ok": False, "error": str(e)}), 400
         session["_pet_flash"] = (str(e), True)
         return redirect("/pet")
     tpsocial.record_care(db, ident["fm_id"], ident["fm_id"], kind)
+    if is_ajax:
+        return jsonify({"ok": True, "message": f"💧 {label}",
+                        "pet": pet_status(db, ident["fm_id"]), "result": res})
     session["_pet_flash"] = (f"💧 {label}", False)
     return redirect("/pet")
 
