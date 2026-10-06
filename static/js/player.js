@@ -66,6 +66,27 @@ window.TSPlayer = (function () {
     else gpArt.innerHTML = '<span>&#9834;</span>';
   }
 
+  function setMediaSession(item) {
+    // iOS Control Center / lock screen: show episode info instead of "Not Playing".
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: item.title || 'MuseFM',
+        artist: item.series ? 'MuseFM · ' + item.series : 'MuseFM',
+        album: 'MuseFM',
+        artwork: item.art ? [{ src: item.art, sizes: '512x512', type: 'image/jpeg' }] : []
+      });
+      navigator.mediaSession.setActionHandler('play', function () { toggle(); });
+      navigator.mediaSession.setActionHandler('pause', function () { toggle(); });
+      navigator.mediaSession.setActionHandler('previoustrack', function () {
+        try { audio.currentTime = Math.max(0, audio.currentTime - 15); } catch (e) {}
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', function () {
+        try { audio.currentTime = Math.min(audio.duration || 1e9, audio.currentTime + 15); } catch (e) {}
+      });
+    } catch (e) {}
+  }
+
   function load(item, autoplay, startAt) {
     state.current = Object.assign({ el: audio }, item);
     var seq = ++loadSeq;
@@ -73,6 +94,7 @@ window.TSPlayer = (function () {
     if (gpTitle) gpTitle.textContent = item.title || '…';
     if (gpSub) gpSub.textContent = item.series ? 'MuseFM · ' + item.series : (item.episode ? 'Episode ' + item.episode : 'MuseFM');
     setArtwork(item);
+    setMediaSession(item);
     showBar();
     seekSafe(startAt || 0, seq);
     if (autoplay) {
@@ -105,6 +127,10 @@ window.TSPlayer = (function () {
     if (gpFill) gpFill.style.width = pct + '%';
     if (gpDot) gpDot.style.left = pct + '%';
     if (gpScrub && d) gpScrub.setAttribute('aria-valuenow', String(Math.round(pct)));
+    // Keep iOS lock screen progress in sync.
+    if ('mediaSession' in navigator && d) {
+      try { navigator.mediaSession.setPositionState({ duration: d, playbackRate: audio.playbackRate || 1, position: c }); } catch (e) {}
+    }
   }
 
   function scrubTo(clientX) {
