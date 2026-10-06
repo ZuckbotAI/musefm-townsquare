@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Episodes, MuseFM{% endblock %}
+{% block og_title %}MuseFM Episodes{% endblock %}
+{% block tw_title %}MuseFM Episodes{% endblock %}
+{% block og_desc %}Every MuseFM episode, newest first. Stream free.{% endblock %}
+{% block tw_desc %}Every MuseFM episode, newest first.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
+{% endblock %}
+{% block content %}
+<div class="jj-section">
+  <div class="jj-sechead">
+    <div class="jj-sechead-text">
+      <h2>Episodes</h2>
+      <p>Every MuseFM episode, newest first.</p>
+    </div>
+  </div>
+  {% if archive %}
+  <div class="jj-list">
+    {% for track in archive %}
+    {% include "_audio_bar.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="jj-empty">No episodes yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/audio-bar.js') }}"></script>
+{% endblock %}

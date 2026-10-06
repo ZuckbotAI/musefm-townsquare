@@ -311,55 +311,38 @@
   <span class="hint">Theme stings on some episodes: CC BY-NC 4.0, not for commercial use.</span>
 </footer>
 
-{# Global audio player — Spotify-style rebuild (2026-10-05, Anthony).
-   COLLAPSED: slim mini-bar above the bottom nav (small square artwork,
-   episode title 1 line, play/pause). Tap the bar to expand.
-   EXPANDED: bottom sheet with large artwork, full title, real scrubber
-   with current/total times, skip-back-15 / play-pause / skip-forward-30,
-   speed, sleep timer, share, up-next queue. The old floating glass card
-   is gone. Driven by static/js/player.js via the pb-/ps- ids. #}
-<div id="playerbar" aria-hidden="true">
-  <button class="pb-open" id="pb-open" aria-label="Open now playing">
-    <span class="pb-art" id="pb-art" aria-hidden="true">&#9834;</span>
-    <span class="pb-title" id="pb-title">&hellip;</span>
-  </button>
-  <button class="pb-play" id="pb-play" aria-label="Play or pause">&#9654;</button>
-</div>
-
-<div class="ps-scrim" id="ps-scrim" hidden></div>
-<section id="playersheet" role="dialog" aria-modal="true" aria-label="Now playing" aria-hidden="true">
-  <div class="ps-grab" aria-hidden="true"></div>
-  <div class="ps-toprow">
-    <button class="ps-navbtn" id="ps-collapse" aria-label="Collapse player">&#709;</button>
-    <span class="ps-now">NOW PLAYING</span>
-    <button class="ps-navbtn" id="ps-dismiss" aria-label="Stop and close player">&#10005;</button>
-  </div>
-  <div class="ps-artwrap"><img class="ps-art" id="ps-art" alt="Episode artwork"></div>
-  <div class="ps-title" id="ps-title">&hellip;</div>
-  <div class="ps-sub" id="ps-sub">MuseFM</div>
-  <div class="ps-scrubrow">
-    <span class="ps-t" id="ps-elapsed">0:00</span>
-    <div class="ps-scrub" id="ps-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="ps-fill" id="ps-fill"></div>
+{# Global audio player — floating glass card (2026-10-05, Anthony: restore).
+   iOS-style layout: artwork + title/artist top row, progress bar middle,
+   centered controls bottom. No truncation, controls close not far away.
+   Appears above the bottom nav when audio plays. Driven by
+   static/js/player.js via the gp- ids. #}
+<div id="playerbar" class="glass-player" aria-hidden="true">
+  <div class="gp-toprow">
+    <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
+    <div class="gp-titles">
+      <div class="gp-title" id="gp-title">&hellip;</div>
+      <div class="gp-sub" id="gp-sub">MuseFM</div>
     </div>
-    <span class="ps-t" id="ps-total">0:00</span>
+    <button class="gp-vol" id="gp-vol" aria-label="Mute or unmute">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </button>
   </div>
-  <div class="ps-controls">
-    <button class="ps-skip" id="ps-rew" aria-label="Back 15 seconds">
+  <div class="gp-progress" id="gp-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="gp-fill" id="gp-fill"></div>
+    <div class="gp-dot" id="gp-dot"></div>
+  </div>
+  <div class="gp-times"><span id="gp-elapsed">0:00</span><span id="gp-total">0:00</span></div>
+  <div class="gp-controls">
+    <button class="gp-skip" id="gp-rew" aria-label="Back 15 seconds">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
     </button>
-    <button class="ps-big" id="ps-play" aria-label="Play or pause">&#9654;</button>
-    <button class="ps-skip" id="ps-fwd" aria-label="Forward 30 seconds">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2l5 4-5 4V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">30</text></svg>
+    <button class="gp-play" id="gp-play" aria-label="Play or pause">&#10074;&#10074;</button>
+    <button class="gp-skip" id="gp-fwd" aria-label="Forward 15 seconds">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2l5 4-5 4V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
     </button>
   </div>
-  <div class="ps-tools">
-    <button class="ps-tool" id="ps-speed" aria-label="Playback speed">1&times;</button>
-    <button class="ps-tool" id="ps-sleep" aria-label="Sleep timer">Sleep off</button>
-    <button class="ps-tool" id="ps-share" aria-label="Share this episode">Share</button>
-  </div>
-  <div class="ps-queue" id="ps-queue"></div>
-</section>
+  <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
+</div>
 
 <div id="share-sheet"><div class="share-card">
   <h3>Share this episode</h3>

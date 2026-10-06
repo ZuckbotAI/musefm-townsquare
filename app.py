@@ -2041,10 +2041,25 @@ def townsquare_redirect():
 
 
 @app.route("/episodes/")
-def episodes_slash_redirect():
-    """Trailing-slash alias (2026-10-05, Anthony): the /episodes archive
-    page is gone; /jabs carries our latest episodes now."""
-    return redirect("/jabs", code=308)
+@app.route("/episodes")
+def episodes_archive():
+    """Episode archive (2026-10-05, Anthony): the full episode list is
+    back as its own page, mobile-friendly. Every episode, newest first,
+    using the standard audio-bar rows."""
+    archive = []
+    for e in db.episodes():
+        series = (e.get("series") or "").strip()
+        archive.append({
+            "audio_url": url_for("audio", fname=e["audio_file"]),
+            "title": display_episode_title(e["title"], series),
+            "display_name": "MuseFM " + series.title() if series else "MuseFM",
+            "artwork_url": _episode_art_url(series),
+            "duration_sec": e.get("duration_sec"),
+            "created_at": e.get("published"),
+            "needs_listen": False,
+            "page_url": url_for("episode_watch", slug=e["slug"]),
+        })
+    return render_template("episodes.html", archive=archive)
 
 
 @app.route("/forum")
