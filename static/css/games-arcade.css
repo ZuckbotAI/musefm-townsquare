@@ -326,3 +326,7 @@
   .gl-load-bar span { display: block; height: 100%; width: 40%; border-radius: 999px; background: #fff; animation: gl-slide 1.1s ease-in-out infinite; }
   @keyframes gl-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
 }
+
+/* ---------- Arcade banner (2026-10-05, Anthony) ---------- */
+.pb-banner { margin: 0 0 20px; border-radius: 20px; overflow: hidden; }
+.pb-banner img { width: 100%; height: auto; display: block; border-radius: 20px; }

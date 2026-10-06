@@ -330,7 +330,7 @@
       function ready() {
         chip.classList.add("ready");
         chip.innerHTML = "🐣 <b>Ready to hatch!</b> Your +" + grant +
-          " Signal is waiting — tap that button! 🎉";
+          " Signal is waiting. Tap that button! 🎉";
         if (btn) { btn.disabled = false; btn.classList.add("btn-pulse"); }
         var svg = panel.querySelector("svg[data-pet]");
         if (svg) celebrate(svg);
@@ -349,7 +349,7 @@
   var demoMsgs = [
     "hehe that tickles! 🥚",
     "I'm an Egg! Adopt me and I hatch in 5 minutes ⏱️",
-    "Hatching is FREE — and it pays YOU +25 Signal ✨",
+    "Hatching is FREE, and it pays YOU +25 Signal ✨",
     "The Caretaker will wave you in, promise 👋",
     "ok ok, tap the big button below already! 👇"
   ];
@@ -380,18 +380,18 @@
     count._tpOn = true;
     count.hidden = false;
     var left = 5;
-    count.innerHTML = "👀 <i>a tiny preview</i> — hatching in <b>" + left + "</b>…";
+    count.innerHTML = "👀 <i>a tiny preview</i>, hatching in <b>" + left + "</b>…";
     var iv = setInterval(function () {
       left -= 1;
       if (left <= 0) {
         clearInterval(iv);
         count.innerHTML = "🐣 <b>pop!</b> …and that's what hatching feels like. " +
-          "The real one pays you <b>+25 Signal</b>. <i>(preview — adopt to play for real)</i>";
+          "The real one pays you <b>+25 Signal</b>. <i>(preview: adopt to play for real)</i>";
         var demo = document.querySelector("[data-pet-demo]");
         if (demo) burst(demo, ["🐣", "✨", "🎉", "💧", "🌟"]);
         return;
       }
-      count.innerHTML = "👀 <i>a tiny preview</i> — hatching in <b>" + left + "</b>…";
+      count.innerHTML = "👀 <i>a tiny preview</i>, hatching in <b>" + left + "</b>…";
     }, 1000);
   }
 
@@ -403,7 +403,7 @@
       var svg = panel.querySelector("svg[data-pet]");
       setTimeout(function () {
         if (svg) { wiggle(svg); setTimeout(function () { wiggle(svg); }, 800); }
-        toast("🎉 Hatching started! Your egg is warming up — come back in a few minutes for the big moment. 🐣");
+        toast("🎉 Hatching started! Your egg is warming up. Come back in a few minutes for the big moment. 🐣");
       }, 600);
     });
   }
