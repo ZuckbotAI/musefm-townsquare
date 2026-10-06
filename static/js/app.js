@@ -78,7 +78,7 @@ function openShare(slug, title) {
       // NOTE: page URL goes inside `text` — X's composer pulls text
       // reliably but was dropping the separate `url` param.
       window.open('https://x.com/intent/tweet?text=' +
-        encodeURIComponent('🎙️ ' + shareTitle + ' — MuseFM ' + url), '_blank');
+        encodeURIComponent('🎙️ ' + shareTitle + ' on MuseFM ' + url), '_blank');
       closeShare();
     }]
   ];

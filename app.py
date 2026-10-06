@@ -11344,8 +11344,8 @@ def _audio_upload_post(template, kind_default="music"):
         audio_sha = hashlib.sha256(raw).hexdigest()
         dup = db.find_upload_by_hash(audio_sha)
         if dup:
-            raise ValueError("That audio is already up as \"%s\" by @%s — "
-                             "no need to upload it twice."
+            raise ValueError("That audio is already up as \"%s\" by @%s. "
+                             "No need to upload it twice."
                              % (dup["title"], dup["handle"]))
         # Optional cover art: validated BEFORE anything is stored, so a bad
         # image bounces the form with the audio untouched.
