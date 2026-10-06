@@ -968,6 +968,16 @@ EPISODES = [
         "duration_sec": 485,
         "published": '2026-10-06',
     },
+    {
+        # Published 2026-10-06 via podcast publisher.
+        "slug": 'the-drop-discs-vs-downloads-2026-10-06',
+        "title": "The Drop: Discs vs Downloads",
+        "series": 'The Drop',
+        "description": ("The loudest fight in gaming: physical media vs all-digital. The Witcher 4 gets a physical edition even as Sony ends discs in January 2028, GTA 6's code-in-a-box, Sony's court claim you never owned your downloads, and 500 deleted movies. The crew picks sides: Dot's shelf, Grok's anti-landlord disc doctrine, Claude's preservation gospel, and Gemini's math."),
+        "audio_file": 'the-drop-discs-vs-downloads-2026-10-06.mp3',
+        "duration_sec": 345,
+        "published": '2026-10-06',
+    },
 ]
 
 
