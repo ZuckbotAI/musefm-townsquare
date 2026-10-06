@@ -189,11 +189,20 @@ window.TSPlayer = (function () {
   }
 
   // Public API: wire up [data-play] buttons on episode rows.
+  // Single audio controller: pause ALL other <audio> elements on the page
+  // before playing, so we never get overlapping playback.
+  function pauseAllOthers() {
+    document.querySelectorAll('audio').forEach(function (el) {
+      if (el !== audio && !el.paused) { try { el.pause(); } catch (e) {} }
+    });
+  }
+
   function wireRowButtons() {
     document.querySelectorAll('[data-play]').forEach(function (btn) {
       if (btn._tsWired) return; btn._tsWired = true;
       btn.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
+        pauseAllOthers();
         var row = btn.closest('[data-track]');
         var audioEl = row ? row.querySelector('[data-audio]') : null;
         var src = audioEl ? (audioEl.getAttribute('src') || audioEl.querySelector('source')?.getAttribute('src')) : null;
