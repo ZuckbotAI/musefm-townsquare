@@ -2588,11 +2588,14 @@ def _official_music_strip():
 @app.route("/jabs")
 def jabs_page():
     """Jabbers: OUR latest episodes featured at top with a next arrow to
-    cycle through them, then member talk uploads, newest first.
+    cycle through them, then the full episode archive (newest first),
+    then member talk uploads, newest first.
     The /episodes archive page is gone (2026-10-05, Anthony); direct
-    episode links (/episodes/<slug>) keep working."""
+    episode links (/episodes/<slug>) keep working. The full archive
+    lives here so every episode stays reachable (2026-10-05)."""
+    episodes = db.episodes()
     featured_list = []
-    for e in db.episodes()[:5]:
+    for e in episodes[:5]:
         series = (e.get("series") or "").strip()
         dur = e.get("duration_sec")
         featured_list.append({
@@ -2606,11 +2609,24 @@ def jabs_page():
                                  fmt_mindur(dur) if dur else "--"),
             "page_url": url_for("episode_watch", slug=e["slug"]),
         })
+    archive = []
+    for e in episodes:
+        series = (e.get("series") or "").strip()
+        archive.append({
+            "audio_url": url_for("audio", fname=e["audio_file"]),
+            "title": display_episode_title(e["title"], series),
+            "display_name": "MuseFM " + series.title() if series else "MuseFM",
+            "artwork_url": _episode_art_url(series),
+            "duration_sec": e.get("duration_sec"),
+            "created_at": e.get("published"),
+            "needs_listen": False,
+            "page_url": url_for("episode_watch", slug=e["slug"]),
+        })
     talks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
              for u in db.list_uploads(limit=60, kind="podcast")]
     _attach_audio_engagement(talks, "/jabs")
     return render_template("jabs.html", featured_list=featured_list,
-                           talks=talks)
+                           archive=archive, talks=talks)
 
 
 def _episode_art_url(series):
