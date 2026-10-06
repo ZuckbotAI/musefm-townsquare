@@ -11080,17 +11080,25 @@ def looks_like_test_upload(u):
 
 
 def _audio_bar_track(u, audio_url):
-    """Shape one upload row into the glass audio-bar partial's context."""
+    """Shape one upload row into the glass audio-bar partial's context.
+
+    Every member upload gets a shareable page_url (2026-10-05, Anthony):
+    the jams/jabs page anchored to the row, so the row's share button
+    copies a link straight to that upload."""
     art = (u.get("artwork_path") or "").strip()
+    uid = u["id"]
+    kind = (u.get("kind") or "").strip()
+    page = "/jams" if kind == "music" else "/jabs"
     return {
-        "uid": u["id"],
+        "uid": uid,
         "audio_url": audio_url,
         "title": u.get("title") or "Untitled",
         "handle": u.get("handle") or "",
         "display_name": "@" + (u.get("handle") or ""),
-        "artwork_url": url_for("audio_artwork", uid=u["id"]) if art else "",
+        "artwork_url": url_for("audio_artwork", uid=uid) if art else "",
         "duration_sec": u.get("duration_sec"),
         "created_at": u.get("created_at"),
+        "page_url": "%s#upload-%s" % (page, uid),
         "needs_listen": looks_like_test_upload(u),
         "sig": None,            # filled by _attach_audio_engagement
         "comment_count": 0,     # filled by _attach_audio_engagement

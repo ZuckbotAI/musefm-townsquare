@@ -8,7 +8,7 @@
    Expects `track`: uid, audio_url, title, display_name, artwork_url,
    created_at, duration_sec, needs_listen, page_url (optional), sig,
    comment_count, viewer_handle, next. #}
-<div class="glass-track" data-track data-uid="{{ track.uid or '' }}">
+<div class="glass-track" data-track data-uid="{{ track.uid or '' }}"{% if track.uid %} id="upload-{{ track.uid }}"{% endif %}>
   <div class="glass-row2">
     <div class="glass-art-sq" aria-hidden="true">
       {% if track.artwork_url %}
