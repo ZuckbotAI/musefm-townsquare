@@ -116,6 +116,18 @@
   padding: 4px 10px;
 }
 .amazin-rush .ar-mult.ar-hot { background: var(--ar-red); color: #fff; }
+.amazin-rush .ar-mute {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.4);
+  color: #e2e8f0;
+  border-radius: 50%;
+  font-size: 15px;
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.amazin-rush .ar-mute.ar-off { opacity: 0.45; }
 .amazin-rush .ar-clockout {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.4);
