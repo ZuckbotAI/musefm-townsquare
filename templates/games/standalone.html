@@ -3,7 +3,7 @@
 {% block title %}{{ game_title }} — Arcade — MuseFM{% endblock %}
 {% block meta_desc %}Play {{ game_title }} in your browser on MuseFM. Free, no downloads.{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css', v='20261006d') }}">
 {% if pet_json %}
 <script>
 /* Inject the member's real pet before the game iframe loads, so

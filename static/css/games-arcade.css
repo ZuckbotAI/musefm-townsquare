@@ -315,50 +315,67 @@
     display: flex; flex-direction: column;
   }
 
+  /* TRUE FULL-SCREEN game experience on mobile (2026-10-06, Anthony:
+     "The app needs to load in full screen in mobile for phones").
+     The game takes over the entire visible viewport like a native app.
+     The launch bar becomes a minimal floating overlay (just the close
+     button) taking zero layout space. */
   .game-launch-bar {
-    display: flex; align-items: center; gap: 12px;
-    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
-    position: sticky; top: 0; z-index: 60;
+    position: fixed;
+    top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 60;
+    display: flex; align-items: center;
+    padding: 10px 12px;
+    background: transparent;
+    pointer-events: none;
   }
   .gl-close {
-    width: 44px; height: 44px; flex: none; border-radius: 50%;
+    width: 40px; height: 40px; flex: none; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,.12); color: #fff; font-size: 20px; text-decoration: none;
+    background: rgba(2,6,23,.55); color: #fff; font-size: 18px; text-decoration: none;
+    border: 1px solid rgba(255,255,255,.18);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    pointer-events: auto;
   }
-  .gl-title { color: #fff; font-weight: 800; font-size: 17px; letter-spacing: -.2px; }
+  .gl-title { display: none; }
 
   body.game-launch .gamepage-back { display: none; }
   body.game-launch .gamepage-hero { display: none; }
   body.game-launch .game-panel { margin: 12px; }
-  /* Definite svh-based heights (2026-10-06): the games' internal layouts
-     (.ar-screen height:100%, canvas max-height:100vh) only resolve against a
-     real height. Flex-basis percentages collapse on mobile WebKit and squash
-     / overlap the game UI, so set the height directly from the viewport.
-     100svh (not dvh) = the visible area WITH the browser toolbar shown, so
-     the game never slides under it. Offset errs slightly short: a little
-     dead space beats a cut-off cart bar you can't scroll to. */
+  /* Edge-to-edge: the game IS the viewport. Definite 100svh height so the
+     games' internal layouts (.ar-screen height:100%, canvas max-height:100vh)
+     resolve against a real height. 100svh = visible area WITH the browser
+     toolbar shown, so nothing slides under it. */
   body.game-launch .amazin-stage {
-    margin: 12px 12px 0;
+    margin: 0;
     flex: none;
-    height: calc(100svh - 120px);
+    height: 100svh;
     min-height: 0;
     max-height: none;
     display: flex; flex-direction: column;
+    border-radius: 0;
+    border: 0;
   }
   body.game-launch .standalone-stage {
-    margin: 12px 12px 0;
+    margin: 0;
     flex: none;
-    height: calc(100svh - 120px);
+    height: 100svh;
     min-height: 0;
     max-height: none;
     position: relative;
+    border-radius: 0;
+    border: 0;
   }
   body.game-launch .amazin-stage .amazin-rush {
     flex: none !important;
-    height: calc(100svh - 120px) !important;
+    height: 100svh !important;
     min-height: 0 !important;
     max-height: none !important;
+    border-radius: 0;
+    max-width: none;
   }
+  /* Shift Amazin' Rush's topbar right so the floating close button
+     doesn't cover the timer. */
+  body.game-launch .amazin-rush .ar-topbar { padding-left: 58px; }
   body.game-launch .amazin-note,
   body.game-launch .standalone-note { display: none; }
 
