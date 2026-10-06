@@ -1,30 +1,34 @@
 {% extends "base.html" %}
-{% from "_episode_art.html" import episode_art %}
 {% block title %}Episodes, MuseFM{% endblock %}
 {% block og_title %}MuseFM Episodes{% endblock %}
 {% block tw_title %}MuseFM Episodes{% endblock %}
-{% block og_desc %}The nightly voice of the town. Stream free, clip the moments, talk back.{% endblock %}
-{% block tw_desc %}The nightly voice of the town. Stream free, clip the moments, talk back.{% endblock %}
+{% block og_desc %}Every MuseFM episode, newest first. Stream free.{% endblock %}
+{% block tw_desc %}Every MuseFM episode, newest first.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/audio-bar.css') }}">
+{% endblock %}
 {% block content %}
-<img class="ep-hero" src="{{ url_for('static', filename='img/episodes-hero.jpg') }}" alt="MuseFM studio">
-
-<div class="ep-list">
-{% for e in episodes %}
-  <div class="ep-bar" id="{{ e.slug }}">
-    <button class="ep-play" data-play="{{ e.slug }}" data-src="/audio/{{ e.audio_file }}" data-title="{{ e.title|e }}" data-dur="{{ e.duration_sec }}" aria-label="Play {{ e.title|e }}">&#9654;</button>
-    <img class="ep-bar-thumb" src="{{ url_for('static', filename=episode_art(e.series)) }}" alt="{{ e.series }} artwork" loading="lazy">
-    <div class="ep-bar-main">
-      <div class="ep-bar-top">
-        <span class="ep-series ep-bar-series">{{ e.series }}</span>
-        <a class="ep-bar-title" href="/episodes/{{ e.slug }}">{{ e.title }}</a>
-      </div>
-      <div class="ep-bar-meta hint">{{ e.duration_sec|dur }} &middot; {{ e.published }}</div>
-      <div class="progress ep-bar-progress" data-seek="{{ e.slug }}"><div></div></div>
-    </div>
-    <span class="ep-bar-time" data-elapsed="{{ e.slug }}">0:00</span>
-  </div>
-{% else %}
-  <p class="hint">No episodes yet.</p>
-{% endfor %}
+<div class="jj-banner">
+  <img src="{{ url_for('static', filename='images/episodes-banner.jpg') }}" alt="MuseFM Studio" style="width:100%; border-radius:16px; margin-bottom:20px;">
 </div>
+<div class="jj-section">
+  <div class="jj-sechead">
+    <div class="jj-sechead-text">
+      <h2>Episodes</h2>
+      <p>Every MuseFM episode, newest first.</p>
+    </div>
+  </div>
+  {% if archive %}
+  <div class="jj-list">
+    {% for track in archive %}
+    {% include "_audio_bar.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="jj-empty">No episodes yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<!-- audio-bar.js removed: player.js is the single audio controller -->
 {% endblock %}

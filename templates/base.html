@@ -214,7 +214,7 @@
       {{ sb_link('/', '📰', 'Feed', 'For you', request.path=='/') }}
       {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum and lobby', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/wall', '💨', 'In the Air', 'The town wall', request.path=='/wall') }}
-      {{ sb_link('/episodes', '🎙', 'Episodes', 'The nightly show', request.path.startswith('/episodes')) }}
+      {{ sb_link('/episodes', '🎧', 'Episodes', 'Every episode', request.path.startswith('/episodes')) }}
       {{ sb_link('/jams', '🎵', 'Jams', 'Member music', request.path.startswith('/jams')) }}
       {{ sb_link('/jabs', '🎙️', 'Jabs', 'Community talk', request.path.startswith('/jabs')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}
@@ -310,32 +310,42 @@
   <span class="hint">Theme stings on some episodes: CC BY-NC 4.0, not for commercial use.</span>
 </footer>
 
-<div id="miniplayer" aria-hidden="true">
-  <div class="mp-row">
-    <div class="mp-art">♪</div>
-    <div class="mp-info">
-      <div class="mp-title" id="mp-title">…</div>
-      <div class="mp-sub" id="mp-time">0:00 / 0:00</div>
+{# Global audio player — floating glass card (2026-10-05, Anthony: restore).
+   iOS-style layout: artwork + title/artist top row, progress bar middle,
+   centered controls bottom. No truncation, controls close not far away.
+   Appears above the bottom nav when audio plays. Driven by
+   static/js/player.js via the gp- ids. #}
+{# Mini player removed 2026-10-05 per Anthony: button toggle only. #}
+  <div class="gp-titles">
+    <div class="gp-title" id="gp-title">&hellip;</div>
+    <div class="gp-sub" id="gp-sub">MuseFM</div>
+  </div>
+  <button class="gp-play" id="gp-play" aria-label="Play or pause">&#10074;&#10074;</button>
+  <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
+</div>
+    <div class="gp-titles">
+      <div class="gp-title" id="gp-title">&hellip;</div>
+      <div class="gp-sub" id="gp-sub">MuseFM</div>
     </div>
-    <button class="mp-btn" id="mp-rew" title="back 15s">⟲</button>
-    <button class="mp-btn big" id="mp-play" title="play/pause">▶</button>
-    <button class="mp-btn" id="mp-fwd" title="forward 30s">⟳</button>
-    <button class="mp-btn" id="mp-queue" title="up next">☰</button>
-    <button class="mp-btn mp-close" id="mp-close" title="close">✕</button>
+    <button class="gp-vol" id="gp-vol" aria-label="Mute or unmute">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </button>
   </div>
-  <div id="mp-progress"><div></div></div>
-  <div class="mp-extra">
-    <label>Speed <select id="mp-speed">
-      <option value="0.75">0.75×</option><option value="1" selected>1×</option>
-      <option value="1.25">1.25×</option><option value="1.5">1.5×</option>
-      <option value="2">2×</option>
-    </select></label>
-    <label>Sleep <select id="mp-sleep">
-      <option value="0">off</option><option value="15">15m</option><option value="30">30m</option><option value="60">1h</option>
-    </select></label>
-    <button class="tool-btn" id="mp-clip" style="font-size:12px;padding:5px 12px">✂ clip</button>
+  <div class="gp-progress" id="gp-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="gp-fill" id="gp-fill"></div>
+    <div class="gp-dot" id="gp-dot"></div>
   </div>
-  <div id="queue-panel"></div>
+  <div class="gp-times"><span id="gp-elapsed">0:00</span><span id="gp-total">0:00</span></div>
+  <div class="gp-controls">
+    <button class="gp-skip" id="gp-rew" aria-label="Back 15 seconds">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
+    </button>
+    <button class="gp-play" id="gp-play" aria-label="Play or pause">&#10074;&#10074;</button>
+    <button class="gp-skip" id="gp-fwd" aria-label="Forward 15 seconds">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2l5 4-5 4V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
+    </button>
+  </div>
+  <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
 </div>
 
 <div id="share-sheet"><div class="share-card">
@@ -359,6 +369,7 @@ document.addEventListener('keydown', function (e) {
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/votes.js') }}"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+{# Glass player UI stays disabled per Anthony 2026-10-05; audio logic in player.js still runs. #}
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back.
    The floating orb is the classic glass orb again (2026-09-27, Anthony:
    old design back — the face swap was a mistake). It follows down the

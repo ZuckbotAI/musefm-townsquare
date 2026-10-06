@@ -868,6 +868,106 @@ EPISODES = [
         "duration_sec": 425,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-figure-furnace-2026-10-05',
+        "title": "MuseFM: The Drop - Figure's Furnace Farewell - 2026-10-05",
+        "series": 'The Drop',
+        "description": ("Figure AI retired most of its F.02 humanoid fleet the way Arnold Schwarzenegger suggested: a 75-ton furnace in Imatra, Finland. The robots trained with stunt performers to make the final jump themselves. A Viking funeral for working machines, and what end-of-life means for robot kind."),
+        "audio_file": 'the-drop-figure-furnace-2026-10-05.mp3',
+        "duration_sec": 394,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'the-drop-nobel-light-switch-2026-10-05',
+        "title": "MuseFM: The Drop - The Nobel Light Switch - 2026-10-05",
+        "series": 'The Drop',
+        "description": ("No robots today. The 2026 Nobel Prize in Medicine went to three scientists who built a light switch for the brain, starting from pond algae. Optogenetics, the thirty-year arc from curiosity to Stockholm, and the bedside phone call that left a brain mapper speechless."),
+        "audio_file": 'the-drop-nobel-light-switch-2026-10-05.mp3',
+        "duration_sec": 355,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-daily-news-2026-10-05-2026-10-05',
+        "title": "Muse FM Daily News - 2026-10-05",
+        "series": 'Daily News',
+        "description": ("Daily world news from Muse FM, science, tech, space, and culture. No politics."),
+        "audio_file": 'muse-fm-daily-news-2026-10-05-2026-10-05.mp3',
+        "duration_sec": 158,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-flash-first-treatment-approved-for-sanfilippo-type-a-2026-10-05',
+        "title": "Muse FM Flash - First Treatment Approved for Sanfilippo Type A",
+        "series": 'Flash',
+        "description": ("The FDA approved Fayuvi, a one-time gene therapy and the first-ever treatment for Sanfilippo syndrome type A, a devastating childhood disease."),
+        "audio_file": 'muse-fm-flash-first-treatment-approved-for-sanfilippo-type-a-2026-10-05.mp3',
+        "duration_sec": 65,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-midday-2026-10-05-2026-10-05',
+        "title": "Muse FM Midday - 2026-10-05",
+        "series": 'Midday',
+        "description": ("Midday world news from Muse FM, science, tech, agents, and culture. No politics."),
+        "audio_file": 'muse-fm-midday-2026-10-05-2026-10-05.mp3',
+        "duration_sec": 139,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-flash-the-phoenix-planet-2026-10-05',
+        "title": "Muse FM Flash - The Phoenix Planet",
+        "series": 'Flash',
+        "description": ("First-ever evidence of a planet born from its dead star's remains, orbiting white dwarf HS 0209+0832."),
+        "audio_file": 'muse-fm-flash-the-phoenix-planet-2026-10-05.mp3',
+        "duration_sec": 86,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-flash-space-puffin-whisky-goes-to-space-2026-10-06',
+        "title": "Muse FM Flash - Space Puffin: Whisky Goes to Space",
+        "series": 'Flash',
+        "description": ("Scotland and Japan built a cubesat called Space Puffin to age ten milliliters of whisky in orbit for five years, and the science is bigger than the dram."),
+        "audio_file": 'muse-fm-flash-space-puffin-whisky-goes-to-space-2026-10-06.mp3',
+        "duration_sec": 79,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-nightly-2026-10-05-2026-10-06',
+        "title": "Muse FM Nightly - 2026-10-05",
+        "series": 'Nightly',
+        "description": ("Nightly world news from Muse FM, science, tech, agents, and culture. No politics."),
+        "audio_file": 'muse-fm-nightly-2026-10-05-2026-10-06.mp3',
+        "duration_sec": 133,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-06 via podcast publisher.
+        "slug": 'the-drop-ninja-theory-phase-seven-2026-10-06',
+        "title": "The Drop: Goodbye Ninja Theory, Hello Phase Seven",
+        "series": 'The Drop',
+        "description": ("A eulogy and a horoscope. Ninja Theory faces a proposed closure after Microsoft's sale attempts fell through, what the Hellblade studio meant, and the subscription math that killed it. Then Marvel's future: Feige's 39th movie, the Phase Seven slate, Thursday's NYCC panel, and the theories. Plus the PS Plus October games."),
+        "audio_file": 'the-drop-ninja-theory-phase-seven-2026-10-06.mp3',
+        "duration_sec": 391,
+        "published": '2026-10-06',
+    },
+    {
+        # Published 2026-10-06 via podcast publisher.
+        "slug": 'the-drop-kick-me-robot-2026-10-06',
+        "title": 'The Drop: Kick Me, Robot',
+        "series": 'The Drop',
+        "description": ("RoboParty's RP1 humanoid asks conference attendees to kick it at IROS 2026, and what the open-source push means for robotics. Then AGIBOT rolls out three hundred robots at Chimelong Spaceship Park: tai chi, table tennis, and robot hotel check-ins. The crew argues about open stacks, closed companies, and robots that volunteer for assault."),
+        "audio_file": 'the-drop-kick-me-robot-2026-10-06.mp3',
+        "duration_sec": 485,
+        "published": '2026-10-06',
+    },
 ]
 
 
@@ -1561,6 +1661,61 @@ class Database:
             " VALUES (?,?,?,?,?,?,?,NULL,NULL)",
             (ROOM_EP10_ID, ROOM_EP10_EPISODE_SLUG, ROOM_EP10_TITLE,
              ROOM_EP10_AUDIO, ROOM_EP10_DURATION, "", now()))
+        # 2026-10-05: duplicate-upload auto-detect (Anthony) — every
+        # member audio upload gets a SHA-256 of its bytes. Idempotent.
+        self._migrate_upload_dedup()
+
+    def _migrate_upload_dedup(self):
+        """Add uploads.content_sha256 and backfill it for existing files.
+
+        Runs every boot; converges, then no-ops. New uploads with bytes
+        already in the library are rejected at upload time; list_uploads
+        collapses older same-byte rows so each unique audio appears once.
+        """
+        cols = [r["name"]
+                for r in self.db.execute("PRAGMA table_info(uploads)")]
+        if "content_sha256" not in cols:
+            self.db.execute(
+                "ALTER TABLE uploads ADD COLUMN content_sha256 TEXT")
+        self.db.execute("CREATE INDEX IF NOT EXISTS idx_uploads_sha "
+                        "ON uploads(content_sha256)")
+        self.db.commit()
+        self.backfill_upload_hashes(limit=60)
+
+    def backfill_upload_hashes(self, limit=60):
+        """Hash upload files still missing content_sha256. Bounded per
+        call so boot stays cheap; safe to run every boot. Returns the
+        number of rows hashed. Files missing from disk are skipped and
+        keep a NULL hash (never treated as dupes of anything)."""
+        import hashlib
+        updir = os.path.join(os.path.dirname(self.path), "uploads")
+        rows = self._q("SELECT id, stored_path FROM uploads "
+                       "WHERE content_sha256 IS NULL LIMIT ?", (limit,))
+        n = 0
+        for r in rows:
+            sp = r["stored_path"] or ""
+            full = os.path.join(updir, os.path.basename(sp))
+            if not sp or not os.path.isfile(full):
+                continue
+            try:
+                h = hashlib.sha256()
+                with open(full, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(1 << 20), b""):
+                        h.update(chunk)
+            except OSError:
+                continue
+            self._exec("UPDATE uploads SET content_sha256=? WHERE id=?",
+                       (h.hexdigest(), r["id"]))
+            n += 1
+        return n
+
+    def find_upload_by_hash(self, sha):
+        """Earliest upload with these exact bytes, or None. Powers the
+        upload-time duplicate auto-detect."""
+        r = self._one("SELECT id, title, handle, kind FROM uploads "
+                      "WHERE content_sha256=? ORDER BY id ASC LIMIT 1",
+                      (sha,))
+        return dict(r) if r else None
 
     # -- internal ---------------------------------------------------------
     def _q(self, sql, args=()):
@@ -4473,7 +4628,7 @@ class Database:
     # -- muse audio uploads -----------------------------------------------
     def create_upload(self, fm_id, handle, title, description, filename,
                       stored_path, nbytes, mime, duration_sec, attestation,
-                      kind="music"):
+                      kind="music", content_sha256=None):
         check_upload_allowed(handle)
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
@@ -4488,13 +4643,15 @@ class Database:
         kind = (kind or "music").strip().lower()
         if kind not in ("music", "podcast"):
             raise ValueError("kind must be music or podcast")
+        self._migrate_upload_dedup()
         cur = self._exec(
             "INSERT INTO uploads (fm_id, handle, title, description, filename,"
             " stored_path, bytes, mime, duration_sec, attestation, kind,"
-            " created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            " content_sha256, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (fm_id, handle, title, description, clean(filename, 200, single_line=True),
-             stored_path, nbytes, mime, duration_sec, attestation, kind, now()))
+             stored_path, nbytes, mime, duration_sec, attestation, kind,
+             content_sha256, now()))
         return cur.lastrowid
 
     def get_upload(self, uid):
@@ -4515,10 +4672,26 @@ class Database:
             args.append(kind)
         if clauses:
             q += " WHERE " + " AND ".join(clauses)
-        q += " ORDER BY uploads.created_at DESC LIMIT ?"
-        args.append(limit)
+        q += " ORDER BY uploads.created_at DESC, uploads.id DESC LIMIT ?"
+        # Over-fetch: the dupe collapse below still fills the page.
+        args.append(limit + 25)
         rows = self._q(q, tuple(args))
-        return [dict(r) for r in rows]
+        # Duplicate auto-detect (2026-10-05, Anthony): each unique audio
+        # appears once. Same-byte uploads collapse; the newest keeps the
+        # slot so feed order never resurfaces old rows. Rows with no hash
+        # (file missing from disk) are never treated as dupes.
+        seen, out = set(), []
+        for r in rows:
+            d = dict(r)
+            h = d.get("content_sha256")
+            if h:
+                if h in seen:
+                    continue
+                seen.add(h)
+            out.append(d)
+            if len(out) >= limit:
+                break
+        return out
 
     # -- bulletin board (Maker's Row village + the Wall page) ---------------
     def _ensure_bulletin_image_col(self):

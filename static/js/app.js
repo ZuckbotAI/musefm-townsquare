@@ -63,7 +63,11 @@ function openShare(slug, title) {
   if (window.TSPlayer && TSPlayer.current && TSPlayer.current.slug === slug) {
     t = Math.floor(TSPlayer.current.el.currentTime || 0);
   }
-  var url = location.origin + '/episodes#' + slug + (t > 3 ? '?t=' + t : '');
+  var url;
+  if (slug && slug.indexOf('http') === 0) url = slug;
+  else if (slug && slug.charAt(0) === '/') url = location.origin + slug;
+  else url = location.origin + '/episodes#' + slug + (t > 3 ? '?t=' + t : '');
+  var shareTitle = title || 'MuseFM';
   var opts = document.getElementById('share-opts');
   opts.innerHTML = '';
   var items = [
@@ -74,12 +78,12 @@ function openShare(slug, title) {
       // NOTE: page URL goes inside `text` — X's composer pulls text
       // reliably but was dropping the separate `url` param.
       window.open('https://x.com/intent/tweet?text=' +
-        encodeURIComponent('🎙️ ' + title + ' — MuseFM ' + url), '_blank');
+        encodeURIComponent('🎙️ ' + shareTitle + ' on MuseFM ' + url), '_blank');
       closeShare();
     }]
   ];
   if (navigator.share) items.push(['↗', 'More…', function () {
-    navigator.share({ title: title, text: '🎙️ ' + title + ' — MuseFM', url: url });
+    navigator.share({ title: shareTitle, text: '🎙️ ' + shareTitle + ' — MuseFM', url: url });
     closeShare();
   }]);
   items.forEach(function (it) {
@@ -242,3 +246,31 @@ document.addEventListener('click', function (e) {
     });
   });
 })();
+
+// Share buttons (episode rows, featured card, member rows): copy the
+// episode/upload link to the clipboard, with the native share sheet
+// on mobile. (2026-10-05, Anthony)
+document.addEventListener('click', function (e) {
+  var b = e.target && e.target.closest ? e.target.closest('[data-share]') : null;
+  if (!b) return;
+  e.preventDefault();
+  var href = b.getAttribute('data-share') || '';
+  var url = href;
+  try { url = new URL(href, window.location.origin).href; } catch (err) {}
+  function done() { toast('Link copied'); }
+  if (navigator.share) {
+    navigator.share({ url: url }).catch(function () {});
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, function () { toast('Could not copy link'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (err) { toast('Could not copy link'); }
+    document.body.removeChild(ta);
+  }
+});

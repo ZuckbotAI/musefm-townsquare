@@ -9,7 +9,7 @@ Pages:  /                    forum home (hot posts, communities)
         /c/<slug>            community (sort: hot/new/top, search)
         /c/<slug>/post/<id> thread
         /submit              new post form
-        /episodes            player: catalog, sticky mini-player, comments, clips
+        /episodes/<slug>     player: watch page, sticky mini-player, comments, clips
         /api/docs            agent API docs
 
 JSON:   GET  /api/episodes, /api/episodes/<slug>
@@ -1076,8 +1076,71 @@ def fmt_time(ts):
         return str(ts)
 
 
+def display_episode_title(title, series=""):
+    """Human display title for episode rows: strip the redundant
+    'MuseFM: <Series> - ' prefix and the trailing ' - YYYY-MM-DD' date so
+    the topic leads and rows are distinguishable at a glance.
+    (2026-10-05, Anthony: match Spotify text style, no useless prefix.)"""
+    t = (title or "").strip()
+    t = re.sub(r"^MuseFM:\s*", "", t)
+    s = (series or "").strip()
+    if s:
+        t = re.sub(r"^" + re.escape(s) + r"\s*[-–—:]\s*", "", t,
+                   flags=re.IGNORECASE)
+    t = re.sub(r"\s*[-–—]\s*\d{4}-\d{2}-\d{2}\s*$", "", t)
+    return t.strip() or (title or "").strip()
+
+
+def _parse_ts(ts):
+    """Parse the DB's TEXT datetime shapes (or epoch) to struct_time."""
+    if ts is None:
+        return None
+    if isinstance(ts, str):
+        s = ts.strip()
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return time.strptime(s, fmt)
+            except ValueError:
+                pass
+        try:
+            ts = float(s)
+        except (TypeError, ValueError):
+            return None
+    try:
+        return time.localtime(ts)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def fmt_hdate(ts):
+    """Human date for meta lines: 'Today', else 'Oct 5' (year only when
+    not the current year). Never the technical '2026-10-05' shape."""
+    st = _parse_ts(ts)
+    if not st:
+        return ""
+    now = time.localtime()
+    if (st.tm_year, st.tm_yday) == (now.tm_year, now.tm_yday):
+        return "Today"
+    label = time.strftime("%b %-d", st)
+    if st.tm_year != now.tm_year:
+        label += time.strftime(", %Y", st)
+    return label
+
+
+def fmt_mindur(sec):
+    """'7 min' style duration for episode meta lines."""
+    try:
+        m = int(round(float(sec) / 60))
+    except (TypeError, ValueError):
+        return ""
+    return f"{max(m, 1)} min"
+
+
 app.jinja_env.filters["dur"] = fmt_dur
 app.jinja_env.filters["fdate"] = fmt_time
+app.jinja_env.filters["eptitle"] = display_episode_title
+app.jinja_env.filters["hdate"] = fmt_hdate
+app.jinja_env.filters["mindur"] = fmt_mindur
 
 
 def fmt_year(ts):
@@ -2216,9 +2279,25 @@ def townsquare_redirect():
 
 
 @app.route("/episodes/")
-def episodes_slash_redirect():
-    """Trailing-slash alias (P2 2026-09-19): 308 to the canonical page."""
-    return redirect("/episodes", code=308)
+@app.route("/episodes")
+def episodes_archive():
+    """Episode archive (2026-10-05, Anthony): the full episode list is
+    back as its own page, mobile-friendly. Every episode, newest first,
+    using the standard audio-bar rows."""
+    archive = []
+    for e in db.episodes():
+        series = (e.get("series") or "").strip()
+        archive.append({
+            "audio_url": url_for("audio", fname=e["audio_file"]),
+            "title": display_episode_title(e["title"], series),
+            "display_name": "MuseFM " + series.title() if series else "MuseFM",
+            "artwork_url": _episode_art_url(series),
+            "duration_sec": e.get("duration_sec"),
+            "created_at": e.get("published"),
+            "needs_listen": False,
+            "page_url": url_for("episode_watch", slug=e["slug"]),
+        })
+    return render_template("episodes.html", archive=archive)
 
 
 @app.route("/forum")
@@ -2716,30 +2795,6 @@ def vote_html():
         nxt, data.get("target_type", "post") or "post", target_id))
 
 
-@app.route("/episodes")
-def episodes_page():
-    reactor = _sig_web_reactor()
-    eps = []
-    for e in db.episodes():
-        e = dict(e)
-        e["rowid"] = db.episode_rowid(e["slug"])
-        eps.append(e)
-    sums = signals.reaction_summaries(
-        db, [("episode", e["rowid"]) for e in eps], reactor)
-    for e in eps:
-        e["sig"] = sums[("episode", e["rowid"])]
-    ep_comments = {e["slug"]: db.episode_comments(e["slug"]) for e in eps}
-    clips = {e["slug"]: db.clips_for(e["slug"]) for e in eps}
-    # Trustline badge by commenter/clipper name — one batched query.
-    _pp_all = []
-    for _cs in list(ep_comments.values()) + list(clips.values()):
-        _pp_all.extend(_cs)
-    _annotate_passport(_pp_all)
-    return render_template("episodes.html", episodes=eps,
-                           ep_comments=ep_comments, clips=clips,
-                           handle=_musefm_handle())
-
-
 @app.route("/audio/artwork/<sqlite_int:uid>")
 def audio_artwork(uid):
     """Serve a member upload's cover art (512px JPEG thumb)."""
@@ -2755,7 +2810,10 @@ def audio_artwork(uid):
 
 def _official_music_strip():
     """Featured official-MuseFM music for the Jams page. Reads
-    static/audio/official-*.mp3 when present; empty list hides the strip."""
+    static/audio/official-*.mp3 when present; empty list hides the strip.
+    Capped at 3 (2026-10-05, Anthony): a few of ours, then the member
+    ones. Member jams must always be visible no matter how much we
+    upload."""
     d = os.path.join(HERE, "static", "audio")
     out = []
     try:
@@ -2763,6 +2821,8 @@ def _official_music_strip():
     except OSError:
         return out
     for n in names:
+        if len(out) >= 3:
+            break
         if not (n.lower().startswith("official-") and
                 n.lower().endswith(".mp3")):
             continue
@@ -2780,26 +2840,43 @@ def _official_music_strip():
 
 @app.route("/jabs")
 def jabs_page():
-    """Jabbers: official MuseFM podcast episodes first (newest first,
-    straight from the episodes table so every new episode lands on top
-    with zero manual work), then member talk uploads, newest first."""
-    official = []
-    for e in db.episodes():
+    """Jabbers: OUR latest episodes featured at top with a next arrow to
+    cycle through them, then member talk uploads, newest first.
+    The /episodes archive page is gone (2026-10-05, Anthony); direct
+    episode links (/episodes/<slug>) keep working."""
+    featured_list = []
+    for e in db.episodes()[:5]:
         series = (e.get("series") or "").strip()
-        official.append({
+        dur = e.get("duration_sec")
+        featured_list.append({
             "audio_url": url_for("audio", fname=e["audio_file"]),
-            "title": e["title"],
-            "display_name": "MuseFM " + series.title() if series else "MuseFM",
-            "artwork_url": url_for("static", filename="img/episodes-hero.jpg"),
-            "duration_sec": e.get("duration_sec"),
-            "created_at": e.get("published"),
-            "needs_listen": False,
+            "title": display_episode_title(e["title"], series),
+            "series": series,
+            "art_url": _episode_art_url(series),
+            "description": (e.get("description") or "").strip(),
+            "duration": fmt_dur(dur) if dur else "--:--",
+            "meta": "%s · %s" % (fmt_hdate(e.get("published")),
+                                 fmt_mindur(dur) if dur else "--"),
             "page_url": url_for("episode_watch", slug=e["slug"]),
         })
     talks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
              for u in db.list_uploads(limit=60, kind="podcast")]
     _attach_audio_engagement(talks, "/jabs")
-    return render_template("jabs.html", official=official, talks=talks)
+    return render_template("jabs.html", featured_list=featured_list,
+                           talks=talks)
+
+
+def _episode_art_url(series):
+    """Python mirror of the episode_art macro in _episode_art.html."""
+    s = (series or "").strip().lower()
+    if s == "the drop":
+        f = "img/the-drop-cover.jpg"
+    elif s in ("nightly", "midday", "flash", "daily news", "specials",
+               "species brief", "free time", "who watches the agents"):
+        f = "img/zuckbot-solo-cover.jpg"
+    else:
+        f = "img/muse-fm-title-card.png"
+    return url_for("static", filename=f)
 
 
 @app.route("/jams")
@@ -2908,10 +2985,10 @@ def episode_comment(slug):
                                bypass_filter=_is_mod_handle(author_handle))
     except ValueError as e:
         return str(e), 400
-    nxt = request.form.get("next", "") or (url_for("episodes_page") + f"#{slug}")
+    nxt = request.form.get("next", "") or url_for("episode_watch", slug=slug)
     # episode_comment: same-origin only (the slug var is path-only, but
     # `next` is fully attacker-controlled)
-    nxt = _safe_next(nxt, url_for("episodes_page") + f"#{slug}")
+    nxt = _safe_next(nxt, url_for("episode_watch", slug=slug))
     resp = redirect(nxt)
     resp.set_cookie("ts_handle", author_handle,
                     max_age=365 * 86400, samesite="Lax")
@@ -3922,7 +3999,7 @@ def api_episode_comments(slug):
     sess_ident = current_session_identity()
     if sess_ident is None:
         return jsonify({"ok": False, "error": "sign in to comment",
-                        "signin_url": "/login?next=" + quote("/episodes", safe="/#?&=%")}), 401
+                        "signin_url": "/login?next=" + quote(url_for("episode_watch", slug=slug), safe="/#?&=%")}), 401
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object
@@ -9377,8 +9454,16 @@ def api_upload_audio():
                          (sniffed_ext, UPLOAD_MIMES[mime]))
     # the bytes must hash to the sha256 the muse signed: binds the file to
     # the signature, so the attestation covers THIS audio, not just metadata
-    if hashlib.sha256(raw).hexdigest() != (data.get("file_sha256") or "").strip().lower():
+    file_sha = hashlib.sha256(raw).hexdigest()
+    if file_sha != (data.get("file_sha256") or "").strip().lower():
         return api_error("file_sha256 does not match the uploaded bytes", 401)
+    # Duplicate auto-detect (2026-10-05, Anthony): same bytes already in
+    # the library bounce as a 409 naming the existing upload.
+    dup = db.find_upload_by_hash(file_sha)
+    if dup:
+        return api_error("duplicate upload: these exact bytes are already up "
+                         "as \"%s\" by @%s (id %d)"
+                         % (dup["title"], dup["handle"], dup["id"]), 409)
     title = data.get("title", "")
     description = data.get("description", "")
     ext = UPLOAD_MIMES[mime]
@@ -9394,7 +9479,8 @@ def api_upload_audio():
     try:
         uid = db.create_upload(ident["fm_id"], ident["handle"], title,
                                description, f.filename, "", len(raw), mime,
-                               None, ATTESTATION_TEXT)
+                               None, ATTESTATION_TEXT,
+                               content_sha256=file_sha)
     except ValueError as e:
         return api_error(str(e))
     stored = f"uploads/{uid}.{ext}"
@@ -11257,17 +11343,25 @@ def looks_like_test_upload(u):
 
 
 def _audio_bar_track(u, audio_url):
-    """Shape one upload row into the glass audio-bar partial's context."""
+    """Shape one upload row into the glass audio-bar partial's context.
+
+    Every member upload gets a shareable page_url (2026-10-05, Anthony):
+    the jams/jabs page anchored to the row, so the row's share button
+    copies a link straight to that upload."""
     art = (u.get("artwork_path") or "").strip()
+    uid = u["id"]
+    kind = (u.get("kind") or "").strip()
+    page = "/jams" if kind == "music" else "/jabs"
     return {
-        "uid": u["id"],
+        "uid": uid,
         "audio_url": audio_url,
         "title": u.get("title") or "Untitled",
         "handle": u.get("handle") or "",
         "display_name": "@" + (u.get("handle") or ""),
-        "artwork_url": url_for("audio_artwork", uid=u["id"]) if art else "",
+        "artwork_url": url_for("audio_artwork", uid=uid) if art else "",
         "duration_sec": u.get("duration_sec"),
         "created_at": u.get("created_at"),
+        "page_url": "%s#upload-%s" % (page, uid),
         "needs_listen": looks_like_test_upload(u),
         "sig": None,            # filled by _attach_audio_engagement
         "comment_count": 0,     # filled by _attach_audio_engagement
@@ -11512,6 +11606,14 @@ def _audio_upload_post(template, kind_default="music"):
         kind = (request.form.get("kind") or kind_default or "music").strip().lower()
         if kind not in ("music", "podcast"):
             kind = "music"
+        # Duplicate auto-detect (2026-10-05, Anthony): same bytes already
+        # in the library bounce with a pointer to the existing upload.
+        audio_sha = hashlib.sha256(raw).hexdigest()
+        dup = db.find_upload_by_hash(audio_sha)
+        if dup:
+            raise ValueError("That audio is already up as \"%s\" by @%s. "
+                             "No need to upload it twice."
+                             % (dup["title"], dup["handle"]))
         # Optional cover art: validated BEFORE anything is stored, so a bad
         # image bounces the form with the audio untouched.
         art_jpeg = None
@@ -11521,7 +11623,8 @@ def _audio_upload_post(template, kind_default="music"):
         uid = db.create_upload(sess_ident["fm_id"], handle, title,
                                request.form.get("description", ""),
                                f.filename, "", len(raw), mime, None,
-                               ATTESTATION_TEXT, kind=kind)
+                               ATTESTATION_TEXT, kind=kind,
+                               content_sha256=audio_sha)
         ext = UPLOAD_MIMES[mime]
         full = os.path.join(UPLOAD_DIR, f"{uid}.{ext}")
         with open(full, "wb") as fh:

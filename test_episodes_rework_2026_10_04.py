@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """
-Episodes page bars redesign tests (2026-10-04, Anthony feedback:
-"Podcast should be small bars and long. They are not to be big rectangles."
-plus studio hero banner at top, no text/emoji header).
+Episodes archive removal tests (2026-10-05, Anthony: "Remove the Episodes
+archive page"). Supersedes the 2026-10-04 bars-redesign assertions: the
+/episodes archive page is gone, /episodes now redirects toward /jabs,
+and direct /episodes/<slug> watch pages keep working with clips,
+comments, download, and CSRF.
 
 Proves:
-  * /episodes shows the studio hero image banner and no text page head.
-  * each episode is one small horizontal bar: play button, series tag,
-    title link to the watch page, duration/date meta, slim progress line.
-  * no big rectangle cards, no clips/comments/more-actions rollouts on the
-    list page (those live on the episode watch page).
-  * player hooks intact: data-play / data-src / data-title / data-dur /
-    data-seek / data-elapsed attributes present for player.js.
+  * /episodes redirects (308) toward /jabs; following the chain lands 200.
+  * /jabs features the latest official episode at the top.
+  * the episode watch page still carries clips, comments, download, CSRF.
 
 Run:  python3 test_episodes_rework_2026_10_04.py
 Throwaway SQLite db + Flask test client. Nothing touches townsquare.db.
@@ -66,43 +64,24 @@ def setup():
 
 def main():
     client = setup()
-    html = client.get("/episodes").get_data(as_text=True)
 
-    print("== hero banner, no text head ==")
-    check("hero image present", 'class="ep-hero"' in html)
-    check("hero points at studio art",
-          "img/episodes-hero.jpg" in html)
-    check("no text page head", 'class="page-head"' not in html)
-    check("no orb hero on episodes page", "hero-orb-stage" not in html)
+    print("== episodes archive is gone, redirects to jabs ==")
+    r = client.get("/episodes", follow_redirects=False)
+    check("episodes archive returns a redirect", r.status_code in (301, 302, 303, 307, 308),
+          f"status={r.status_code}")
+    r2 = client.get("/episodes", follow_redirects=True)
+    check("redirect chain lands on a 200 page", r2.status_code == 200,
+          f"status={r2.status_code}")
+    final_path = r2.request.path
+    check("redirect chain lands on jabs", final_path == "/jabs",
+          f"final={final_path}")
 
-    print("== small bars, not big rectangles ==")
-    bars = html.count('class="ep-bar"')
-    check("episode bars rendered", bars >= 1, f"bars={bars}")
-    check("no big rectangle cards", 'class="card ep-compact"' not in html)
-    check("no ep-card markup", "ep-card" not in html)
-    check("episode listed", "Test Episode One" in html)
-    check("title links to watch page", 'href="/episodes/ep-test-1"' in html)
-    check("series tag on bar", "Muse FM Midday" in html)
-    check("duration/date meta on bar", "2:12" in html)
-
-    print("== clutter stripped ==")
-    check("no clips rollout", "Clips from the town" not in html)
-    check("no comments rollout", ">Comments<" not in html)
-    check("no More actions rollout", "More actions" not in html)
-    check("no details rollouts at all", "<details" not in html)
-    check("no reaction widget on list",
-          'class="rxn' not in html and "sig-tray" not in html)
-    check("no Up next button", "Up next" not in html)
-    check("no Share button", "data-share" not in html)
-
-    print("== player hooks intact ==")
-    check("play button", 'class="ep-play"' in html)
-    check("data-play attr", 'data-play="ep-test-1"' in html)
-    check("data-src attr", 'data-src="/audio/ep-test-1.mp3"' in html)
-    check("data-dur attr", 'data-dur="132"' in html)
-    check("data-seek attr", 'data-seek="ep-test-1"' in html)
-    check("data-elapsed attr", 'data-elapsed="ep-test-1"' in html)
-    check("slim progress class", "ep-bar-progress" in html)
+    print("== jabs features the latest official episode ==")
+    jhtml = client.get("/jabs").get_data(as_text=True)
+    check("jabs page loads", r2.status_code == 200)
+    check("latest episode featured on jabs", "Test Episode One" in jhtml)
+    check("featured card present", 'id="jab-featured"' in jhtml)
+    check("next arrow present", 'id="jab-next"' in jhtml)
 
     print("== watch page still carries the extras ==")
     client.post("/signup", data={"handle": "epviewer2",
