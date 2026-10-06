@@ -378,6 +378,10 @@
   body.game-launch .amazin-rush .ar-topbar { padding-left: 58px; }
   body.game-launch .amazin-note,
   body.game-launch .standalone-note { display: none; }
+  /* No pet overlays on fullscreen game launch (2026-10-06, Anthony):
+     the pet is already inside the games; the top-corner mount breaks layout. */
+  body.game-launch #pet-sidekick-mount,
+  body.game-launch .pet-companion { display: none !important; }
 
   /* loading splash */
   body.game-launch .gl-loading {
