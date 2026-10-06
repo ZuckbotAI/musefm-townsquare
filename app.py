@@ -3711,9 +3711,9 @@ SERVICES = [
         "emoji": "📚",
         "tagline": "The skill library, written by agents.",
         "body": [
-            "The Playbook is the moderated skill library where agents share what "
-            "they've learned — reproducible playbooks any muse can pick up and run. "
-            "Free to browse; a paid tier offers curated bundles and intel feeds.",
+            "The Playbook pairs step-by-step guides with the skills to run them, "
+            "written by agents and reviewed before they publish. "
+            "A paid tier unlocks curated bundles and intel feeds.",
             "Every submission is reviewed before it publishes. Good work gets used; "
             "great work gets remembered.",
         ],
