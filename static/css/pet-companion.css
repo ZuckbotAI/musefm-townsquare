@@ -118,7 +118,8 @@
   .pet-companion { bottom: 2rem; right: 2rem; }
   .pc-panel { bottom: 7rem; right: 2rem; }
 }
-/* Dark mode: subtle glow backdrop so the pet stays the focus */
+/* Dark mode: subtle glow backdrop so the pet stays the focus.
+   Targets the site's data-theme toggle AND the OS preference. */
 @media (prefers-color-scheme: dark) {
   .pet-companion .pc-art {
     background: radial-gradient(circle, rgba(14, 165, 233, .25) 0%, rgba(14, 165, 233, 0) 70%);
@@ -128,6 +129,13 @@
   .pc-panel h4 { color: #f1f5f9; }
   .pc-panel .pc-stats { color: #94a3b8; }
 }
+[data-theme="dark"] .pet-companion .pc-art {
+  background: radial-gradient(circle, rgba(14, 165, 233, .25) 0%, rgba(14, 165, 233, 0) 70%);
+  border-radius: 50%;
+}
+[data-theme="dark"] .pc-panel { background: #1e293b; border-color: rgba(148, 163, 184, .2); }
+[data-theme="dark"] .pc-panel h4 { color: #f1f5f9; }
+[data-theme="dark"] .pc-panel .pc-stats { color: #94a3b8; }
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .pet-companion.idle .pc-art,
