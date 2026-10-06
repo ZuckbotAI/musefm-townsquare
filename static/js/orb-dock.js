@@ -89,11 +89,11 @@
   // ---- never-cover: the orb must never rest on anything tappable ----
   // Element selectors that count as "covered" when the orb's center lands
   // on them: media controls, buttons, links, inputs, the Shorts reaction
-  // wheel and mute/actions, the miniplayer, the mod bulk bar, the topbar.
-  // (Plain text/video surfaces don't block: a fixed overlay can't dodge
-  // scrolled content, and the orb is small and round.)
+  // wheel and mute/actions, the player bar/sheet, the mod bulk bar, the
+  // topbar. (Plain text/video surfaces don't block: a fixed overlay can't
+  // dodge scrolled content, and the orb is small and round.)
   var COVER_SEL = 'button, a[href], input, select, textarea, summary,' +
-    '[role="button"], [onclick], .sig, #miniplayer, .mod-bulkbar, .topbar,' +
+    '[role="button"], [onclick], .sig, #playerbar, #playersheet, .mod-bulkbar, .topbar,' +
     '.short-rxn, .short-mute, .short-actions';
   // The orb's own UI never counts as covered.
   var OWN_SEL = '.muse-orb-wrap, .muse-orb-panel, .muse-orb-nudge';
