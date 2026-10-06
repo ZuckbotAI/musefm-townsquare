@@ -583,50 +583,56 @@
 .gc-signin a { color: #0284c7; font-weight: 600; }
 .gc-error { font-size: 13px; color: #b3261e; }
 
-/* Floating glass player card (2026-10-05, Anthony: iOS-style).
-   Vertical layout: artwork + titles top row, progress middle,
-   centered controls bottom. No truncation. */
+/* Floating glass player card (2026-10-05, Anthony).
+   Matches iOS Now Playing: dark frosted glass, white text, always.
+   Artwork + title top row, progress middle, centered controls bottom. */
 .glass-player {
   position: fixed; left: 12px; right: 12px; bottom: calc(64px + env(safe-area-inset-bottom));
   z-index: 60; display: none; flex-direction: column; gap: 8px;
   padding: 14px 16px; border-radius: 20px;
-  background: linear-gradient(135deg, rgba(186, 214, 235, 0.72), rgba(148, 184, 212, 0.62));
-  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 8px 32px rgba(70, 120, 160, 0.28), inset 0 1px 0 rgba(255,255,255,0.5);
+  background: rgba(30, 30, 32, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 .glass-player.show { display: flex; }
 .gp-toprow { display: flex; align-items: center; gap: 12px; }
 .gp-art {
   width: 56px; height: 56px; border-radius: 12px; overflow: hidden; flex: none;
-  background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
-  font-size: 24px; color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: rgba(255,255,255,0.7);
 }
 .gp-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gp-titles { flex: 1; min-width: 0; }
-.gp-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.3; text-shadow: 0 1px 3px rgba(70,120,160,0.3); }
-.gp-sub { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 2px; }
-.gp-progress { position: relative; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); cursor: pointer; margin-top: 4px; }
+.gp-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.3; }
+.gp-sub { font-size: 13px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.gp-progress { position: relative; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.3); cursor: pointer; margin-top: 4px; }
 .gp-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 2px; background: #fff; }
 .gp-dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); left: 0%; }
-.gp-times { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.85); font-variant-numeric: tabular-nums; }
-.gp-controls { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 4px 0; }
-.gp-skip { width: 44px; height: 44px; border: none; background: transparent; color: rgba(255,255,255,0.92); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.gp-skip svg { width: 32px; height: 32px; }
+.gp-times { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.75); font-variant-numeric: tabular-nums; }
+.gp-controls { display: flex; align-items: center; justify-content: center; gap: 28px; padding: 4px 0; }
+.gp-skip { width: 44px; height: 44px; border: none; background: transparent; color: rgba(255,255,255,0.9); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.gp-skip svg { width: 34px; height: 34px; }
 .gp-play {
-  width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.28); color: #fff; font-size: 20px; cursor: pointer;
+  width: 58px; height: 58px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.22); color: #fff; font-size: 22px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.gp-vol { width: 40px; height: 40px; border: none; background: transparent; color: rgba(255,255,255,0.85); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; }
+.gp-vol { width: 40px; height: 40px; border: none; background: transparent; color: rgba(255,255,255,0.75); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; }
 .gp-vol svg { width: 22px; height: 22px; }
 .gp-vol.muted { opacity: 0.45; }
-.gp-close { position: absolute; top: -8px; right: -4px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(255,255,255,0.85); color: #5a7a94; font-size: 11px; cursor: pointer; }
+.gp-close { position: absolute; top: -8px; right: -4px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(255,255,255,0.9); color: #333; font-size: 11px; cursor: pointer; }
 body.has-player { padding-bottom: 180px; }
-@media (prefers-color-scheme: dark) {
-  .glass-player { background: linear-gradient(135deg, rgba(60, 90, 115, 0.78), rgba(45, 70, 92, 0.68)); border-color: rgba(255,255,255,0.18); }
-}
 body.has-player { padding-bottom: 140px; }
 @media (prefers-color-scheme: dark) {
   .glass-player { background: linear-gradient(135deg, rgba(60, 90, 115, 0.78), rgba(45, 70, 92, 0.68)); border-color: rgba(255,255,255,0.18); }
+  .gp-title { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .gp-sub { color: rgba(255,255,255,0.85); }
+  .gp-times { color: rgba(255,255,255,0.85); }
+  .gp-skip { color: rgba(255,255,255,0.92); }
+  .gp-play { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.28); color: #fff; }
+  .gp-vol { color: rgba(255,255,255,0.85); }
+  .gp-progress { background: rgba(255,255,255,0.35); }
+  .gp-fill { background: #fff; }
+  .gp-dot { background: #fff; }
 }
