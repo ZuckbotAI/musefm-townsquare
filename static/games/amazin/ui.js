@@ -166,6 +166,7 @@
       '<div class="ar-timer" id="arTimer">3:00</div>' +
       '<div class="ar-score">score <span class="ar-score-num" id="arScore">0</span></div>' +
       '<div class="ar-mult" id="arMult">1x</div>' +
+      '<button class="ar-mute" id="arMute" aria-label="Toggle sound">🔊</button>' +
       '<button class="ar-clockout" id="arClockout">clock out</button>' +
       '</div>' +
       '<div class="ar-rail" id="arRail"></div>' +
@@ -506,8 +507,19 @@
     }
 
     /* ---------- engine events ---------- */
+    var sfx = (typeof window !== 'undefined' && window.AmazinSfx) ? window.AmazinSfx : { play: function () {}, toggle: function () { return false; }, muted: false };
     game.on(function (type, data) {
       if (type === 'petMood') { setPetMood(data.mood); return; }
+      if (type === 'shiftStart') { sfx.play('start'); }
+      else if (type === 'shiftOver') { sfx.play('end'); }
+      else if (type === 'ticketSpawn') { sfx.play('ding'); }
+      else if (type === 'ticketExpired') { sfx.play('sad'); }
+      else if (type === 'ticketSelect') { sfx.play('ticket'); }
+      else if (type === 'productSelect') { sfx.play('select'); }
+      else if (type === 'cart') { sfx.play('pop'); }
+      else if (type === 'orderComplete') { sfx.play(data && data.perfect ? 'fanfare' : 'chaChing'); }
+      else if (type === 'returnsOpen') { sfx.play('alert'); }
+      else if (type === 'multiplier' && data && data.multiplier > 1) { sfx.play('streak'); }
       if (type === 'shiftStart') {
         ticketEls = {};
         railEl.innerHTML = '';
@@ -551,6 +563,10 @@
     titleScr.querySelector('#arQuit').addEventListener('click', function () {
       toast('No shift running. The floor misses you.');
     });
+    var muteBtn = gameScr.querySelector('#arMute');
+    function syncMute() { muteBtn.textContent = sfx.muted ? '🔇' : '🔊'; muteBtn.classList.toggle('ar-off', !!sfx.muted); }
+    syncMute();
+    muteBtn.addEventListener('click', function () { sfx.toggle(); syncMute(); sfx.play('click'); });
     gameScr.querySelector('#arClockout').addEventListener('click', function () {
       game.clockOut();
       show(titleScr);
