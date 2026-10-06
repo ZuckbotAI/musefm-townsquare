@@ -197,11 +197,36 @@ window.TSPlayer = (function () {
     });
   }
 
+  function setRowButtonState(activeBtn, playing) {
+    // Reset all track buttons to play state, then set the active one.
+    document.querySelectorAll('[data-play]').forEach(function (b) {
+      b.innerHTML = '&#9654;';
+      b.setAttribute('aria-label', 'Play');
+      b.classList.remove('is-playing');
+    });
+    if (activeBtn && playing) {
+      activeBtn.innerHTML = '&#10074;&#10074;';
+      activeBtn.setAttribute('aria-label', 'Pause');
+      activeBtn.classList.add('is-playing');
+    }
+    state.activeBtn = playing ? activeBtn : null;
+  }
+
+  // When the global audio pauses/ends, reset the track button.
+  audio.addEventListener('pause', function () {
+    if (state.activeBtn) setRowButtonState(null, false);
+  });
+
   function wireRowButtons() {
     document.querySelectorAll('[data-play]').forEach(function (btn) {
       if (btn._tsWired) return; btn._tsWired = true;
       btn.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
+        // If this track is already playing, toggle pause.
+        if (state.activeBtn === btn && !audio.paused) {
+          audio.pause();
+          return;
+        }
         pauseAllOthers();
         var row = btn.closest('[data-track]');
         var audioEl = row ? row.querySelector('[data-audio]') : null;
