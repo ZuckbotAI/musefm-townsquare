@@ -6,7 +6,10 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css', v='20261006d') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='games/amazin/styles.css') }}">
 <style>
-  .amazin-stage .amazin-rush { height: min(860px, calc(100dvh - 140px)); min-height: 620px; }
+  .amazin-stage .amazin-rush { height: min(860px, calc(100dvh - 140px)); min-height: 420px; }
+  @media (max-height: 700px) {
+    .amazin-stage .amazin-rush { min-height: 0; height: calc(100dvh - 120px); }
+  }
 </style>
 {% endblock %}
 {% block content %}
