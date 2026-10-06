@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body_class %} class="game-launch"{% endblock %}
+{% block title %}{{ game_title }} — Arcade — MuseFM{% endblock %}
+{% block meta_desc %}Play {{ game_title }} in your browser on MuseFM. Free, no downloads.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/games-arcade.css') }}">
+<style>
+  .standalone-stage { position: relative; width: 100%; height: min(860px, calc(100dvh - 140px)); min-height: 620px; border-radius: 12px; overflow: hidden; background: #04121a; }
+  .standalone-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .gamepage-back { display: inline-block; margin: 1rem 0; color: var(--link, #4fc3f7); text-decoration: none; font-weight: 600; }
+  .gamepage-back:hover { text-decoration: underline; }
+  .standalone-note { opacity: .75; margin: .75rem 0 2rem; font-size: .95rem; }
+</style>
+{% endblock %}
+{% block content %}
+{% set gl_title = game_title %}
+{% set gl_cover = game_cover %}
+{% include "_game_launch.html" %}
+<div class="standalone-wrap">
+  <a class="gamepage-back" href="/games">← Back to the arcade</a>
+  <div class="standalone-stage">
+    <iframe src="{{ url_for('static', filename='games/' + game_slug + '/index.html') }}" title="{{ game_title }}" allow="autoplay; fullscreen" loading="eager"></iframe>
+  </div>
+  <p class="standalone-note">{{ game_blurb }}</p>
+</div>
+{% endblock %}

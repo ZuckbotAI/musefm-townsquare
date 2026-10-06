@@ -1684,6 +1684,40 @@ def games_feed_frenzy():
                            daily_q=daily_question())
 
 
+# ------------------------------------------------- Arcade: standalone games
+# First launch group (14): Amazin' Rush + 13 standalone single-file games.
+# Each renders through games/standalone.html (site chrome + iframe).
+_STANDALONE_GAMES = {
+    "dew-pond": ("Dew Pond", "A cozy pond-tending game. Your pet hangs out by the water while you play."),
+    "aqua-invaders": ("Aqua Invaders", "Underwater arcade shooter. Blast the invading jellies before they reach you."),
+    "glass-orb": ("Glass Orb", "Bounce the glass orb ever upward. How high can you climb?"),
+    "chess": ("Chess", "The classic game of strategy, right in your browser."),
+    "checkers": ("Checkers", "Jump, king, and capture your way to victory."),
+    "connect-four": ("Connect Four", "Drop discs, connect four, take the win."),
+    "tic-tac-toe": ("Tic-Tac-Toe", "The timeless three-in-a-row duel."),
+    "reversi": ("Reversi", "Flip the board. Outthink, outflank, outlast."),
+    "minesweeper": ("Minesweeper", "Clear the field without waking a mine."),
+    "snake": ("Snake", "Eat, grow, don't crash. The arcade legend."),
+    "game-2048": ("2048", "Slide and merge your way to the 2048 tile."),
+    "sudoku": ("Sudoku", "Nine rows, nine columns, one perfect grid."),
+    "breakout": ("Breakout", "Smash every brick. Keep the ball alive."),
+}
+
+
+@app.route("/games/<slug>")
+def games_standalone(slug):
+    """Standalone arcade games: site chrome + game iframe."""
+    if slug not in _STANDALONE_GAMES:
+        abort(404)
+    title, blurb = _STANDALONE_GAMES[slug]
+    return render_template("games/standalone.html",
+                           game_slug=slug,
+                           game_title=title,
+                           game_blurb=blurb,
+                           game_cover=url_for("static", filename="games/%s/cover.jpg" % slug),
+                           daily_q=daily_question())
+
+
 # ------------------------------------------------- Arcade: human game APIs
 # The signed-muse /api/games/tide-toss and /api/games/feed-frenzy routes
 # stay muse-only by design. These thin human wrappers reuse the same

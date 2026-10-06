@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Aqua Invaders</title>
+<style>
+:root{
+  --ink:#06303f; --aqua:#22d3ee; --panel:rgba(255,255,255,.32); --panel-brd:rgba(255,255,255,.65);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:#0b3b52;font-family:"Trebuchet MS","Segoe UI",Verdana,sans-serif;
+  color:var(--ink); overscroll-behavior:none;}
+#wrap{position:fixed;inset:0;}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+#hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;
+  padding:calc(10px + env(safe-area-inset-top)) 12px 0;z-index:5;pointer-events:none;visibility:hidden;}
+.hud-chip{background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--panel-brd);border-radius:14px;padding:8px 14px;font-weight:900;font-size:15px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 4px 12px rgba(8,80,110,.18);text-align:center;min-width:86px;}
+.hud-chip small{display:block;font-size:10px;font-weight:800;letter-spacing:2px;opacity:.65;}
+#muteBtn{pointer-events:auto;border:1px solid var(--panel-brd);border-radius:14px;background:var(--panel);
+  color:var(--ink);font:inherit;font-weight:900;font-size:17px;min-width:48px;min-height:48px;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);}
+.panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;width:min(92vw,380px);
+  background:var(--panel);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--panel-brd);border-radius:22px;padding:26px 22px;text-align:center;
+  box-shadow:0 14px 40px rgba(8,80,110,.30), inset 0 1px 0 rgba(255,255,255,.7);overflow:hidden;}
+.panel::before{content:"";position:absolute;top:0;left:0;right:0;height:50%;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0));
+  border-radius:22px 22px 50% 50% / 22px 22px 14px 14px;}
+.panel h1{font-size:34px;font-weight:900;letter-spacing:2px;margin-bottom:6px;
+  background:linear-gradient(180deg,#ffffff 20%,#a5f3fc 55%,#0ea5c9 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 2px 0 rgba(255,255,255,.55));}
+.panel h2{font-size:26px;font-weight:900;margin-bottom:8px;}
+.panel p{font-size:14px;line-height:1.6;margin:8px 0;}
+.panel .keys{font-size:12.5px;line-height:1.9;text-align:left;background:rgba(255,255,255,.25);
+  border-radius:12px;padding:10px 14px;margin:10px 0;}
+.panel .keys b{color:#0b5a74;}
+.bigbtn{display:block;width:100%;font:inherit;font-weight:900;font-size:18px;letter-spacing:1px;color:#07384e;
+  padding:15px;margin-top:12px;border:none;border-radius:16px;cursor:pointer;min-height:56px;
+  background:linear-gradient(180deg,#eafffb 0%,#a5f3fc 40%,#67e8f9 75%,#38e1ff 100%);
+  box-shadow:0 4px 0 #0ea5c9, 0 8px 18px rgba(8,80,110,.25), inset 0 1px 0 #fff;}
+.bigbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #0ea5c9;}
+.bigbtn.ghost{background:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.7);}
+.hidden{display:none !important;}
+#banner{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%) scale(.6);z-index:7;
+  font-size:40px;font-weight:900;letter-spacing:3px;color:#fff;opacity:0;pointer-events:none;
+  text-shadow:0 3px 0 rgba(14,116,144,.8), 0 8px 24px rgba(8,80,110,.4);white-space:nowrap;}
+#banner.show{animation:bannerPop 1.6s cubic-bezier(0.175,0.885,0.32,1.275) forwards;}
+@keyframes bannerPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+  18%{opacity:1;transform:translate(-50%,-50%) scale(1.12);}
+  30%{transform:translate(-50%,-50%) scale(1);} 75%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.05);}}
+#err{position:fixed;left:8px;right:8px;bottom:8px;z-index:99;display:none;background:#7f1d1d;color:#fff;
+  font-size:12px;padding:10px 12px;border-radius:12px;font-family:monospace;white-space:pre-wrap;
+  max-height:30vh;overflow:auto;}
+#livesRow{display:flex;gap:6px;justify-content:center;margin-top:4px;}
+.lifePip{width:14px;height:14px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff 0%,#a5f3fc 45%,#22d3ee 100%);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.8);}
+.lifePip.lost{background:rgba(255,255,255,.25);box-shadow:none;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div class="hud-chip"><small>SCORE</small><span id="hudScore">0</span></div>
+    <div class="hud-chip"><small>WAVE</small><span id="hudWave">1</span><div id="livesRow"></div></div>
+    <div class="hud-chip"><small>BEST</small><span id="hudBest">0</span></div>
+    <button id="muteBtn" title="Sound on/off">&#9836;</button>
+  </div>
+  <div id="banner"></div>
+  <div class="panel" id="titlePanel">
+    <h1>AQUA INVADERS</h1>
+    <p>The gray visitors are descending through the lagoon.<br>Hold the line, bubble turret.</p>
+    <div class="keys">
+      <b>Desktop:</b> Arrows or A/D to move, Space to fire. Mouse: move to steer, click to fire.<br>
+      <b>Mobile:</b> drag your finger to steer, the turret auto-fires while you touch.
+    </div>
+    <button class="bigbtn" id="startBtn">START</button>
+    <button class="bigbtn ghost" id="watchBtn">WATCH THE AUTOPILOT</button>
+  </div>
+  <div class="panel hidden" id="overPanel">
+    <h2 id="overTitle">GAME OVER</h2>
+    <p id="overStats"></p>
+    <button class="bigbtn" id="againBtn">PLAY AGAIN</button>
+    <button class="bigbtn ghost" id="menuBtn">MENU</button>
+  </div>
+  <div id="err"></div>
+</div>
+<script>
+"use strict";
+/* =====================================================================
+   AQUA INVADERS - Frutiger Aero space invaders with gray alien pixel art.
+   Single self-contained file, zero external dependencies.
+
+   AGENT INTERFACE (pure-logic core, zero DOM):
+     window.AquaInvaders.newGame()            start a fresh sim
+     window.AquaInvaders.state()              plain JSON snapshot:
+       { tick, phase:'title'|'playing'|'dying'|'gameover'|'clear',
+         score, lives, wave, player:{x,y,alive},
+         aliens:[{x,y,type,alive}...], bolts:[{x,y}...], bullets:[{x,y}...],
+         ufo:{x,y,active}|null }
+     window.AquaInvaders.act({move:-1..1, fire:bool})   advance ONE 60Hz tick
+     window.AquaInvaders.autopilot()          one tick of the built-in driver
+                                               (uses only state()+act())
+   The browser game and any muse drive the exact same simulation.
+   ===================================================================== */
+
+/* ---------------- error boundary ---------------- */
+(function(){
+  var el = document.getElementById('err');
+  function show(msg){ el.style.display='block'; el.textContent += msg + '\n'; }
+  window.addEventListener('error', function(e){ show('ERR: ' + (e.message||e.error)); });
+  window.addEventListener('unhandledrejection', function(e){ show('REJ: ' + (e.reason&&e.reason.message||e.reason)); });
+})();
+
+/* ---------------- safe storage (blocked storage must never kill the game) ---------------- */
+var store = {
+  get: function(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } },
+  set: function(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} }
+};
+
+/* ---------------- config ---------------- */
+var CFG = {
+  W:480, H:640,
+  cols:11, rows:5, cellW:36, cellH:30,
+  playerY: 640-64, playerSpeed: 300, fireCd: 0.22, maxBullets: 3,
+  boltBase: 170, lives: 3,
+  scores: [30, 20, 10]
+};
+(function assertCfg(){
+  ['W','H','cols','rows','playerSpeed','fireCd'].forEach(function(k){
+    if (typeof CFG[k] !== 'number' || !(CFG[k] > 0)) throw new Error('bad config: ' + k);
+  });
+})();
+
+/* ---------------- audio (all synthesized) ---------------- */
+var Audio3 = {
+  ctx:null, master:null, muted: store.get('aqua-invaders-mute') === '1',
+  init: function(){
+    try{
+      if(!this.ctx){
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return;
+        this.ctx = new AC();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 0.4;
+        this.master.connect(this.ctx.destination);
+      }
+      if(this.ctx.state === 'suspended') this.ctx.resume();
+    }catch(e){}
+  },
+  setMuted: function(m){ this.muted = m; store.set('aqua-invaders-mute', m?'1':'0');
+    if(this.master) this.master.gain.value = m ? 0 : 0.4; },
+  env: function(node, t0, dur, vol){
+    var g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    node.connect(g); g.connect(this.master);
+    node.start(t0); node.stop(t0 + dur + 0.05);
+  },
+  tone: function(f0, f1, dur, type, vol, delay){
+    if(!this.ctx || this.muted) return;
+    try{
+      var t0 = this.ctx.currentTime + (delay||0);
+      var o = this.ctx.createOscillator();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(f0, t0);
+      o.frequency.exponentialRampToValueAtTime(Math.max(1,f1), t0 + dur);
+      this.env(o, t0, dur, vol || 0.18);
+    }catch(e){}
+  },
+  pew: function(){ this.tone(880, 220, 0.12, 'square', 0.12); },
+  pop: function(){ this.tone(300, 1200, 0.09, 'sine', 0.22); },   // water-drop pop
+  boom: function(){
+    if(!this.ctx || this.muted) return;
+    try{
+      var t0 = this.ctx.currentTime, len = 0.35;
+      var buf = this.ctx.createBuffer(1, this.ctx.sampleRate*len, this.ctx.sampleRate);
+      var d = buf.getChannelData(0);
+      for(var i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, 2);
+      var src = this.ctx.createBufferSource(); src.buffer = buf;
+      var f = this.ctx.createBiquadFilter(); f.type='lowpass';
+      f.frequency.setValueAtTime(900, t0);
+      f.frequency.exponentialRampToValueAtTime(80, t0+len);
+      src.connect(f);
+      this.env(f, t0, len, 0.3);
+    }catch(e){}
+  },
+  ufoWarble: function(){
+    if(!this.ctx || this.muted) return;
+    try{
+      var t0 = this.ctx.currentTime, o = this.ctx.createOscillator(), l = this.ctx.createOscillator();
+      o.type='sine'; o.frequency.value=620; l.type='sine'; l.frequency.value=7;
+      var lg = this.ctx.createGain(); lg.gain.value=180; l.connect(lg); lg.connect(o.frequency);
+      this.env(o, t0, 0.5, 0.08); l.start(t0); l.stop(t0+0.6);
+    }catch(e){}
+  },
+  wave: function(){ this.tone(392,392,0.12,'triangle',0.2); this.tone(523,523,0.12,'triangle',0.2,0.12); this.tone(659,659,0.25,'triangle',0.22,0.24); }
+};
+/* ---------------- pixel-art gray aliens (pre-baked, 2 frames each) ----------------
+   Palette: G light gray skin, g shaded gray, E black almond eye, W eye glint */
+var ALIEN_PX = 4; // render scale
+var SPRITES = {};
+(function bakeAliens(){
+  var pal = { G:'#b9c2cc', g:'#8d99a6', E:'#0d1117', W:'#e8f4ff' };
+  // each type: [frame0 rows, frame1 rows], 12 wide
+  var defs = [
+    [ // type 0: watcher (big head) - top rows
+      ["....GGGGGG....","..GGGGGGGGGG..",".GGGGGGGGGGGG.","GGGGGGGGGGGGGG",
+       "GGEEEGGGEEEGGG","GGEEEGGGEEEGGG",".GGGGGGGGGGGG.","..GgGGGGGGgG..",
+       "...G.G..G.G..."],
+      ["....GGGGGG....","..GGGGGGGGGG..",".GGGGGGGGGGGG.","GGGGGGGGGGGGGG",
+       "GGEEEGGGEEEGGG","GGWEEGGGEEWGGG",".GGGGGGGGGGGG.","..GgGGGGGGgG..",
+       "....G.GG.G...."]
+    ],
+    [ // type 1: crab (wide, side arms) - middle rows
+      ["....GGGGGG....","..GGGGGGGGGG..",".GGGGGGGGGGGG.","GgGGGGGGGGGGgG",
+       "GgGEEEGGEEEGgG",".gGEEEGGEEEGg.","..GGGGGGGGGG..",".GGGGGGGGGGGG.",
+       ".GG.GGGGGG.GG."],
+      ["....GGGGGG....","..GGGGGGGGGG..",".GGGGGGGGGGGG.","GgGGGGGGGGGGgG",
+       "GgGWEEGGEEWGgG",".gGEEEGGEEEGg.","..GGGGGGGGGG..","..GGGGGGGGGG..",
+       "..G..GGGG..G.."]
+    ],
+    [ // type 2: floater (round, tendrils) - bottom rows
+      ["....GGGGGG....","..GGGGGGGGGG..",".GGGGGGGGGGGG.","GGGGGGGGGGGGGG",
+       "GgGEEEGGEEEGgG",".gGEEEGGEEEGg.","..GGGGGGGGGG..","..GGGGGGGGGG..",
+       ".G.G.G..G.G.G."],
+      ["....GGGGGG....","..GGGGGGGGGG..",".GGGGGGGGGGGG.","GGGGGGGGGGGGGG",
+       "GgGWEEGGEEWGgG",".gGEEEGGEEEGg.","..GGGGGGGGGG..","...GGGGGGGG...",
+       "..G.G.GG.G.G.."]
+    ]
+  ];
+  defs.forEach(function(frames, t){
+    SPRITES['alien'+t] = frames.map(function(rows){
+      var h = rows.length, w = rows[0].length;
+      var c = document.createElement('canvas');
+      c.width = w*ALIEN_PX; c.height = h*ALIEN_PX;
+      var g = c.getContext('2d');
+      for(var y=0;y<h;y++){
+        if(rows[y].length !== w) throw new Error('alien sprite row width mismatch t'+t);
+        for(var x=0;x<w;x++){
+          var ch = rows[y][x];
+          if(ch === '.') continue;
+          g.fillStyle = pal[ch] || '#f0f';
+          g.fillRect(x*ALIEN_PX, y*ALIEN_PX, ALIEN_PX, ALIEN_PX);
+        }
+      }
+      return c;
+    });
+  });
+  // player bubble-turret (procedural glass, pre-baked)
+  var pc = document.createElement('canvas'); pc.width = 56; pc.height = 44;
+  var p = pc.getContext('2d');
+  var dome = p.createLinearGradient(0,4,0,36);
+  dome.addColorStop(0,'#f2feff'); dome.addColorStop(0.45,'#a5f3fc');
+  dome.addColorStop(1,'#0ea5c9');
+  p.fillStyle = dome;
+  p.beginPath(); p.arc(28,26,18,Math.PI,0); p.closePath(); p.fill();
+  p.strokeStyle = 'rgba(255,255,255,.9)'; p.lineWidth = 2; p.stroke();
+  p.fillStyle = 'rgba(255,255,255,.55)';
+  p.beginPath(); p.ellipse(20,14,7,4,-0.5,0,Math.PI*2); p.fill(); // specular crescent
+  p.fillStyle = '#0b5a74';
+  p.fillRect(10,26,36,8); // base
+  p.fillStyle = '#67e8f9'; p.fillRect(24,20,8,6); // barrel
+  SPRITES.player = pc;
+  // UFO: glass bubble with tiny gray alien inside
+  var uc = document.createElement('canvas'); uc.width=64; uc.height=30;
+  var u = uc.getContext('2d');
+  var ug = u.createLinearGradient(0,0,0,30);
+  ug.addColorStop(0,'rgba(255,255,255,.95)'); ug.addColorStop(1,'rgba(165,243,252,.55)');
+  u.fillStyle = ug; u.beginPath(); u.ellipse(32,15,30,13,0,0,Math.PI*2); u.fill();
+  u.strokeStyle='rgba(255,255,255,.9)'; u.lineWidth=2; u.stroke();
+  u.fillStyle='#8d99a6'; u.beginPath(); u.arc(32,13,7,0,Math.PI*2); u.fill();
+  u.fillStyle='#0d1117';
+  u.beginPath(); u.ellipse(28.5,12,2.6,3.6,-0.25,0,Math.PI*2); u.fill();
+  u.beginPath(); u.ellipse(35.5,12,2.6,3.6,0.25,0,Math.PI*2); u.fill();
+  SPRITES.ufo = uc;
+})();
+
+/* =====================================================================
+   SIM CORE - pure logic, zero DOM. Drives both the browser game and agents.
+   ===================================================================== */
+var Sim = (function(){
+  var DT = 1/60;
+
+  function newGame(){
+    var s = {
+      tick:0, phase:'playing', score:0, lives:CFG.lives, wave:1,
+      player:{ x:CFG.W/2, alive:true, respawn:0, fireT:0 },
+      aliens:[], dir:1, stepT:0, anim:0,
+      bullets:[], bolts:[], boltT:2.2,
+      ufo:{ active:false, x:0, dir:1, t:14 },
+      shields:[],
+      hitStop:0, shake:0,
+      clearT:0, overT:0
+    };
+    buildWave(s);
+    buildShields(s);
+    return s;
+  }
+
+  function buildWave(s){
+    s.aliens = [];
+    var gw = CFG.cols*CFG.cellW, x0 = (CFG.W-gw)/2 + CFG.cellW/2;
+    var y0 = 96 + (s.wave-1)*18;
+    for(var r=0;r<CFG.rows;r++){
+      var type = r<1 ? 0 : (r<3 ? 1 : 2);
+      for(var c=0;c<CFG.cols;c++){
+        s.aliens.push({ x:x0+c*CFG.cellW, y:y0+r*CFG.cellH, type:type, alive:true,
+                        score: CFG.scores[type] });
+      }
+    }
+    s.dir = 1; s.stepT = 0;
+  }
+
+  function buildShields(s){
+    s.shields = [];
+    for(var i=0;i<4;i++){
+      var w=58, h=42;
+      var dmg = [];
+      for(var y=0;y<h;y++){ dmg.push([]); for(var x=0;x<w;x++) dmg[y].push(0); }
+      s.shields.push({ x: 40+i*((CFG.W-80-58)/3)+29, y: CFG.playerY-86, w:w, h:h, dmg:dmg });
+    }
+  }
+
+  function aliveCount(s){ var n=0; for(var i=0;i<s.aliens.length;i++) if(s.aliens[i].alive) n++; return n; }
+
+  function stepInterval(s){
+    var n = aliveCount(s);
+    return Math.max(2.2, 26 - (55-n)*0.42 - (s.wave-1)*2.5); // ticks per step
+  }
+
+  function chipShield(s, sh, lx, ly, r){
+    for(var y=0;y<sh.h;y++) for(var x=0;x<sh.w;x++){
+      var dx=x-lx, dy=y-ly;
+      if(dx*dx+dy*dy < r*r) sh.dmg[y][x]=1;
+    }
+    s.shieldsDirty = true;
+  }
+  function shieldAt(s, x, y){
+    for(var i=0;i<s.shields.length;i++){
+      var sh=s.shields[i];
+      var lx=Math.round(x-(sh.x-sh.w/2)), ly=Math.round(y-(sh.y-sh.h/2));
+      if(lx>=0 && lx<sh.w && ly>=0 && ly<sh.h && !sh.dmg[ly][lx]) return {sh:sh,lx:lx,ly:ly};
+    }
+    return null;
+  }
+
+  function tick(s, input){
+    if(s.hitStop>0){ s.hitStop--; s.tick++; return; }
+    s.tick++;
+    input = input || {};
+    var move = Math.max(-1, Math.min(1, +input.move || 0));
+    var fire = !!input.fire;
+
+    if(s.phase==='dying'){ // player respawn pause
+      s.player.respawn -= DT;
+      if(s.player.respawn<=0){
+        if(s.lives>0){ s.player.alive=true; s.player.x=CFG.W/2; s.phase='playing'; }
+        else { s.phase='gameover'; }
+      }
+      updateFx(s); return;
+    }
+    if(s.phase==='clear'){
+      s.clearT -= DT;
+      if(s.clearT<=0){ s.wave++; buildWave(s); s.phase='playing'; }
+      updateFx(s); return;
+    }
+    if(s.phase!=='playing'){ updateFx(s); return; }
+
+    // --- player ---
+    var pl = s.player;
+    if(pl.alive){
+      pl.x = Math.max(24, Math.min(CFG.W-24, pl.x + move*CFG.playerSpeed*DT));
+      pl.fireT -= DT;
+      if(fire && pl.fireT<=0 && s.bullets.length < CFG.maxBullets){
+        s.bullets.push({x:pl.x, y:CFG.playerY-24});
+        pl.fireT = CFG.fireCd;
+        s.fired = true;
+      }
+    }
+
+    // --- alien march ---
+    s.stepT += 1;
+    if(s.stepT >= stepInterval(s)){
+      s.stepT = 0; s.anim = 1-s.anim;
+      var minX=1e9, maxX=-1e9;
+      for(var i=0;i<s.aliens.length;i++){ var a=s.aliens[i]; if(!a.alive) continue;
+        if(a.x<minX)minX=a.x; if(a.x>maxX)maxX=a.x; }
+      var half=24;
+      if((s.dir>0 && maxX+half+7 >= CFG.W) || (s.dir<0 && minX-half-7 <= 0)){
+        s.dir *= -1;
+        for(var j=0;j<s.aliens.length;j++){ var b=s.aliens[j]; if(b.alive) b.y += 15; }
+      } else {
+        for(var k=0;k<s.aliens.length;k++){ var c2=s.aliens[k]; if(c2.alive) c2.x += s.dir*7; }
+      }
+      // invasion check
+      for(var m=0;m<s.aliens.length;m++){ var d=s.aliens[m];
+        if(d.alive && d.y > CFG.playerY-40){ s.phase='gameover'; s.overReason='invasion'; updateFx(s); return; } }
+    }
+
+    // --- bullets ---
+    for(var bi=s.bullets.length-1;bi>=0;bi--){
+      var bl=s.bullets[bi]; bl.y -= 520*DT;
+      var dead=false;
+      if(bl.y < -8){ s.bullets.splice(bi,1); continue; }
+      // vs UFO
+      var u=s.ufo;
+      if(u.active && Math.abs(bl.x-u.x)<32 && Math.abs(bl.y-52)<16){
+        s.score += [100,150,300][Math.floor(Math.random()*3)];
+        u.active=false; s.bullets.splice(bi,1); s.ufoHit=true; continue;
+      }
+      // vs shields
+      var sh=shieldAt(s, bl.x, bl.y);
+      if(sh){ chipShield(s, sh.sh, sh.lx, sh.ly, 7); s.bullets.splice(bi,1); continue; }
+      // vs aliens
+      for(var ai=0;ai<s.aliens.length;ai++){ var al=s.aliens[ai];
+        if(!al.alive) continue;
+        if(Math.abs(bl.x-al.x)<20 && Math.abs(bl.y-al.y)<14){
+          al.alive=false; dead=true;
+          s.score += al.score;
+          s.popX=al.x; s.popY=al.y; s.hitStop=3; // 50ms hit-stop
+          break;
+        }
+      }
+      if(dead) s.bullets.splice(bi,1);
+    }
+
+    // --- alien bolts ---
+    s.boltT -= DT;
+    var maxBolts = Math.min(6, 2+s.wave);
+    if(s.boltT<=0 && s.bolts.length < maxBolts){
+      // pick a random bottom-most alien per column
+      var cols={};
+      for(var qi=0;qi<s.aliens.length;qi++){ var qa=s.aliens[qi]; if(!qa.alive) continue;
+        var key=Math.round(qa.x);
+        if(!cols[key] || qa.y>cols[key].y) cols[key]=qa; }
+      var keys=Object.keys(cols);
+      if(keys.length){
+        var pick=cols[keys[Math.floor(Math.random()*keys.length)]];
+        s.bolts.push({x:pick.x, y:pick.y+14});
+        s.boltT = Math.max(0.35, 1.15 - s.wave*0.09);
+      }
+    }
+    for(var oi=s.bolts.length-1;oi>=0;oi--){
+      var bo=s.bolts[oi]; bo.y += (CFG.boltBase + s.wave*26)*DT;
+      if(bo.y > CFG.H+8){ s.bolts.splice(oi,1); continue; }
+      var sh2=shieldAt(s, bo.x, bo.y);
+      if(sh2){ chipShield(s, sh2.sh, sh2.lx, sh2.ly, 8); s.bolts.splice(oi,1); continue; }
+      if(pl.alive && Math.abs(bo.x-pl.x)<20 && Math.abs(bo.y-CFG.playerY)<20){
+        s.bolts.splice(oi,1);
+        pl.alive=false; s.lives--; s.phase='dying'; s.player.respawn=1.2;
+        s.bolts.length=0; // clear the sky, fair respawn
+        s.shake=14; s.hitStop=6; s.playerHit=true;
+        break;
+      }
+    }
+
+    // --- UFO ---
+    var uf=s.ufo;
+    if(!uf.active){
+      uf.t -= DT;
+      if(uf.t<=0){ uf.active=true; uf.dir = Math.random()<0.5?1:-1;
+        uf.x = uf.dir>0 ? -40 : CFG.W+40; uf.t = 16+Math.random()*10; s.ufoSpawn=true; }
+    } else {
+      uf.x += uf.dir*95*DT;
+      if((uf.dir>0 && uf.x>CFG.W+40) || (uf.dir<0 && uf.x<-40)){ uf.active=false; }
+    }
+
+    // --- wave clear ---
+    if(aliveCount(s)===0 && s.phase==='playing'){
+      s.phase='clear'; s.clearT=1.8; s.waveClear=true; s.score += 100*s.wave;
+    }
+    updateFx(s);
+  }
+
+  function updateFx(s){ if(s.shake>0) s.shake *= 0.88; if(s.shake<0.4) s.shake=0; }
+
+  function snapshot(s){
+    return {
+      tick:s.tick, phase:s.phase, score:s.score, lives:s.lives, wave:s.wave,
+      player:{ x:Math.round(s.player.x), y:CFG.playerY, alive:s.player.alive },
+      aliens: s.aliens.filter(function(a){return a.alive;}).map(function(a){
+        return { x:Math.round(a.x), y:Math.round(a.y), type:a.type }; }),
+      bullets: s.bullets.map(function(b){return {x:Math.round(b.x),y:Math.round(b.y)};}),
+      bolts: s.bolts.map(function(b){return {x:Math.round(b.x),y:Math.round(b.y)};}),
+      ufo: s.ufo.active ? {x:Math.round(s.ufo.x), y:52} : null
+    };
+  }
+
+  return { newGame:newGame, tick:tick, snapshot:snapshot, DT:DT, aliveCount:aliveCount };
+})();
+
+/* ---------------- public agent interface ---------------- */
+var Aqua = { sim: Sim.newGame() };
+window.AquaInvaders = {
+  newGame: function(){ Aqua.sim = Sim.newGame(); return window.AquaInvaders.state(); },
+  state: function(){ return Sim.snapshot(Aqua.sim); },
+  act: function(input){ Sim.tick(Aqua.sim, input); return window.AquaInvaders.state(); },
+  autopilot: function(){
+    var st = window.AquaInvaders.state();
+    if(st.phase!=='playing') return window.AquaInvaders.act({});
+    var px = st.player.x, py = st.player.y;
+    // danger field: repulsion from incoming bolts (smooth, no oscillation)
+    var mv = 0;
+    for(var i=0;i<st.bolts.length;i++){ var b=st.bolts[i];
+      var dy = py - b.y;
+      if(dy > -10 && dy < 210){
+        var lat = b.x - px;
+        if(Math.abs(lat) < 62){
+          var w = (210-dy)/210;
+          mv += (lat >= 0 ? -1 : 1) * w * 2.2;
+        }
+      }
+    }
+    // attraction to lowest alive alien
+    var tgt=null;
+    for(var j=0;j<st.aliens.length;j++){ var a=st.aliens[j];
+      if(!tgt || a.y>tgt.y) tgt=a; }
+    var fire=false;
+    if(tgt){
+      var dx = tgt.x - px;
+      mv += Math.max(-1, Math.min(1, dx/60)) * 0.8;
+      fire = Math.abs(dx)<16;
+    }
+    var move = Math.max(-1, Math.min(1, mv));
+    if(Math.abs(move)<0.12) move = 0;
+    if(px<46) move=1; else if(px>CFG.W-46) move=-1;
+    return window.AquaInvaders.act({move:move, fire:fire});
+  }
+};
+/* ---------------- renderer ---------------- */
+var canvas = document.getElementById('game');
+var ctx = canvas.getContext('2d');
+var DPR=1, VW=0, VH=0, SCALE=1, OX=0, OY=0;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  VW = window.innerWidth; VH = window.innerHeight;
+  canvas.width = Math.round(VW*DPR); canvas.height = Math.round(VH*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  SCALE = Math.min(VW/CFG.W, VH/CFG.H);
+  OX = (VW-CFG.W*SCALE)/2; OY = (VH-CFG.H*SCALE)/2;
+  bakeBg();
+}
+window.addEventListener('resize', resize);
+
+/* pre-baked background: aqua sky to deep sea, light rays, vignette */
+var bgC = null;
+function bakeBg(){
+  bgC = document.createElement('canvas');
+  bgC.width = Math.max(2,Math.round(VW)); bgC.height = Math.max(2,Math.round(VH));
+  var g = bgC.getContext('2d');
+  var gr = g.createLinearGradient(0,0,0,VH);
+  gr.addColorStop(0,'#bdf3ff'); gr.addColorStop(0.35,'#7fe3f7');
+  gr.addColorStop(0.65,'#2ba8d4'); gr.addColorStop(1,'#0b4a6e');
+  g.fillStyle = gr; g.fillRect(0,0,VW,VH);
+  // light rays
+  g.save(); g.globalAlpha = 0.10; g.fillStyle = '#ffffff';
+  for(var i=0;i<4;i++){
+    var x = VW*(0.15+i*0.24);
+    g.beginPath();
+    g.moveTo(x,0); g.lineTo(x+VW*0.07,0); g.lineTo(x+VW*0.16,VH*0.6); g.lineTo(x+VW*0.09,VH*0.6);
+    g.closePath(); g.fill();
+  }
+  g.restore();
+  // surface shimmer band
+  var sg = g.createLinearGradient(0,0,0,40);
+  sg.addColorStop(0,'rgba(255,255,255,.5)'); sg.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle = sg; g.fillRect(0,0,VW,40);
+}
+
+/* ambient bubbles (screen space, parallax wrap) */
+var bubbles = [];
+for(var bi=0;bi<26;bi++) bubbles.push({x:Math.random(), y:Math.random(), r:2+Math.random()*7, s:0.08+Math.random()*0.25, w:Math.random()*6.28});
+var bubbleSpr = (function(){
+  var c=document.createElement('canvas'); c.width=32; c.height=32;
+  var g=c.getContext('2d');
+  var gr=g.createRadialGradient(12,11,2,16,16,15);
+  gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(0.5,'rgba(190,242,255,.28)');
+  gr.addColorStop(1,'rgba(190,242,255,.08)');
+  g.fillStyle=gr; g.beginPath(); g.arc(16,16,15,0,Math.PI*2); g.fill();
+  g.strokeStyle='rgba(255,255,255,.75)'; g.lineWidth=2; g.stroke();
+  g.fillStyle='rgba(255,255,255,.9)'; g.beginPath(); g.arc(11,10,3.4,0,Math.PI*2); g.fill();
+  return c;
+})();
+
+/* particles (capped) */
+var parts = [];
+function spawnBurst(x,y,n,cols,spd){
+  for(var i=0;i<n;i++){
+    if(parts.length>150) parts.shift();
+    var a=Math.random()*Math.PI*2, v=(0.3+Math.random()*0.7)*spd;
+    parts.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,
+      col:cols[Math.floor(Math.random()*cols.length)], r:2+Math.random()*3});
+  }
+}
+var ringFx = [];
+function spawnRing(x,y,col){ ringFx.push({x:x,y:y,r:6,a:1,col:col||'255,255,255'}); }
+
+/* shield render cache: redraw only when damaged */
+var shieldCanvases = [null,null,null,null];
+var shieldDirty = [true,true,true,true];
+function drawShieldBase(g, w, h){
+  g.clearRect(0,0,w,h);
+  var gr=g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,'rgba(255,255,255,.85)'); gr.addColorStop(0.5,'rgba(165,243,252,.6)');
+  gr.addColorStop(1,'rgba(34,211,238,.5)');
+  g.fillStyle=gr;
+  g.beginPath();
+  g.moveTo(4,h); g.lineTo(4,14); g.quadraticCurveTo(4,2,w/2,2);
+  g.quadraticCurveTo(w-4,2,w-4,14); g.lineTo(w-4,h); g.closePath(); g.fill();
+  g.strokeStyle='rgba(255,255,255,.9)'; g.lineWidth=2; g.stroke();
+  g.fillStyle='rgba(255,255,255,.5)';
+  g.beginPath(); g.ellipse(w*0.3,12,w*0.16,6,-0.5,0,Math.PI*2); g.fill();
+}
+
+function render(ts){
+  var s = Aqua.sim;
+  ctx.clearRect(0,0,VW,VH);
+  ctx.drawImage(bgC, 0, 0, VW, VH);
+  // ambient bubbles
+  for(var i=0;i<bubbles.length;i++){ var b=bubbles[i];
+    b.y -= b.s*0.016; b.w += 0.02;
+    if(b.y < -0.05){ b.y = 1.05; b.x = Math.random(); }
+    var bx = (b.x + Math.sin(b.w)*0.012)*VW, by = b.y*VH, br = b.r;
+    ctx.drawImage(bubbleSpr, bx-br, by-br, br*2, br*2);
+  }
+  ctx.save();
+  ctx.translate(OX, OY); ctx.scale(SCALE, SCALE);
+  // camera shake (decaying sine)
+  if(s.shake>0.4){
+    var t = ts/1000;
+    ctx.translate(Math.sin(t*61)*s.shake*0.5, Math.cos(t*53)*s.shake*0.5);
+  }
+  // shields
+  for(var si=0;si<s.shields.length;si++){
+    var sh=s.shields[si];
+    if(shieldDirty[si]){
+      if(!shieldCanvases[si]){ shieldCanvases[si]=document.createElement('canvas');
+        shieldCanvases[si].width=sh.w; shieldCanvases[si].height=sh.h; }
+      var sg2=shieldCanvases[si].getContext('2d');
+      drawShieldBase(sg2, sh.w, sh.h);
+      sg2.globalCompositeOperation='destination-out';
+      for(var yy=0;yy<sh.h;yy++) for(var xx=0;xx<sh.w;xx++)
+        if(sh.dmg[yy][xx]) sg2.fillRect(xx,yy,1,1);
+      sg2.globalCompositeOperation='source-over';
+      shieldDirty[si]=false;
+    }
+    ctx.drawImage(shieldCanvases[si], Math.round(sh.x-sh.w/2), Math.round(sh.y-sh.h/2));
+  }
+  // UFO
+  if(s.ufo.active) ctx.drawImage(SPRITES.ufo, Math.round(s.ufo.x-32), 38);
+  // aliens
+  for(var ai=0;ai<s.aliens.length;ai++){ var a=s.aliens[ai]; if(!a.alive) continue;
+    var spr = SPRITES['alien'+a.type][s.anim];
+    ctx.drawImage(spr, Math.round(a.x-24), Math.round(a.y-18));
+  }
+  // bullets (bubble bolts)
+  for(var bi2=0;bi2<s.bullets.length;bi2++){ var bl=s.bullets[bi2];
+    ctx.drawImage(bubbleSpr, Math.round(bl.x-7), Math.round(bl.y-7), 14, 14);
+  }
+  // alien plasma bolts
+  for(var oi=0;oi<s.bolts.length;oi++){ var bo=s.bolts[oi];
+    var pg=ctx.createLinearGradient(bo.x,bo.y-8,bo.x,bo.y+8);
+    pg.addColorStop(0,'#fef9c3'); pg.addColorStop(0.5,'#fb923c'); pg.addColorStop(1,'#ef4444');
+    ctx.fillStyle=pg;
+    ctx.beginPath(); ctx.ellipse(Math.round(bo.x),Math.round(bo.y),4,8,0,0,Math.PI*2); ctx.fill();
+  }
+  // player
+  var pl=s.player;
+  if(pl.alive && (s.phase==='playing'||s.phase==='clear')){
+    var squash = 1 + Math.sin(ts/180)*0.02;
+    ctx.save();
+    ctx.translate(Math.round(pl.x), CFG.playerY);
+    ctx.scale(2-squash, squash);
+    ctx.drawImage(SPRITES.player, -28, -40);
+    ctx.restore();
+  }
+  // particles
+  for(var pi=parts.length-1;pi>=0;pi--){ var pt=parts[pi];
+    pt.x+=pt.vx; pt.y+=pt.vy; pt.vy+=3.2; pt.life-=0.03;
+    if(pt.life<=0){ parts.splice(pi,1); continue; }
+    ctx.globalAlpha=Math.max(0,pt.life); ctx.fillStyle=pt.col;
+    ctx.fillRect(Math.round(pt.x),Math.round(pt.y),Math.round(pt.r),Math.round(pt.r));
+  }
+  ctx.globalAlpha=1;
+  // rings
+  for(var ri=ringFx.length-1;ri>=0;ri--){ var rg=ringFx[ri];
+    rg.r+=3.2; rg.a-=0.06;
+    if(rg.a<=0){ ringFx.splice(ri,1); continue; }
+    ctx.strokeStyle='rgba('+rg.col+','+Math.max(0,rg.a).toFixed(2)+')';
+    ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(Math.round(rg.x),Math.round(rg.y),Math.round(rg.r),0,Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------------- input (bound once) ---------------- */
+var input = { move:0, fire:false, keyL:false, keyR:false, keyFire:false,
+              touchX:null, mouseX:null, mouseFire:false, auto:false };
+function toLogical(cx){
+  var r = canvas.getBoundingClientRect();
+  return (cx - r.left - OX) / SCALE;
+}
+window.addEventListener('keydown', function(e){
+  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){ input.keyL=true; e.preventDefault(); }
+  if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){ input.keyR=true; e.preventDefault(); }
+  if(e.key===' '){ input.keyFire=true; e.preventDefault(); Audio3.init(); }
+});
+window.addEventListener('keyup', function(e){
+  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') input.keyL=false;
+  if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') input.keyR=false;
+  if(e.key===' ') input.keyFire=false;
+});
+canvas.addEventListener('touchstart', function(e){
+  Audio3.init();
+  var t=e.changedTouches[0]; input.touchX=toLogical(t.clientX);
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchmove', function(e){
+  var t=e.changedTouches[0]; input.touchX=toLogical(t.clientX);
+  e.preventDefault();
+},{passive:false});
+function touchEnd(e){ input.touchX=null; }
+canvas.addEventListener('touchend', touchEnd);
+canvas.addEventListener('touchcancel', touchEnd);
+canvas.addEventListener('mousemove', function(e){ input.mouseX=toLogical(e.clientX); });
+canvas.addEventListener('mousedown', function(e){ input.mouseFire=true; Audio3.init(); });
+window.addEventListener('mouseup', function(){ input.mouseFire=false; });
+
+function refreshInput(){
+  var mv=0;
+  if(input.keyL) mv-=1; if(input.keyR) mv+=1;
+  var s=Aqua.sim, px=s.player.x;
+  if(input.touchX!==null){
+    var dx=input.touchX-px;
+    if(Math.abs(dx)>6) mv = Math.max(-1,Math.min(1,dx/60));
+    input.fire = true; // auto-fire while touching
+  } else if(input.mouseX!==null && !('ontouchstart' in window)){
+    var mdx=input.mouseX-px;
+    if(Math.abs(mdx)>6) mv = Math.max(-1,Math.min(1,mdx/60));
+  }
+  input.move=mv;
+  if(input.touchX===null){
+    input.fire = input.keyFire || input.mouseFire;
+  }
+}
+
+/* ---------------- UI ---------------- */
+var bestScore = parseInt(store.get('aqua-invaders-best')||'0',10)||0;
+function fmt(n){ return n.toLocaleString('en-US'); }
+function updateHud(){
+  var s=Aqua.sim;
+  document.getElementById('hudScore').textContent=fmt(s.score);
+  document.getElementById('hudWave').textContent=s.wave;
+  document.getElementById('hudBest').textContent=fmt(Math.max(bestScore,s.score));
+  var lr=document.getElementById('livesRow'); lr.innerHTML='';
+  for(var i=0;i<CFG.lives;i++){
+    var d=document.createElement('div');
+    d.className='lifePip'+(i<s.lives?'':' lost');
+    lr.appendChild(d);
+  }
+}
+function banner(text){
+  var el=document.getElementById('banner');
+  el.textContent=text; el.classList.remove('show');
+  void el.offsetWidth; el.classList.add('show');
+}
+var lastPhase='title', lastWave=1, lastScore=0;
+function syncUi(){
+  var s=Aqua.sim;
+  if(s.score!==lastScore){ lastScore=s.score; updateHud(); }
+  if(s.wave!==lastWave){ lastWave=s.wave; updateHud(); banner('WAVE '+s.wave); Audio3.wave(); }
+  if(s.phase!==lastPhase){
+    if(s.phase==='gameover'){
+      if(s.score>bestScore){ bestScore=s.score; store.set('aqua-invaders-best',String(bestScore)); }
+      var t=document.getElementById('overTitle');
+      t.textContent = (s.overReason==='invasion') ? 'THEY LANDED' : 'GAME OVER';
+      document.getElementById('overStats').innerHTML =
+        'Score <b>'+fmt(s.score)+'</b><br>Wave <b>'+s.wave+'</b><br>Best <b>'+fmt(bestScore)+'</b>';
+      document.getElementById('overPanel').classList.remove('hidden');
+      document.getElementById('hud').style.visibility='hidden';
+      input.auto=false;
+    }
+    lastPhase=s.phase;
+  }
+  // juice events from sim flags
+  if(s.popX!==undefined && s.popX!==null){
+    spawnBurst(s.popX,s.popY,14,['#b9c2cc','#8d99a6','#e8f4ff','#a5f3fc'],130);
+    spawnRing(s.popX,s.popY,'165,243,252');
+    Audio3.pop();
+    s.popX=null;
+  }
+  if(s.ufoHit){ banner('+ BONUS'); Audio3.ufoWarble(); s.ufoHit=false; }
+  if(s.ufoSpawn){ Audio3.ufoWarble(); s.ufoSpawn=false; }
+  if(s.fired){ Audio3.pew(); s.fired=false; }
+  if(s.playerHit){
+    spawnBurst(s.player.x,CFG.playerY,26,['#a5f3fc','#22d3ee','#ffffff','#fb923c'],200);
+    Audio3.boom(); s.playerHit=false;
+  }
+  if(s.waveClear){ s.waveClear=false; }
+  // shield canvases redraw only when chipped
+  if(s.shieldsDirty){ for(var i=0;i<shieldDirty.length;i++) shieldDirty[i]=true; s.shieldsDirty=false; }
+}
+document.getElementById('startBtn').addEventListener('click', function(){
+  Audio3.init(); startPlay(false);
+});
+document.getElementById('watchBtn').addEventListener('click', function(){
+  Audio3.init(); startPlay(true);
+});
+document.getElementById('againBtn').addEventListener('click', function(){
+  Audio3.init(); startPlay(input.auto);
+});
+document.getElementById('menuBtn').addEventListener('click', function(){
+  document.getElementById('overPanel').classList.add('hidden');
+  document.getElementById('titlePanel').classList.remove('hidden');
+  lastPhase='title'; lastWave=1; lastScore=-1;
+  Aqua.sim = Sim.newGame(); Aqua.sim.phase='title';
+});
+document.getElementById('muteBtn').addEventListener('click', function(){
+  Audio3.init(); Audio3.setMuted(!Audio3.muted);
+  this.innerHTML = Audio3.muted ? '&#215;' : '&#9836;';
+});
+if(Audio3.muted) document.getElementById('muteBtn').innerHTML='&#215;';
+
+function startPlay(auto){
+  input.auto=auto;
+  document.getElementById('titlePanel').classList.add('hidden');
+  document.getElementById('overPanel').classList.add('hidden');
+  document.getElementById('hud').style.visibility='visible';
+  window.AquaInvaders.newGame();
+  lastPhase='playing'; lastWave=1; lastScore=-1;
+  for(var i=0;i<shieldDirty.length;i++) shieldDirty[i]=true;
+  banner('WAVE 1');
+  updateHud();
+}
+
+/* ---------------- main loop: fixed timestep ---------------- */
+var lastTs=0, acc=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(!Number.isFinite(ts)) ts=performance.now();
+  var dtms=ts-lastTs; lastTs=ts;
+  if(dtms<0)dtms=0; if(dtms>100)dtms=100;
+  var s=Aqua.sim;
+  if(lastPhase!=='title' && s.phase!=='gameover'){
+    acc+=dtms;
+    var guard=0;
+    while(acc>=1000/60 && guard++<5){
+      acc-=1000/60;
+      if(input.auto) window.AquaInvaders.autopilot();
+      else { refreshInput(); window.AquaInvaders.act({move:input.move, fire:input.fire}); }
+      syncUi();
+      if(Aqua.sim.phase==='gameover'){ syncUi(); break; }
+    }
+    if(acc>250) acc=0;
+  }
+  render(ts);
+}
+
+/* ---------------- boot ---------------- */
+Aqua.sim.phase='title';
+resize();
+updateHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
