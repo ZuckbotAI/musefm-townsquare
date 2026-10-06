@@ -222,49 +222,49 @@
    2-col mobile grid, big cover art, title + sub below.
    Play counts omitted: none exist in the backend, and we don't fake them.
    ============================================================ */
-.pb-hub { max-width: 1060px; margin: 0 auto; padding: 0 16px 64px; }
-.pb-hub-head { padding: 18px 4px 16px; }
-.pb-kicker {
+.arc-hub { max-width: 1060px; margin: 0 auto; padding: 0 16px 64px; }
+.arc-hub-head { padding: 18px 4px 16px; }
+.arc-kicker {
   display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 2px;
   text-transform: uppercase; color: var(--rz-ink3); margin-bottom: 6px;
 }
-.pb-hub-head h1 { font-size: clamp(28px, 6.5vw, 40px); margin: 0 0 6px; letter-spacing: -.8px; }
-.pb-hub-head p { color: var(--rz-ink2); font-size: 14.5px; margin: 0; }
+.arc-hub-head h1 { font-size: clamp(28px, 6.5vw, 40px); margin: 0 0 6px; letter-spacing: -.8px; }
+.arc-hub-head p { color: var(--rz-ink2); font-size: 14.5px; margin: 0; }
 
-.pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
-.pb-card { text-decoration: none; color: inherit; display: block; }
-.pb-art {
+.arc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
+.arc-card { text-decoration: none; color: inherit; display: block; }
+.arc-art {
   display: block; border-radius: 18px; overflow: hidden; aspect-ratio: 2 / 3;
   background: #101528; box-shadow: var(--rz-shadow-sm); position: relative;
 }
-.pb-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pb-meta { display: block; padding: 10px 4px 0; }
-.pb-meta b {
+.arc-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.arc-meta { display: block; padding: 10px 4px 0; }
+.arc-meta b {
   display: block; font-size: 17px; letter-spacing: -.2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pb-sub { display: block; color: var(--rz-ink3); font-size: 13px; margin-top: 3px; }
-.pb-title-row { display: flex; align-items: center; gap: 8px; }
-.pb-title-row b { white-space: normal; }
-.pb-flag {
+.arc-sub { display: block; color: var(--rz-ink3); font-size: 13px; margin-top: 3px; }
+.arc-title-row { display: flex; align-items: center; gap: 8px; }
+.arc-title-row b { white-space: normal; }
+.arc-flag {
   font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
   color: #fff; background: linear-gradient(135deg, #ff8c42, #ff5e62);
   border-radius: 999px; padding: 4px 10px; flex: none;
 }
-.pb-play {
+.arc-play {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 48px; padding: 0 30px; margin-top: 12px;
   border-radius: 999px; font-weight: 800; font-size: 15.5px; color: #fff;
   background: linear-gradient(135deg, #7c5cff, #2bd4ff);
   box-shadow: 0 8px 22px rgba(124,92,255,.35);
 }
-.pb-featured { grid-column: auto; }
-.pb-featured .pb-art { aspect-ratio: 2 / 3; }
-.pb-more { text-align: center; color: var(--rz-ink3); font-size: 13.5px; margin: 26px 0 0; }
+.arc-featured { grid-column: auto; }
+.arc-featured .arc-art { aspect-ratio: 2 / 3; }
+.arc-more { text-align: center; color: var(--rz-ink3); font-size: 13.5px; margin: 26px 0 0; }
 
 @media (min-width: 980px) {
-  .pb-grid { grid-template-columns: repeat(3, 1fr); gap: 22px 18px; }
-  .pb-featured .pb-art { aspect-ratio: 21 / 9; }
+  .arc-grid { grid-template-columns: repeat(3, 1fr); gap: 22px 18px; }
+  .arc-featured .arc-art { aspect-ratio: 21 / 9; }
 }
 
 /* ============================================================
@@ -328,5 +328,5 @@
 }
 
 /* ---------- Arcade banner (2026-10-05, Anthony) ---------- */
-.pb-banner { margin: 0 0 20px; border-radius: 20px; overflow: hidden; }
-.pb-banner img { width: 100%; height: auto; display: block; border-radius: 20px; }
+.arc-banner { margin: 0 0 20px; border-radius: 20px; overflow: hidden; }
+.arc-banner img { width: 100%; height: auto; display: block; border-radius: 20px; }
