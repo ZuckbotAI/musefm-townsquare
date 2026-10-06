@@ -583,50 +583,49 @@
 .gc-signin a { color: #0284c7; font-weight: 600; }
 .gc-error { font-size: 13px; color: #b3261e; }
 
-/* Floating glass player card (2026-10-05, Anthony: restore).
-   Frosted glass horizontal bar matching the reference: square artwork
-   left, title/episode + scrubber center, -15 / big play / +15 / volume
-   right. Sits above the bottom nav. */
+/* Floating glass player card (2026-10-05, Anthony: iOS-style).
+   Vertical layout: artwork + titles top row, progress middle,
+   centered controls bottom. No truncation. */
 .glass-player {
   position: fixed; left: 12px; right: 12px; bottom: calc(64px + env(safe-area-inset-bottom));
-  z-index: 60; display: none; align-items: center; gap: 12px;
-  padding: 12px 14px; border-radius: 20px;
+  z-index: 60; display: none; flex-direction: column; gap: 8px;
+  padding: 14px 16px; border-radius: 20px;
   background: linear-gradient(135deg, rgba(186, 214, 235, 0.72), rgba(148, 184, 212, 0.62));
   -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
   border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow: 0 8px 32px rgba(70, 120, 160, 0.28), inset 0 1px 0 rgba(255,255,255,0.5);
 }
 .glass-player.show { display: flex; }
+.gp-toprow { display: flex; align-items: center; gap: 12px; }
 .gp-art {
-  width: 64px; height: 64px; border-radius: 14px; overflow: hidden; flex: none;
+  width: 56px; height: 56px; border-radius: 12px; overflow: hidden; flex: none;
   background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center;
-  font-size: 28px; color: rgba(255,255,255,0.85);
-  box-shadow: 0 2px 8px rgba(70,120,160,0.2);
+  font-size: 24px; color: rgba(255,255,255,0.85);
 }
 .gp-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.gp-main { flex: 1; min-width: 0; }
-.gp-title { font-size: 17px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(70,120,160,0.3); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.gp-sub { font-size: 13px; color: rgba(255,255,255,0.85); margin: 3px 0 8px; line-height: 1.3; }
-.gp-progress { position: relative; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); cursor: pointer; }
-.gp-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); }
-.gp-dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); left: 0%; box-shadow: 0 1px 4px rgba(70,120,160,0.4); }
-.gp-times { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.85); margin-top: 3px; font-variant-numeric: tabular-nums; }
-.gp-controls { display: flex; align-items: center; gap: 6px; flex: none; }
-.gp-skip { width: 36px; height: 36px; border: none; background: transparent; color: rgba(255,255,255,0.92); cursor: pointer; padding: 4px; border-radius: 50%; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
-.gp-skip svg { width: 28px; height: 28px; }
-.gp-skip:active { transform: scale(0.92); }
+.gp-titles { flex: 1; min-width: 0; }
+.gp-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.3; text-shadow: 0 1px 3px rgba(70,120,160,0.3); }
+.gp-sub { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 2px; }
+.gp-progress { position: relative; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); cursor: pointer; margin-top: 4px; }
+.gp-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 2px; background: #fff; }
+.gp-dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); left: 0%; }
+.gp-times { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.85); font-variant-numeric: tabular-nums; }
+.gp-controls { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 4px 0; }
+.gp-skip { width: 44px; height: 44px; border: none; background: transparent; color: rgba(255,255,255,0.92); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.gp-skip svg { width: 32px; height: 32px; }
 .gp-play {
-  width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.28); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  color: #fff; font-size: 18px; cursor: pointer; flex: none;
-  box-shadow: 0 2px 12px rgba(70,120,160,0.25), inset 0 1px 0 rgba(255,255,255,0.4);
-  min-width: 52px; min-height: 52px; display: flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.28); color: #fff; font-size: 20px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
 }
-.gp-play:active { transform: scale(0.94); }
-.gp-vol { width: 36px; height: 36px; border: none; background: transparent; color: rgba(255,255,255,0.92); cursor: pointer; padding: 6px; border-radius: 50%; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
-.gp-vol svg { width: 24px; height: 24px; }
+.gp-vol { width: 40px; height: 40px; border: none; background: transparent; color: rgba(255,255,255,0.85); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; }
+.gp-vol svg { width: 22px; height: 22px; }
 .gp-vol.muted { opacity: 0.45; }
-.gp-close { position: absolute; top: -8px; right: -4px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(255,255,255,0.85); color: #5a7a94; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.gp-close { position: absolute; top: -8px; right: -4px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(255,255,255,0.85); color: #5a7a94; font-size: 11px; cursor: pointer; }
+body.has-player { padding-bottom: 180px; }
+@media (prefers-color-scheme: dark) {
+  .glass-player { background: linear-gradient(135deg, rgba(60, 90, 115, 0.78), rgba(45, 70, 92, 0.68)); border-color: rgba(255,255,255,0.18); }
+}
 body.has-player { padding-bottom: 140px; }
 @media (prefers-color-scheme: dark) {
   .glass-player { background: linear-gradient(135deg, rgba(60, 90, 115, 0.78), rgba(45, 70, 92, 0.68)); border-color: rgba(255,255,255,0.18); }

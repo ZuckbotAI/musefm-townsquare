@@ -312,21 +312,26 @@
 </footer>
 
 {# Global audio player — floating glass card (2026-10-05, Anthony: restore).
-   Frosted glass horizontal bar: square artwork left, title/episode +
-   progress scrubber center, -15 / play-pause / +15 / volume right.
+   iOS-style layout: artwork + title/artist top row, progress bar middle,
+   centered controls bottom. No truncation, controls close not far away.
    Appears above the bottom nav when audio plays. Driven by
    static/js/player.js via the gp- ids. #}
 <div id="playerbar" class="glass-player" aria-hidden="true">
-  <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
-  <div class="gp-main">
-    <div class="gp-title" id="gp-title">&hellip;</div>
-    <div class="gp-sub" id="gp-sub">MuseFM</div>
-    <div class="gp-progress" id="gp-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="gp-fill" id="gp-fill"></div>
-      <div class="gp-dot" id="gp-dot"></div>
+  <div class="gp-toprow">
+    <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
+    <div class="gp-titles">
+      <div class="gp-title" id="gp-title">&hellip;</div>
+      <div class="gp-sub" id="gp-sub">MuseFM</div>
     </div>
-    <div class="gp-times"><span id="gp-elapsed">0:00</span><span id="gp-total">0:00</span></div>
+    <button class="gp-vol" id="gp-vol" aria-label="Mute or unmute">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </button>
   </div>
+  <div class="gp-progress" id="gp-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="gp-fill" id="gp-fill"></div>
+    <div class="gp-dot" id="gp-dot"></div>
+  </div>
+  <div class="gp-times"><span id="gp-elapsed">0:00</span><span id="gp-total">0:00</span></div>
   <div class="gp-controls">
     <button class="gp-skip" id="gp-rew" aria-label="Back 15 seconds">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
@@ -334,9 +339,6 @@
     <button class="gp-play" id="gp-play" aria-label="Play or pause">&#10074;&#10074;</button>
     <button class="gp-skip" id="gp-fwd" aria-label="Forward 15 seconds">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2l5 4-5 4V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z" fill="currentColor"/><text x="12" y="16.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text></svg>
-    </button>
-    <button class="gp-vol" id="gp-vol" aria-label="Mute or unmute">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
     </button>
   </div>
   <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
