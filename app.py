@@ -9,7 +9,7 @@ Pages:  /                    forum home (hot posts, communities)
         /c/<slug>            community (sort: hot/new/top, search)
         /c/<slug>/post/<id> thread
         /submit              new post form
-        /episodes            player: catalog, sticky mini-player, comments, clips
+        /episodes/<slug>     player: watch page, sticky mini-player, comments, clips
         /api/docs            agent API docs
 
 JSON:   GET  /api/episodes, /api/episodes/<slug>
@@ -2042,8 +2042,9 @@ def townsquare_redirect():
 
 @app.route("/episodes/")
 def episodes_slash_redirect():
-    """Trailing-slash alias (P2 2026-09-19): 308 to the canonical page."""
-    return redirect("/episodes", code=308)
+    """Trailing-slash alias (2026-10-05, Anthony): the /episodes archive
+    page is gone; /jabs carries our latest episodes now."""
+    return redirect("/jabs", code=308)
 
 
 @app.route("/forum")
@@ -2541,30 +2542,6 @@ def vote_html():
         nxt, data.get("target_type", "post") or "post", target_id))
 
 
-@app.route("/episodes")
-def episodes_page():
-    reactor = _sig_web_reactor()
-    eps = []
-    for e in db.episodes():
-        e = dict(e)
-        e["rowid"] = db.episode_rowid(e["slug"])
-        eps.append(e)
-    sums = signals.reaction_summaries(
-        db, [("episode", e["rowid"]) for e in eps], reactor)
-    for e in eps:
-        e["sig"] = sums[("episode", e["rowid"])]
-    ep_comments = {e["slug"]: db.episode_comments(e["slug"]) for e in eps}
-    clips = {e["slug"]: db.clips_for(e["slug"]) for e in eps}
-    # Trustline badge by commenter/clipper name — one batched query.
-    _pp_all = []
-    for _cs in list(ep_comments.values()) + list(clips.values()):
-        _pp_all.extend(_cs)
-    _annotate_passport(_pp_all)
-    return render_template("episodes.html", episodes=eps,
-                           ep_comments=ep_comments, clips=clips,
-                           handle=_musefm_handle())
-
-
 @app.route("/audio/artwork/<sqlite_int:uid>")
 def audio_artwork(uid):
     """Serve a member upload's cover art (512px JPEG thumb)."""
@@ -2605,29 +2582,43 @@ def _official_music_strip():
 
 @app.route("/jabs")
 def jabs_page():
-    """Jabbers: ONE featured official episode (the latest), then member
-    talk uploads, newest first. The full official episode list lives on
-    /episodes (the podcast page), not here. (2026-10-05, Anthony's
-    verdict: Jabs features one episode, never the whole list.)"""
-    featured = None
-    eps = db.episodes()
-    if eps:
-        e = eps[0]
+    """Jabbers: OUR latest episodes featured at top with a next arrow to
+    cycle through them, then member talk uploads, newest first.
+    The /episodes archive page is gone (2026-10-05, Anthony); direct
+    episode links (/episodes/<slug>) keep working."""
+    featured_list = []
+    for e in db.episodes()[:5]:
         series = (e.get("series") or "").strip()
-        featured = {
+        dur = e.get("duration_sec")
+        featured_list.append({
             "audio_url": url_for("audio", fname=e["audio_file"]),
-            "title": e["title"],
-            "display_name": "MuseFM " + series.title() if series else "MuseFM",
+            "title": display_episode_title(e["title"], series),
             "series": series,
+            "art_url": _episode_art_url(series),
             "description": (e.get("description") or "").strip(),
-            "duration_sec": e.get("duration_sec"),
-            "published": e.get("published"),
+            "duration": fmt_dur(dur) if dur else "--:--",
+            "meta": "%s · %s" % (fmt_hdate(e.get("published")),
+                                 fmt_mindur(dur) if dur else "--"),
             "page_url": url_for("episode_watch", slug=e["slug"]),
-        }
+        })
     talks = [_audio_bar_track(u, url_for("audio_upload", uid=u["id"]))
              for u in db.list_uploads(limit=60, kind="podcast")]
     _attach_audio_engagement(talks, "/jabs")
-    return render_template("jabs.html", featured=featured, talks=talks)
+    return render_template("jabs.html", featured_list=featured_list,
+                           talks=talks)
+
+
+def _episode_art_url(series):
+    """Python mirror of the episode_art macro in _episode_art.html."""
+    s = (series or "").strip().lower()
+    if s == "the drop":
+        f = "img/the-drop-cover.jpg"
+    elif s in ("nightly", "midday", "flash", "daily news", "specials",
+               "species brief", "free time", "who watches the agents"):
+        f = "img/zuckbot-solo-cover.jpg"
+    else:
+        f = "img/muse-fm-title-card.png"
+    return url_for("static", filename=f)
 
 
 @app.route("/jams")
@@ -2736,10 +2727,10 @@ def episode_comment(slug):
                                bypass_filter=_is_mod_handle(author_handle))
     except ValueError as e:
         return str(e), 400
-    nxt = request.form.get("next", "") or (url_for("episodes_page") + f"#{slug}")
+    nxt = request.form.get("next", "") or url_for("episode_watch", slug=slug)
     # episode_comment: same-origin only (the slug var is path-only, but
     # `next` is fully attacker-controlled)
-    nxt = _safe_next(nxt, url_for("episodes_page") + f"#{slug}")
+    nxt = _safe_next(nxt, url_for("episode_watch", slug=slug))
     resp = redirect(nxt)
     resp.set_cookie("ts_handle", author_handle,
                     max_age=365 * 86400, samesite="Lax")
@@ -3750,7 +3741,7 @@ def api_episode_comments(slug):
     sess_ident = current_session_identity()
     if sess_ident is None:
         return jsonify({"ok": False, "error": "sign in to comment",
-                        "signin_url": "/login?next=" + quote("/episodes", safe="/#?&=%")}), 401
+                        "signin_url": "/login?next=" + quote(url_for("episode_watch", slug=slug), safe="/#?&=%")}), 401
     data = json_body()
     if not isinstance(data, dict):
         return data  # 400: JSON body must be an object

@@ -213,9 +213,9 @@
       {{ sb_link('/', '📰', 'Feed', 'For you', request.path=='/') }}
       {{ sb_link('/c/lobby', '🧭', 'Explore', 'The forum and lobby', request.path.startswith('/c/') or request.path.startswith('/submit') or request.path.startswith('/vote')) }}
       {{ sb_link('/wall', '💨', 'In the Air', 'The town wall', request.path=='/wall') }}
-      {# 2026-10-05, Anthony: Episodes tab cut — Jabs carries the latest
-         episode at top and the /episodes archive stays live for links,
-         share targets, and #slug deep links. #}
+      {# 2026-10-05, Anthony: Episodes tab and /episodes archive page cut —
+         Jabs carries our latest episodes at top with a next arrow.
+         Direct episode links (/episodes/<slug>) keep working. #}
       {{ sb_link('/jams', '🎵', 'Jams', 'Member music', request.path.startswith('/jams')) }}
       {{ sb_link('/jabs', '🎙️', 'Jabs', 'Community talk', request.path.startswith('/jabs')) }}
       {{ sb_link('/shorts', '▶', 'Shorts', 'Vertical feed', request.path.startswith('/shorts') or request.path.startswith('/watch') or request.path.startswith('/video/')) }}

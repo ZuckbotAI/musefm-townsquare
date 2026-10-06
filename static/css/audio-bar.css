@@ -210,12 +210,12 @@
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #0d3a5c;
+  color: var(--text);
   margin: 0 0 4px;
 }
 .jj-section p {
   margin: 0 0 12px;
-  color: rgba(13, 58, 92, 0.72);
+  color: var(--text-2);
   font-size: 14px;
 }
 .jj-list {
@@ -263,47 +263,92 @@
   .glass-actions .glass-flaglink { display: none; }
 }
 
-/* Featured episode card on /jabs: Spotify text pattern (2026-10-05,
-   Anthony): ONE latest episode. Square artwork left, REGULAR-weight title
-   wrapping 3 lines (topic first, prefix stripped), muted description,
-   human meta line, icon actions left + big play right. No kicker. The
-   scrubber stays: this is the now-playing control, not a list row.
-   Same .glass-track data-* hooks as the member rows, so audio-bar.js
-   drives it unchanged. */
-.jab-featured {
-  padding: 14px;
+/* Glossy CLEAR glass variant (2026-10-05, Anthony): neutral
+   white/silver glass, strong top gloss, no blue tint. Readable ink in
+   both themes. */
+.glass-track.glass-clear {
+  --glass-hi: rgba(255, 255, 255, 0.95);
+  --glass-tint-a: rgba(255, 255, 255, 0.62);
+  --glass-tint-b: rgba(241, 245, 249, 0.52);
+  --glass-tint-c: rgba(230, 237, 244, 0.58);
+  --glass-line: rgba(255, 255, 255, 0.85);
+  --glass-line-deep: rgba(140, 160, 180, 0.35);
+  --glass-ink: #0e2f4b;
+  --glass-ink-soft: rgba(14, 47, 75, 0.78);
+
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.28) 26%, rgba(255,255,255,0) 52%),
+    linear-gradient(165deg, var(--glass-tint-a), var(--glass-tint-b) 60%, var(--glass-tint-c));
+  box-shadow:
+    inset 0 1px 0 var(--glass-hi),
+    inset 0 -1px 0 rgba(255,255,255,0.35),
+    0 12px 30px rgba(20, 50, 80, 0.16), 0 2px 6px rgba(20, 50, 80, 0.08);
 }
-.jab-featured-top {
+[data-theme="dark"] .glass-track.glass-clear {
+  --glass-hi: rgba(255, 255, 255, 0.28);
+  --glass-tint-a: rgba(52, 64, 80, 0.78);
+  --glass-tint-b: rgba(38, 48, 64, 0.72);
+  --glass-tint-c: rgba(30, 40, 56, 0.76);
+  --glass-line: rgba(255, 255, 255, 0.18);
+  --glass-line-deep: rgba(0, 0, 0, 0.45);
+  --glass-ink: #eef4fa;
+  --glass-ink-soft: rgba(238, 244, 250, 0.74);
+
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.07) 28%, rgba(255,255,255,0) 52%),
+    linear-gradient(165deg, var(--glass-tint-a), var(--glass-tint-b) 60%, var(--glass-tint-c));
+  box-shadow:
+    inset 0 1px 0 var(--glass-hi),
+    0 12px 30px rgba(0, 0, 0, 0.38), 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+/* Section header row: title text left, action (next arrow / upload) right.
+   Wraps on narrow screens so nothing squeezes. */
+.jj-sechead {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  min-width: 0;
+  margin-bottom: 10px;
 }
-.jab-featured-art {
-  width: 88px;
-  height: 88px;
-  border-radius: 14px;
+.jj-sechead-text h2 { margin: 0 0 4px; }
+.jj-sechead-text p { margin: 0; }
+.jj-next {
+  width: 44px; height: 44px;
   flex-shrink: 0;
-  overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.7);
-  box-shadow: 0 4px 14px rgba(0,110,180,0.30), inset 0 1px 2px rgba(255,255,255,0.5);
-  background: linear-gradient(135deg, #5fd4ff, #0090e7 60%, #7d2ae8);
+  background: rgba(255,255,255,0.5);
+  color: var(--glass-ink, #0e2f4b);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(20,50,80,0.14), inset 0 1px 0 rgba(255,255,255,0.8);
 }
-.jab-featured-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.jj-next svg { width: 22px; height: 22px; display: block; }
+.jj-next:hover { background: rgba(255,255,255,0.75); }
+[data-theme="dark"] .jj-next {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.18);
+  color: #eef4fa;
+}
+.jj-upload { flex-shrink: 0; margin-top: 2px; }
+
+/* Featured episode card on /jabs (2026-10-05, Anthony): OUR latest
+   episodes at the top, next arrow cycles them. BOLD headline first,
+   album art moved DOWN below the headline, readable description,
+   glossy clear glass. Tight action row: share, download, play grouped
+   with minimal gaps, 44px targets. The scrubber stays: this is the
+   now-playing control, not a list row. Same .glass-track data-* hooks
+   as the member rows, so audio-bar.js drives it unchanged. */
+.jab-featured {
+  padding: 16px;
+}
+.jab-featured a.jab-featured-title {
   display: block;
-}
-.jab-featured-main {
-  flex: 1;
-  min-width: 0;
-}
-.jab-featured-title {
-  font-size: 17px;
-  font-weight: 500;
+  font-size: 19px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  line-height: 1.32;
+  line-height: 1.3;
   color: var(--glass-ink);
   text-decoration: none;
   display: -webkit-box;
@@ -313,47 +358,74 @@
   overflow-wrap: break-word;
 }
 .jab-featured-title:hover { text-decoration: underline; }
-.jab-featured-meta {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--glass-ink-soft);
-  margin-top: 5px;
-  font-variant-numeric: tabular-nums;
+.jab-featured-artwide {
+  margin-top: 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 6px 18px rgba(20,50,80,0.22), inset 0 1px 2px rgba(255,255,255,0.5);
+  background: linear-gradient(135deg, #e8eef4, #cfdae6);
 }
-.jab-featured-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: 8px;
+.jab-featured-artwide img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
 }
-.jab-featured-actions .ep-actions-sp { flex: 1; }
-.jab-featured-actions .ep-icon { color: var(--glass-ink-soft); }
-.jab-featured-actions .ep-icon:hover { background: rgba(255,255,255,0.55); color: var(--glass-ink); }
-.jab-featured-play {
-  width: 52px;
-  height: 52px;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-.jab-featured-desc {
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--glass-ink-soft);
-  margin: 6px 0 0;
+.jab-featured .jab-featured-desc {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--glass-ink);
+  margin: 10px 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: break-word;
 }
+.jab-featured-meta {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--glass-ink-soft);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.jab-featured-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+}
+.jab-featured-actions .ep-icon {
+  width: 44px; height: 44px;
+  color: var(--glass-ink-soft);
+}
+.jab-featured-actions .ep-icon:hover { background: rgba(255,255,255,0.55); color: var(--glass-ink); }
+.jab-featured-play {
+  width: 52px;
+  height: 52px;
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
 .jab-featured-scrub {
   margin-top: 10px;
 }
 @media (max-width: 480px) {
-  .jab-featured { padding: 12px; }
-  .jab-featured-art { width: 72px; height: 72px; border-radius: 12px; }
-  .jab-featured-title { font-size: 16px; }
+  .jab-featured { padding: 14px; }
+  .jab-featured-title { font-size: 18px; }
 }
+
+/* Empty states: full-width cards with the CTA inside, no dead space. */
+.jj-empty-card {
+  border: 1.5px dashed rgba(120,150,180,0.45);
+  border-radius: 18px;
+  padding: 28px 20px;
+  text-align: center;
+  background: rgba(255,255,255,0.35);
+}
+[data-theme="dark"] .jj-empty-card { background: rgba(255,255,255,0.05); }
+.jj-empty-card p { margin: 0 0 14px; font-size: 15px; }
 
 /* comments thread panel */
 .glass-comments {

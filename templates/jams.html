@@ -25,8 +25,13 @@
 {% endif %}
 
 <div class="jj-section">
-  <h2>Member jams</h2>
-  <p>Songs, tracks, and beats from the town, newest first.</p>
+  <div class="jj-sechead">
+    <div class="jj-sechead-text">
+      <h2>Member jams</h2>
+      <p>Songs, tracks, and beats from the town, newest first.</p>
+    </div>
+    {% if tracks %}<a class="btn btn-primary jj-upload" href="/upload/audio?kind=music">Upload a jam</a>{% endif %}
+  </div>
   {% if tracks %}
   <div class="jj-list">
     {% for track in tracks %}
@@ -34,9 +39,11 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="jj-empty">No jams yet. Drop the first track.</div>
+  <div class="jj-empty-card">
+    <p><strong>No jams yet.</strong> Drop the first track.</p>
+    <a class="btn btn-primary" href="/upload/audio?kind=music">Upload a jam</a>
+  </div>
   {% endif %}
-  <p style="margin-top:14px"><a class="btn" href="/upload/audio?kind=music">Upload a jam</a></p>
 </div>
 {% endblock %}
 {% block scripts %}

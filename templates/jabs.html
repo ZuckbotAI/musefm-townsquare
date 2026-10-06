@@ -13,47 +13,55 @@
 </div>
 
 <div class="jj-section">
-  <h2>Latest episode</h2>
-  <p>Fresh from the MuseFM shows. The full archive lives on the <a href="/episodes">podcast page</a>.</p>
-  {% if featured %}
-  {% from "_episode_art.html" import episode_art with context %}
-  {# Featured episode card — Spotify text pattern (2026-10-05, Anthony):
-     square artwork left, REGULAR-weight title 3 lines (topic first),
-     muted description, human meta line, icon actions left + big play
-     right. No blue kicker. The scrubber stays — this is the now-playing
-     control, not a list row. Reuses the .glass-track data-* hooks so
-     audio-bar.js drives it with zero JS changes. #}
-  <div class="glass-track jab-featured" data-track>
-    <div class="jab-featured-top">
-      <div class="jab-featured-art" aria-hidden="true">
-        <img src="{{ url_for('static', filename=episode_art(featured.series)) }}" alt="" loading="eager">
-      </div>
-      <div class="jab-featured-main">
-        <a class="jab-featured-title" href="{{ featured.page_url }}">{{ featured.title|eptitle(featured.series) }}</a>
-        {% if featured.description %}
-        <p class="jab-featured-desc">{{ featured.description }}</p>
-        {% endif %}
-        <div class="jab-featured-meta">{{ featured.published|hdate }} &middot; {{ featured.duration_sec|mindur if featured.duration_sec else "--" }}</div>
-      </div>
+  <div class="jj-sechead">
+    <div class="jj-sechead-text">
+      <h2>Latest episodes</h2>
+      <p>Fresh from the MuseFM shows.</p>
     </div>
+    {% if featured_list|length > 1 %}
+    <button class="jj-next" id="jab-next" aria-label="Next episode" title="Next episode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+    </button>
+    {% endif %}
+  </div>
+  {% if featured_list %}
+  {# Featured episode card (2026-10-05, Anthony): OUR latest episodes at
+     the top of jabs, next arrow cycles through them. Bold headline first,
+     album art moved DOWN below the headline, readable description,
+     glossy clear glass (not blue). Tight action row: share, download,
+     play grouped with minimal gaps, 44px targets. Reuses the
+     .glass-track data-* hooks so audio-bar.js drives it with zero JS
+     changes; the next arrow swaps card content from embedded JSON. #}
+  {% set f = featured_list[0] %}
+  <div class="glass-track glass-clear jab-featured" data-track id="jab-featured"
+       data-episodes='{{ featured_list|tojson }}'>
+    <a class="jab-featured-title" id="jf-title" href="{{ f.page_url }}">{{ f.title }}</a>
+    <div class="jab-featured-artwide" aria-hidden="true">
+      <img id="jf-art" src="{{ f.art_url }}" alt="" loading="eager">
+    </div>
+    {% if f.description %}
+    <p class="jab-featured-desc" id="jf-desc">{{ f.description }}</p>
+    {% else %}
+    <p class="jab-featured-desc" id="jf-desc" hidden></p>
+    {% endif %}
+    <div class="jab-featured-meta" id="jf-meta">{{ f.meta }}</div>
     <div class="jab-featured-actions">
-      <button class="ep-icon" data-share="{{ featured.page_url }}" data-title="{{ featured.title|eptitle(featured.series)|e }}" aria-label="Copy link to episode" title="Copy link">
+      <button class="ep-icon" id="jf-share" data-share="{{ f.page_url }}" data-title="{{ f.title|e }}" aria-label="Copy link to episode" title="Copy link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>
       </button>
-      <a class="ep-icon" href="{{ featured.audio_url }}" download aria-label="Download episode" title="Download">
+      <a class="ep-icon" id="jf-dl" href="{{ f.audio_url }}" download aria-label="Download episode" title="Download">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </a>
-      <span class="ep-actions-sp" aria-hidden="true"></span>
-      <button class="glass-play-lg jab-featured-play" data-play aria-label="Play {{ featured.title|eptitle(featured.series)|e }}">&#9654;</button>
+      <button class="glass-play-lg jab-featured-play" id="jf-play" data-play aria-label="Play {{ f.title|e }}">&#9654;</button>
     </div>
     <div class="glass-scrubrow jab-featured-scrub">
       <span class="glass-t" data-elapsed>0:00</span>
       <div class="glass-scrub" data-scrub role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
         <div class="glass-fill" data-fill></div>
       </div>
-      <span class="glass-t total" data-total>{{ featured.duration_sec|dur if featured.duration_sec else "--:--" }}</span>
+      <span class="glass-t total" data-total>{{ f.duration }}</span>
     </div>
-    <audio data-audio preload="none" src="{{ featured.audio_url }}"></audio>
+    <audio data-audio id="jf-audio" preload="none" src="{{ f.audio_url }}"></audio>
   </div>
   {% else %}
   <div class="jj-empty">No episodes yet.</div>
@@ -61,8 +69,13 @@
 </div>
 
 <div class="jj-section">
-  <h2>Member jabs</h2>
-  <p>Talk, interviews, and spoken pieces from the town.</p>
+  <div class="jj-sechead">
+    <div class="jj-sechead-text">
+      <h2>Member jabs</h2>
+      <p>Talk, interviews, and spoken pieces from the town.</p>
+    </div>
+    {% if talks %}<a class="btn btn-primary jj-upload" href="/upload/audio?kind=podcast">Upload a jab</a>{% endif %}
+  </div>
   {% if talks %}
   <div class="jj-list">
     {% for track in talks %}
@@ -70,11 +83,57 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="jj-empty">No member jabs yet. Record the first one.</div>
+  <div class="jj-empty-card">
+    <p><strong>No member jabs yet.</strong> Record the first one.</p>
+    <a class="btn btn-primary" href="/upload/audio?kind=podcast">Upload a jab</a>
+  </div>
   {% endif %}
-  <p style="margin-top:14px"><a class="btn" href="/upload/audio?kind=podcast">Upload a jab</a></p>
 </div>
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/audio-bar.js') }}"></script>
+<script>
+/* Featured-episode next arrow (2026-10-05, Anthony): cycles the card
+   through our latest episodes. Swaps title, art, description, meta,
+   share/download links and the audio source; resets the scrubber. */
+(function () {
+  var card = document.getElementById('jab-featured');
+  var next = document.getElementById('jab-next');
+  if (!card || !next) return;
+  var eps;
+  try { eps = JSON.parse(card.getAttribute('data-episodes')); } catch (e) { return; }
+  if (!eps || eps.length < 2) return;
+  var i = 0;
+  function show(n) {
+    i = ((n % eps.length) + eps.length) % eps.length;
+    var e = eps[i];
+    var title = document.getElementById('jf-title');
+    title.textContent = e.title;
+    title.setAttribute('href', e.page_url);
+    document.getElementById('jf-art').setAttribute('src', e.art_url);
+    var desc = document.getElementById('jf-desc');
+    desc.textContent = e.description || '';
+    if (e.description) { desc.removeAttribute('hidden'); } else { desc.setAttribute('hidden', ''); }
+    document.getElementById('jf-meta').textContent = e.meta;
+    var sh = document.getElementById('jf-share');
+    sh.setAttribute('data-share', e.page_url);
+    sh.setAttribute('data-title', e.title);
+    document.getElementById('jf-dl').setAttribute('href', e.audio_url);
+    document.getElementById('jf-play').setAttribute('aria-label', 'Play ' + e.title);
+    var au = document.getElementById('jf-audio');
+    try { au.pause(); } catch (err) {}
+    au.removeAttribute('src');
+    try { au.load(); } catch (err) {}
+    au.setAttribute('src', e.audio_url);
+    card.removeAttribute('data-playing');
+    var elapsed = card.querySelector('[data-elapsed]');
+    var total = card.querySelector('[data-total]');
+    var fill = card.querySelector('[data-fill]');
+    if (elapsed) elapsed.textContent = '0:00';
+    if (total) total.textContent = e.duration || '--:--';
+    if (fill) fill.style.width = '0%';
+  }
+  next.addEventListener('click', function () { show(i + 1); });
+})();
+</script>
 {% endblock %}
