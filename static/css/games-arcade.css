@@ -287,6 +287,21 @@
   body.game-launch .sidebar,
   body.game-launch .bottomnav,
   body.game-launch footer { display: none !important; }
+  /* Global audio player remnants are loose in-flow body children (no wrapper).
+     As flex items of the 100dvh body they blow up (unconstrained SVG). The
+     game page is fullscreen: player chrome stays hidden here. */
+  body.game-launch .gp-titles,
+  body.game-launch .gp-title,
+  body.game-launch .gp-sub,
+  body.game-launch .gp-play,
+  body.game-launch .gp-close,
+  body.game-launch .gp-vol,
+  body.game-launch .gp-progress,
+  body.game-launch .gp-fill,
+  body.game-launch .gp-dot,
+  body.game-launch .gp-times,
+  body.game-launch .gp-controls,
+  body.game-launch .gp-skip { display: none !important; }
   body.game-launch .wrap {
     max-width: none; padding: 0; margin: 0;
     flex: 1; min-height: 0;
