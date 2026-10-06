@@ -274,6 +274,27 @@
       });
     }
 
+    // Share: copy link or use Web Share API
+    var shareBtn = track.querySelector("[data-share]");
+    if (shareBtn) {
+      shareBtn.addEventListener("click", function () {
+        var uid = shareBtn.getAttribute("data-share");
+        var shareUrl = window.location.origin + "/jabs#track-" + uid;
+        var shareData = {
+          title: track.querySelector(".glass-title") ? track.querySelector(".glass-title").textContent.trim() : "Jab",
+          url: shareUrl
+        };
+        if (navigator.share) {
+          navigator.share(shareData).catch(function () {});
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(shareUrl).then(function () {
+            shareBtn.innerHTML = "&#10003;";
+            setTimeout(function () { shareBtn.innerHTML = "&#10150;"; }, 2000);
+          });
+        }
+      });
+    }
+
     // Flag link: one tap sends target_type=upload to /flag (JSON).
     var flag = track.querySelector("[data-flag]");
     if (flag) {

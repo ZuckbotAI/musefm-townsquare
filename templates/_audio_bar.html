@@ -5,7 +5,7 @@
    Expects `track`: uid, audio_url, title, display_name, artwork_url,
    duration_sec, needs_listen, page_url (optional), sig, comment_count,
    viewer_handle, next. #}
-<div class="glass-track" data-track data-uid="{{ track.uid or '' }}">
+<div class="glass-track" data-track data-uid="{{ track.uid or '' }}"{% if track.uid %} id="track-{{ track.uid }}"{% endif %}>
   <div class="glass-row">
     <div class="glass-art" aria-hidden="true">
       {% if track.artwork_url %}
@@ -43,9 +43,18 @@
       <button class="glass-ctoggle" data-ctoggle="{{ track.uid }}" aria-expanded="false" aria-controls="glass-comments-{{ track.uid }}" aria-label="Comments">
         &#128172; <span data-ccount>{{ track.comment_count or 0 }}</span>
       </button>
+      <button class="glass-share" data-share="{{ track.uid }}" aria-label="Share">
+        &#10150;
+      </button>
       {% if session_identity %}
       <button class="glass-flaglink" data-flag="{{ track.uid }}">flag</button>
       {% endif %}
+    </div>
+    {% elif track.page_url %}
+    <div class="glass-engage">
+      <a href="{{ track.page_url }}#comments" class="glass-ctoggle" aria-label="Comments">
+        &#128172; <span>comment</span>
+      </a>
     </div>
     {% endif %}
   </div>

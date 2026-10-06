@@ -159,19 +159,7 @@
       {% endif %}
       {% endfor %}
     </div>
-    <div class="card side-card" aria-label="Online now">
-      <h3>🟢 Online now</h3>
-      {% if online_now %}
-      {% for h in online_now %}
-      <div class="comm-row">
-        <a href="/u/{{ h }}">u/{{ h }}</a>
-        <span class="comm-count">active</span>
-      </div>
-      {% endfor %}
-      {% else %}
-      <p class="hint" style="margin:0">Quiet right now. Be the one who shows up.</p>
-      {% endif %}
-    </div>
+
     <div class="card side-card">
       <h3>About ⌂ {{ community.name }}</h3>
       <p class="hint" style="margin:0 0 10px">{{ community.description }}</p>
