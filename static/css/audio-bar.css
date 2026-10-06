@@ -263,43 +263,86 @@
   .glass-actions .glass-flaglink { display: none; }
 }
 
-/* Glossy CLEAR glass variant (2026-10-05, Anthony): neutral
-   white/silver glass, strong top gloss, no blue tint. Readable ink in
-   both themes. */
+/* Glossy CLEAR glass variant (2026-10-05, Anthony): REAL glass, not flat
+   white. Frosted translucency via backdrop blur so the page shows through,
+   a diagonal light streak plus a fast-falling top gloss for the wet-glass
+   highlight, and a bright inner top edge for thickness. Neutral
+   white/silver, no blue tint. Readable ink in both themes. */
 .glass-track.glass-clear {
   --glass-hi: rgba(255, 255, 255, 0.95);
-  --glass-tint-a: rgba(255, 255, 255, 0.62);
-  --glass-tint-b: rgba(241, 245, 249, 0.52);
-  --glass-tint-c: rgba(230, 237, 244, 0.58);
-  --glass-line: rgba(255, 255, 255, 0.85);
+  --glass-line: rgba(255, 255, 255, 0.7);
   --glass-line-deep: rgba(140, 160, 180, 0.35);
   --glass-ink: #0e2f4b;
   --glass-ink-soft: rgba(14, 47, 75, 0.78);
 
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.28) 26%, rgba(255,255,255,0) 52%),
-    linear-gradient(165deg, var(--glass-tint-a), var(--glass-tint-b) 60%, var(--glass-tint-c));
+    /* sharp diagonal specular streak */
+    linear-gradient(115deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,0) 30%,
+      rgba(255,255,255,0.85) 42%,
+      rgba(255,255,255,0.95) 46%,
+      rgba(255,255,255,0.85) 50%,
+      rgba(255,255,255,0) 62%,
+      rgba(255,255,255,0) 100%),
+    /* broad soft sheen, upper left */
+    linear-gradient(115deg,
+      rgba(255,255,255,0.50) 0%,
+      rgba(255,255,255,0.08) 28%,
+      rgba(255,255,255,0) 45%),
+    /* top gloss falling off fast */
+    linear-gradient(180deg,
+      rgba(255,255,255,0.90) 0%,
+      rgba(255,255,255,0.35) 14%,
+      rgba(255,255,255,0.08) 26%,
+      rgba(255,255,255,0) 40%),
+    /* body: bright top falling to cool silver, the glass thickness */
+    linear-gradient(180deg,
+      rgba(252,253,255,0.75) 0%,
+      rgba(240,244,249,0.55) 55%,
+      rgba(226,233,241,0.65) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
   box-shadow:
-    inset 0 1px 0 var(--glass-hi),
-    inset 0 -1px 0 rgba(255,255,255,0.35),
-    0 12px 30px rgba(20, 50, 80, 0.16), 0 2px 6px rgba(20, 50, 80, 0.08);
+    inset 0 2px 6px rgba(255,255,255,0.90),
+    inset 0 -12px 24px rgba(160,180,200,0.28),
+    inset 3px 0 8px rgba(255,255,255,0.35),
+    inset -3px 0 8px rgba(170,190,210,0.18),
+    0 16px 38px rgba(20, 50, 80, 0.20),
+    0 2px 6px rgba(20, 50, 80, 0.08);
 }
 [data-theme="dark"] .glass-track.glass-clear {
-  --glass-hi: rgba(255, 255, 255, 0.28);
-  --glass-tint-a: rgba(52, 64, 80, 0.78);
-  --glass-tint-b: rgba(38, 48, 64, 0.72);
-  --glass-tint-c: rgba(30, 40, 56, 0.76);
-  --glass-line: rgba(255, 255, 255, 0.18);
+  --glass-hi: rgba(255, 255, 255, 0.30);
+  --glass-line: rgba(255, 255, 255, 0.22);
   --glass-line-deep: rgba(0, 0, 0, 0.45);
   --glass-ink: #eef4fa;
   --glass-ink-soft: rgba(238, 244, 250, 0.74);
 
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.07) 28%, rgba(255,255,255,0) 52%),
-    linear-gradient(165deg, var(--glass-tint-a), var(--glass-tint-b) 60%, var(--glass-tint-c));
+    linear-gradient(115deg,
+      rgba(255,255,255,0.28) 0%,
+      rgba(255,255,255,0.06) 22%,
+      rgba(255,255,255,0) 38%,
+      rgba(255,255,255,0) 55%,
+      rgba(255,255,255,0.12) 72%,
+      rgba(255,255,255,0.03) 88%),
+    linear-gradient(180deg,
+      rgba(255,255,255,0.32) 0%,
+      rgba(255,255,255,0.12) 18%,
+      rgba(255,255,255,0.03) 34%,
+      rgba(255,255,255,0) 55%),
+    linear-gradient(165deg,
+      rgba(52, 64, 80, 0.62),
+      rgba(38, 48, 64, 0.58) 60%,
+      rgba(30, 40, 56, 0.62));
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
   box-shadow:
-    inset 0 1px 0 var(--glass-hi),
-    0 12px 30px rgba(0, 0, 0, 0.38), 0 2px 6px rgba(0, 0, 0, 0.28);
+    inset 0 2px 4px rgba(255,255,255,0.28),
+    inset 0 -10px 18px rgba(0,0,0,0.30),
+    inset 2px 0 6px rgba(255,255,255,0.08),
+    0 14px 34px rgba(0, 0, 0, 0.40),
+    0 2px 6px rgba(0, 0, 0, 0.28);
 }
 
 /* Section header row: title text left, action (next arrow / upload) right.

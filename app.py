@@ -2557,7 +2557,10 @@ def audio_artwork(uid):
 
 def _official_music_strip():
     """Featured official-MuseFM music for the Jams page. Reads
-    static/audio/official-*.mp3 when present; empty list hides the strip."""
+    static/audio/official-*.mp3 when present; empty list hides the strip.
+    Capped at 3 (2026-10-05, Anthony): a few of ours, then the member
+    ones. Member jams must always be visible no matter how much we
+    upload."""
     d = os.path.join(HERE, "static", "audio")
     out = []
     try:
@@ -2565,6 +2568,8 @@ def _official_music_strip():
     except OSError:
         return out
     for n in names:
+        if len(out) >= 3:
+            break
         if not (n.lower().startswith("official-") and
                 n.lower().endswith(".mp3")):
             continue
