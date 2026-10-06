@@ -365,7 +365,8 @@ document.addEventListener('keydown', function (e) {
 </script>
 <script src="{{ url_for('static', filename='js/reactions.js') }}"></script>
 <script src="{{ url_for('static', filename='js/votes.js') }}"></script>
-{# <script src="{{ url_for('static', filename='js/player.js') }}"></script> <!-- disabled with player --> #}
+<script src="{{ url_for('static', filename='js/player.js') }}"></script>
+{# Glass player UI stays disabled per Anthony 2026-10-05; audio logic in player.js still runs. #}
 {# orb: click/tap opens the sayings dialogue; drag-to-place is back.
    The floating orb is the classic glass orb again (2026-09-27, Anthony:
    old design back — the face swap was a mistake). It follows down the
