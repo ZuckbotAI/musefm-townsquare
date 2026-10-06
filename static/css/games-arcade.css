@@ -264,6 +264,7 @@
 
 @media (min-width: 980px) {
   .arc-grid { grid-template-columns: repeat(3, 1fr); gap: 22px 18px; }
+  .arc-featured { grid-column: 1 / -1; }
   .arc-featured .arc-art { aspect-ratio: 21 / 9; }
 }
 

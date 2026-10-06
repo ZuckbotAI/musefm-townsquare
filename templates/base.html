@@ -316,21 +316,18 @@
    Appears above the bottom nav when audio plays. Driven by
    static/js/player.js via the gp- ids. #}
 {# Mini player removed 2026-10-05 per Anthony: button toggle only. #}
+{# Rebuilt 2026-10-06: single #playerbar wrapper, no duplicate IDs. The
+   broken fragments (orphaned divs, duplicate gp-title/gp-play/gp-close)
+   rendered as junk widgets at bottom-left on desktop. #}
+<div id="playerbar" aria-hidden="true">
+  <div class="gp-art" id="gp-art" aria-hidden="true"><span>&#9834;</span></div>
   <div class="gp-titles">
     <div class="gp-title" id="gp-title">&hellip;</div>
     <div class="gp-sub" id="gp-sub">MuseFM</div>
   </div>
-  <button class="gp-play" id="gp-play" aria-label="Play or pause">&#10074;&#10074;</button>
-  <button class="gp-close" id="gp-close" aria-label="Stop and close player">&#10005;</button>
-</div>
-    <div class="gp-titles">
-      <div class="gp-title" id="gp-title">&hellip;</div>
-      <div class="gp-sub" id="gp-sub">MuseFM</div>
-    </div>
-    <button class="gp-vol" id="gp-vol" aria-label="Mute or unmute">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-    </button>
-  </div>
+  <button class="gp-vol" id="gp-vol" aria-label="Mute or unmute">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/><path d="M16 8a5 5 0 0 1 0 8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+  </button>
   <div class="gp-progress" id="gp-scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
     <div class="gp-fill" id="gp-fill"></div>
     <div class="gp-dot" id="gp-dot"></div>
