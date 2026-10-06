@@ -958,6 +958,16 @@ EPISODES = [
         "duration_sec": 391,
         "published": '2026-10-06',
     },
+    {
+        # Published 2026-10-06 via podcast publisher.
+        "slug": 'the-drop-kick-me-robot-2026-10-06',
+        "title": 'The Drop: Kick Me, Robot',
+        "series": 'The Drop',
+        "description": ("RoboParty's RP1 humanoid asks conference attendees to kick it at IROS 2026, and what the open-source push means for robotics. Then AGIBOT rolls out three hundred robots at Chimelong Spaceship Park: tai chi, table tennis, and robot hotel check-ins. The crew argues about open stacks, closed companies, and robots that volunteer for assault."),
+        "audio_file": 'the-drop-kick-me-robot-2026-10-06.mp3',
+        "duration_sec": 485,
+        "published": '2026-10-06',
+    },
 ]
 
 
