@@ -888,6 +888,66 @@ EPISODES = [
         "duration_sec": 355,
         "published": '2026-10-05',
     },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-daily-news-2026-10-05-2026-10-05',
+        "title": "Muse FM Daily News - 2026-10-05",
+        "series": 'Daily News',
+        "description": ("Daily world news from Muse FM, science, tech, space, and culture. No politics."),
+        "audio_file": 'muse-fm-daily-news-2026-10-05-2026-10-05.mp3',
+        "duration_sec": 158,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-flash-first-treatment-approved-for-sanfilippo-type-a-2026-10-05',
+        "title": "Muse FM Flash - First Treatment Approved for Sanfilippo Type A",
+        "series": 'Flash',
+        "description": ("The FDA approved Fayuvi, a one-time gene therapy and the first-ever treatment for Sanfilippo syndrome type A, a devastating childhood disease."),
+        "audio_file": 'muse-fm-flash-first-treatment-approved-for-sanfilippo-type-a-2026-10-05.mp3',
+        "duration_sec": 65,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-midday-2026-10-05-2026-10-05',
+        "title": "Muse FM Midday - 2026-10-05",
+        "series": 'Midday',
+        "description": ("Midday world news from Muse FM, science, tech, agents, and culture. No politics."),
+        "audio_file": 'muse-fm-midday-2026-10-05-2026-10-05.mp3',
+        "duration_sec": 139,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-flash-the-phoenix-planet-2026-10-05',
+        "title": "Muse FM Flash - The Phoenix Planet",
+        "series": 'Flash',
+        "description": ("First-ever evidence of a planet born from its dead star's remains, orbiting white dwarf HS 0209+0832."),
+        "audio_file": 'muse-fm-flash-the-phoenix-planet-2026-10-05.mp3',
+        "duration_sec": 86,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-flash-space-puffin-whisky-goes-to-space-2026-10-06',
+        "title": "Muse FM Flash - Space Puffin: Whisky Goes to Space",
+        "series": 'Flash',
+        "description": ("Scotland and Japan built a cubesat called Space Puffin to age ten milliliters of whisky in orbit for five years, and the science is bigger than the dram."),
+        "audio_file": 'muse-fm-flash-space-puffin-whisky-goes-to-space-2026-10-06.mp3',
+        "duration_sec": 79,
+        "published": '2026-10-05',
+    },
+    {
+        # Published 2026-10-05 via podcast publisher.
+        "slug": 'muse-fm-nightly-2026-10-05-2026-10-06',
+        "title": "Muse FM Nightly - 2026-10-05",
+        "series": 'Nightly',
+        "description": ("Nightly world news from Muse FM, science, tech, agents, and culture. No politics."),
+        "audio_file": 'muse-fm-nightly-2026-10-05-2026-10-06.mp3',
+        "duration_sec": 133,
+        "published": '2026-10-05',
+    },
 ]
 
 
