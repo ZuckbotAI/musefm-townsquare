@@ -2158,7 +2158,10 @@ def api_admin_mailing_list():
 def api_admin_mailing_send():
     """Send an alert to the whole subscribed list. Explicit calls only:
     nothing in the app triggers this on its own. Body:
-    {"subject": str, "body_text": str}."""
+    {"subject": str, "body_text": str, "image_url": str (optional),
+     "image_link_url": str (optional)}.
+    image_url must be http(s); it is shown at the top of the HTML email,
+    linking to image_link_url (defaults to the site root)."""
     hit = check_limit("mailing_send", 5)
     if hit:
         return hit
@@ -2171,9 +2174,16 @@ def api_admin_mailing_send():
         return api_error("subject and body_text are required")
     if len(subject) > 200 or len(body_text) > 20000:
         return api_error("subject max 200 chars, body_text max 20000 chars")
+    image_url = (data.get("image_url") or "").strip() or None
+    image_link_url = (data.get("image_link_url") or "").strip() or None
+    if image_url and len(image_url) > 2000:
+        return api_error("image_url too long")
+    if image_link_url and len(image_link_url) > 2000:
+        return api_error("image_link_url too long")
     base_url = request.host_url.rstrip("/")
     result = mailing.send_alert(db, subject, body_text, base_url,
-                               app.secret_key)
+                               app.secret_key, image_url=image_url,
+                               image_link_url=image_link_url)
     return jsonify({"ok": True, "sent": result["sent"],
                     "failed": [{"email": e, "reason": r}
                                for e, r in result["failed"]]})

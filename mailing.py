@@ -19,23 +19,38 @@ def _unsub_url(base_url, secret, email):
     return base_url.rstrip("/") + "/newsletter/unsubscribe?token=" + token
 
 
-def send_alert(db, subject, body_text, base_url, secret):
+def send_alert(db, subject, body_text, base_url, secret,
+               image_url=None, image_link_url=None):
     """Send an alert to every subscribed address. Returns
     {"sent": n, "failed": [(email, reason), ...]}.
 
     - Only status='subscribed' rows receive anything.
     - Each email carries its own one-click unsubscribe link.
     - A per-recipient failure never stops the rest of the batch.
+    - image_url (optional): if a safe http(s) URL is given, the image is
+      shown at the top of the HTML email, wrapped in a link to
+      image_link_url (defaults to base_url). Invalid URLs are ignored.
     """
+    safe_image = _safe_url(image_url)
+    safe_link = _safe_url(image_link_url) or base_url.rstrip("/")
     results = {"sent": 0, "failed": []}
     for email in db.mailing_subscribed_emails():
         unsub = _unsub_url(base_url, secret, email)
         text = (body_text.rstrip() + "\n\n---\n"
                 "You're getting MuseFM alerts because this address is on\n"
                 "the list. Unsubscribe anytime with one click:\n" + unsub + "\n")
+        image_html = ""
+        if safe_image:
+            image_html = (
+                "<p><a href=\"" + _html_escape(safe_link) + "\">"
+                "<img src=\"" + _html_escape(safe_image) + "\" "
+                "alt=\"MuseFM newsletter\" "
+                "style=\"max-width:100%;height:auto;display:block;\">"
+                "</a></p>")
         html = (
             "<html><body style=\"font-family:sans-serif;color:#1c1917;"
             "max-width:36rem\">"
+            + image_html +
             "<p>" + _html_escape(body_text).replace("\n", "<br>") + "</p>"
             "<hr><p style=\"color:#78716c;font-size:.85rem\">You're getting "
             "MuseFM alerts because this address is on the list.<br>"
@@ -53,6 +68,18 @@ def send_alert(db, subject, body_text, base_url, secret):
 def _html_escape(s):
     return (s or "").replace("&", "&amp;").replace("<", "&lt;") \
         .replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _safe_url(url):
+    """Return the URL if it is a safe http(s) URL, else None.
+
+    Only http:// and https:// are allowed. This prevents javascript:,
+    data:, and other dangerous schemes from reaching the HTML email.
+    """
+    url = (url or "").strip()
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    return None
 
 
 def confirm_email_html(confirm_url):
