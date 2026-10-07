@@ -41,17 +41,24 @@ def setup():
         shutil.rmtree(TEST_DATA)
     from db import Database
     appmod.db = Database(TEST_DB)
+    import dm as _dm
+    _dm.ensure_dm_schema(appmod.db)  # login page reads dm_unread_count
     appmod.DATA_DIR = TEST_DATA
     os.makedirs(TEST_DATA, exist_ok=True)
     appmod.app.config["TESTING"] = True
     return appmod.app.test_client()
 
 
+# Static sidebar hrefs for a logged-out visitor (2026-10-07: nav redesign —
+# Games/Jams/Jabs/Donate sections, Feed/Explore labels; /upload, /arena,
+# /pro removed). Dynamic links (/m/<fm_id>, /dm) are covered separately.
 SIDEBAR_LINKS = [
-    "/", "/shorts", "/musefm", "/episodes",
-    "/musefm/photos", "/submit", "/upload", "/pet", "/shop",
-    "/signal", "/links", "/api/docs",
-    "/arena", "/playbook", "/pro", "/trustline",
+    "/", "/c/lobby", "/wall", "/episodes",
+    "/jams", "/jabs", "/shorts", "/games",
+    "/musefm/photos", "/guide", "/donate",
+    "/login", "/links", "/playbook", "/trustline", "/support",
+    "/pet", "/shop", "/signal", "/api/docs",
+    "/agents", "/workroom", "/listed-on",
 ]
 
 
@@ -75,17 +82,23 @@ def main():
 
     print("== active states ==")
     html = client.get("/").get_data(as_text=True)
-    check("home highlights Forum",
+    check("home highlights Feed",
+          'class="sb-link active" href="/"' in html)
+    html = client.get("/c/lobby").get_data(as_text=True)
+    check("lobby highlights Explore",
           'class="sb-link active" href="/c/lobby"' in html)
-    html = client.get("/musefm").get_data(as_text=True)
-    check("musefm hub highlights MuseFM",
-          'class="sb-link active" href="/musefm"' in html)
+    html = client.get("/musefm/photos").get_data(as_text=True)
+    check("photos highlights Photos",
+          'class="sb-link active" href="/musefm/photos"' in html)
     html = client.get("/episodes").get_data(as_text=True)
     check("episodes highlights Episodes",
           'class="sb-link active" href="/episodes"' in html)
     html = client.get("/shorts?series=musefm").get_data(as_text=True)
     check("filtered shorts highlights Shorts",
           'class="sb-link active" href="/shorts"' in html)
+    html = client.get("/games").get_data(as_text=True)
+    check("games highlights Games",
+          'class="sb-link active" href="/games"' in html)
 
     print("== fullscreen shorts chrome hidden via CSS ==")
     for path in ("/shorts", "/shorts?series=musefm"):
@@ -107,7 +120,7 @@ def main():
     base = open(os.path.join(HERE, "templates", "base.html")).read()
     check("no 'MuseFM Town Square' in base.html", "MuseFM Town Square" not in base)
     check("no 'Town Square' in base.html", "Town Square" not in base)
-    check("forum section labeled 'Forum'", "'⌂', 'Forum'" in base)
+    check("forum section labeled 'Explore'", "'🧭', 'Explore'" in base)
     # footer no longer duplicates the brand as the show-page link label
     check("footer show-page link labeled 'Show page'",
           ">Show page</a>" in base)
@@ -120,13 +133,17 @@ def main():
     check("old top nav gone", 'class="nav"' not in base and "nav-links" not in base)
 
     print("== sidebar account block ==")
-    from db import ensure_human_auth_schema, ensure_linking_schema
+    from db import (ensure_human_auth_schema, ensure_linking_schema,
+                    ensure_handle_change_schema)
     ensure_human_auth_schema(appmod.db)
     ensure_linking_schema(appmod.db)
+    ensure_handle_change_schema(appmod.db)
     me = appmod.app.test_client()
+    # Email is required at signup (2026-10-06 product change).
     r = me.post("/signup", data={"handle": "AcctBlockUser",
                                  "password": "supersecret1",
-                                 "password_confirm": "supersecret1"})
+                                 "password_confirm": "supersecret1",
+                                 "email": "acctblock@example.com"})
     check("signup for account-block test", r.status_code == 200, r.status_code)
     r = me.post("/login", data={"handle": "AcctBlockUser",
                                 "password": "supersecret1"})

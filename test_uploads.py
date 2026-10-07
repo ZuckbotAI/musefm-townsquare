@@ -169,9 +169,12 @@ def main():
     check("sha256 mismatch rejected (401)", r.status_code == 401, str(r.status_code))
 
     # 9. replay rejected (same signed body twice)
-    fields = signed_upload_fields(priv, fm_id, raw, title="Replay test")
-    r1 = post_upload(client, fields, raw)
-    r2 = post_upload(client, fields, raw)
+    # NOTE: fresh bytes — the 2026-10-05 duplicate auto-detect would 409
+    # the second upload of reused bytes before the nonce check runs.
+    raw2 = make_wav(2)
+    fields = signed_upload_fields(priv, fm_id, raw2, title="Replay test")
+    r1 = post_upload(client, fields, raw2)
+    r2 = post_upload(client, fields, raw2)
     check("first upload ok, replay rejected",
           r1.status_code == 200 and r2.status_code == 401,
           f"{r1.status_code}/{r2.status_code}")
@@ -194,11 +197,14 @@ def main():
     assert r.status_code == 302, r.get_data(as_text=True)
     hum_ident = appmod.db.get_identity_by_handle("HumanUploader")
     sig_before = appmod.db.lifetime_points(hum_ident["fm_id"])
+    # NOTE: fresh bytes — same as section 9, the duplicate auto-detect
+    # 400s re-uploads of already-library bytes.
+    raw3 = make_wav(3)
     r = human.post("/upload",
                    data={"title": "Human track",
                          "description": "from the form",
                          "csrf_token": csrf_of(human),
-                         "audio": (io.BytesIO(raw), "h.wav", "audio/wav")},
+                         "audio": (io.BytesIO(raw3), "h.wav", "audio/wav")},
                    content_type="multipart/form-data")
     check("human form upload -> redirect", r.status_code == 302, str(r.status_code))
     items = client.get("/api/uploads").get_json()["uploads"]
