@@ -1558,7 +1558,8 @@ UPLOAD_MIMES = {
     "audio/mpeg": "mp3", "audio/mp3": "mp3",
     "audio/wav": "wav", "audio/x-wav": "wav", "audio/wave": "wav",
     "audio/ogg": "ogg", "audio/vorbis": "ogg", "audio/opus": "ogg",
-    "audio/mp4": "m4a", "audio/x-m4a": "m4a", "audio/aac": "m4a",
+    "audio/mp4": "m4a", "audio/x-m4a": "m4a", "audio/m4a": "m4a",
+    "audio/aac": "m4a", "audio/aacp": "m4a",
 }
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
 ATTESTATION_TEXT = ("I attest that I generated this audio myself and hold "

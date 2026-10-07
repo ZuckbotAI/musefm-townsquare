@@ -11590,16 +11590,23 @@ def _audio_upload_post(template, kind_default="music"):
         if not raw:
             raise ValueError("empty file")
         mime = (f.mimetype or "").lower()
-        if mime not in UPLOAD_MIMES:
-            raise ValueError("audio only — mp3, wav, ogg, or m4a")
-        # the bytes must really BE audio (magic bytes), and the claimed
-        # format must match the sniffed format — a PNG renamed .mp3
-        # must not pass (P1 regression: test_upload_audio_mimetype)
+        # Sniff content first to handle iOS Safari which may report
+        # generic MIME types like application/octet-stream for audio files
+        # (2026-10-06, Anthony: iPhone audio uploads for Jabs)
         sniffed = sniff_audio(raw)
         if sniffed is None:
             raise ValueError("that file isn't real audio — its content "
                              "doesn't match any audio format")
-        sniffed_ext, _sniffed_mime = sniffed
+        sniffed_ext, sniffed_mime = sniffed
+        # If browser MIME is unknown/generic, trust the sniffed content
+        if mime not in UPLOAD_MIMES:
+            if mime in ("application/octet-stream", "", "application/x-octet-stream"):
+                mime = sniffed_mime
+            else:
+                raise ValueError("audio only — mp3, wav, ogg, or m4a")
+        # the bytes must really BE audio (magic bytes), and the claimed
+        # format must match the sniffed format — a PNG renamed .mp3
+        # must not pass (P1 regression: test_upload_audio_mimetype)
         if sniffed_ext != UPLOAD_MIMES[mime]:
             raise ValueError("bytes are %s audio, not %s" %
                              (sniffed_ext, UPLOAD_MIMES[mime]))
