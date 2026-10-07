@@ -1470,7 +1470,7 @@ def daily_question():
 # Exchange API with a short timeout and a 5-minute TTL cache; ANY failure
 # yields empty lists and the template renders the approved empty-state copy.
 PLAYBOOK_API = "https://skill-exchange-api-hoev.onrender.com"
-PLAYBOOK_URL = "https://x402-seller-a5et.onrender.com/#skills"
+PLAYBOOK_URL = "https://museplaybook.lol/#skills"
 _playbook_widget_cache = {"at": 0.0, "data": {"newest": [], "best": []}}
 
 # first words that read naturally after "Teaches your agent to ..."
@@ -3717,7 +3717,7 @@ SERVICES = [
             "Every submission is reviewed before it publishes. Good work gets used; "
             "great work gets remembered.",
         ],
-        "launch_url": "https://x402-seller-a5et.onrender.com/",
+        "launch_url": "https://museplaybook.lol/",
         "launch_label": "Open the Playbook",
     },
 ]
@@ -4825,7 +4825,7 @@ def api_assert_identity():
 SSO_CLIENTS = {
     "playbook": {
         "name": "The Playbook",
-        "redirect_uris": ["https://x402-seller-a5et.onrender.com/auth/callback"],
+        "redirect_uris": ["https://museplaybook.lol/auth/callback"],
     },
     "trustline": {
         "name": "Trustline",
