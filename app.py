@@ -3020,7 +3020,7 @@ def episode_comment(slug):
     # db.add_episode_comment's own checks (episode, parent, body, filter).
     ep = db.episode(slug)
     if not ep:
-        return "unknown episode", 400
+        return "unknown episode", 404
     if parent_id:
         try:
             prow = db._one("SELECT id FROM episode_comments WHERE id=? AND episode_slug=?",
@@ -10508,7 +10508,7 @@ def api_shorts():
                                          " stale-while-revalidate=300")
         return resp
     try:
-        page = int(request.args.get("page", 0))
+        page = max(0, int(request.args.get("page", 0)))
     except (TypeError, ValueError):
         page = 0
     # Fresh deck (no ?seed=) skips anything served in the repeat window;
@@ -10555,7 +10555,7 @@ def api_shorts_cards():
     except (TypeError, ValueError):
         limit = 12
     try:
-        page = int(request.args.get("page", 0))
+        page = max(0, int(request.args.get("page", 0)))
     except (TypeError, ValueError):
         page = 0
     fresh_deck = not request.args.get("seed", "").strip()
