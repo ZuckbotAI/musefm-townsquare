@@ -82,9 +82,10 @@ def test_empty_signature_reports_missing_not_does_not_verify():
     assert "missing signature" in (d.get("error") or ""), d
 
 
-def test_absent_signature_still_reports_bad_encoding():
-    # control: pins the 15:35 P2's current (unfixed) behavior so the fix
-    # for the empty case doesn't accidentally change the absent case
+def test_absent_signature_reports_missing_signature():
+    # control updated 2026-10-07: the 15:35 P2 is now FIXED (identity.py
+    # raises "missing signature" for absent or empty), so the absent case
+    # must report "missing signature", same as the empty case below.
     c, fm_id = _client()
     body = _signed(_PRIV_B64, fm_id)
     del body["signature"]
@@ -92,7 +93,7 @@ def test_absent_signature_still_reports_bad_encoding():
                content_type="application/json")
     d = r.get_json() or {}
     assert r.status_code == 401, (r.status_code, d)
-    assert "bad signature encoding" in (d.get("error") or ""), d
+    assert "missing signature" in (d.get("error") or ""), d
 
 
 def test_valid_signed_body_still_accepted():

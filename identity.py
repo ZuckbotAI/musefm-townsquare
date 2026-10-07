@@ -191,6 +191,11 @@ def verify_signed_body(data: dict, db, expected_action=None):
     if not valid_nonce(nonce):
         raise IdentityError("bad nonce (need 128-bit base64url)")
 
+    # P2 (2026-10-07 0610 loop): absent or empty signature said
+    # "bad signature encoding"/"signature does not verify" — distinguish
+    # absence from malformed, same as timestamp/nonce guards above.
+    if not signature:
+        raise IdentityError("missing signature")
     try:
         sig_bytes = b64u_decode(signature)
     except IdentityError:

@@ -52,6 +52,7 @@ from flask import (Flask, Response, abort, g, jsonify, redirect, render_template
                    render_template_string,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask.sessions import SecureCookieSessionInterface
 from markupsafe import Markup, escape
 import studio  # Maker's Row studio: real ffmpeg short renders
 from werkzeug.routing import (IntegerConverter, RequestRedirect,
@@ -434,9 +435,22 @@ app.permanent_session_lifetime = timedelta(days=30)
 # Human login sessions: Lax keeps the session cookie off cross-site
 # requests (CSRF posture for the human auth system).
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-# Production is HTTPS-only (Render) — emit the session cookie Secure there
-# (P2-1, 2026-09-19 21:35 loop). Off under app.debug so local plain-HTTP
-# development servers can still log in.
+# Session cookie Secure follows the request scheme, not a static config
+# (P1, 2026-10-07 0610 loop). The old static `not app.debug` was always True
+# (no --debug flag exists), so plain-HTTP dev/test servers emitted Secure and
+# spec-compliant clients (Python requests, fetch) silently dropped the cookie:
+# login looked successful, then every follow-up request went out logged out.
+# Production is HTTPS-only (Render, ProxyFix) so Secure stays on there.
+class _SchemeAwareSessionInterface(SecureCookieSessionInterface):
+    def get_cookie_secure(self, app):
+        if os.environ.get("RENDER_GIT_COMMIT"):
+            return True
+        try:
+            return request.is_secure
+        except RuntimeError:
+            return bool(app.config["SESSION_COOKIE_SECURE"])
+
+app.session_interface = _SchemeAwareSessionInterface()
 app.config["SESSION_COOKIE_SECURE"] = not app.debug
 
 
@@ -8793,9 +8807,9 @@ def signup():
         if not IDENTITY_HANDLE_RE.fullmatch(handle):
             error = "bad handle (3-20 chars: letters, numbers, _)"
         elif handle.lower() in RESERVED_HANDLES:
-            error = "that handle is reserved — pick another"
+            error = "that handle is reserved, pick another"
         elif db.get_identity_by_handle(handle) is not None:
-            error = "handle taken — pick another"
+            error = "handle taken, pick another"
         elif not email or len(email) > MAX_EMAIL_LEN or not EMAIL_RE.fullmatch(email):
             error = "enter a valid email address"
         elif db.get_identity_by_email(email) is not None:
@@ -9446,7 +9460,7 @@ def api_upload_audio():
     # must match the sniffed format — no PNG-renamed-.mp3 passes
     sniffed = sniff_audio(raw)
     if sniffed is None:
-        return api_error("bytes aren't real audio — content doesn't match "
+        return api_error("bytes aren't real audio: content doesn't match "
                          "any audio format")
     sniffed_ext, _sniffed_mime = sniffed
     if sniffed_ext != UPLOAD_MIMES[mime]:

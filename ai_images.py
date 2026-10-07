@@ -50,6 +50,8 @@ _IMG_TYPES = (
     (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
     (b"\xff\xd8\xff", "jpg", "image/jpeg"),
     (b"RIFF", "webp", "image/webp"),  # + b"WEBP" at offset 8
+    (b"GIF87a", "gif", "image/gif"),  # P2 (2026-10-07 0610 loop)
+    (b"GIF89a", "gif", "image/gif"),  # error string advertises gif
 )
 
 

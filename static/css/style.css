@@ -940,6 +940,15 @@ audio::-webkit-media-controls-panel {
   transition: transform 0.4s var(--spring), visibility 0.4s;
 }
 #playerbar.show { transform: translateX(-50%) translateY(0); visibility: visible; }
+/* 2026-10-07: mini player must stay dark everywhere. The playerbar element lives in
+   base.html (global), but audio-bar.css only loads on a few pages, so this ID+class
+   override (1,1,0) is duplicated here in style.css (loaded on every page) to keep the
+   fix site-wide. Keep in sync with #playerbar.glass-player in css/audio-bar.css. */
+#playerbar.glass-player {
+  background: linear-gradient(135deg, rgba(60, 90, 115, 0.78), rgba(45, 70, 92, 0.68));
+  border: 1px solid rgba(255,255,255,0.12);
+  color-scheme: dark;
+}
 .pb-open {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
   background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
