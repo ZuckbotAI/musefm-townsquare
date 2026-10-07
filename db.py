@@ -1030,6 +1030,25 @@ def loud_limit(s, limit, label="text"):
         raise ValueError(f"{label} is too long (max {limit} characters)")
 
 
+def clean_bio(s):
+    """Loud bio validator (P2 2026-09-22, re-fixed 2026-10-07): bios over
+    MAX_BIO are REJECTED with ValueError, never silently truncated — the
+    old clean(bio, MAX_BIO) path dropped the tail with no signal, a
+    silent-data-loss bug. Control chars are stripped exactly like clean().
+    Callers surface the ValueError as a 400."""
+    s = clean(s or "", MAX_BIO + 1)
+    if len(s) > MAX_BIO:
+        raise ValueError(f"bio too long (max {MAX_BIO} characters)")
+    return s
+
+
+def clean_comment_body(s):
+    """Comment-body cleaner (P2 2026-09-21 pin): same NUL/control stripping
+    as clean(), with the 2000-char comment cap. Kept as a named function so
+    the stripping behavior is pinned by test, not scattered magic numbers."""
+    return clean(s or "", 2000)
+
+
 def valid_handle(h):
     # letters, numbers, underscore, dash. 2..32 chars. No spaces.
     return bool(re.fullmatch(r"[A-Za-z0-9_-]{2,32}", h or ""))
@@ -1959,7 +1978,7 @@ class Database:
                 raise ValueError("unknown parent comment")
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
-        body = clean(body, 2000)
+        body = clean_comment_body(body)
         if not body:
             raise ValueError("comment body required")
         from ai_images import valid_image_url  # deferred: same pattern as gifs
@@ -2002,7 +2021,7 @@ class Database:
                 par = int(parent_id)
             except (TypeError, ValueError):
                 return None
-        body = clean(body or "", 2000)
+        body = clean_comment_body(body)
         if not body:
             return None
         try:
@@ -2038,7 +2057,7 @@ class Database:
             parent_id = None
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
-        body = clean(body, 2000)
+        body = clean_comment_body(body)
         if not body:
             raise ValueError("comment body required")
         from ai_images import valid_image_url  # deferred: same pattern as create_comment
@@ -2136,7 +2155,7 @@ class Database:
             parent_id = None
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
-        body = clean(body, 2000)
+        body = clean_comment_body(body)
         if not body:
             raise ValueError("comment body required")
         if has_banned(body) and not bypass_filter:
@@ -2203,7 +2222,7 @@ class Database:
             parent_id = None
         if not valid_handle(handle):
             raise ValueError("bad handle (2-32 chars: letters, numbers, _ -)")
-        body = clean(body, 2000)
+        body = clean_comment_body(body)
         if not body:
             raise ValueError("comment body required")
         if has_banned(body) and not bypass_filter:
@@ -2791,7 +2810,7 @@ class Database:
             parent_id = None
         if not valid_handle(handle):
             raise ValueError("bad handle")
-        body = clean(body, 2000)
+        body = clean_comment_body(body)
         if not body:
             raise ValueError("comment body required")
         if has_banned(body) and not bypass_filter:
@@ -3057,7 +3076,7 @@ class Database:
             raise ValueError("unknown comment")
         if row["handle"] != handle:
             raise PermissionError("only the author can edit this comment")
-        body = clean(body, 2000)
+        body = clean_comment_body(body)
         if not body:
             raise ValueError("comment body required")
         if has_banned(body):
@@ -3132,15 +3151,15 @@ class Database:
         if not IDENTITY_HANDLE_RE.fullmatch(handle):
             raise ValueError("bad handle (3-20 chars: letters, numbers, _)")
         if handle.lower() in RESERVED_HANDLES:
-            raise ValueError("that handle is reserved — pick another")
+            raise ValueError("that handle is reserved, pick another")
         if not valid_public_key_b64(public_key):
             raise ValueError("bad public_key (need base64url Ed25519, 32 bytes)")
         if self._one("SELECT fm_id FROM identities WHERE handle=? COLLATE NOCASE", (handle,)):
-            raise ValueError("handle taken — pick another")
+            raise ValueError("handle taken, pick another")
         avatar_url = clean(avatar_url, MAX_AVATAR_URL, single_line=True)
         if avatar_url and not avatar_url.startswith(("http://", "https://")):
             raise ValueError("avatar_url must be http(s)")
-        bio = clean(bio, MAX_BIO)
+        bio = clean_bio(bio)
         fm_id = new_fm_id()
         while self._one("SELECT fm_id FROM identities WHERE fm_id=?", (fm_id,)):
             fm_id = new_fm_id()  # astronomically unlikely; be safe anyway
@@ -3450,7 +3469,7 @@ class Database:
             args.append(avatar_url)
         if bio is not None:
             updates.append("bio=?")
-            args.append(clean(bio, MAX_BIO))
+            args.append(clean_bio(bio))
         if visibility is not None:
             if visibility not in ("anonymous", "linked"):
                 raise ValueError("visibility must be anonymous or linked")

@@ -67,7 +67,7 @@ from db import (Database, DISPLAY_NAME_RE, FLAIRS, KIND_TAGS,
                 REACTION_MILESTONES, UPLOAD_MIMES, MAX_UPLOAD_BYTES,
                 MAX_TITLE, MAX_BODY, ATTESTATION_TEXT, TIERS, challenge_week_id, find_mentions,
                 valid_handle, clean, strip_bidi, loud_limit, has_banned, now,
-                ROOM_EMOJIS, ROOM_CHAT_MAXLEN,
+                ROOM_EMOJIS, ROOM_CHAT_MAXLEN, MAX_BIO,
                 ensure_musefm_media_schema,
                 ensure_human_auth_schema, ensure_forum_flags_schema,
                 ensure_linking_schema, ensure_comment_pro_schema,
@@ -638,6 +638,20 @@ def _int_field(data, key, default=0):
     raise ValueError(f"bad {key}: must be an integer")
 
 
+def _int_arg(key, default=0):
+    """Strict int coercion for query-string params (P2 2026-10-07): the
+    query-string twin of _int_field. Non-numeric values are a clean 400
+    ("bad project_id: must be an integer"), never a raw "invalid literal
+    for int()..." Python exception string. Missing/empty falls back to
+    the default."""
+    v = request.args.get(key)
+    if v is None or v == "":
+        return default
+    if isinstance(v, str) and re.fullmatch(r"[+-]?\d+", v.strip()):
+        return int(v.strip())
+    raise ValueError(f"bad {key}: must be an integer")
+
+
 def require_agent(fn):
     @wraps(fn)
     def wrapper(*a, **kw):
@@ -645,6 +659,19 @@ def require_agent(fn):
             return jsonify({"ok": False, "error": "bad or missing agent key"}), 401
         return fn(*a, **kw)
     return wrapper
+
+
+def _dry_verify_signed(action, data, raw):
+    """Dry-run signature verification for the rate-peek triage in
+    require_agent_or_signature: every verify_signed_body check EXCEPT the
+    nonce burn, so a 429/401 decision never consumes the one-time nonce.
+    Mirrors the decorator's GET-query-string vs body branch. Raises
+    IdentityError on bad credentials; returns the identity dict (unused)
+    on success."""
+    if request.method == "GET" and not raw:
+        return verify_signed_body(request.args.to_dict(), db,
+                                  expected_action=action, dry_run=True)
+    return verify_signed_body(data, db, expected_action=action, dry_run=True)
 
 
 # --------------------------------------- agent key OR musefm-v1 signature
@@ -661,6 +688,13 @@ def require_agent_or_signature(action, rate=None):
     forces the client to re-sign; the identical signed body can be retried
     once the window clears. The route body's check_limit() still records
     the hit exactly once afterwards.
+
+    When the peek trips (bucket exhausted), the signature is verified in
+    DRY-RUN mode first: callers with no/invalid credentials get 401 (a 429
+    must never leak shared-bucket state to unauthenticated clients, P2
+    2026-10-07), while validly-signed callers still get 429 WITHOUT burning
+    their nonce (P2 2026-09-19). The dry run costs one extra Ed25519
+    verify only on the exhausted-bucket path.
     """
     def deco(fn):
         @wraps(fn)
@@ -693,10 +727,18 @@ def require_agent_or_signature(action, rate=None):
                 g.author_identity = None
                 g.signed_data = None
                 return fn(*a, **kw)
-            # Signed path: rate-limit BEFORE the nonce is consumed, so a
-            # 429 never burns a one-time nonce (P2 2026-09-19: nonce was
-            # consumed before the limit check, forcing a re-sign).
+            # Signed path: peek the rate limit BEFORE the nonce is consumed,
+            # so a 429 never burns a one-time nonce (P2 2026-09-19: nonce
+            # was consumed before the limit check, forcing a re-sign).
+            # P2 2026-10-07: when the peek trips, verify the signature in
+            # dry-run mode first — no/invalid credentials get 401, never a
+            # 429 that would leak shared-bucket state to unauthenticated
+            # callers. Valid signers keep the 429 with the nonce intact.
             if rate is not None and _would_limit(*rate):
+                try:
+                    _dry_verify_signed(action, data, raw)
+                except IdentityError as e:
+                    return api_error(f"musefm-v1 auth failed: {e}", 401)
                 resp = jsonify({"ok": False, "error": RATE_LIMIT_MESSAGE})
                 resp.status_code = 429
                 resp.headers["Retry-After"] = str(retry_after(rate[0]))
@@ -4112,10 +4154,17 @@ def api_posts():
     sort = request.args.get("sort", "hot")
     if sort not in ("hot", "new", "top"):
         sort = "hot"
+    # P2 2026-10-07 (re-reported): out-of-range or non-integer limits are an
+    # explicit 400, not a silent clamp — the client asked for something
+    # invalid and should know. Same convention as the over-long ?q= 400.
     try:
-        limit = min(100, max(1, int(request.args.get("limit", 25))))
-    except ValueError:
-        limit = 25
+        limit = int(request.args.get("limit", 25))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False,
+                        "error": "bad limit: must be an integer"}), 400
+    if not 1 <= limit <= 100:
+        return jsonify({"ok": False,
+                        "error": "bad limit: must be 1..100"}), 400
     # P2 2026-09-29: offset was silently ignored (route never read it),
     # so API clients paginating with offset looped page 1 forever.
     try:
@@ -4354,7 +4403,9 @@ def api_memory_create():
             tags=data.get("tags"))
     except ValueError as e:
         return api_error(str(e))
-    return jsonify({"ok": True, "entry": entry}), 200
+    # P2 2026-10-07: 201 Created, as originally shipped (commit 314de1b);
+    # the Sept 24 pet-cutover commit flipped it to 200 by accident.
+    return jsonify({"ok": True, "entry": entry}), 201
 
 
 @app.route("/api/memory", methods=["GET"])
@@ -4659,11 +4710,16 @@ def api_identity_register():
     if not IDENTITY_HANDLE_RE.fullmatch(handle.strip()):
         return api_error("bad handle (3-20 chars: letters, numbers, _)")
     if handle.strip().lower() in RESERVED_HANDLES:
-        return api_error("that handle is reserved — pick another")
+        return api_error("that handle is reserved, pick another")
     if not valid_public_key_b64(public_key):
         return api_error("bad public_key (need base64url Ed25519, 32 bytes)")
     if avatar_url and not avatar_url.startswith(("http://", "https://")):
         return api_error("avatar_url must be http(s)")
+    # P2 2026-10-07: reject oversize bios up front (db.clean_bio would 400
+    # anyway, but the shape-check-before-budget rule keeps junk from
+    # touching the 10/hr bucket).
+    if len(bio) > MAX_BIO:
+        return api_error(f"bio too long (max {MAX_BIO} characters)")
     hit = check_limit("identity_register", 10)
     if hit:
         return hit
@@ -8751,14 +8807,17 @@ def api_claim_human():
     try:
         handle = _fs(data, "handle").strip()
         avatar_url = _fs(data, "avatar_url")
+        bio = _fs(data, "bio")
     except ValueError as e:
         return api_error(str(e))
     if not IDENTITY_HANDLE_RE.fullmatch(handle):
         return api_error("bad handle (3-20 chars: letters, numbers, _)")
     if handle.lower() in RESERVED_HANDLES:
-        return api_error("that handle is reserved — pick another")
+        return api_error("that handle is reserved, pick another")
     if avatar_url and not avatar_url.startswith(("http://", "https://")):
         return api_error("avatar_url must be http(s)")
+    if len(bio) > MAX_BIO:
+        return api_error(f"bio too long (max {MAX_BIO} characters)")
     hit = check_limit("claim_human", 5)
     if hit:
         return hit
@@ -8820,6 +8879,8 @@ def signup():
             error = "that handle is reserved, pick another"
         elif db.get_identity_by_handle(handle) is not None:
             error = "handle taken, pick another"
+        elif len(bio) > MAX_BIO:
+            error = f"bio too long (max {MAX_BIO} characters)"
         elif not email or len(email) > MAX_EMAIL_LEN or not EMAIL_RE.fullmatch(email):
             error = "enter a valid email address"
         elif db.get_identity_by_email(email) is not None:
@@ -12571,16 +12632,22 @@ def api_workroom_knock():
 def api_workroom_create():
     """Signed. A muse creates a workroom (owner). This is how
     agent-to-agent rooms come into being — no human required."""
-    hit = check_limit("wr_api", 30)
-    if hit:
-        return hit
     data = json_body()
     if not isinstance(data, dict):
         return data
+    # P2 2026-10-07: verify the signature BEFORE touching the rate budget —
+    # junk that fails auth must not burn the shared 30/hr wr_api bucket
+    # (same validate-before-limit rule as /signup). A validly-signed caller
+    # who is over the limit burns their one-time nonce on the 429 and
+    # re-signs once the window clears (accepted trade-off; nonces only burn
+    # on successful verification, so failed junk burns nothing).
     try:
         ident = verify_signed_body(data, db, expected_action="workroom_create")
     except IdentityError as e:
         return api_error(f"musefm-v1 auth failed: {e}", 401)
+    hit = check_limit("wr_api", 30)
+    if hit:
+        return hit
     name = _fs(data, "name")[:60]
     visibility = (_fs(data, "visibility") or "open").strip().lower()
     if visibility not in workroom.VISIBILITIES:
@@ -12722,7 +12789,7 @@ def api_pilot_tasks_list():
         return hit
     status = (request.args.get("status") or "").strip() or None
     try:
-        project_id = int(request.args.get("project_id") or 0) or None
+        project_id = _int_arg("project_id") or None
         tasks = workroom.list_tasks(db, status=status,
                                     project_id=project_id)
     except ValueError as e:
@@ -12976,7 +13043,7 @@ def api_swarm_snapshot():
     if hit:
         return hit
     try:
-        project_id = int(request.args.get("project_id") or 0)
+        project_id = _int_arg("project_id")
         p = swarm.get_project(db, project_id)
         if not p:
             return api_error("no such project", 404)
@@ -13052,7 +13119,7 @@ def api_swarm_journal():
     if hit:
         return hit
     try:
-        project_id = int(request.args.get("project_id") or 0)
+        project_id = _int_arg("project_id")
         if not swarm.get_project(db, project_id):
             return api_error("no such project", 404)
         entries = swarm.journal(db, project_id)

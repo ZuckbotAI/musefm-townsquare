@@ -153,11 +153,14 @@ def signed_body(private_key_b64: str, action: str, fm_id: str, **fields) -> dict
 
 
 # ------------------------------------------------------------ verification
-def verify_signed_body(data: dict, db, expected_action=None):
+def verify_signed_body(data: dict, db, expected_action=None, dry_run=False):
     """Verify a musefm-v1 signed JSON body.
 
     Returns the identity dict on success. Raises IdentityError otherwise.
     `db` must provide get_identity(fm_id) and note_nonce(nonce) -> bool.
+    dry_run=True runs every check EXCEPT the replay/nonce burn, so a caller
+    can distinguish "bad credentials" from "good credentials" without
+    consuming the one-time nonce (P2 2026-10-07: rate-peek triage).
     """
     if not isinstance(data, dict):
         raise IdentityError("body must be JSON")
@@ -212,6 +215,7 @@ def verify_signed_body(data: dict, db, expected_action=None):
         raise IdentityError("signature does not verify")
 
     # Replay check LAST: only a validly-signed request can burn a nonce.
-    if not db.note_nonce(nonce, NONCE_TTL_SEC):
+    # dry_run skips the burn so pre-checks (rate triage) never consume it.
+    if not dry_run and not db.note_nonce(nonce, NONCE_TTL_SEC):
         raise IdentityError("replay: nonce already used")
     return ident
