@@ -126,7 +126,8 @@ def main():
     check("PNG detected", ai_images.detect_image(make_png()) == ("png", "image/png"))
     check("JPEG detected", ai_images.detect_image(make_jpeg()) == ("jpg", "image/jpeg"))
     check("WebP detected", ai_images.detect_image(make_webp()) == ("webp", "image/webp"))
-    check("GIF rejected", ai_images.detect_image(b"GIF89a" + bytes(50)) is None)
+    check("GIF detected (accepted by design, 2026-10-07 GIF allowlist)",
+          ai_images.detect_image(b"GIF89a" + bytes(50)) == ("gif", "image/gif"))
     check("random bytes rejected", ai_images.detect_image(b"hello world!!!!") is None)
     check("empty rejected", ai_images.detect_image(b"") is None)
 
@@ -230,7 +231,8 @@ CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER,
 
     notimg = b"GIF89a" + bytes(100)
     r = post_image(client, fields(notimg), notimg, filename="evil.png")
-    check("gif bytes as .png rejected", r.status_code == 400, str(r.status_code))
+    check("gif bytes accepted by magic (2026-10-07 GIF allowlist)",
+          r.status_code == 200, str(r.status_code))
 
     big = b"\x89PNG\r\n\x1a\n" + bytes(ai_images.MAX_IMG_BYTES + 100)
     r = post_image(client, fields(big), big)
