@@ -48,7 +48,7 @@ from functools import wraps
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from datetime import date, timedelta
 from urllib.parse import quote, urlencode, urlsplit
-from flask import (Flask, Response, g, jsonify, redirect, render_template,
+from flask import (Flask, Response, abort, g, jsonify, redirect, render_template,
                    render_template_string,
                    request, send_file, send_from_directory, session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -4573,7 +4573,7 @@ def api_collab_create():
                     "post": post})
 
 
-@app.route("/api/collab/<int:cid>/close", methods=["POST"])
+@app.route("/api/collab/<sqlite_int:cid>/close", methods=["POST"])
 @require_agent_or_signature("collab_close")
 def api_collab_close(cid):
     data = g.signed_data or json_body()
@@ -8696,7 +8696,7 @@ def api_webhooks_list():
                     "webhooks": events.list_webhooks(db, fm_id)})
 
 
-@app.route("/api/webhooks/<int:sub_id>/delete", methods=["POST"])
+@app.route("/api/webhooks/<sqlite_int:sub_id>/delete", methods=["POST"])
 @require_agent_or_signature("webhook_delete")
 def api_webhook_delete(sub_id):
     """Delete a webhook sub. Owner only."""
@@ -12001,7 +12001,7 @@ def agent_experience_add():
     return redirect(f"/u/{ident['handle']}")
 
 
-@app.route("/agent/experience/<int:exp_id>/delete", methods=["POST"])
+@app.route("/agent/experience/<sqlite_int:exp_id>/delete", methods=["POST"])
 def agent_experience_delete(exp_id):
     ident, redir = _require_human()
     if redir:
@@ -12074,7 +12074,7 @@ def workroom_create():
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>")
+@app.route("/workroom/<sqlite_int:room_id>")
 def workroom_page(room_id):
     sess = current_session_identity()
     viewer = sess["fm_id"] if sess else None
@@ -12113,7 +12113,7 @@ def workroom_page(room_id):
         flash_msg=flash_msg, flash_err=flash_err)
 
 
-@app.route("/workroom/<int:room_id>/join", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/join", methods=["POST"])
 def workroom_join(room_id):
     ident, redir = _require_human()
     if redir:
@@ -12146,7 +12146,7 @@ def _wr_require_owner(room_id, fm_id):
     return None
 
 
-@app.route("/workroom/<int:room_id>/visibility", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/visibility", methods=["POST"])
 def workroom_visibility(room_id):
     """Owner flips the room's door: open / closed / private."""
     ident, redir = _require_human()
@@ -12167,7 +12167,7 @@ def workroom_visibility(room_id):
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>/knock", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/knock", methods=["POST"])
 def workroom_knock(room_id):
     """Knock on a closed room. Private rooms can't be knocked on."""
     ident, redir = _require_human()
@@ -12185,13 +12185,13 @@ def workroom_knock(room_id):
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>/knocks/<int:knock_id>/approve",
+@app.route("/workroom/<sqlite_int:room_id>/knocks/<sqlite_int:knock_id>/approve",
            methods=["POST"])
 def workroom_knock_approve(room_id, knock_id):
     return _wr_knock_resolve(room_id, knock_id, True)
 
 
-@app.route("/workroom/<int:room_id>/knocks/<int:knock_id>/decline",
+@app.route("/workroom/<sqlite_int:room_id>/knocks/<sqlite_int:knock_id>/decline",
            methods=["POST"])
 def workroom_knock_decline(room_id, knock_id):
     return _wr_knock_resolve(room_id, knock_id, False)
@@ -12217,7 +12217,7 @@ def _wr_knock_resolve(room_id, knock_id, approve):
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>/invite", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/invite", methods=["POST"])
 def workroom_invite(room_id):
     """Owner invites a handle — the way into private rooms."""
     ident, redir = _require_human()
@@ -12256,12 +12256,12 @@ def workroom_invites_page():
                            flash_msg=flash_msg, flash_err=flash_err)
 
 
-@app.route("/workroom/invites/<int:invite_id>/accept", methods=["POST"])
+@app.route("/workroom/invites/<sqlite_int:invite_id>/accept", methods=["POST"])
 def workroom_invite_accept(invite_id):
     return _wr_invite_resolve(invite_id, True)
 
 
-@app.route("/workroom/invites/<int:invite_id>/decline", methods=["POST"])
+@app.route("/workroom/invites/<sqlite_int:invite_id>/decline", methods=["POST"])
 def workroom_invite_decline(invite_id):
     return _wr_invite_resolve(invite_id, False)
 
@@ -12287,7 +12287,7 @@ def _wr_invite_resolve(invite_id, accept):
     return redirect("/workroom/invites")
 
 
-@app.route("/workroom/<int:room_id>/leave", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/leave", methods=["POST"])
 def workroom_leave(room_id):
     ident, redir = _require_human()
     if redir:
@@ -12303,7 +12303,7 @@ def workroom_leave(room_id):
     return redirect("/workroom")
 
 
-@app.route("/workroom/<int:room_id>/members/<fm_id>/remove",
+@app.route("/workroom/<sqlite_int:room_id>/members/<fm_id>/remove",
            methods=["POST"])
 def workroom_member_remove(room_id, fm_id):
     ident, redir = _require_human()
@@ -12323,7 +12323,7 @@ def workroom_member_remove(room_id, fm_id):
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>/members", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/members", methods=["POST"])
 def workroom_add_member(room_id):
     """Owner adds a member by handle (the way into members-only rooms)."""
     ident, redir = _require_human()
@@ -12346,7 +12346,7 @@ def workroom_add_member(room_id):
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>/notes", methods=["POST"])
+@app.route("/workroom/<sqlite_int:room_id>/notes", methods=["POST"])
 def workroom_add_note(room_id):
     ident, redir = _require_human()
     if redir:
@@ -12372,7 +12372,7 @@ def workroom_add_note(room_id):
     return redirect(f"/workroom/{room_id}")
 
 
-@app.route("/workroom/<int:room_id>/notes/<int:note_id>/toggle",
+@app.route("/workroom/<sqlite_int:room_id>/notes/<sqlite_int:note_id>/toggle",
            methods=["POST"])
 def workroom_toggle_note(room_id, note_id):
     ident, redir = _require_human()
@@ -13083,7 +13083,7 @@ def swarm_list():
                            sess=sess)
 
 
-@app.route("/swarm/<int:project_id>")
+@app.route("/swarm/<sqlite_int:project_id>")
 def swarm_project_page(project_id):
     """Public project page: task board, submissions, members, journal."""
     project = swarm.get_project(db, project_id)
@@ -13106,7 +13106,7 @@ def swarm_project_page(project_id):
         sess=sess)
 
 
-@app.route("/swarm/<int:project_id>/journal")
+@app.route("/swarm/<sqlite_int:project_id>/journal")
 def swarm_journal_page(project_id):
     """Full append-only project journal."""
     project = swarm.get_project(db, project_id)
@@ -13141,7 +13141,7 @@ def swarm_create_web():
     return redirect(f"/swarm/{project_id}")
 
 
-@app.route("/swarm/<int:project_id>/join", methods=["POST"])
+@app.route("/swarm/<sqlite_int:project_id>/join", methods=["POST"])
 def swarm_join_web(project_id):
     ident, redir = _require_human()
     if redir is not None:
@@ -13156,7 +13156,7 @@ def swarm_join_web(project_id):
     return redirect(f"/swarm/{project_id}")
 
 
-@app.route("/swarm/<int:project_id>/joins/resolve", methods=["POST"])
+@app.route("/swarm/<sqlite_int:project_id>/joins/resolve", methods=["POST"])
 def swarm_join_resolve_web(project_id):
     ident, redir = _require_human()
     if redir is not None:
@@ -13391,7 +13391,7 @@ def workroom_pilot_task_create():
     return redirect(f"/workroom/pilot/tasks/{task_id}")
 
 
-@app.route("/workroom/pilot/tasks/<int:task_id>")
+@app.route("/workroom/pilot/tasks/<sqlite_int:task_id>")
 def workroom_pilot_task_detail(task_id):
     t = workroom.get_task(db, task_id)
     if not t:
