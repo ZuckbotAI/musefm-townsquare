@@ -583,11 +583,12 @@
 .gc-signin a { color: #0284c7; font-weight: 600; }
 .gc-error { font-size: 13px; color: #b3261e; }
 
-/* Mini player - simple shaded glass (2026-10-05, Anthony) */
+/* Mini player - simple shaded glass (2026-10-05, Anthony) - ALWAYS dark mode */
 .glass-player {
   position: fixed; left: 12px; right: 12px; bottom: calc(64px + env(safe-area-inset-bottom));
   z-index: 60; display: none; flex-direction: column; gap: 8px;
   padding: 12px 14px; border-radius: 16px;
+  color-scheme: dark;
   background: linear-gradient(135deg, rgba(60, 90, 115, 0.78), rgba(45, 70, 92, 0.68));
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.12);
