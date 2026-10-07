@@ -87,7 +87,7 @@ window.TSPlayer = (function () {
     } catch (e) {}
   }
 
-  function load(item, autoplay, startAt) {
+  function load(item, autoplay, startAt, activeBtn) {
     state.current = Object.assign({ el: audio }, item);
     var seq = ++loadSeq;
     audio.src = item.src;
@@ -102,6 +102,8 @@ window.TSPlayer = (function () {
       if (p) p.catch(function () {});
     }
     updatePlayBtn();
+    // Update the row button to show pause state
+    if (activeBtn) setRowButtonState(activeBtn, true);
   }
 
   function toggle() {
@@ -141,8 +143,14 @@ window.TSPlayer = (function () {
     if (d) { seekSafe(ratio * d, loadSeq); paintProgress(); }
   }
 
-  audio.addEventListener('play', updatePlayBtn);
-  audio.addEventListener('pause', updatePlayBtn);
+  audio.addEventListener('play', function() {
+    updatePlayBtn();
+    if (state.activeBtn) setRowButtonState(state.activeBtn, true);
+  });
+  audio.addEventListener('pause', function() {
+    updatePlayBtn();
+    if (state.activeBtn) setRowButtonState(null, false);
+  });
   audio.addEventListener('ended', function () {
     if (state.queue.length) load(state.queue.shift(), true, 0);
     else { updatePlayBtn(); }
@@ -212,10 +220,7 @@ window.TSPlayer = (function () {
     state.activeBtn = playing ? activeBtn : null;
   }
 
-  // When the global audio pauses/ends, reset the track button.
-  audio.addEventListener('pause', function () {
-    if (state.activeBtn) setRowButtonState(null, false);
-  });
+
 
   function wireRowButtons() {
     document.querySelectorAll('[data-play]').forEach(function (btn) {
@@ -238,7 +243,7 @@ window.TSPlayer = (function () {
         var art = artImg ? artImg.getAttribute('src') : '';
         // If tapping the currently-playing track, just toggle.
         if (state.current && state.current.src === src) { toggle(); return; }
-        load({ src: src, title: title, art: art, series: '', episode: '' }, true, 0);
+        load({ src: src, title: title, art: art, series: '', episode: '' }, true, 0, btn);
       });
     });
   }
